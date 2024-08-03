@@ -1,0 +1,62 @@
+### manifest.ttl for elfquake.org ###
+
+@prefix rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#> .
+@prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .
+@prefix dcterms: <http://purl.org/dc/terms/> .
+@prefix trm: <http://purl.org/stuff/transmission/> .
+@prefix fs: <http://purl.org/stuff/filesystem/> .
+@prefix pc: <http://purl.org/stuff/postcraft/> .
+@prefix t: <http://hyperdata.it/transmissions/> . # for custom terms & instances
+
+<https://elfquake.org> a pc:Site ;
+    rdfs:label "elfquake.org" ;
+    dcterms:title "ELFQuake" ;
+    pc:contains <https://elfquake.org/home> ;  # maybe
+    pc:includes t:PostContent . # maybe
+    
+# this should maybe give the contentgroup a renderType, indirect with template etc
+
+# POST CONTENT
+t:PostContent a pc:ContentGroup ; 
+    pc:site <https://elfquake.org> ;
+    pc:subdir "home" ; # better property name?
+    fs:sourceDirectory "articles" ; # was journal 
+    fs:targetDirectory "public/entry-content-cache" ;
+    pc:template "layouts/mediocre/templates/entry-content_template.njk" .
+
+# POST PAGES
+t:PostPages a pc:ContentGroup ;
+    pc:site <https://elfquake.org> ;
+   # fs:sourceDirectory "public/post-content-cache" ;
+    fs:targetDirectory "public/home/entries" ;
+    pc:template "layouts/mediocre/templates/entry-page_template.njk" .
+
+# MAIN PAGE
+t:IndexPage a pc:ContentGroup ; # TODO naming!
+    pc:site <https://elfquake.org> ;
+    fs:filepath "public/home/index.html" ;
+    pc:template "layouts/mediocre/templates/index-page_template.njk" .
+
+# STYLES ETC not yet implemented
+t:CSS a pc:StaticGroup ;
+    pc:site <https://elfquake.org> ;
+    fs:sourceDirectory "layouts/mediocre/css" ;
+    fs:targetDirectory "public/home/css" .
+
+t:fonts a pc:StaticGroup ;
+    pc:site <https://elfquake.org> ;
+    fs:sourceDirectory "layouts/mediocre/fonts" ;
+    fs:targetDirectory "public/home/js" .
+
+t:JS a pc:StaticGroup ;
+    pc:site <https://elfquake.org> ;
+    fs:sourceDirectory "layouts/mediocre/js" ;
+    fs:targetDirectory "public/home/js" .
+
+
+# pinned - not yet implemented
+<https://elfquake.org/index> a pc:SpecialCase ;
+    pc:state "pinned" ;
+    fs:sourceFile "home/2023-10-27_hello.md" ;
+    fs:targetFile "public/home/2023-10-27_hello.html" .
+#     pc:template "layouts/mediocre/mediocre-posts_template.html" .
