@@ -1,0 +1,3 @@
+[submodule "transmissions"]
+	path = transmissions
+	url = https://github.com/danja/transmissions
