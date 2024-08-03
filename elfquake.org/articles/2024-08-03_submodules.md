@@ -12,6 +12,10 @@ older versions of git also needed:
 git submodule update --init --recursive
 ```
 
+```
+git submodule add https://github.com/danja/sandquake.git sandquake
+```
+
 ---
 
 https://github.com/danja/jsbrains/tree/main
