@@ -1,3 +1,6 @@
 [submodule "transmissions"]
 	path = transmissions
 	url = https://github.com/danja/transmissions
+[submodule "sandquake"]
+	path = sandquake
+	url = https://github.com/danja/sandquake.git
