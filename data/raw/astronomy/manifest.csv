@@ -1,0 +1,5 @@
+source_id,url,content,cadence,status,checked_utc
+noaa_swpc_kp_1m,https://services.swpc.noaa.gov/json/planetary_k_index_1m.json,planetary Kp index,1 minute,live JSON confirmed,2026-06-29T09:45:30Z
+noaa_goes_xray_1d,https://services.swpc.noaa.gov/json/goes/primary/xrays-1-day.json,GOES primary X-ray flux,1 minute rolling day,live JSON confirmed,2026-06-29T09:45:30Z
+noaa_solar_cycle_observed,https://services.swpc.noaa.gov/json/solar-cycle/observed-solar-cycle-indices.json,solar cycle observed indices,monthly,historical JSON confirmed,2026-06-29T09:45:30Z
+usno_moon_phases,https://aa.usno.navy.mil/api/moon/phases/date?date=YYYY-MM-DD&nump=N,moon phase events,event based,JSON confirmed,2026-06-29T09:45:30Z

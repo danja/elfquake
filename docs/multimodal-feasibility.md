@@ -17,8 +17,8 @@ Use the seismic smoke window as the first alignment target:
 * region: Italy, with Central Italy subset
 * window: 7 days
 * seismic target: event with magnitude `>= 3.0`
-* VLF features: availability first, then signal summaries
-* astronomical features: lunar phase, solar and geomagnetic indexes
+* VLF features: Cumiana live image availability first, then image-derived signal summaries
+* astronomical features: USNO lunar phase, NOAA solar and geomagnetic indexes
 
 ## Evaluation Rule
 

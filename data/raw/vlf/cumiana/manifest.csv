@@ -1,0 +1,6 @@
+endpoint_id,url,content,cadence_minutes,station,latitude,longitude,expected_content_type,last_checked_utc,last_modified_utc,content_length,etag
+last_E_VLF,http://www.vlf.it/cumiana/last_E-VLF.jpg,last 8 hours VLF electric-field spectrogram,30,cumiana,44.95609,7.42123,image/jpeg,2026-06-29T09:44:21Z,2026-06-29T09:30:00Z,254270,"""01c3cdba97dd1:0"""
+last_geomar,http://www.vlf.it/cumiana/last-geomar.jpg,geophone plus electric-field spectrogram,30,cumiana,44.95609,7.42123,image/jpeg,2026-06-29T09:44:21Z,2026-06-29T09:00:10Z,98205,"""0c94fb0a57dd1:0"""
+last_marconi_multistrip_slow,http://www.vlf.it/cumiana/last-marconi-multistrip-slow.jpg,electric-field daily multistrip,30,cumiana,44.95609,7.42123,image/jpeg,2026-06-29T09:44:21Z,2026-06-29T09:30:00Z,128144,"""01c3cdba97dd1:0"""
+last_geophone_multistrip_slow,http://www.vlf.it/cumiana/last-geophone-multistrip-slow.jpg,geophone multistrip,60,cumiana,44.95609,7.42123,image/jpeg,2026-06-29T09:44:21Z,2026-06-29T09:00:00Z,164163,"""0e859aaa57dd1:0"""
+last_plotted,http://www.vlf.it/cumiana/last-plotted.jpg,last 30 hours plotted traces,30,cumiana,44.95609,7.42123,image/jpeg,2026-06-29T09:44:21Z,2026-06-29T09:00:10Z,58486,"""0c94fb0a57dd1:0"""

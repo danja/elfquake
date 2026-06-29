@@ -22,3 +22,5 @@ Modeling should begin only after data coverage and target definitions are clear.
 Avoid claims of earthquake prediction unless the system beats strong baselines on held-out data and the error profile is scientifically defensible.
 
 Multimodal models must be evaluated with ablations so any gain from VLF or astronomical features is measured directly.
+
+Use [Multimodal Window Schema](multimodal-window-schema.md) as the table contract for baseline and ML inputs.
