@@ -33,6 +33,7 @@ from elfquake.features.targets import label_multimodal_targets
 from elfquake.features.training_windows import build_seismic_training_windows
 from elfquake.features.vlf import build_vlf_features
 from elfquake.features.vlf_image import build_vlf_image_features, extract_vlf_image_features
+from elfquake.features.vlf_image_windows import join_vlf_image_features_to_windows
 from elfquake.features.vlf_windows import build_vlf_window_features
 from elfquake.models.logistic_smoke import train_logistic_smoke
 from elfquake.normalize.events import combine_normalized_events
@@ -521,6 +522,51 @@ class AcquisitionScaffoldTests(unittest.TestCase):
             self.assertGreaterEqual(int(row["vlf_vertical_streak_count"]), 2)
             self.assertEqual(rows[0]["vlf_image_source_file"], str(image_path))
             self.assertTrue((root / "features.csv").exists())
+
+    def test_join_vlf_image_features_to_windows_aggregates_by_capture_time(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            windows = root / "windows.csv"
+            windows.write_text(
+                "window_id,window_start_utc,window_end_utc\n"
+                "w1,2026-06-29T09:00:00Z,2026-06-29T10:00:00Z\n"
+                "w2,2026-06-29T10:00:00Z,2026-06-29T11:00:00Z\n",
+                encoding="utf-8",
+            )
+            image_one = root / "one.jpg"
+            image_two = root / "two.jpg"
+            image_one.write_bytes(b"jpeg")
+            image_two.write_bytes(b"jpeg")
+            image_one.with_suffix(".jpg.metadata.json").write_text(
+                json.dumps({"captured_at_utc": "2026-06-29T09:30:00Z"}),
+                encoding="utf-8",
+            )
+            image_two.with_suffix(".jpg.metadata.json").write_text(
+                json.dumps({"captured_at_utc": "2026-06-29T09:45:00Z"}),
+                encoding="utf-8",
+            )
+            image_features = root / "features.csv"
+            image_features.write_text(
+                "vlf_image_source_file,vlf_intensity_mean,vlf_high_intensity_ratio,"
+                "vlf_hot_color_ratio,vlf_vertical_streak_count,vlf_band_0_mean,vlf_band_1_mean,"
+                "vlf_band_2_mean,vlf_band_3_mean,vlf_band_4_mean,vlf_band_5_mean\n"
+                f"{image_one},0.2,0.1,0.01,3,0.1,0.2,0.3,0.4,0.5,0.6\n"
+                f"{image_two},0.4,0.3,0.02,7,0.2,0.3,0.4,0.5,0.6,0.7\n",
+                encoding="utf-8",
+            )
+
+            rows = join_vlf_image_features_to_windows(
+                windows_csv=windows,
+                image_features_csvs=[image_features],
+                out_path=root / "joined.csv",
+            )
+
+            self.assertEqual(rows[0]["vlf_image_feature_count"], "2")
+            self.assertEqual(rows[0]["vlf_image_intensity_mean_avg"], "0.300000")
+            self.assertEqual(rows[0]["vlf_image_high_intensity_ratio_max"], "0.300000")
+            self.assertEqual(rows[0]["vlf_image_vertical_streak_count_latest"], "7")
+            self.assertEqual(rows[1]["vlf_image_feature_count"], "0")
+            self.assertEqual(rows[1]["quality_missing_vlf_image_features"], "1")
 
     def test_astronomy_feature_stub_summarizes_captures(self) -> None:
         with tempfile.TemporaryDirectory() as directory:

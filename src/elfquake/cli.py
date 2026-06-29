@@ -27,6 +27,7 @@ from elfquake.features.targets import label_multimodal_targets
 from elfquake.features.training_windows import build_seismic_training_windows
 from elfquake.features.vlf import build_vlf_features
 from elfquake.features.vlf_image import build_vlf_image_features
+from elfquake.features.vlf_image_windows import join_vlf_image_features_to_windows
 from elfquake.features.vlf_windows import build_vlf_window_features
 from elfquake.models.logistic_smoke import train_logistic_smoke
 from elfquake.normalize.events import combine_normalized_events
@@ -131,6 +132,12 @@ def main() -> int:
     vlf_image_features.add_argument("--crop-top", type=float, default=0.13)
     vlf_image_features.add_argument("--crop-right", type=float, default=0.83)
     vlf_image_features.add_argument("--crop-bottom", type=float, default=0.95)
+
+    vlf_image_join = subparsers.add_parser("join-vlf-image-features")
+    vlf_image_join.add_argument("--windows", type=Path, required=True)
+    vlf_image_join.add_argument("--image-features", type=Path, action="append", required=True)
+    vlf_image_join.add_argument("--out", type=Path, required=True)
+    vlf_image_join.add_argument("--exclude-window-end", action="store_true")
 
     astro_features = subparsers.add_parser("build-astronomy-features")
     astro_features.add_argument("--metadata", type=Path, action="append", default=[])
@@ -339,6 +346,16 @@ def main() -> int:
                 crop_bottom=args.crop_bottom,
             )
             print(f"image rows: {len(rows)}")
+            print(f"output: {args.out}")
+            return 0
+        elif args.command == "join-vlf-image-features":
+            rows = join_vlf_image_features_to_windows(
+                windows_csv=args.windows,
+                image_features_csvs=args.image_features,
+                out_path=args.out,
+                include_window_end=not args.exclude_window_end,
+            )
+            print(f"joined rows: {len(rows)}")
             print(f"output: {args.out}")
             return 0
         elif args.command == "build-astronomy-features":
