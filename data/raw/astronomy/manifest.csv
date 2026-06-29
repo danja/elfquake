@@ -1,5 +1,16 @@
 source_id,url,content,cadence,status,checked_utc
 noaa_swpc_kp_1m,https://services.swpc.noaa.gov/json/planetary_k_index_1m.json,planetary Kp index,1 minute,live JSON confirmed,2026-06-29T09:45:30Z
+noaa_swpc_kp_3h,https://services.swpc.noaa.gov/products/noaa-planetary-k-index.json,planetary Kp index,3 hour rolling,recent rolling JSON confirmed not archival,2026-06-29T10:08:30Z
+noaa_swpc_dst_1h,https://services.swpc.noaa.gov/products/kyoto-dst.json,Dst geomagnetic index,1 hour rolling,recent rolling JSON confirmed not archival,2026-06-29T10:08:30Z
 noaa_goes_xray_1d,https://services.swpc.noaa.gov/json/goes/primary/xrays-1-day.json,GOES primary X-ray flux,1 minute rolling day,live JSON confirmed,2026-06-29T09:45:30Z
+noaa_goes_xray_7d,https://services.swpc.noaa.gov/json/goes/primary/xrays-7-day.json,GOES primary X-ray flux,1 minute rolling 7 days,recent rolling JSON confirmed not archival,2026-06-29T10:08:30Z
+noaa_swpc_f107_30d,https://services.swpc.noaa.gov/products/10cm-flux-30-day.json,F10.7 solar radio flux,daily rolling 30 days,recent rolling JSON confirmed not archival,2026-06-29T10:08:30Z
 noaa_solar_cycle_observed,https://services.swpc.noaa.gov/json/solar-cycle/observed-solar-cycle-indices.json,solar cycle observed indices,monthly,historical JSON confirmed,2026-06-29T09:45:30Z
+noaa_solar_cycle_sunspots,https://services.swpc.noaa.gov/json/solar-cycle/sunspots.json,sunspot number,monthly,historical JSON candidate,2026-06-29T10:08:30Z
+noaa_solar_cycle_f107,https://services.swpc.noaa.gov/json/solar-cycle/f10-7cm-flux.json,F10.7 solar radio flux,monthly,historical JSON candidate,2026-06-29T10:08:30Z
+gfz_kp_ap_since_1932,https://kp.gfz.de/app/files/Kp_ap_since_1932.txt,Kp and ap geomagnetic indexes,3 hour,historical text candidate CC BY 4.0,2026-06-29T10:12:30Z
+kyoto_dst_final,https://wdc.kugi.kyoto-u.ac.jp/dst_final/YYYYMM/index.html,Dst final hourly index,monthly pages,historical HTML/text candidate non-commercial,2026-06-29T10:13:30Z
+kyoto_dst_provisional,https://wdc.kugi.kyoto-u.ac.jp/dst_provisional/YYYYMM/index.html,Dst provisional hourly index,monthly pages,historical HTML/text candidate non-commercial,2026-06-29T10:13:30Z
+ncei_goes_xrs_g15_avg1m,https://www.ncei.noaa.gov/instruments/solar-space-observing/particle-detectors/sem/goes/access/science/xrs/goes15/xrsf-l2-avg1m_science/,GOES-15 XRS 1-minute irradiance,yearly NetCDF,historical archive candidate,2026-06-29T10:14:00Z
+spaceweather_canada_f107_daily,https://www.spaceweather.gc.ca/solar_flux_data/daily_flux_values/fluxtable.txt,F10.7 daily solar radio flux,daily,historical text candidate from 2004-10-28,2026-06-29T10:13:00Z
 usno_moon_phases,https://aa.usno.navy.mil/api/moon/phases/date?date=YYYY-MM-DD&nump=N,moon phase events,event based,JSON confirmed,2026-06-29T09:45:30Z

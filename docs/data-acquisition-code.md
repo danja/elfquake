@@ -30,6 +30,14 @@ Run local scaffold tests:
 PYTHONPATH=src python -m unittest discover -s tests
 ```
 
+Run live endpoint tests separately:
+
+```sh
+ELFQUAKE_LIVE_TESTS=1 PYTHONPATH=src python -m unittest discover -s tests_live
+```
+
+Live tests make network requests but avoid large archive downloads.
+
 ## Storage
 
 Each capture writes the raw payload and a sibling `.metadata.json` file containing source URL, status, capture time, and response headers.

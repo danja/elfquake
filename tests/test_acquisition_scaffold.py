@@ -13,6 +13,14 @@ from urllib.error import URLError
 from elfquake.cli import main
 from elfquake.connectors.astronomy import _materialize_url, fetch_manifest_json
 from elfquake.connectors.ingv import build_event_url, fetch_italy_events
+from elfquake.connectors.space_archives import (
+    build_kyoto_dst_url,
+    build_ncei_goes15_xrs_year_url,
+    fetch_gfz_kp_ap,
+    fetch_kyoto_dst_month,
+    fetch_ncei_goes15_xrs_year,
+    fetch_spaceweather_canada_f107_daily,
+)
 from elfquake.connectors.vlf_cumiana import fetch_manifest_images
 from elfquake.http import HttpCapture
 from elfquake.normalize.ingv import normalize_ingv_event_text, normalize_row
@@ -193,6 +201,37 @@ class AcquisitionScaffoldTests(unittest.TestCase):
             self.assertEqual(len(lines), 2)
             self.assertIn("central_italy", lines[1])
 
+    def test_archive_url_builders(self) -> None:
+        self.assertEqual(
+            build_kyoto_dst_url("201601"),
+            "https://wdc.kugi.kyoto-u.ac.jp/dst_final/201601/index.html",
+        )
+        self.assertEqual(
+            build_kyoto_dst_url("202601", provisional=True),
+            "https://wdc.kugi.kyoto-u.ac.jp/dst_provisional/202601/index.html",
+        )
+        self.assertEqual(
+            build_ncei_goes15_xrs_year_url(2016),
+            "https://www.ncei.noaa.gov/instruments/solar-space-observing/particle-detectors/sem/goes/"
+            "access/science/xrs/goes15/xrsf-l2-avg1m_science/"
+            "sci_xrsf-l2-avg1m_g15_y2016_v2-2-1.nc",
+        )
+
+    def test_archive_fetchers_write_expected_extensions(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+
+            gfz = fetch_gfz_kp_ap(out_root=root, fetcher=_fake_text_capture)
+            f107 = fetch_spaceweather_canada_f107_daily(out_root=root, fetcher=_fake_text_capture)
+            dst = fetch_kyoto_dst_month("201601", out_root=root, fetcher=_fake_html_capture)
+            goes = fetch_ncei_goes15_xrs_year(2016, out_root=root, fetcher=_fake_netcdf_capture)
+
+            self.assertTrue(gfz.payload_path.name.startswith("gfz_kp_ap_since_1932_"))
+            self.assertTrue(f107.payload_path.name.startswith("spaceweather_canada_f107_daily_"))
+            self.assertTrue(dst.payload_path.name.startswith("kyoto_dst_final_201601_"))
+            self.assertTrue(goes.payload_path.name.startswith("ncei_goes_xrs_g15_avg1m_2016_"))
+            self.assertEqual(goes.payload_path.suffix, ".nc")
+
 
 def _fake_jpeg_capture(url: str) -> HttpCapture:
     return HttpCapture(
@@ -221,6 +260,26 @@ def _fake_text_capture(url: str) -> HttpCapture:
         captured_at_utc=datetime(2026, 6, 29, 9, 58, 18, tzinfo=timezone.utc),
         headers={"Content-Type": "text/plain;charset=UTF-8"},
         body=b"#EventID|Time\n",
+    )
+
+
+def _fake_html_capture(url: str) -> HttpCapture:
+    return HttpCapture(
+        url=url,
+        status=200,
+        captured_at_utc=datetime(2026, 6, 29, 10, 13, 30, tzinfo=timezone.utc),
+        headers={"Content-Type": "text/html"},
+        body=b"<html></html>",
+    )
+
+
+def _fake_netcdf_capture(url: str) -> HttpCapture:
+    return HttpCapture(
+        url=url,
+        status=200,
+        captured_at_utc=datetime(2026, 6, 29, 10, 14, 0, tzinfo=timezone.utc),
+        headers={"Content-Type": "application/x-netcdf"},
+        body=b"CDF",
     )
 
 

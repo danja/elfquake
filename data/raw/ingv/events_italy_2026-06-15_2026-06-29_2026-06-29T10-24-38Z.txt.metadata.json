@@ -1,0 +1,22 @@
+{
+  "captured_at_utc": "2026-06-29T10:24:38Z",
+  "end_utc": "2026-06-29T23:59:59Z",
+  "headers": {
+    "Access-Control-Allow-Origin": "*",
+    "Cache-Control": "public, max-age=60",
+    "Connection": "close",
+    "Content-Type": "text/plain;charset=UTF-8",
+    "Date": "Mon, 29 Jun 2026 10:24:38 GMT",
+    "Server": "nginx",
+    "Transfer-Encoding": "chunked",
+    "Vary": "Accept-Encoding",
+    "X-Cache-Status": "MISS",
+    "X-UA-Compatible": "IE=Edge"
+  },
+  "limit": "10000",
+  "min_magnitude": "2",
+  "source_id": "ingv_events_italy_text",
+  "start_utc": "2026-06-15T00:00:00Z",
+  "status": 200,
+  "url": "https://webservices.ingv.it/fdsnws/event/1/query?starttime=2026-06-15T00%3A00%3A00&endtime=2026-06-29T23%3A59%3A59&minmag=2&maxmag=10&mindepth=-10&maxdepth=1000&minlat=35&maxlat=48&minlon=6&maxlon=19&minversion=100&orderby=time-asc&format=text&limit=10000"
+}

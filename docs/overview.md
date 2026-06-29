@@ -19,6 +19,7 @@ The project should proceed cautiously: no prediction capability is assumed until
 * [Cumiana Live VLF](vlf-cumiana-live.md)
 * [VLF Capture Manifest](vlf-capture-manifest.md)
 * [Astronomical Feasibility](astronomical-feasibility.md)
+* [NOAA Archive Feasibility](noaa-archive-feasibility.md)
 * [Connector Notes](connector-notes.md)
 * [Event Schema](event-schema.md)
 * [Normalization](normalization.md)

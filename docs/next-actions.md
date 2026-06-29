@@ -2,11 +2,11 @@
 
 Prioritize feasibility and reproducibility before modeling.
 
-1. Confirm archival access for NOAA geomagnetic and solar data before backtesting.
-2. Expand source access beyond the smoke window.
-3. Create the first multimodal smoke input row from available source manifests.
-4. Add a polite repeated-capture runner for Cumiana VLF cadence checks.
-5. Add VLF and astronomy feature extraction stubs.
+1. Create the first multimodal smoke input row from available source manifests.
+2. Add a polite repeated-capture runner for Cumiana VLF cadence checks.
+3. Add VLF and astronomy feature extraction stubs.
+4. Add archive normalization stubs for Kp/Ap, Dst, GOES XRS, and F10.7.
+5. Split longer INGV pulls into service-friendly windows before backfilling.
 
 Completed:
 
@@ -33,3 +33,8 @@ Completed:
 * Run acquisition smoke captures for INGV, Cumiana VLF, and astronomy sources.
 * Add acquisition command error handling and source-level smoke tests.
 * Convert the manual seismic normalization into repeatable code.
+* Check official NOAA SWPC archive feasibility for geomagnetic and solar backtesting.
+* Find non-rolling archive sources for Kp, Dst, GOES X-ray, and daily F10.7.
+* Add archive connector stubs for GFZ Kp/Ap, Kyoto Dst, NCEI GOES XRS, and daily F10.7.
+* Partition live endpoint tests from offline mock tests.
+* Expand INGV source access to a 14-day live Italy window and normalized Central Italy subset.

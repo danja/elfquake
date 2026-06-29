@@ -9,6 +9,12 @@ from urllib.error import HTTPError, URLError
 
 from elfquake.connectors.astronomy import fetch_manifest_json
 from elfquake.connectors.ingv import fetch_italy_events
+from elfquake.connectors.space_archives import (
+    fetch_gfz_kp_ap,
+    fetch_kyoto_dst_month,
+    fetch_ncei_goes15_xrs_year,
+    fetch_spaceweather_canada_f107_daily,
+)
 from elfquake.connectors.vlf_cumiana import fetch_manifest_images
 from elfquake.normalize.ingv import normalize_ingv_event_text
 
@@ -42,6 +48,21 @@ def main() -> int:
     normalize.add_argument("--raw-uri")
     normalize.add_argument("--ingested-at-utc")
     normalize.add_argument("--only-region")
+
+    gfz = subparsers.add_parser("fetch-gfz-kp-ap")
+    gfz.add_argument("--out-root", type=Path, default=Path("data/raw/astronomy"))
+
+    dst = subparsers.add_parser("fetch-kyoto-dst")
+    dst.add_argument("--year-month", required=True, help="YYYYMM, e.g. 201601")
+    dst.add_argument("--provisional", action="store_true")
+    dst.add_argument("--out-root", type=Path, default=Path("data/raw/astronomy"))
+
+    goes = subparsers.add_parser("fetch-ncei-goes-xrs")
+    goes.add_argument("--year", type=int, required=True)
+    goes.add_argument("--out-root", type=Path, default=Path("data/raw/astronomy"))
+
+    f107 = subparsers.add_parser("fetch-f107-daily")
+    f107.add_argument("--out-root", type=Path, default=Path("data/raw/astronomy"))
 
     args = parser.parse_args()
     try:
@@ -80,6 +101,20 @@ def main() -> int:
             print(f"normalized rows: {count}")
             print(f"output: {args.out}")
             return 0
+        elif args.command == "fetch-gfz-kp-ap":
+            stored = [fetch_gfz_kp_ap(out_root=args.out_root)]
+        elif args.command == "fetch-kyoto-dst":
+            stored = [
+                fetch_kyoto_dst_month(
+                    args.year_month,
+                    out_root=args.out_root,
+                    provisional=args.provisional,
+                )
+            ]
+        elif args.command == "fetch-ncei-goes-xrs":
+            stored = [fetch_ncei_goes15_xrs_year(args.year, out_root=args.out_root)]
+        elif args.command == "fetch-f107-daily":
+            stored = [fetch_spaceweather_canada_f107_daily(out_root=args.out_root)]
         else:
             parser.error(f"unknown command: {args.command}")
     except HTTPError as error:

@@ -7,6 +7,7 @@ Smoke run date: `2026-06-29`.
 | Source | Command scope | Stored payload | Status |
 | --- | --- | --- | --- |
 | USNO moon phases | `usno_moon_phases` only | `data/raw/astronomy/captures/2026-06-29/usno_moon_phases_2026-06-29T09-56-53Z.json` | HTTP 200 |
+| NOAA solar-cycle F10.7 | `noaa_solar_cycle_f107` only | `data/raw/astronomy/captures/2026-06-29/noaa_solar_cycle_f107_2026-06-29T10-10-17Z.json` | HTTP 200 |
 | Cumiana VLF | `last_E_VLF` only | `data/raw/vlf/cumiana/captures/2026-06-29/last_E_VLF_2026-06-29T09-45-00Z.jpg` | HTTP 200 |
 | INGV events | Italy, `2026-06-22` to `2026-06-29` | `data/raw/ingv/events_italy_2026-06-22_2026-06-29_2026-06-29T09-58-18Z.txt` | HTTP 200 |
 
@@ -16,3 +17,4 @@ Smoke run date: `2026-06-29`.
 * INGV accepted timestamps without trailing `Z` in the query string.
 * The VLF filename uses the source `Last-Modified` timestamp.
 * The INGV payload has `27` lines: one header plus `26` events.
+* The NOAA solar-cycle F10.7 sample contains monthly records from `2004-10` through `2026-05`.

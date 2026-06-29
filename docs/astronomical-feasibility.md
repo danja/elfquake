@@ -30,4 +30,6 @@ For each seismic/VLF window, derive:
 
 ## Gaps
 
-NOAA live endpoints are useful for current capture, but historical training windows need an archival source or download method. Do not rely on rolling live endpoints for backtests until archival coverage is confirmed.
+NOAA live endpoints are useful for current capture, but most SWPC Kp, Dst, GOES X-ray, and daily F10.7 feeds checked so far are rolling files. Do not rely on them for backtests until archival coverage is confirmed.
+
+See [NOAA Archive Feasibility](noaa-archive-feasibility.md).

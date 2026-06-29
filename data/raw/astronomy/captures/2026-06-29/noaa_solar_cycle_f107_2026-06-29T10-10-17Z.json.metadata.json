@@ -1,0 +1,29 @@
+{
+  "cadence": "monthly",
+  "captured_at_utc": "2026-06-29T10:10:17Z",
+  "content": "F10.7 solar radio flux",
+  "headers": {
+    "Accept-Ranges": "bytes",
+    "Access-Control-Allow-Headers": "origin, x-requested-with, content-type",
+    "Access-Control-Allow-Methods": "PUT, GET, POST, DELETE, OPTIONS",
+    "Access-Control-Allow-Origin": "*",
+    "Cache-Control": "max-age=60",
+    "Connection": "close",
+    "Content-Length": "10750",
+    "Content-Type": "application/json",
+    "Date": "Mon, 29 Jun 2026 10:10:17 GMT",
+    "ETag": "\"29fe-65561a5c6a8c4\"",
+    "Expires": "Mon, 29 Jun 2026 10:11:17 GMT",
+    "Last-Modified": "Mon, 29 Jun 2026 10:09:01 GMT",
+    "Server": "Apache",
+    "Strict-Transport-Security": "max-age=31536000",
+    "Vary": "Accept-Encoding",
+    "Via": "1.1 cbb8f523b11f3234e071dd8895bdc320.cloudfront.net (CloudFront)",
+    "X-Amz-Cf-Id": "utkd_j4wK3y7PwXKmDBbCJUl7LXtv4QZ5CFnryBgwunQkukh58xafg==",
+    "X-Amz-Cf-Pop": "MXP63-P6",
+    "X-Cache": "Miss from cloudfront"
+  },
+  "source_id": "noaa_solar_cycle_f107",
+  "status": 200,
+  "url": "https://services.swpc.noaa.gov/json/solar-cycle/f10-7cm-flux.json"
+}
