@@ -12,6 +12,12 @@ Fetch recent INGV Italy events:
 PYTHONPATH=src python -m elfquake.cli fetch-ingv-events --start 2026-06-22T00:00:00Z --end 2026-06-29T23:59:59Z
 ```
 
+Plan longer INGV pulls before live fetching:
+
+```sh
+PYTHONPATH=src python -m elfquake.cli plan-ingv-backfill --start 2026-06-01T00:00:00Z --end 2026-07-01T00:00:00Z --chunk-days 14 --out data/derived/backfill/ingv_italy_2026-06.plan.csv
+```
+
 Fetch Cumiana VLF live images:
 
 ```sh
@@ -55,6 +61,13 @@ Build standalone modality feature rows:
 ```sh
 PYTHONPATH=src python -m elfquake.cli build-vlf-features --metadata data/raw/vlf/cumiana/captures/2026-06-29/last_E_VLF_2026-06-29T09-45-00Z.jpg.metadata.json --window-start 2026-06-29T09:00:00Z --window-end 2026-06-29T10:00:00Z --out data/derived/multimodal/cumiana_vlf_2026-06-29T0900_1000.features.csv
 PYTHONPATH=src python -m elfquake.cli build-astronomy-features --metadata data/raw/astronomy/captures/2026-06-29/usno_moon_phases_2026-06-29T09-56-53Z.json.metadata.json --metadata data/raw/astronomy/captures/2026-06-29/noaa_solar_cycle_f107_2026-06-29T10-10-17Z.json.metadata.json --window-start 2026-06-29T09:00:00Z --window-end 2026-06-29T10:15:00Z --out data/derived/multimodal/astronomy_2026-06-29T0900_1015.features.csv
+```
+
+Build a manifest-driven multimodal table and label targets:
+
+```sh
+PYTHONPATH=src python -m elfquake.cli build-multimodal-table --manifest data/derived/multimodal/manifests/central_italy_smoke_windows.csv --out data/derived/multimodal/central_italy_smoke_windows.multimodal.csv
+PYTHONPATH=src python -m elfquake.cli label-multimodal-targets --input data/derived/multimodal/central_italy_2026-06-22_2026-06-29T1015.multimodal_smoke.csv --events data/derived/ingv/events_central_italy_2026-06-15_2026-06-29_2026-06-29T10-24-38Z.normalized.csv --as-of 2026-06-29T10:15:00Z --out data/derived/multimodal/central_italy_2026-06-22_2026-06-29T1015.target_labeled.csv
 ```
 
 ## Storage

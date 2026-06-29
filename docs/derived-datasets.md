@@ -13,5 +13,8 @@ Current derived smoke datasets:
 | `data/derived/multimodal/central_italy_2026-06-22_2026-06-29T1015.multimodal_smoke.csv` | 1 | First seismic/VLF/astronomy smoke row |
 | `data/derived/multimodal/cumiana_vlf_2026-06-29T0900_1000.features.csv` | 1 | Coarse VLF capture features |
 | `data/derived/multimodal/astronomy_2026-06-29T0900_1015.features.csv` | 1 | Coarse astronomy capture features |
+| `data/derived/multimodal/central_italy_smoke_windows.multimodal.csv` | 1 | Manifest-built multimodal table |
+| `data/derived/multimodal/central_italy_2026-06-22_2026-06-29T1015.target_labeled.csv` | 1 | Target-label pass; still future-pending |
+| `data/derived/backfill/ingv_italy_2026-06.plan.csv` | 3 | INGV backfill request plan |
 
 The Central Italy subset uses the rule in [Normalization](normalization.md). Derived files should be regenerated, not hand-edited.

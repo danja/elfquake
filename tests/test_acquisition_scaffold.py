@@ -10,6 +10,7 @@ from unittest.mock import patch
 from urllib.parse import parse_qs, urlparse
 from urllib.error import URLError
 
+from elfquake.backfill import plan_ingv_backfill
 from elfquake.cli import main
 from elfquake.connectors.astronomy import _materialize_url, fetch_manifest_json
 from elfquake.connectors.ingv import build_event_url, fetch_italy_events
@@ -24,6 +25,8 @@ from elfquake.connectors.space_archives import (
 from elfquake.connectors.vlf_cumiana import fetch_manifest_images, repeat_manifest_images
 from elfquake.features.astronomy import build_astronomy_features
 from elfquake.features.multimodal_smoke import build_multimodal_smoke_row
+from elfquake.features.table import build_multimodal_table_from_manifest
+from elfquake.features.targets import label_multimodal_targets
 from elfquake.features.vlf import build_vlf_features
 from elfquake.http import HttpCapture
 from elfquake.normalize.ingv import normalize_ingv_event_text, normalize_row
@@ -181,6 +184,20 @@ class AcquisitionScaffoldTests(unittest.TestCase):
                 "events_italy_2026-06-22_2026-06-29_2026-06-29T09-58-18Z.txt",
             )
             self.assertEqual(stored.payload_path.read_bytes(), b"#EventID|Time\n")
+
+    def test_ingv_backfill_planner_splits_long_ranges(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            rows = plan_ingv_backfill(
+                start_utc="2026-06-01T00:00:00Z",
+                end_utc="2026-07-01T00:00:00Z",
+                chunk_days=14,
+                out_path=Path(directory) / "plan.csv",
+            )
+
+            self.assertEqual(len(rows), 3)
+            self.assertEqual(rows[0]["window_start_utc"], "2026-06-01T00:00:00Z")
+            self.assertEqual(rows[-1]["window_end_utc"], "2026-07-01T00:00:00Z")
+            self.assertIn("fetch-ingv-events", rows[0]["command"])
 
     def test_cli_returns_nonzero_for_url_errors(self) -> None:
         with patch("sys.argv", ["elfquake", "fetch-astronomy", "--date", "2026-06-29"]):
@@ -419,6 +436,59 @@ class AcquisitionScaffoldTests(unittest.TestCase):
             self.assertEqual(normalize_f107_daily(f107, root / "f107.csv"), 1)
             self.assertEqual(write_goes_xrs_netcdf_stub(goes, root / "goes.csv"), 1)
             self.assertIn("requires_netcdf_decoder", (root / "goes.csv").read_text(encoding="utf-8"))
+
+    def test_target_labeler_labels_elapsed_windows_only(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            rows = root / "rows.csv"
+            rows.write_text(
+                "window_id,region_id,target_start_utc,target_end_utc,target_magnitude_min,"
+                "target_event_count,target_occurred,target_status\n"
+                "past,central_italy,2026-06-20T00:00:00Z,2026-06-27T00:00:00Z,3.0,,,\n"
+                "future,central_italy,2026-06-29T00:00:00Z,2026-07-06T00:00:00Z,3.0,,,\n",
+                encoding="utf-8",
+            )
+            events = root / "events.csv"
+            events.write_text(
+                "event_time_utc,magnitude,italy_region\n"
+                "2026-06-21T00:00:00Z,3.1,central_italy\n"
+                "2026-06-30T00:00:00Z,3.4,central_italy\n",
+                encoding="utf-8",
+            )
+
+            labeled = label_multimodal_targets(
+                input_csv=rows,
+                events_csv=events,
+                as_of_utc="2026-06-29T00:00:00Z",
+                out_path=root / "labeled.csv",
+            )
+
+            self.assertEqual(labeled[0]["target_status"], "labeled")
+            self.assertEqual(labeled[0]["target_event_count"], "1")
+            self.assertEqual(labeled[0]["target_occurred"], "1")
+            self.assertEqual(labeled[1]["target_status"], "unlabeled_pending_future_events")
+            self.assertEqual(labeled[1]["target_event_count"], "")
+
+    def test_multimodal_table_builder_reads_manifest(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            events = root / "events.csv"
+            events.write_text("event_id,event_time_utc,magnitude\n1,2026-06-29T09:00:00Z,2.1\n", encoding="utf-8")
+            manifest = root / "manifest.csv"
+            out = root / "table.csv"
+            manifest.write_text(
+                "region_id,window_start_utc,window_end_utc,target_end_utc,target_magnitude_min,"
+                "events_csv,vlf_metadata_paths,astronomy_metadata_paths\n"
+                f"central_italy,2026-06-29T08:00:00Z,2026-06-29T10:00:00Z,"
+                f"2026-07-06T10:00:00Z,3.0,{events},,\n",
+                encoding="utf-8",
+            )
+
+            rows = build_multimodal_table_from_manifest(manifest_path=manifest, out_path=out)
+
+            self.assertEqual(len(rows), 1)
+            self.assertEqual(rows[0]["seismic_event_count"], "1")
+            self.assertTrue(out.exists())
 
 
 def _fake_jpeg_capture(url: str) -> HttpCapture:

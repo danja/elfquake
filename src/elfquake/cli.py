@@ -7,6 +7,7 @@ import sys
 from pathlib import Path
 from urllib.error import HTTPError, URLError
 
+from elfquake.backfill import plan_ingv_backfill
 from elfquake.connectors.astronomy import fetch_manifest_json
 from elfquake.connectors.ingv import fetch_italy_events
 from elfquake.connectors.space_archives import (
@@ -18,6 +19,8 @@ from elfquake.connectors.space_archives import (
 from elfquake.connectors.vlf_cumiana import fetch_manifest_images, repeat_manifest_images
 from elfquake.features.astronomy import build_astronomy_features
 from elfquake.features.multimodal_smoke import build_multimodal_smoke_row
+from elfquake.features.table import build_multimodal_table_from_manifest, write_multimodal_manifest_template
+from elfquake.features.targets import label_multimodal_targets
 from elfquake.features.vlf import build_vlf_features
 from elfquake.normalize.ingv import normalize_ingv_event_text
 from elfquake.normalize.space_weather import (
@@ -38,6 +41,13 @@ def main() -> int:
     ingv.add_argument("--out-root", type=Path, default=Path("data/raw/ingv"))
     ingv.add_argument("--min-mag", type=float, default=2.0)
     ingv.add_argument("--limit", type=int, default=10000)
+
+    ingv_plan = subparsers.add_parser("plan-ingv-backfill")
+    ingv_plan.add_argument("--start", required=True)
+    ingv_plan.add_argument("--end", required=True)
+    ingv_plan.add_argument("--chunk-days", type=int, default=14)
+    ingv_plan.add_argument("--min-mag", default="2.0")
+    ingv_plan.add_argument("--out", type=Path, required=True)
 
     vlf = subparsers.add_parser("fetch-vlf-cumiana")
     vlf.add_argument("--manifest", type=Path, default=Path("data/raw/vlf/cumiana/manifest.csv"))
@@ -119,6 +129,19 @@ def main() -> int:
     goes_norm.add_argument("--raw", type=Path, required=True)
     goes_norm.add_argument("--out", type=Path, required=True)
 
+    label_targets = subparsers.add_parser("label-multimodal-targets")
+    label_targets.add_argument("--input", type=Path, required=True)
+    label_targets.add_argument("--events", type=Path, required=True)
+    label_targets.add_argument("--as-of", required=True)
+    label_targets.add_argument("--out", type=Path, required=True)
+
+    table = subparsers.add_parser("build-multimodal-table")
+    table.add_argument("--manifest", type=Path, required=True)
+    table.add_argument("--out", type=Path, required=True)
+
+    table_template = subparsers.add_parser("write-multimodal-manifest-template")
+    table_template.add_argument("--out", type=Path, required=True)
+
     args = parser.parse_args()
     try:
         if args.command == "fetch-ingv-events":
@@ -131,6 +154,17 @@ def main() -> int:
                     limit=args.limit,
                 )
             ]
+        elif args.command == "plan-ingv-backfill":
+            rows = plan_ingv_backfill(
+                start_utc=args.start,
+                end_utc=args.end,
+                chunk_days=args.chunk_days,
+                min_magnitude=args.min_mag,
+                out_path=args.out,
+            )
+            print(f"planned windows: {len(rows)}")
+            print(f"output: {args.out}")
+            return 0
         elif args.command == "fetch-vlf-cumiana":
             stored = fetch_manifest_images(
                 args.manifest,
@@ -231,6 +265,28 @@ def main() -> int:
         elif args.command == "normalize-goes-xrs":
             count = write_goes_xrs_netcdf_stub(args.raw, args.out)
             print(f"normalized rows: {count}")
+            print(f"output: {args.out}")
+            return 0
+        elif args.command == "label-multimodal-targets":
+            rows = label_multimodal_targets(
+                input_csv=args.input,
+                events_csv=args.events,
+                as_of_utc=args.as_of,
+                out_path=args.out,
+            )
+            print(f"labeled rows: {len(rows)}")
+            print(f"output: {args.out}")
+            return 0
+        elif args.command == "build-multimodal-table":
+            rows = build_multimodal_table_from_manifest(
+                manifest_path=args.manifest,
+                out_path=args.out,
+            )
+            print(f"built rows: {len(rows)}")
+            print(f"output: {args.out}")
+            return 0
+        elif args.command == "write-multimodal-manifest-template":
+            write_multimodal_manifest_template(args.out)
             print(f"output: {args.out}")
             return 0
         else:
