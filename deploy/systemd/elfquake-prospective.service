@@ -24,12 +24,16 @@ Environment=ELFQUAKE_ALL_ITALY_TABLE=data/derived/multimodal/all_italy.prospecti
 Environment=ELFQUAKE_VLF_IMAGE_FEATURES=data/derived/multimodal/cumiana_last_E_VLF.image_features.csv
 Environment=ELFQUAKE_CENTRAL_IMAGE_TABLE=data/derived/multimodal/central_italy.prospective_vlf_image_windows.csv
 Environment=ELFQUAKE_ALL_ITALY_IMAGE_TABLE=data/derived/multimodal/all_italy.prospective_vlf_image_windows.csv
+Environment=ELFQUAKE_CENTRAL_IMAGE_SUMMARY=data/derived/multimodal/central_italy.prospective_vlf_image_windows.summary.json
+Environment=ELFQUAKE_ALL_ITALY_IMAGE_SUMMARY=data/derived/multimodal/all_italy.prospective_vlf_image_windows.summary.json
 EnvironmentFile=-/etc/default/elfquake
 ExecStart=/usr/bin/python3 -m elfquake.cli extract-vlf-image-features --image-root ${ELFQUAKE_VLF_METADATA_ROOT} --filename-prefix last_E_VLF --out ${ELFQUAKE_VLF_IMAGE_FEATURES}
 ExecStart=/usr/bin/python3 -m elfquake.cli update-prospective-vlf-table --table ${ELFQUAKE_CENTRAL_TABLE} --events ${ELFQUAKE_CENTRAL_EVENTS} --vlf-metadata-root ${ELFQUAKE_VLF_METADATA_ROOT} --astronomy-metadata-root ${ELFQUAKE_ASTRONOMY_METADATA_ROOT} --region-id central_italy --lookback-hours ${ELFQUAKE_LOOKBACK_HOURS} --horizon-days ${ELFQUAKE_HORIZON_DAYS} --min-anchor-gap-seconds ${ELFQUAKE_MIN_ANCHOR_GAP_SECONDS} --target-magnitude-min ${ELFQUAKE_TARGET_MAGNITUDE_MIN} --out ${ELFQUAKE_CENTRAL_TABLE}
 ExecStart=/usr/bin/python3 -m elfquake.cli update-prospective-vlf-table --table ${ELFQUAKE_ALL_ITALY_TABLE} --events ${ELFQUAKE_ALL_ITALY_EVENTS} --vlf-metadata-root ${ELFQUAKE_VLF_METADATA_ROOT} --astronomy-metadata-root ${ELFQUAKE_ASTRONOMY_METADATA_ROOT} --region-id all_italy --lookback-hours ${ELFQUAKE_LOOKBACK_HOURS} --horizon-days ${ELFQUAKE_HORIZON_DAYS} --min-anchor-gap-seconds ${ELFQUAKE_MIN_ANCHOR_GAP_SECONDS} --target-magnitude-min ${ELFQUAKE_TARGET_MAGNITUDE_MIN} --out ${ELFQUAKE_ALL_ITALY_TABLE}
 ExecStart=/usr/bin/python3 -m elfquake.cli join-vlf-image-features --windows ${ELFQUAKE_CENTRAL_TABLE} --image-features ${ELFQUAKE_VLF_IMAGE_FEATURES} --out ${ELFQUAKE_CENTRAL_IMAGE_TABLE}
 ExecStart=/usr/bin/python3 -m elfquake.cli join-vlf-image-features --windows ${ELFQUAKE_ALL_ITALY_TABLE} --image-features ${ELFQUAKE_VLF_IMAGE_FEATURES} --out ${ELFQUAKE_ALL_ITALY_IMAGE_TABLE}
+ExecStart=/usr/bin/python3 -m elfquake.cli summarize-prospective-table --input ${ELFQUAKE_CENTRAL_IMAGE_TABLE} --out ${ELFQUAKE_CENTRAL_IMAGE_SUMMARY}
+ExecStart=/usr/bin/python3 -m elfquake.cli summarize-prospective-table --input ${ELFQUAKE_ALL_ITALY_IMAGE_TABLE} --out ${ELFQUAKE_ALL_ITALY_IMAGE_SUMMARY}
 NoNewPrivileges=true
 PrivateTmp=true
 ProtectSystem=strict

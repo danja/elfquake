@@ -28,6 +28,7 @@ from elfquake.features.design_matrix import build_design_matrix
 from elfquake.features.multimodal_design import join_vlf_design_matrix
 from elfquake.features.multimodal_smoke import build_multimodal_smoke_row
 from elfquake.features.prospective import build_prospective_vlf_windows, update_prospective_vlf_table
+from elfquake.features.prospective_report import summarize_prospective_table
 from elfquake.features.table import build_multimodal_table_from_manifest
 from elfquake.features.targets import label_multimodal_targets
 from elfquake.features.training_windows import build_seismic_training_windows
@@ -825,6 +826,36 @@ class AcquisitionScaffoldTests(unittest.TestCase):
             self.assertEqual(first["total_rows"], 1)
             self.assertEqual(second["new_rows"], 0)
             self.assertEqual(second["total_rows"], 1)
+
+    def test_summarize_prospective_table_reports_readiness_and_coverage(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            table = root / "prospective.csv"
+            table.write_text(
+                "window_id,region_id,window_end_utc,target_end_utc,target_status,target_occurred,"
+                "quality_missing_vlf,quality_missing_vlf_image_features,quality_missing_astro,"
+                "vlf_latest_capture_utc,vlf_image_latest_source_file\n"
+                "w1,central_italy,2026-06-29T09:00:00Z,2026-07-06T09:00:00Z,"
+                "unlabeled_pending_future_events,,0,0,1,2026-06-29T09:00:00Z,img1.jpg\n"
+                "w2,central_italy,2026-06-29T10:00:00Z,2026-07-06T10:00:00Z,"
+                "unlabeled_pending_future_events,,0,1,0,2026-06-29T10:00:00Z,\n"
+                "w3,central_italy,2026-06-20T10:00:00Z,2026-06-27T10:00:00Z,"
+                "labeled,1,0,0,0,2026-06-20T10:00:00Z,img3.jpg\n",
+                encoding="utf-8",
+            )
+
+            report = summarize_prospective_table(
+                input_csv=table,
+                as_of_utc="2026-07-06T09:30:00Z",
+                out_path=root / "summary.json",
+            )
+
+            self.assertEqual(report["row_count"], 3)
+            self.assertEqual(report["ready_to_label_count"], 1)
+            self.assertEqual(report["missing_vlf_image_features_count"], 1)
+            self.assertEqual(report["missing_astro_count"], 1)
+            self.assertEqual(report["labeled_positive_count"], 1)
+            self.assertEqual(report["latest_vlf_image_source_file"], "img1.jpg")
 
     def test_build_seismic_training_windows_labels_targets(self) -> None:
         with tempfile.TemporaryDirectory() as directory:

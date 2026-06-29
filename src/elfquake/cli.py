@@ -22,6 +22,7 @@ from elfquake.features.design_matrix import build_design_matrix
 from elfquake.features.multimodal_design import join_vlf_design_matrix
 from elfquake.features.multimodal_smoke import build_multimodal_smoke_row
 from elfquake.features.prospective import build_prospective_vlf_windows, update_prospective_vlf_table
+from elfquake.features.prospective_report import summarize_prospective_table
 from elfquake.features.table import build_multimodal_table_from_manifest, write_multimodal_manifest_template
 from elfquake.features.targets import label_multimodal_targets
 from elfquake.features.training_windows import build_seismic_training_windows
@@ -201,6 +202,11 @@ def main() -> int:
     prospective_update.add_argument("--min-anchor-gap-seconds", type=int, default=60)
     prospective_update.add_argument("--target-magnitude-min", default="3.0")
     prospective_update.add_argument("--out", type=Path, required=True)
+
+    prospective_summary = subparsers.add_parser("summarize-prospective-table")
+    prospective_summary.add_argument("--input", type=Path, required=True)
+    prospective_summary.add_argument("--as-of")
+    prospective_summary.add_argument("--out", type=Path, required=True)
 
     training = subparsers.add_parser("build-seismic-training-windows")
     training.add_argument("--events", type=Path, required=True)
@@ -455,6 +461,17 @@ def main() -> int:
             print(f"candidate rows: {report['candidate_rows']}")
             print(f"new rows: {report['new_rows']}")
             print(f"total rows: {report['total_rows']}")
+            print(f"output: {args.out}")
+            return 0
+        elif args.command == "summarize-prospective-table":
+            report = summarize_prospective_table(
+                input_csv=args.input,
+                as_of_utc=args.as_of,
+                out_path=args.out,
+            )
+            print(f"rows: {report['row_count']}")
+            print(f"ready to label: {report['ready_to_label_count']}")
+            print(f"missing vlf image features: {report['missing_vlf_image_features_count']}")
             print(f"output: {args.out}")
             return 0
         elif args.command == "build-seismic-training-windows":

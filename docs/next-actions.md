@@ -67,3 +67,4 @@ Completed:
 * Add a systemd timer/service template for prospective row generation.
 * Add pixel-derived VLF image feature extraction from Cumiana JPEGs.
 * Join image-derived VLF features into prospective rows by capture timestamp.
+* Add prospective table quality summaries for coverage and label readiness.
