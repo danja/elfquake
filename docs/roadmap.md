@@ -4,8 +4,8 @@ ELFQuake should move from data feasibility to modeling only after each phase has
 
 ## Phases
 
-1. Data connection: confirm access to Italy-scoped seismic, radio, and astronomical sources.
-2. Data analysis: inspect coverage, gaps, noise, bias, and timestamp alignment.
+1. Data connection: confirm access to Italy-scoped seismic, VLF radio, and astronomical sources.
+2. Data analysis: inspect coverage, gaps, noise, bias, and timestamp alignment across all modalities.
 3. Simulation construction: create simple replay and backtesting workflows.
 4. Model construction: start with naive and classical baselines before complex ML.
 5. Model evaluation: compare against held-out time and geography splits.
@@ -16,7 +16,7 @@ ELFQuake should move from data feasibility to modeling only after each phase has
 ## Milestone Order
 
 * Build a reproducible data inventory.
-* Create a normalized Italy event and signal dataset.
-* Produce exploratory reports.
+* Create normalized Italy seismic, VLF, and astronomical datasets.
+* Produce single-source and cross-source exploratory reports.
 * Define baseline targets and metrics.
-* Run backtests before adding advanced models.
+* Run seismic-only baselines before adding multimodal models.

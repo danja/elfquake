@@ -2,11 +2,11 @@
 
 Prioritize feasibility and reproducibility before modeling.
 
-1. Build the first Italy smoke dataset from the working INGV text export.
-2. Derive a Central Italy subset after the smoke dataset is reproducible.
-3. Produce the first exploratory report.
-4. Run a naive historical-rate baseline before adding ML models.
-5. Compare baseline output against the evaluation criteria.
+1. Evaluate VLF data availability, licensing, timestamps, and station metadata.
+2. Evaluate astronomical and geomagnetic data availability for the same windows.
+3. Define a multimodal time-window schema joining seismic, VLF, and astronomical data.
+4. Convert the manual seismic normalization into repeatable code.
+5. Expand source access beyond the smoke window.
 
 Completed:
 
@@ -17,3 +17,10 @@ Completed:
 * Define the exploratory report template.
 * Define baseline prediction targets and metrics.
 * Record initial working INGV connector notes.
+* Build the first Italy smoke dataset from the working INGV text export.
+* Define the local normalization step for the INGV text export.
+* Create the normalized smoke dataset from the INGV text export.
+* Derive a Central Italy subset from the normalized smoke dataset.
+* Produce the first exploratory report.
+* Define the naive historical-rate baseline input table.
+* Run a naive historical-rate baseline smoke output before adding ML models.

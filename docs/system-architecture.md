@@ -7,11 +7,12 @@ The architecture should stay modular so data sources, features, and models can b
 1. Ingest raw source data.
 2. Validate schemas, timestamps, and required fields.
 3. Normalize Italy-scoped records into consistent units and UTC time.
-4. Extract features over fixed temporal windows and Italian spatial regions.
-5. Run exploratory analysis and quality checks.
-6. Train baseline and candidate models.
-7. Evaluate with backtests and holdouts.
-8. Publish reports, artifacts, and limitations.
+4. Align seismic events, VLF signals, and astronomical indexes into fixed temporal windows.
+5. Extract modality-specific and cross-modal features.
+6. Run exploratory analysis and quality checks.
+7. Train seismic-only baselines before multimodal candidate models.
+8. Evaluate with backtests, holdouts, and ablations.
+9. Publish reports, artifacts, and limitations.
 
 ## Boundaries
 
@@ -20,6 +21,7 @@ The architecture should stay modular so data sources, features, and models can b
 * Keep feature generation separate from model training.
 * Keep evaluation independent of training code.
 * Keep the Italy scope explicit in dataset metadata and reports.
+* Keep modality provenance explicit in every feature table.
 
 ## Outputs
 

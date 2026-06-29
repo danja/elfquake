@@ -4,7 +4,9 @@ Guidance for agents working in this repository.
 
 ## Project Scope
 
-ELFQuake is an Italy-scoped research project for testing whether seismic, natural radio, and astronomical data contain useful earthquake-related signals.
+ELFQuake is an Italy-scoped research project for testing whether seismic, VLF radio, and astronomical data contain useful earthquake-related signals.
+
+The central hypothesis is that VLF radio data may augment seismic data enough to make useful predictive models possible.
 
 Do not claim earthquake prediction capability unless it is demonstrated against reproducible baselines and held-out data.
 
@@ -12,11 +14,11 @@ Do not claim earthquake prediction capability unless it is demonstrated against 
 
 Prioritize feasibility and reproducibility:
 
-1. Verify data source access end to end.
-2. Build a small Central Italy sample dataset.
-3. Produce an exploratory data report.
-4. Run a naive historical-rate baseline.
-5. Compare results against documented evaluation criteria.
+1. Verify VLF and astronomical data access, licensing, timestamps, and station/source metadata.
+2. Keep the seismic smoke pipeline reproducible.
+3. Define multimodal time-window alignment.
+4. Compare seismic-only baselines against multimodal variants.
+5. Use ablations to measure whether VLF or astronomical features add value.
 
 ## Documentation
 
@@ -26,6 +28,7 @@ Start with:
 
 * `docs/overview.md`
 * `docs/source-inventory.md`
+* `docs/multimodal-feasibility.md`
 * `docs/event-schema.md`
 * `docs/sample-dataset.md`
 * `docs/exploratory-report.md`
@@ -40,6 +43,7 @@ Update `docs/next-actions.md` whenever completing or changing the immediate work
 * Store raw source records unchanged before normalization.
 * Normalize timestamps to UTC.
 * Preserve source identifiers, source URIs, and uncertainty fields.
+* Preserve modality provenance for seismic, VLF, and astronomical features.
 * Keep source connectors separate from normalization, feature generation, modeling, and evaluation.
 
 ## Source Validation
@@ -50,6 +54,6 @@ For INGV, prefer the public FDSN event service documented in `docs/source-invent
 
 ## Modeling Rules
 
-Start with naive and historical-rate baselines. Do not add complex ML until event catalog access, normalized schema, target definition, and validation split are stable.
+Start with naive and historical-rate seismic baselines, then compare against multimodal models. Do not claim value from VLF or astronomical features without ablation tests on held-out data.
 
 Use time-based validation first. Training data must occur before validation data.

@@ -4,7 +4,7 @@ Use a small, reproducible pilot before building general ingestion.
 
 ## Smoke Scope
 
-Build this first to prove ingestion works.
+This has been built once; see [Smoke Dataset](smoke-dataset.md).
 
 * region: Italy bounding box
 * time range: recent 7-day window
@@ -29,4 +29,4 @@ Build this first to prove ingestion works.
 
 ## Exclusions
 
-Do not include radio, waveform, or astronomical features in the first sample dataset. Add them only after the event catalog path is reproducible.
+Do not include VLF, waveform, or astronomical features in this seismic smoke dataset. Evaluate those sources separately and align them through the multimodal window schema.

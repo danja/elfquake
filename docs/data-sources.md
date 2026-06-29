@@ -1,12 +1,12 @@
 # Data Sources
 
-Initial work should confirm availability, licensing, quality, and timestamp precision for Italy before building models.
+Initial work should confirm availability, licensing, quality, timestamp precision, and cross-source alignment for Italy before building models.
 
 ## Candidate Sources
 
 * INGV earthquake event data for Italy: event time, location, depth, magnitude, and uncertainty.
-* Italy-relevant natural radio observations: signal recordings, metadata, station details, and collection notes.
-* Astronomical data applicable to Italy: lunar phase, Earth cycles, solar activity, and related time indexes.
+* Italy-relevant VLF radio observations: signal recordings, metadata, station details, sampling rate, and collection notes.
+* Astronomical data applicable to Italy: lunar phase, solar activity, geomagnetic indexes, Earth cycles, and related time indexes.
 
 See [Source Inventory](source-inventory.md) for current source status.
 
@@ -20,6 +20,7 @@ For each source, document:
 * timezone and timestamp precision
 * spatial coverage
 * Italy boundary or region filter used
+* alignment key with seismic windows
 * known gaps and quality warnings
 
 ## Normalization

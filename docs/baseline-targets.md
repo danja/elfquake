@@ -6,6 +6,10 @@ Define simple targets before adding machine learning.
 
 Predict whether at least one event with magnitude `>= 3.0` occurs in Central Italy within the next `7` days.
 
+Input table: [Baseline Input](baseline-input.md).
+
+Smoke run: [Smoke Baseline Run](baseline-run-smoke.md).
+
 ## Baseline Model
 
 Use a historical-rate baseline:
@@ -25,3 +29,5 @@ Use a historical-rate baseline:
 ## Split
 
 Use time-based validation. Training data must occur before validation data.
+
+The current smoke dataset is only for table-shape validation. It is too small for meaningful baseline evaluation.

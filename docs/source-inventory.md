@@ -7,8 +7,8 @@ Track only Italy-relevant data. Mark a source usable only after a sample pull is
 | INGV FDSN event | Italian earthquake catalog | `https://webservices.ingv.it/fdsnws/event/1/` | text | Usable for recent Italy text export; see connector notes |
 | INGV FDSN station | Station metadata | `https://webservices.ingv.it/fdsnws/station/1/` | StationXML, text | Candidate |
 | INGV FDSN dataselect | Waveform signals | `https://webservices.ingv.it/fdsnws/dataselect/1/` | MiniSEED | Candidate |
-| vlf.it | Natural radio context | `http://www.vlf.it/` | Site-specific | Unverified; confirm usable datasets and license |
-| NOAA SWPC | Solar and geomagnetic indexes | `https://services.swpc.noaa.gov/json/` | JSON | Candidate; sample Kp endpoint verified |
+| vlf.it | VLF radio context | `http://www.vlf.it/` | Site-specific | Priority candidate; confirm usable datasets, station metadata, timestamps, and license |
+| NOAA SWPC | Solar and geomagnetic indexes | `https://services.swpc.noaa.gov/json/` | JSON | Priority candidate; sample Kp endpoint verified |
 
 ## Italy Filter
 
