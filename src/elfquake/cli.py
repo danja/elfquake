@@ -26,6 +26,7 @@ from elfquake.features.table import build_multimodal_table_from_manifest, write_
 from elfquake.features.targets import label_multimodal_targets
 from elfquake.features.training_windows import build_seismic_training_windows
 from elfquake.features.vlf import build_vlf_features
+from elfquake.features.vlf_image import build_vlf_image_features
 from elfquake.features.vlf_windows import build_vlf_window_features
 from elfquake.models.logistic_smoke import train_logistic_smoke
 from elfquake.normalize.events import combine_normalized_events
@@ -122,6 +123,14 @@ def main() -> int:
     vlf_window_features.add_argument("--training-windows", type=Path, required=True)
     vlf_window_features.add_argument("--metadata-root", type=Path, required=True)
     vlf_window_features.add_argument("--out", type=Path, required=True)
+
+    vlf_image_features = subparsers.add_parser("extract-vlf-image-features")
+    vlf_image_features.add_argument("--image", type=Path, action="append", required=True)
+    vlf_image_features.add_argument("--out", type=Path, required=True)
+    vlf_image_features.add_argument("--crop-left", type=float, default=0.0)
+    vlf_image_features.add_argument("--crop-top", type=float, default=0.13)
+    vlf_image_features.add_argument("--crop-right", type=float, default=0.83)
+    vlf_image_features.add_argument("--crop-bottom", type=float, default=0.95)
 
     astro_features = subparsers.add_parser("build-astronomy-features")
     astro_features.add_argument("--metadata", type=Path, action="append", default=[])
@@ -318,6 +327,18 @@ def main() -> int:
                 out_path=args.out,
             )
             print(f"vlf window rows: {len(rows)}")
+            print(f"output: {args.out}")
+            return 0
+        elif args.command == "extract-vlf-image-features":
+            rows = build_vlf_image_features(
+                image_paths=args.image,
+                out_path=args.out,
+                crop_left=args.crop_left,
+                crop_top=args.crop_top,
+                crop_right=args.crop_right,
+                crop_bottom=args.crop_bottom,
+            )
+            print(f"image rows: {len(rows)}")
             print(f"output: {args.out}")
             return 0
         elif args.command == "build-astronomy-features":

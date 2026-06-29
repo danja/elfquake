@@ -32,6 +32,7 @@ from elfquake.features.table import build_multimodal_table_from_manifest
 from elfquake.features.targets import label_multimodal_targets
 from elfquake.features.training_windows import build_seismic_training_windows
 from elfquake.features.vlf import build_vlf_features
+from elfquake.features.vlf_image import build_vlf_image_features, extract_vlf_image_features
 from elfquake.features.vlf_windows import build_vlf_window_features
 from elfquake.models.logistic_smoke import train_logistic_smoke
 from elfquake.normalize.events import combine_normalized_events
@@ -484,6 +485,42 @@ class AcquisitionScaffoldTests(unittest.TestCase):
             self.assertEqual(rows[0]["quality_missing_vlf"], "0")
             self.assertEqual(rows[1]["vlf_capture_count"], "0")
             self.assertEqual(rows[1]["quality_missing_vlf"], "1")
+
+    def test_vlf_image_features_extract_pixel_summaries(self) -> None:
+        from PIL import Image
+
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            image_path = root / "vlf.jpg"
+            image = Image.new("RGB", (20, 10), (0, 0, 20))
+            pixels = image.load()
+            for y in range(10):
+                for x in (4, 5, 12):
+                    pixels[x, y] = (255, 220, 20)
+            image.save(image_path)
+
+            row = extract_vlf_image_features(
+                image_path,
+                crop_left=0.0,
+                crop_top=0.0,
+                crop_right=1.0,
+                crop_bottom=1.0,
+            )
+            rows = build_vlf_image_features(
+                image_paths=[image_path],
+                out_path=root / "features.csv",
+                crop_left=0.0,
+                crop_top=0.0,
+                crop_right=1.0,
+                crop_bottom=1.0,
+            )
+
+            self.assertEqual(row["vlf_image_width_px"], "20")
+            self.assertEqual(row["vlf_crop_width_px"], "20")
+            self.assertGreater(float(row["vlf_high_intensity_ratio"]), 0.1)
+            self.assertGreaterEqual(int(row["vlf_vertical_streak_count"]), 2)
+            self.assertEqual(rows[0]["vlf_image_source_file"], str(image_path))
+            self.assertTrue((root / "features.csv").exists())
 
     def test_astronomy_feature_stub_summarizes_captures(self) -> None:
         with tempfile.TemporaryDirectory() as directory:

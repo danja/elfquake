@@ -10,6 +10,7 @@ Prioritize feasibility and reproducibility before modeling.
 6. Install the prospective timer if recurring row generation should run under systemd.
 7. Refresh the normalized INGV event table before labeling future prospective rows.
 8. After `2026-07-06`, label the first prospective VLF rows against INGV events.
+9. Join image-derived VLF features into prospective rows by capture path or timestamp.
 
 Completed:
 
@@ -64,3 +65,4 @@ Completed:
 * Add prospective VLF-anchored rows with pending target labels.
 * Add idempotent cumulative prospective VLF table updates.
 * Add a systemd timer/service template for prospective row generation.
+* Add pixel-derived VLF image feature extraction from Cumiana JPEGs.
