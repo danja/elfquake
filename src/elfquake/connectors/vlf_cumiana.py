@@ -4,8 +4,9 @@ from __future__ import annotations
 
 import csv
 from pathlib import Path
+from typing import Callable
 
-from elfquake.http import fetch_bytes, parse_http_datetime
+from elfquake.http import HttpCapture, fetch_bytes, parse_http_datetime
 from elfquake.storage import StoredCapture, filename_timestamp, write_capture
 
 
@@ -14,6 +15,7 @@ def fetch_manifest_images(
     *,
     out_root: Path,
     only: set[str] | None = None,
+    fetcher: Callable[[str], HttpCapture] = fetch_bytes,
 ) -> list[StoredCapture]:
     stored: list[StoredCapture] = []
     with manifest_path.open(newline="", encoding="utf-8") as handle:
@@ -21,7 +23,7 @@ def fetch_manifest_images(
             endpoint_id = row["endpoint_id"]
             if only and endpoint_id not in only:
                 continue
-            capture = fetch_bytes(row["url"])
+            capture: HttpCapture = fetcher(row["url"])
             last_modified = parse_http_datetime(capture.headers.get("Last-Modified"))
             timestamp = last_modified or capture.captured_at_utc
             date_dir = timestamp.date().isoformat()

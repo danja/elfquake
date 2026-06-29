@@ -25,3 +25,5 @@ Observed fields:
 ## Next Connector Work
 
 Use the working text export for the first smoke dataset. Derive smaller regions locally until INGV narrow bounding-box behavior is understood.
+
+Connector implementation note: accept UTC input in CLI metadata, but omit trailing `Z` in the INGV request query.

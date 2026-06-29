@@ -34,6 +34,10 @@ PYTHONPATH=src python -m unittest discover -s tests
 
 Each capture writes the raw payload and a sibling `.metadata.json` file containing source URL, status, capture time, and response headers.
 
+See [Acquisition Smoke Run](acquisition-smoke-run.md) for the first successful live captures.
+
+Network and HTTP failures return exit code `2` with a concise error message.
+
 ## Boundaries
 
 Connectors only acquire and store raw data. Normalization, feature extraction, modeling, and evaluation should remain separate modules.

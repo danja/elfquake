@@ -4,8 +4,9 @@ from __future__ import annotations
 
 import csv
 from pathlib import Path
+from typing import Callable
 
-from elfquake.http import fetch_bytes
+from elfquake.http import HttpCapture, fetch_bytes
 from elfquake.storage import StoredCapture, filename_timestamp, write_capture
 
 
@@ -16,6 +17,7 @@ def fetch_manifest_json(
     date: str,
     moon_phase_count: int = 8,
     only: set[str] | None = None,
+    fetcher: Callable[[str], HttpCapture] = fetch_bytes,
 ) -> list[StoredCapture]:
     stored: list[StoredCapture] = []
     with manifest_path.open(newline="", encoding="utf-8") as handle:
@@ -24,7 +26,7 @@ def fetch_manifest_json(
             if only and source_id not in only:
                 continue
             url = _materialize_url(row["url"], date=date, moon_phase_count=moon_phase_count)
-            capture = fetch_bytes(url)
+            capture: HttpCapture = fetcher(url)
             timestamp = capture.captured_at_utc
             payload_path = (
                 out_root

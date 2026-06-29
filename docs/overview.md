@@ -11,6 +11,7 @@ The project should proceed cautiously: no prediction capability is assumed until
 * [Roadmap](roadmap.md)
 * [Data Sources](data-sources.md)
 * [Data Acquisition Code](data-acquisition-code.md)
+* [Acquisition Smoke Run](acquisition-smoke-run.md)
 * [Source Inventory](source-inventory.md)
 * [Multimodal Feasibility](multimodal-feasibility.md)
 * [Multimodal Window Schema](multimodal-window-schema.md)

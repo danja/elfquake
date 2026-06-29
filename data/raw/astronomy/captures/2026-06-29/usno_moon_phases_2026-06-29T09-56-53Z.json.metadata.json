@@ -1,0 +1,23 @@
+{
+  "cadence": "event based",
+  "captured_at_utc": "2026-06-29T09:56:53Z",
+  "content": "moon phase events",
+  "headers": {
+    "Access-Control-Allow-Headers": "Authorization, Content-Type",
+    "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
+    "Access-Control-Allow-Origin": "*",
+    "Cache-Control": "no-cache",
+    "Connection": "close",
+    "Content-Length": "1108",
+    "Content-Security-Policy": "default-src 'self'; frame-ancestors 'self'",
+    "Content-Type": "application/json",
+    "Date": "Mon, 29 Jun 2026 09:56:54 GMT",
+    "Server": "nginx",
+    "Strict-Transport-Security": "max-age=31536000; includeSubDomains",
+    "X-Content-Type-Options": "nosniff",
+    "X-Frame-Options": "SAMEORIGIN"
+  },
+  "source_id": "usno_moon_phases",
+  "status": 200,
+  "url": "https://aa.usno.navy.mil/api/moon/phases/date?date=2026-06-29&nump=8"
+}

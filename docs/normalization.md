@@ -10,6 +10,18 @@ Normalize INGV text exports into a derived dataset. Keep raw files unchanged.
 
 `data/derived/ingv/events_italy_2026-06-22_2026-06-29.normalized.csv`
 
+Repeatable command:
+
+```sh
+PYTHONPATH=src python -m elfquake.cli normalize-ingv-events --raw data/raw/ingv/events_italy_2026-06-22_2026-06-29_2026-06-29T09-58-18Z.txt --out data/derived/ingv/events_italy_2026-06-22_2026-06-29_2026-06-29T09-58-18Z.normalized.csv
+```
+
+Central Italy subset:
+
+```sh
+PYTHONPATH=src python -m elfquake.cli normalize-ingv-events --raw data/raw/ingv/events_italy_2026-06-22_2026-06-29_2026-06-29T09-58-18Z.txt --out data/derived/ingv/events_central_italy_2026-06-22_2026-06-29_2026-06-29T09-58-18Z.normalized.csv --only-region central_italy
+```
+
 ## Field Mapping
 
 | Raw field | Normalized field | Rule |

@@ -3,11 +3,14 @@
 from __future__ import annotations
 
 import argparse
+import sys
 from pathlib import Path
+from urllib.error import HTTPError, URLError
 
 from elfquake.connectors.astronomy import fetch_manifest_json
 from elfquake.connectors.ingv import fetch_italy_events
 from elfquake.connectors.vlf_cumiana import fetch_manifest_images
+from elfquake.normalize.ingv import normalize_ingv_event_text
 
 
 def main() -> int:
@@ -33,33 +36,61 @@ def main() -> int:
     astro.add_argument("--moon-phases", type=int, default=8)
     astro.add_argument("--only", action="append", default=[], help="Source id to fetch; repeatable")
 
+    normalize = subparsers.add_parser("normalize-ingv-events")
+    normalize.add_argument("--raw", type=Path, required=True)
+    normalize.add_argument("--out", type=Path, required=True)
+    normalize.add_argument("--raw-uri")
+    normalize.add_argument("--ingested-at-utc")
+    normalize.add_argument("--only-region")
+
     args = parser.parse_args()
-    if args.command == "fetch-ingv-events":
-        stored = [
-            fetch_italy_events(
-                args.start,
-                args.end,
+    try:
+        if args.command == "fetch-ingv-events":
+            stored = [
+                fetch_italy_events(
+                    args.start,
+                    args.end,
+                    out_root=args.out_root,
+                    min_magnitude=args.min_mag,
+                    limit=args.limit,
+                )
+            ]
+        elif args.command == "fetch-vlf-cumiana":
+            stored = fetch_manifest_images(
+                args.manifest,
                 out_root=args.out_root,
-                min_magnitude=args.min_mag,
-                limit=args.limit,
+                only=set(args.only) if args.only else None,
             )
-        ]
-    elif args.command == "fetch-vlf-cumiana":
-        stored = fetch_manifest_images(
-            args.manifest,
-            out_root=args.out_root,
-            only=set(args.only) if args.only else None,
-        )
-    elif args.command == "fetch-astronomy":
-        stored = fetch_manifest_json(
-            args.manifest,
-            out_root=args.out_root,
-            date=args.date,
-            moon_phase_count=args.moon_phases,
-            only=set(args.only) if args.only else None,
-        )
-    else:
-        parser.error(f"unknown command: {args.command}")
+        elif args.command == "fetch-astronomy":
+            stored = fetch_manifest_json(
+                args.manifest,
+                out_root=args.out_root,
+                date=args.date,
+                moon_phase_count=args.moon_phases,
+                only=set(args.only) if args.only else None,
+            )
+        elif args.command == "normalize-ingv-events":
+            count = normalize_ingv_event_text(
+                args.raw,
+                args.out,
+                raw_uri=args.raw_uri,
+                ingested_at_utc=args.ingested_at_utc,
+                only_region=args.only_region,
+            )
+            print(f"normalized rows: {count}")
+            print(f"output: {args.out}")
+            return 0
+        else:
+            parser.error(f"unknown command: {args.command}")
+    except HTTPError as error:
+        print(f"fetch failed: HTTP {error.code} for {error.url}", file=sys.stderr)
+        return 2
+    except URLError as error:
+        print(f"fetch failed: {error.reason}", file=sys.stderr)
+        return 2
+    except OSError as error:
+        print(f"fetch failed: {error}", file=sys.stderr)
+        return 2
 
     for capture in stored:
         status = "skipped" if capture.skipped_existing else "stored"

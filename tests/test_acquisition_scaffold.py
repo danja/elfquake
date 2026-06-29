@@ -1,14 +1,21 @@
 from __future__ import annotations
 
 import json
+import io
 import tempfile
 import unittest
 from datetime import datetime, timezone
 from pathlib import Path
+from unittest.mock import patch
 from urllib.parse import parse_qs, urlparse
+from urllib.error import URLError
 
-from elfquake.connectors.astronomy import _materialize_url
-from elfquake.connectors.ingv import build_event_url
+from elfquake.cli import main
+from elfquake.connectors.astronomy import _materialize_url, fetch_manifest_json
+from elfquake.connectors.ingv import build_event_url, fetch_italy_events
+from elfquake.connectors.vlf_cumiana import fetch_manifest_images
+from elfquake.http import HttpCapture
+from elfquake.normalize.ingv import normalize_ingv_event_text, normalize_row
 from elfquake.storage import write_capture
 
 
@@ -23,6 +30,8 @@ class AcquisitionScaffoldTests(unittest.TestCase):
         self.assertEqual(query["minlon"], ["6"])
         self.assertEqual(query["maxlon"], ["19"])
         self.assertEqual(query["orderby"], ["time-asc"])
+        self.assertEqual(query["starttime"], ["2026-06-22T00:00:00"])
+        self.assertEqual(query["endtime"], ["2026-06-29T23:59:59"])
 
     def test_astronomy_url_materializes_moon_placeholders(self) -> None:
         url = _materialize_url(
@@ -54,6 +63,165 @@ class AcquisitionScaffoldTests(unittest.TestCase):
             metadata = json.loads(stored.metadata_path.read_text(encoding="utf-8"))
             self.assertEqual(metadata["source_id"], "example")
             self.assertEqual(metadata["captured_at_utc"], "2026-06-29T09:45:00Z")
+
+    def test_write_capture_can_skip_existing_payload(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            payload_path = Path(directory) / "capture.bin"
+            payload_path.write_bytes(b"original")
+            payload_path.with_suffix(".bin.metadata.json").write_text("{}", encoding="utf-8")
+
+            stored = write_capture(
+                payload_path,
+                b"replacement",
+                url="https://example.test/data",
+                status=200,
+                captured_at_utc=datetime(2026, 6, 29, 9, 45, tzinfo=timezone.utc),
+                headers={},
+                source_id="example",
+            )
+
+            self.assertTrue(stored.skipped_existing)
+            self.assertEqual(payload_path.read_bytes(), b"original")
+
+    def test_vlf_manifest_fetch_uses_last_modified_filename(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            manifest = root / "manifest.csv"
+            manifest.write_text(
+                "endpoint_id,url,station,latitude,longitude\n"
+                "last_E_VLF,http://example.test/vlf.jpg,cumiana,44.95609,7.42123\n",
+                encoding="utf-8",
+            )
+
+            stored = fetch_manifest_images(manifest, out_root=root, fetcher=_fake_jpeg_capture)
+
+            self.assertEqual(len(stored), 1)
+            self.assertEqual(
+                stored[0].payload_path.name,
+                "last_E_VLF_2026-06-29T09-45-00Z.jpg",
+            )
+            self.assertEqual(stored[0].payload_path.read_bytes(), b"jpeg")
+
+    def test_astronomy_manifest_fetch_filters_source_ids(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            manifest = root / "manifest.csv"
+            manifest.write_text(
+                "source_id,url,content,cadence,status,checked_utc\n"
+                "moon,https://example.test/moon?date=YYYY-MM-DD&nump=N,moon,event,ok,now\n"
+                "kp,https://example.test/kp,kp,1 minute,ok,now\n",
+                encoding="utf-8",
+            )
+
+            stored = fetch_manifest_json(
+                manifest,
+                out_root=root,
+                date="2026-06-29",
+                moon_phase_count=4,
+                only={"moon"},
+                fetcher=_fake_json_capture,
+            )
+
+            self.assertEqual(len(stored), 1)
+            self.assertTrue(stored[0].payload_path.name.startswith("moon_"))
+            metadata = json.loads(stored[0].metadata_path.read_text(encoding="utf-8"))
+            self.assertEqual(metadata["url"], "https://example.test/moon?date=2026-06-29&nump=4")
+
+    def test_ingv_fetch_writes_append_only_timestamped_file(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            stored = fetch_italy_events(
+                "2026-06-22T00:00:00Z",
+                "2026-06-29T23:59:59Z",
+                out_root=Path(directory),
+                fetcher=_fake_text_capture,
+            )
+
+            self.assertEqual(
+                stored.payload_path.name,
+                "events_italy_2026-06-22_2026-06-29_2026-06-29T09-58-18Z.txt",
+            )
+            self.assertEqual(stored.payload_path.read_bytes(), b"#EventID|Time\n")
+
+    def test_cli_returns_nonzero_for_url_errors(self) -> None:
+        with patch("sys.argv", ["elfquake", "fetch-astronomy", "--date", "2026-06-29"]):
+            with patch("elfquake.cli.fetch_manifest_json", side_effect=URLError("offline")):
+                with patch("sys.stderr", new_callable=io.StringIO):
+                    self.assertEqual(main(), 2)
+
+    def test_normalize_ingv_row_maps_schema_and_region(self) -> None:
+        row = normalize_row(
+            {
+                "EventID": "46330542",
+                "Time": "2026-06-24T23:22:59.040000",
+                "Latitude": "42.785",
+                "Longitude": "13.1973",
+                "Depth/Km": "9.3",
+                "MagType": "ML",
+                "Magnitude": "2.0",
+                "EventLocationName": "8 km W Arquata del Tronto (AP)",
+                "EventType": "earthquake",
+            },
+            raw_file="raw.txt",
+            raw_uri="https://example.test",
+            ingested_at_utc="2026-06-29T09:58:18Z",
+        )
+
+        self.assertEqual(row["event_time_utc"], "2026-06-24T23:22:59.040000Z")
+        self.assertEqual(row["italy_region"], "central_italy")
+        self.assertEqual(row["magnitude"], "2.0")
+
+    def test_normalize_ingv_event_text_filters_region(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            raw_path = root / "events.txt"
+            out_path = root / "central.csv"
+            raw_path.write_text(
+                "#EventID|Time|Latitude|Longitude|Depth/Km|Author|Catalog|Contributor|ContributorID|MagType|Magnitude|MagAuthor|EventLocationName|EventType\n"
+                "1|2026-06-24T23:22:59.040000|42.785|13.1973|9.3|||||ML|2.0|--|Central|earthquake\n"
+                "2|2026-06-24T23:22:59.040000|38.0|15.0|9.3|||||ML|2.0|--|Other|earthquake\n",
+                encoding="utf-8",
+            )
+            raw_path.with_suffix(".txt.metadata.json").write_text(
+                json.dumps({"url": "https://example.test", "captured_at_utc": "2026-06-29T09:58:18Z"}),
+                encoding="utf-8",
+            )
+
+            count = normalize_ingv_event_text(raw_path, out_path, only_region="central_italy")
+
+            self.assertEqual(count, 1)
+            lines = out_path.read_text(encoding="utf-8").splitlines()
+            self.assertEqual(len(lines), 2)
+            self.assertIn("central_italy", lines[1])
+
+
+def _fake_jpeg_capture(url: str) -> HttpCapture:
+    return HttpCapture(
+        url=url,
+        status=200,
+        captured_at_utc=datetime(2026, 6, 29, 9, 57, 24, tzinfo=timezone.utc),
+        headers={"Last-Modified": "Mon, 29 Jun 2026 09:45:00 GMT", "Content-Type": "image/jpeg"},
+        body=b"jpeg",
+    )
+
+
+def _fake_json_capture(url: str) -> HttpCapture:
+    return HttpCapture(
+        url=url,
+        status=200,
+        captured_at_utc=datetime(2026, 6, 29, 9, 56, 53, tzinfo=timezone.utc),
+        headers={"Content-Type": "application/json"},
+        body=b"{}",
+    )
+
+
+def _fake_text_capture(url: str) -> HttpCapture:
+    return HttpCapture(
+        url=url,
+        status=200,
+        captured_at_utc=datetime(2026, 6, 29, 9, 58, 18, tzinfo=timezone.utc),
+        headers={"Content-Type": "text/plain;charset=UTF-8"},
+        body=b"#EventID|Time\n",
+    )
 
 
 if __name__ == "__main__":

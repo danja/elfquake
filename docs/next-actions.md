@@ -3,10 +3,10 @@
 Prioritize feasibility and reproducibility before modeling.
 
 1. Confirm archival access for NOAA geomagnetic and solar data before backtesting.
-2. Run acquisition smoke captures for INGV, Cumiana VLF, and astronomy sources.
-3. Convert the manual seismic normalization into repeatable code.
-4. Expand source access beyond the smoke window.
-5. Create the first multimodal smoke input row from available source manifests.
+2. Expand source access beyond the smoke window.
+3. Create the first multimodal smoke input row from available source manifests.
+4. Add a polite repeated-capture runner for Cumiana VLF cadence checks.
+5. Add VLF and astronomy feature extraction stubs.
 
 Completed:
 
@@ -30,3 +30,6 @@ Completed:
 * Evaluate astronomical and geomagnetic data availability for the same windows.
 * Define the multimodal time-window schema joining seismic, VLF, and astronomical data.
 * Scaffold stdlib-only raw data acquisition and storage code.
+* Run acquisition smoke captures for INGV, Cumiana VLF, and astronomy sources.
+* Add acquisition command error handling and source-level smoke tests.
+* Convert the manual seismic normalization into repeatable code.
