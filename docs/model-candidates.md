@@ -16,6 +16,18 @@ Current smoke command:
 
 It uses no external ML dependency and writes a JSON report. Treat `trained_in_sample` as a wiring check until there are enough historical windows for real validation.
 
+Readiness command:
+
+`summarize-model-readiness`
+
+Run it before training to verify label balance and whether the seismic, astronomy, VLF metadata, and VLF image ablations have usable columns.
+
+Initial ablation command:
+
+`train-ablation-smoke`
+
+Use it only for smoke trials until enough labeled rows exist for held-out validation.
+
 VLF handling is now explicit: `build-vlf-window-features` summarizes service captures per training window, and `join-vlf-design-matrix` adds those columns before smoke training.
 
 ## Later Models

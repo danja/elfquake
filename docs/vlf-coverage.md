@@ -9,6 +9,8 @@ Current commands:
 
 The June training windows currently have `quality_missing_vlf=1` because Cumiana service captures began after the labeled windows. Keep VLF columns in the matrix, but evaluate VLF value only on windows with real aligned captures.
 
+The Cumiana live HTML page exposes current image endpoints only. No archive/history links were found in the page scan, so VLF evaluation should proceed prospectively unless a separate archive is obtained.
+
 Prospective service rows:
 
 * `data/derived/multimodal/central_italy_2026-06-29.prospective_vlf_windows.csv`
@@ -33,3 +35,5 @@ Image-derived feature tables:
 These summarize cropped JPEG spectrogram pixels: intensity distribution, hot-color ratio, band means, and vertical streak count. They are proxy features until raw VLF samples are available.
 
 Use `summarize-prospective-table` to check row counts, missing source coverage, and rows ready for target labeling.
+
+See [Prospective Labeling](prospective-labeling.md) for the first label rollover.

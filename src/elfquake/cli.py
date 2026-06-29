@@ -30,7 +30,9 @@ from elfquake.features.vlf import build_vlf_features
 from elfquake.features.vlf_image import build_vlf_image_features
 from elfquake.features.vlf_image_windows import join_vlf_image_features_to_windows
 from elfquake.features.vlf_windows import build_vlf_window_features
+from elfquake.models.ablation_smoke import train_ablation_smoke
 from elfquake.models.logistic_smoke import train_logistic_smoke
+from elfquake.models.readiness import summarize_model_readiness
 from elfquake.normalize.events import combine_normalized_events
 from elfquake.normalize.ingv import normalize_ingv_event_text
 from elfquake.normalize.space_weather import (
@@ -234,6 +236,16 @@ def main() -> int:
     trainer.add_argument("--out", type=Path, required=True)
     trainer.add_argument("--epochs", type=int, default=600)
     trainer.add_argument("--learning-rate", type=float, default=0.2)
+
+    readiness = subparsers.add_parser("summarize-model-readiness")
+    readiness.add_argument("--input", type=Path, required=True)
+    readiness.add_argument("--out", type=Path, required=True)
+
+    ablation = subparsers.add_parser("train-ablation-smoke")
+    ablation.add_argument("--input", type=Path, required=True)
+    ablation.add_argument("--out", type=Path, required=True)
+    ablation.add_argument("--epochs", type=int, default=600)
+    ablation.add_argument("--learning-rate", type=float, default=0.2)
 
     args = parser.parse_args()
     try:
@@ -515,6 +527,25 @@ def main() -> int:
                 learning_rate=args.learning_rate,
             )
             print(f"status: {report['status']}")
+            print(f"output: {args.out}")
+            return 0
+        elif args.command == "summarize-model-readiness":
+            report = summarize_model_readiness(input_csv=args.input, out_path=args.out)
+            print(f"status: {report['status']}")
+            print(f"rows: {report['row_count']}")
+            print(f"labeled rows: {report['labeled_row_count']}")
+            print(f"output: {args.out}")
+            return 0
+        elif args.command == "train-ablation-smoke":
+            report = train_ablation_smoke(
+                input_csv=args.input,
+                out_path=args.out,
+                epochs=args.epochs,
+                learning_rate=args.learning_rate,
+            )
+            print(f"status: {report['status']}")
+            print(f"rows: {report['row_count']}")
+            print(f"labeled rows: {report['labeled_row_count']}")
             print(f"output: {args.out}")
             return 0
         else:

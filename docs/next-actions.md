@@ -2,15 +2,11 @@
 
 Prioritize feasibility and reproducibility before modeling.
 
-1. Run planned INGV live backfill windows when network use is intended.
-2. Install and smoke-test the systemd service on the target host.
-3. Run a live Cumiana cadence check when a 30-minute wait is acceptable.
+1. Reinstall/reload the updated prospective systemd unit if timer-managed image features and summaries are desired.
+2. Keep the VLF capture and prospective timers running until the first target windows mature.
+3. On or after `2026-07-06T09:57:24Z`, refresh INGV events through `2026-07-07` and label the first prospective rows.
 4. Backfill enough historical INGV windows to get both positive and negative target classes by region.
-5. Determine whether usable historical Cumiana VLF imagery exists; otherwise plan prospective-only VLF evaluation.
-6. Install the prospective timer if recurring row generation should run under systemd.
-7. Refresh the normalized INGV event table before labeling future prospective rows.
-8. After `2026-07-06`, label the first prospective VLF rows against INGV events.
-9. Reinstall/reload the updated prospective systemd unit if timer-managed image features are desired.
+5. Continue with prospective-only VLF evaluation unless a separate historical Cumiana archive is obtained.
 
 Completed:
 
@@ -68,3 +64,8 @@ Completed:
 * Add pixel-derived VLF image feature extraction from Cumiana JPEGs.
 * Join image-derived VLF features into prospective rows by capture timestamp.
 * Add prospective table quality summaries for coverage and label readiness.
+* Refresh current prospective VLF image feature tables and summaries.
+* Check the Cumiana live HTML page for archive links; none were exposed.
+* Add a concise first-rollover labeling runbook.
+* Add model-readiness reports for label balance and ablation feature groups.
+* Run initial in-sample ablation smoke models on currently labeled tables.

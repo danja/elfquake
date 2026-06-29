@@ -1,0 +1,46 @@
+{
+  "ablations": {
+    "full_multimodal": {
+      "groups": [
+        "seismic",
+        "astronomy",
+        "vlf_metadata",
+        "vlf_image"
+      ],
+      "row_count": 3,
+      "status": "insufficient_class_variation"
+    },
+    "seismic_astronomy": {
+      "groups": [
+        "seismic",
+        "astronomy"
+      ],
+      "row_count": 3,
+      "status": "insufficient_class_variation"
+    },
+    "seismic_only": {
+      "groups": [
+        "seismic"
+      ],
+      "row_count": 3,
+      "status": "insufficient_class_variation"
+    },
+    "seismic_vlf": {
+      "groups": [
+        "seismic",
+        "vlf_metadata",
+        "vlf_image"
+      ],
+      "row_count": 3,
+      "status": "insufficient_class_variation"
+    }
+  },
+  "epochs": 600,
+  "input": "data/derived/multimodal/all_italy_2026-06-01_2026-06-29.multimodal_design_matrix.csv",
+  "labeled_row_count": 3,
+  "learning_rate": 0.2,
+  "negative_count": 0,
+  "positive_count": 3,
+  "row_count": 3,
+  "status": "insufficient_class_variation"
+}

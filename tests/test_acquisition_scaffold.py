@@ -36,7 +36,9 @@ from elfquake.features.vlf import build_vlf_features
 from elfquake.features.vlf_image import build_vlf_image_features, extract_vlf_image_features
 from elfquake.features.vlf_image_windows import join_vlf_image_features_to_windows
 from elfquake.features.vlf_windows import build_vlf_window_features
+from elfquake.models.ablation_smoke import train_ablation_smoke
 from elfquake.models.logistic_smoke import train_logistic_smoke
+from elfquake.models.readiness import summarize_model_readiness
 from elfquake.normalize.events import combine_normalized_events
 from elfquake.http import HttpCapture
 from elfquake.normalize.ingv import normalize_ingv_event_text, normalize_row
@@ -990,6 +992,80 @@ class AcquisitionScaffoldTests(unittest.TestCase):
             self.assertEqual(report["status"], "trained_in_sample")
             self.assertEqual(report["positive_count"], 2)
             self.assertIn("seismic_event_count", report["feature_names"])
+
+    def test_model_readiness_waits_for_labels_and_reports_feature_groups(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            table = root / "prospective.csv"
+            table.write_text(
+                "window_id,region_id,seismic_event_count,astro_f107_mean,vlf_capture_count,"
+                "vlf_image_intensity_mean_latest,target_occurred,target_status\n"
+                "w1,central_italy,1,120,2,0.4,,unlabeled_pending_future_events\n"
+                "w2,central_italy,2,121,3,0.5,,unlabeled_pending_future_events\n",
+                encoding="utf-8",
+            )
+
+            report = summarize_model_readiness(input_csv=table, out_path=root / "readiness.json")
+
+            self.assertEqual(report["status"], "waiting_for_labels")
+            self.assertEqual(report["row_count"], 2)
+            self.assertIn("vlf_image", report["available_feature_groups"])
+            self.assertTrue(report["ablation_plan"]["full_multimodal"]["has_required_features"])
+
+    def test_model_readiness_detects_trainable_two_class_table(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            table = root / "design.csv"
+            table.write_text(
+                "window_id,region_id,seismic_event_count,astro_f107_mean,target_occurred,target_status\n"
+                "w1,central_italy,1,120,0,labeled\n"
+                "w2,central_italy,3,121,1,labeled\n",
+                encoding="utf-8",
+            )
+
+            report = summarize_model_readiness(input_csv=table, out_path=root / "readiness.json")
+
+            self.assertEqual(report["status"], "ready_for_smoke_training")
+            self.assertEqual(report["positive_count"], 1)
+            self.assertEqual(report["negative_count"], 1)
+            self.assertFalse(report["ablation_plan"]["seismic_vlf"]["has_required_features"])
+
+    def test_ablation_smoke_trains_available_feature_groups(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            table = root / "design.csv"
+            table.write_text(
+                "window_id,region_id,seismic_event_count,astro_f107_mean,"
+                "vlf_capture_count,vlf_image_intensity_mean_latest,target_occurred,target_status\n"
+                "w1,central_italy,1,120,1,0.1,0,labeled\n"
+                "w2,central_italy,2,121,2,0.2,0,labeled\n"
+                "w3,central_italy,8,130,8,0.8,1,labeled\n"
+                "w4,central_italy,9,131,9,0.9,1,labeled\n",
+                encoding="utf-8",
+            )
+
+            report = train_ablation_smoke(input_csv=table, out_path=root / "ablation.json", epochs=100)
+
+            self.assertEqual(report["status"], "trained_in_sample")
+            self.assertEqual(report["ablations"]["seismic_only"]["status"], "trained_in_sample")
+            self.assertEqual(report["ablations"]["full_multimodal"]["status"], "trained_in_sample")
+            self.assertIn("vlf_image_intensity_mean_latest", report["ablations"]["full_multimodal"]["feature_names"])
+
+    def test_ablation_smoke_reports_single_class(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            table = root / "design.csv"
+            table.write_text(
+                "window_id,region_id,seismic_event_count,target_occurred,target_status\n"
+                "w1,central_italy,1,1,labeled\n"
+                "w2,central_italy,2,1,labeled\n",
+                encoding="utf-8",
+            )
+
+            report = train_ablation_smoke(input_csv=table, out_path=root / "ablation.json")
+
+            self.assertEqual(report["status"], "insufficient_class_variation")
+            self.assertEqual(report["ablations"]["seismic_only"]["status"], "insufficient_class_variation")
 
 
 def _fake_jpeg_capture(url: str) -> HttpCapture:

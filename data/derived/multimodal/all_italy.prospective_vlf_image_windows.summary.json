@@ -1,5 +1,5 @@
 {
-  "as_of_utc": "2026-06-29T19:47:37Z",
+  "as_of_utc": "2026-06-29T19:51:42Z",
   "first_target_end_utc": "2026-07-06T09:57:24Z",
   "first_window_end_utc": "2026-06-29T09:57:24Z",
   "input": "data/derived/multimodal/all_italy.prospective_vlf_image_windows.csv",
