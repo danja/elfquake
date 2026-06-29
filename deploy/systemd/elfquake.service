@@ -1,0 +1,28 @@
+[Unit]
+Description=ELFQuake VLF capture service
+Documentation=file:/home/danny/github/elfquake/docs/systemd-service.md
+Wants=network-online.target
+After=network-online.target
+
+[Service]
+Type=simple
+User=danny
+Group=danny
+WorkingDirectory=/home/danny/github/elfquake
+Environment=PYTHONPATH=/home/danny/github/elfquake/src
+Environment=PYTHONDONTWRITEBYTECODE=1
+Environment=ELFQUAKE_VLF_INTERVAL_SECONDS=1800
+EnvironmentFile=-/etc/default/elfquake
+ExecStart=/usr/bin/python3 -m elfquake.cli capture-vlf-cumiana-loop --only last_E_VLF --cycles 0 --interval-seconds ${ELFQUAKE_VLF_INTERVAL_SECONDS}
+Restart=on-failure
+RestartSec=60
+TimeoutStopSec=30
+SyslogIdentifier=elfquake
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=read-only
+ReadWritePaths=/home/danny/github/elfquake/data
+
+[Install]
+WantedBy=multi-user.target

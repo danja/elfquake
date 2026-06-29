@@ -1,16 +1,17 @@
-"""Archive normalization stubs for space-weather sources."""
+"""Archive normalization for space-weather sources."""
 
 from __future__ import annotations
 
 import csv
 import json
+from datetime import timezone
 from pathlib import Path
 
 
 GFZ_FIELDNAMES = ["date", "slot", "kp", "ap", "source_file"]
 DST_FIELDNAMES = ["date", "hour", "dst_nt", "source_file"]
 F107_FIELDNAMES = ["date", "f107", "source_file"]
-GOES_FIELDNAMES = ["source_file", "status", "note"]
+GOES_FIELDNAMES = ["time_utc", "variable", "value", "units", "source_file"]
 
 
 def normalize_gfz_kp_ap(raw_path: Path, out_path: Path) -> int:
@@ -72,16 +73,52 @@ def normalize_f107_daily(raw_path: Path, out_path: Path) -> int:
     return len(rows)
 
 
-def write_goes_xrs_netcdf_stub(raw_path: Path, out_path: Path) -> int:
-    rows = [
-        {
-            "source_file": str(raw_path),
-            "status": "requires_netcdf_decoder",
-            "note": "Install a NetCDF reader before extracting GOES XRS values.",
-        }
-    ]
+def normalize_goes_xrs_netcdf(raw_path: Path, out_path: Path) -> int:
+    try:
+        from netCDF4 import Dataset, num2date
+    except ImportError as error:
+        raise RuntimeError("GOES XRS NetCDF extraction requires netCDF4") from error
+
+    rows = []
+    with Dataset(raw_path) as dataset:
+        time_variable = _find_time_variable(dataset.variables)
+        if time_variable is None:
+            raise ValueError("NetCDF file has no recognizable time coordinate")
+        time_values = time_variable[:]
+        time_units = getattr(time_variable, "units", "")
+        calendar = getattr(time_variable, "calendar", "standard")
+        times = [
+            _format_netcdf_time(value)
+            for value in num2date(time_values, units=time_units, calendar=calendar)
+        ]
+        time_dimension = time_variable.dimensions[0] if time_variable.dimensions else "time"
+        for name, variable in dataset.variables.items():
+            if name == time_variable.name or not _is_goes_xrs_variable(name, variable):
+                continue
+            if time_dimension not in variable.dimensions:
+                continue
+            time_axis = variable.dimensions.index(time_dimension)
+            units = str(getattr(variable, "units", ""))
+            for index, time_utc in enumerate(times):
+                value = variable[:].take(index, axis=time_axis)
+                scalar = _first_scalar(value)
+                if scalar is None:
+                    continue
+                rows.append(
+                    {
+                        "time_utc": time_utc,
+                        "variable": name,
+                        "value": scalar,
+                        "units": units,
+                        "source_file": str(raw_path),
+                    }
+                )
     _write_rows(out_path, GOES_FIELDNAMES, rows)
-    return 1
+    return len(rows)
+
+
+def write_goes_xrs_netcdf_stub(raw_path: Path, out_path: Path) -> int:
+    return normalize_goes_xrs_netcdf(raw_path, out_path)
 
 
 def _normalize_f107_json(text: str, raw_path: Path) -> list[dict[str, str]]:
@@ -117,6 +154,56 @@ def _normalize_f107_text(text: str, raw_path: Path) -> list[dict[str, str]]:
 
 def _date_from_parts(year: str, month: str, day: str) -> str:
     return f"{int(year):04d}-{int(month):02d}-{int(day):02d}"
+
+
+def _find_time_variable(variables) -> object | None:
+    for name in ("time", "time_tag", "time_seconds"):
+        if name in variables:
+            return variables[name]
+    for variable in variables.values():
+        units = str(getattr(variable, "units", "")).lower()
+        if " since " in units:
+            return variable
+    return None
+
+
+def _is_goes_xrs_variable(name: str, variable) -> bool:
+    if not getattr(variable, "dimensions", ()):
+        return False
+    lower_name = name.lower()
+    units = str(getattr(variable, "units", "")).lower()
+    return (
+        "xrs" in lower_name
+        or "flux" in lower_name
+        or "irradiance" in lower_name
+        or units in {"w/m^2", "w m-2", "w/m2"}
+    )
+
+
+def _format_netcdf_time(value) -> str:
+    if hasattr(value, "tzinfo") and value.tzinfo is not None:
+        return value.astimezone(timezone.utc).isoformat().replace("+00:00", "Z")
+    return (
+        f"{int(value.year):04d}-{int(value.month):02d}-{int(value.day):02d}"
+        f"T{int(value.hour):02d}:{int(value.minute):02d}:{int(value.second):02d}Z"
+    )
+
+
+def _first_scalar(value) -> str | None:
+    if hasattr(value, "mask") and bool(getattr(value, "mask", False)):
+        return None
+    if hasattr(value, "filled"):
+        value = value.filled(None)
+    if hasattr(value, "reshape"):
+        flattened = value.reshape(-1)
+        if len(flattened) == 0:
+            return None
+        value = flattened[0]
+    if hasattr(value, "item"):
+        value = value.item()
+    if value is None:
+        return None
+    return f"{value:g}" if isinstance(value, float) else str(value)
 
 
 def _write_rows(out_path: Path, fieldnames: list[str], rows: list[dict[str, str]]) -> None:

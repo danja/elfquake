@@ -1,2 +1,2 @@
-window_start_utc,window_end_utc,vlf_capture_count,vlf_latest_capture_utc,vlf_latest_last_modified_utc,vlf_latest_age_seconds,vlf_total_bytes,vlf_jpeg_count,quality_missing_vlf,quality_stale_vlf
-2026-06-29T09:00:00Z,2026-06-29T10:00:00Z,1,2026-06-29T09:57:24Z,2026-06-29T09:45:00Z,900,252950,1,0,0
+window_start_utc,window_end_utc,vlf_capture_count,vlf_latest_capture_utc,vlf_latest_last_modified_utc,vlf_latest_age_seconds,vlf_total_bytes,vlf_jpeg_count,vlf_latest_width_px,vlf_latest_height_px,vlf_latest_entropy_bits_per_byte,quality_missing_vlf,quality_stale_vlf
+2026-06-29T09:00:00Z,2026-06-29T10:00:00Z,1,2026-06-29T09:57:24Z,2026-06-29T09:45:00Z,900,252950,1,842,573,7.957264,0,0

@@ -30,6 +30,12 @@ Run a polite Cumiana VLF cadence check:
 PYTHONPATH=src python -m elfquake.cli capture-vlf-cumiana-loop --only last_E_VLF --cycles 2 --interval-seconds 1800
 ```
 
+Run the Cumiana loop forever for service supervision:
+
+```sh
+PYTHONPATH=src python -m elfquake.cli capture-vlf-cumiana-loop --only last_E_VLF --cycles 0 --interval-seconds 1800
+```
+
 Fetch astronomical and geomagnetic JSON:
 
 ```sh

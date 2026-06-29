@@ -8,7 +8,7 @@ Current outputs:
 * `data/derived/multimodal/astronomy_2026-06-29T0900_1015.features.csv`
 * `data/derived/multimodal/central_italy_smoke_windows.multimodal.csv`
 
-Current VLF fields cover capture availability, latest `Last-Modified`, byte count, JPEG detection, and stale/missing flags.
+Current VLF fields cover capture availability, latest `Last-Modified`, byte count, JPEG detection, JPEG dimensions, byte entropy, and stale/missing flags.
 
 Current astronomy fields cover capture availability, source coverage, next USNO moon phase, and latest available monthly F10.7 value.
 

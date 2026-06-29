@@ -37,6 +37,8 @@ The project should proceed cautiously: no prediction capability is assumed until
 * [Baseline Input](baseline-input.md)
 * [Smoke Baseline Run](baseline-run-smoke.md)
 * [System Architecture](system-architecture.md)
+* [Systemd Service](systemd-service.md)
+* [Pre-Real-Data Checklist](pre-real-data-checklist.md)
 * [Modeling Strategy](modeling-strategy.md)
 * [Evaluation](evaluation.md)
 * [Next Actions](next-actions.md)

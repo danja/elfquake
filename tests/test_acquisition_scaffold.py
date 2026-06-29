@@ -33,6 +33,7 @@ from elfquake.normalize.ingv import normalize_ingv_event_text, normalize_row
 from elfquake.normalize.space_weather import (
     normalize_f107_daily,
     normalize_gfz_kp_ap,
+    normalize_goes_xrs_netcdf,
     normalize_kyoto_dst_text,
     write_goes_xrs_netcdf_stub,
 )
@@ -144,6 +145,32 @@ class AcquisitionScaffoldTests(unittest.TestCase):
 
             self.assertEqual(len(stored), 1)
             self.assertEqual(slept, [])
+
+    def test_vlf_repeat_runner_zero_cycles_means_forever(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            manifest = root / "manifest.csv"
+            manifest.write_text(
+                "endpoint_id,url,station,latitude,longitude\n"
+                "last_E_VLF,http://example.test/vlf.jpg,cumiana,44.95609,7.42123\n",
+                encoding="utf-8",
+            )
+
+            def stop_after_first_sleep(_: float) -> None:
+                raise KeyboardInterrupt
+
+            with self.assertRaises(KeyboardInterrupt):
+                repeat_manifest_images(
+                    manifest,
+                    out_root=root,
+                    cycles=0,
+                    interval_seconds=60,
+                    fetcher=_fake_jpeg_capture,
+                    sleeper=stop_after_first_sleep,
+                )
+
+            captures = list((root / "captures").glob("**/*.jpg"))
+            self.assertEqual(len(captures), 1)
 
     def test_astronomy_manifest_fetch_filters_source_ids(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
@@ -357,7 +384,12 @@ class AcquisitionScaffoldTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
             payload = root / "last_E_VLF_2026-06-29T09-45-00Z.jpg"
-            payload.write_bytes(b"\xff\xd8jpeg")
+            payload.write_bytes(
+                b"\xff\xd8"
+                b"\xff\xc0\x00\x11\x08\x00\x10\x00\x20"
+                b"\x03\x01\x11\x00\x02\x11\x00\x03\x11\x00"
+                b"\xff\xd9"
+            )
             metadata = payload.with_suffix(".jpg.metadata.json")
             metadata.write_text(
                 json.dumps(
@@ -379,6 +411,9 @@ class AcquisitionScaffoldTests(unittest.TestCase):
 
             self.assertEqual(row["vlf_capture_count"], "1")
             self.assertEqual(row["vlf_jpeg_count"], "1")
+            self.assertEqual(row["vlf_latest_width_px"], "32")
+            self.assertEqual(row["vlf_latest_height_px"], "16")
+            self.assertTrue(row["vlf_latest_entropy_bits_per_byte"])
             self.assertEqual(row["quality_missing_vlf"], "0")
 
     def test_astronomy_feature_stub_summarizes_captures(self) -> None:
@@ -428,14 +463,31 @@ class AcquisitionScaffoldTests(unittest.TestCase):
             dst.write_text("2026 06 29 " + " ".join(str(value) for value in range(24)) + "\n", encoding="utf-8")
             f107 = root / "f107.json"
             f107.write_text(json.dumps([{"date": "2026-06-29", "f10.7": 125.1}]), encoding="utf-8")
-            goes = root / "goes.nc"
-            goes.write_bytes(b"CDF")
 
             self.assertEqual(normalize_gfz_kp_ap(gfz, root / "kp.csv"), 2)
             self.assertEqual(normalize_kyoto_dst_text(dst, root / "dst.csv"), 24)
             self.assertEqual(normalize_f107_daily(f107, root / "f107.csv"), 1)
-            self.assertEqual(write_goes_xrs_netcdf_stub(goes, root / "goes.csv"), 1)
-            self.assertIn("requires_netcdf_decoder", (root / "goes.csv").read_text(encoding="utf-8"))
+
+    def test_goes_xrs_netcdf_normalizer_extracts_flux_rows(self) -> None:
+        from netCDF4 import Dataset
+
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            goes = root / "goes.nc"
+            with Dataset(goes, "w") as dataset:
+                dataset.createDimension("time", 2)
+                time_var = dataset.createVariable("time", "f8", ("time",))
+                time_var.units = "seconds since 2026-06-29 00:00:00 UTC"
+                time_var[:] = [0, 60]
+                flux_var = dataset.createVariable("xrs_flux", "f4", ("time",))
+                flux_var.units = "W/m^2"
+                flux_var[:] = [1.2e-6, 1.4e-6]
+
+            self.assertEqual(normalize_goes_xrs_netcdf(goes, root / "goes.csv"), 2)
+            self.assertEqual(write_goes_xrs_netcdf_stub(goes, root / "goes_alias.csv"), 2)
+            lines = (root / "goes.csv").read_text(encoding="utf-8").splitlines()
+            self.assertEqual(lines[0], "time_utc,variable,value,units,source_file")
+            self.assertIn("2026-06-29T00:00:00Z,xrs_flux,1.2e-06,W/m^2", lines[1])
 
     def test_target_labeler_labels_elapsed_windows_only(self) -> None:
         with tempfile.TemporaryDirectory() as directory:

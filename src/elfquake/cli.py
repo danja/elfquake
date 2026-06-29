@@ -26,8 +26,8 @@ from elfquake.normalize.ingv import normalize_ingv_event_text
 from elfquake.normalize.space_weather import (
     normalize_f107_daily,
     normalize_gfz_kp_ap,
+    normalize_goes_xrs_netcdf,
     normalize_kyoto_dst_text,
-    write_goes_xrs_netcdf_stub,
 )
 
 
@@ -58,7 +58,7 @@ def main() -> int:
     vlf_loop.add_argument("--manifest", type=Path, default=Path("data/raw/vlf/cumiana/manifest.csv"))
     vlf_loop.add_argument("--out-root", type=Path, default=Path("data/raw/vlf/cumiana"))
     vlf_loop.add_argument("--only", action="append", default=[], help="Endpoint id to fetch; repeatable")
-    vlf_loop.add_argument("--cycles", type=int, default=2)
+    vlf_loop.add_argument("--cycles", type=int, default=2, help="0 means run forever")
     vlf_loop.add_argument("--interval-seconds", type=int, default=1800)
 
     astro = subparsers.add_parser("fetch-astronomy")
@@ -263,7 +263,7 @@ def main() -> int:
             print(f"output: {args.out}")
             return 0
         elif args.command == "normalize-goes-xrs":
-            count = write_goes_xrs_netcdf_stub(args.raw, args.out)
+            count = normalize_goes_xrs_netcdf(args.raw, args.out)
             print(f"normalized rows: {count}")
             print(f"output: {args.out}")
             return 0

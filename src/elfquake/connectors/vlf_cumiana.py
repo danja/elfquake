@@ -65,13 +65,14 @@ def repeat_manifest_images(
     fetcher: Callable[[str], HttpCapture] = fetch_bytes,
     sleeper: Callable[[float], None] = time.sleep,
 ) -> list[StoredCapture]:
-    if cycles < 1:
-        raise ValueError("cycles must be at least 1")
-    if cycles > 1 and interval_seconds < 60:
+    if cycles < 0:
+        raise ValueError("cycles must be 0 for forever, or at least 1")
+    if cycles != 1 and interval_seconds < 60:
         raise ValueError("interval_seconds must be at least 60 for repeated live capture")
 
     stored: list[StoredCapture] = []
-    for cycle in range(cycles):
+    cycle = 0
+    while cycles == 0 or cycle < cycles:
         stored.extend(
             fetch_manifest_images(
                 manifest_path,
@@ -80,6 +81,7 @@ def repeat_manifest_images(
                 fetcher=fetcher,
             )
         )
-        if cycle < cycles - 1:
+        cycle += 1
+        if cycles == 0 or cycle < cycles:
             sleeper(interval_seconds)
     return stored

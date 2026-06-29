@@ -3,10 +3,10 @@
 Prioritize feasibility and reproducibility before modeling.
 
 1. Run planned INGV live backfill windows when network use is intended.
-2. Run a live Cumiana cadence check when a 30-minute wait is acceptable.
-3. Decide whether to add a NetCDF dependency for GOES XRS extraction.
-4. Add image-derived VLF signal summaries beyond availability and byte counts.
-5. Add historical archive-backed astronomy features for older seismic windows.
+2. Install and smoke-test the systemd service on the target host.
+3. Run a live Cumiana cadence check when a 30-minute wait is acceptable.
+4. Add historical archive-backed astronomy features for older seismic windows.
+5. Run GOES XRS extraction against a real NCEI sample file.
 
 Completed:
 
@@ -45,3 +45,5 @@ Completed:
 * Split longer INGV pulls into service-friendly windows before backfilling.
 * Add target-label generation for elapsed multimodal windows.
 * Add a manifest-driven feature-table builder across many windows.
+* Add no-dependency VLF image summaries for dimensions and byte entropy.
+* Add NetCDF-backed GOES XRS archive normalization.
