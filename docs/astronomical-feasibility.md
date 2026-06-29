@@ -33,3 +33,5 @@ For each seismic/VLF window, derive:
 NOAA live endpoints are useful for current capture, but most SWPC Kp, Dst, GOES X-ray, and daily F10.7 feeds checked so far are rolling files. Do not rely on them for backtests until archival coverage is confirmed.
 
 See [NOAA Archive Feasibility](noaa-archive-feasibility.md).
+
+Current coarse feature stub: [Feature Extraction](feature-extraction.md).

@@ -15,9 +15,17 @@ from elfquake.connectors.space_archives import (
     fetch_ncei_goes15_xrs_year,
     fetch_spaceweather_canada_f107_daily,
 )
-from elfquake.connectors.vlf_cumiana import fetch_manifest_images
+from elfquake.connectors.vlf_cumiana import fetch_manifest_images, repeat_manifest_images
+from elfquake.features.astronomy import build_astronomy_features
 from elfquake.features.multimodal_smoke import build_multimodal_smoke_row
+from elfquake.features.vlf import build_vlf_features
 from elfquake.normalize.ingv import normalize_ingv_event_text
+from elfquake.normalize.space_weather import (
+    normalize_f107_daily,
+    normalize_gfz_kp_ap,
+    normalize_kyoto_dst_text,
+    write_goes_xrs_netcdf_stub,
+)
 
 
 def main() -> int:
@@ -35,6 +43,13 @@ def main() -> int:
     vlf.add_argument("--manifest", type=Path, default=Path("data/raw/vlf/cumiana/manifest.csv"))
     vlf.add_argument("--out-root", type=Path, default=Path("data/raw/vlf/cumiana"))
     vlf.add_argument("--only", action="append", default=[], help="Endpoint id to fetch; repeatable")
+
+    vlf_loop = subparsers.add_parser("capture-vlf-cumiana-loop")
+    vlf_loop.add_argument("--manifest", type=Path, default=Path("data/raw/vlf/cumiana/manifest.csv"))
+    vlf_loop.add_argument("--out-root", type=Path, default=Path("data/raw/vlf/cumiana"))
+    vlf_loop.add_argument("--only", action="append", default=[], help="Endpoint id to fetch; repeatable")
+    vlf_loop.add_argument("--cycles", type=int, default=2)
+    vlf_loop.add_argument("--interval-seconds", type=int, default=1800)
 
     astro = subparsers.add_parser("fetch-astronomy")
     astro.add_argument("--manifest", type=Path, default=Path("data/raw/astronomy/manifest.csv"))
@@ -76,6 +91,34 @@ def main() -> int:
     multimodal.add_argument("--target-magnitude-min", default="3.0")
     multimodal.add_argument("--out", type=Path, required=True)
 
+    vlf_features = subparsers.add_parser("build-vlf-features")
+    vlf_features.add_argument("--metadata", type=Path, action="append", default=[])
+    vlf_features.add_argument("--window-start", required=True)
+    vlf_features.add_argument("--window-end", required=True)
+    vlf_features.add_argument("--out", type=Path, required=True)
+
+    astro_features = subparsers.add_parser("build-astronomy-features")
+    astro_features.add_argument("--metadata", type=Path, action="append", default=[])
+    astro_features.add_argument("--window-start", required=True)
+    astro_features.add_argument("--window-end", required=True)
+    astro_features.add_argument("--out", type=Path, required=True)
+
+    kp_norm = subparsers.add_parser("normalize-gfz-kp-ap")
+    kp_norm.add_argument("--raw", type=Path, required=True)
+    kp_norm.add_argument("--out", type=Path, required=True)
+
+    dst_norm = subparsers.add_parser("normalize-kyoto-dst")
+    dst_norm.add_argument("--raw", type=Path, required=True)
+    dst_norm.add_argument("--out", type=Path, required=True)
+
+    f107_norm = subparsers.add_parser("normalize-f107-daily")
+    f107_norm.add_argument("--raw", type=Path, required=True)
+    f107_norm.add_argument("--out", type=Path, required=True)
+
+    goes_norm = subparsers.add_parser("normalize-goes-xrs")
+    goes_norm.add_argument("--raw", type=Path, required=True)
+    goes_norm.add_argument("--out", type=Path, required=True)
+
     args = parser.parse_args()
     try:
         if args.command == "fetch-ingv-events":
@@ -92,6 +135,14 @@ def main() -> int:
             stored = fetch_manifest_images(
                 args.manifest,
                 out_root=args.out_root,
+                only=set(args.only) if args.only else None,
+            )
+        elif args.command == "capture-vlf-cumiana-loop":
+            stored = repeat_manifest_images(
+                args.manifest,
+                out_root=args.out_root,
+                cycles=args.cycles,
+                interval_seconds=args.interval_seconds,
                 only=set(args.only) if args.only else None,
             )
         elif args.command == "fetch-astronomy":
@@ -141,6 +192,46 @@ def main() -> int:
             )
             print(f"wrote: {args.out}")
             print(f"window_id: {row['window_id']}")
+            return 0
+        elif args.command == "build-vlf-features":
+            row = build_vlf_features(
+                metadata_paths=args.metadata,
+                window_start_utc=args.window_start,
+                window_end_utc=args.window_end,
+                out_path=args.out,
+            )
+            print(f"wrote: {args.out}")
+            print(f"vlf_capture_count: {row['vlf_capture_count']}")
+            return 0
+        elif args.command == "build-astronomy-features":
+            row = build_astronomy_features(
+                metadata_paths=args.metadata,
+                window_start_utc=args.window_start,
+                window_end_utc=args.window_end,
+                out_path=args.out,
+            )
+            print(f"wrote: {args.out}")
+            print(f"astro_capture_count: {row['astro_capture_count']}")
+            return 0
+        elif args.command == "normalize-gfz-kp-ap":
+            count = normalize_gfz_kp_ap(args.raw, args.out)
+            print(f"normalized rows: {count}")
+            print(f"output: {args.out}")
+            return 0
+        elif args.command == "normalize-kyoto-dst":
+            count = normalize_kyoto_dst_text(args.raw, args.out)
+            print(f"normalized rows: {count}")
+            print(f"output: {args.out}")
+            return 0
+        elif args.command == "normalize-f107-daily":
+            count = normalize_f107_daily(args.raw, args.out)
+            print(f"normalized rows: {count}")
+            print(f"output: {args.out}")
+            return 0
+        elif args.command == "normalize-goes-xrs":
+            count = write_goes_xrs_netcdf_stub(args.raw, args.out)
+            print(f"normalized rows: {count}")
+            print(f"output: {args.out}")
             return 0
         else:
             parser.error(f"unknown command: {args.command}")

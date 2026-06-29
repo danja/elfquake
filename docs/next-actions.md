@@ -2,11 +2,11 @@
 
 Prioritize feasibility and reproducibility before modeling.
 
-1. Create the first multimodal smoke input row from available source manifests.
-2. Add a polite repeated-capture runner for Cumiana VLF cadence checks.
-3. Add VLF and astronomy feature extraction stubs.
-4. Add archive normalization stubs for Kp/Ap, Dst, GOES XRS, and F10.7.
-5. Split longer INGV pulls into service-friendly windows before backfilling.
+1. Split longer INGV pulls into service-friendly windows before backfilling.
+2. Add target-label generation for elapsed multimodal windows.
+3. Add a manifest-driven feature-table builder across many windows.
+4. Run a live Cumiana cadence check when a 30-minute wait is acceptable.
+5. Decide whether to add a NetCDF dependency for GOES XRS extraction.
 
 Completed:
 
@@ -38,3 +38,7 @@ Completed:
 * Add archive connector stubs for GFZ Kp/Ap, Kyoto Dst, NCEI GOES XRS, and daily F10.7.
 * Partition live endpoint tests from offline mock tests.
 * Expand INGV source access to a 14-day live Italy window and normalized Central Italy subset.
+* Create the first multimodal smoke row from seismic, VLF, and astronomy captures.
+* Add a polite repeated-capture runner for Cumiana VLF cadence checks.
+* Add coarse VLF and astronomy feature extraction stubs.
+* Add archive normalization stubs for Kp/Ap, Dst, GOES XRS, and F10.7.

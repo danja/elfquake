@@ -25,6 +25,7 @@ Initial smoke grain:
 | `target_end_utc` | datetime | Future target horizon end |
 | `target_event_count` | integer | Events meeting target criteria |
 | `target_occurred` | integer | `1` if count is positive |
+| `target_status` | string | Label state, e.g. `unlabeled_pending_future_events` |
 
 ## Feature Groups
 
@@ -42,6 +43,9 @@ Initial smoke grain:
 * Do not use image `Last-Modified` values later than `target_start_utc`.
 * Missing source coverage must be represented as features, not silently dropped.
 * Validation windows must occur after training windows.
+* Known astronomical calendar values may refer to future phase times, but their source capture must precede `target_start_utc`.
+
+First generated row: [Multimodal Smoke Row](multimodal-smoke-row.md).
 
 ## First Ablations
 

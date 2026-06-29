@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import csv
+import time
 from pathlib import Path
 from typing import Callable
 
@@ -51,4 +52,34 @@ def fetch_manifest_images(
                     skip_existing=True,
                 )
             )
+    return stored
+
+
+def repeat_manifest_images(
+    manifest_path: Path,
+    *,
+    out_root: Path,
+    cycles: int,
+    interval_seconds: int = 1800,
+    only: set[str] | None = None,
+    fetcher: Callable[[str], HttpCapture] = fetch_bytes,
+    sleeper: Callable[[float], None] = time.sleep,
+) -> list[StoredCapture]:
+    if cycles < 1:
+        raise ValueError("cycles must be at least 1")
+    if cycles > 1 and interval_seconds < 60:
+        raise ValueError("interval_seconds must be at least 60 for repeated live capture")
+
+    stored: list[StoredCapture] = []
+    for cycle in range(cycles):
+        stored.extend(
+            fetch_manifest_images(
+                manifest_path,
+                out_root=out_root,
+                only=only,
+                fetcher=fetcher,
+            )
+        )
+        if cycle < cycles - 1:
+            sleeper(interval_seconds)
     return stored

@@ -5,9 +5,10 @@ from __future__ import annotations
 import csv
 import json
 from dataclasses import dataclass
-from datetime import datetime, timezone
 from pathlib import Path
 from typing import Iterable
+
+from elfquake.features.common import format_utc, http_datetime_to_utc, parse_utc
 
 
 FIELDNAMES = [
@@ -118,12 +119,6 @@ def build_multimodal_smoke_row(
     return row
 
 
-def parse_utc(value: str) -> datetime:
-    if not value.endswith("Z"):
-        raise ValueError(f"expected UTC timestamp ending in Z: {value}")
-    return datetime.fromisoformat(value[:-1] + "+00:00")
-
-
 def _read_events(events_csv: Path, start_utc: datetime, end_utc: datetime) -> list[dict[str, str]]:
     with events_csv.open(newline="", encoding="utf-8") as handle:
         rows = list(csv.DictReader(handle))
@@ -148,7 +143,7 @@ def _read_capture_metadata(paths: Iterable[Path], *, before_utc: datetime) -> li
                 source_id=metadata.get("source_id", ""),
                 captured_at_utc=captured_at,
                 payload_path=str(path).removesuffix(".metadata.json"),
-                last_modified_utc=_http_datetime_to_utc(metadata.get("headers", {}).get("Last-Modified", "")),
+                last_modified_utc=http_datetime_to_utc(metadata.get("headers", {}).get("Last-Modified", "")),
             )
         )
     return captures
@@ -175,31 +170,26 @@ def _next_moon_phase(paths: Iterable[Path], *, after_utc: datetime) -> tuple[str
                 f"{int(phase['year']):04d}-{int(phase['month']):02d}-{int(phase['day']):02d}T{phase['time']}:00Z"
             )
             if phase_time >= after_utc:
-                return str(phase.get("phase", "")), _format_utc(phase_time)
+                return str(phase.get("phase", "")), format_utc(phase_time)
     return "", ""
 
 
 def _f107_month_value(paths: Iterable[Path], *, window_end: datetime) -> tuple[str, str]:
-    month = f"{window_end.year:04d}-{window_end.month:02d}"
+    window_month = f"{window_end.year:04d}-{window_end.month:02d}"
     for path in paths:
         if "noaa_solar_cycle_f107" not in path.name:
             continue
         payload = json.loads(Path(str(path).removesuffix(".metadata.json")).read_text(encoding="utf-8"))
+        latest_month = ""
+        latest_value = ""
         for item in payload:
-            if item.get("time-tag") == month:
-                return month, str(item.get("f10.7", ""))
-    return month, ""
-
-
-def _http_datetime_to_utc(value: str) -> str:
-    if not value:
-        return ""
-    parsed = datetime.strptime(value, "%a, %d %b %Y %H:%M:%S GMT").replace(tzinfo=timezone.utc)
-    return _format_utc(parsed)
-
-
-def _format_utc(value: datetime) -> str:
-    return value.astimezone(timezone.utc).isoformat().replace("+00:00", "Z")
+            item_month = item.get("time-tag", "")
+            if item_month <= window_month:
+                latest_month = item_month
+                latest_value = str(item.get("f10.7", ""))
+        if latest_month:
+            return latest_month, latest_value
+    return window_month, ""
 
 
 def _window_id(region_id: str, window_start_utc: str, window_end_utc: str) -> str:

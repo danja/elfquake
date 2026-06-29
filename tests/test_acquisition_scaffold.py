@@ -21,10 +21,18 @@ from elfquake.connectors.space_archives import (
     fetch_ncei_goes15_xrs_year,
     fetch_spaceweather_canada_f107_daily,
 )
-from elfquake.connectors.vlf_cumiana import fetch_manifest_images
+from elfquake.connectors.vlf_cumiana import fetch_manifest_images, repeat_manifest_images
+from elfquake.features.astronomy import build_astronomy_features
 from elfquake.features.multimodal_smoke import build_multimodal_smoke_row
+from elfquake.features.vlf import build_vlf_features
 from elfquake.http import HttpCapture
 from elfquake.normalize.ingv import normalize_ingv_event_text, normalize_row
+from elfquake.normalize.space_weather import (
+    normalize_f107_daily,
+    normalize_gfz_kp_ap,
+    normalize_kyoto_dst_text,
+    write_goes_xrs_netcdf_stub,
+)
 from elfquake.storage import write_capture
 
 
@@ -110,6 +118,29 @@ class AcquisitionScaffoldTests(unittest.TestCase):
                 "last_E_VLF_2026-06-29T09-45-00Z.jpg",
             )
             self.assertEqual(stored[0].payload_path.read_bytes(), b"jpeg")
+
+    def test_vlf_repeat_runner_allows_single_cycle_without_sleep(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            manifest = root / "manifest.csv"
+            manifest.write_text(
+                "endpoint_id,url,station,latitude,longitude\n"
+                "last_E_VLF,http://example.test/vlf.jpg,cumiana,44.95609,7.42123\n",
+                encoding="utf-8",
+            )
+            slept: list[float] = []
+
+            stored = repeat_manifest_images(
+                manifest,
+                out_root=root,
+                cycles=1,
+                interval_seconds=60,
+                fetcher=_fake_jpeg_capture,
+                sleeper=slept.append,
+            )
+
+            self.assertEqual(len(stored), 1)
+            self.assertEqual(slept, [])
 
     def test_astronomy_manifest_fetch_filters_source_ids(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
@@ -276,7 +307,7 @@ class AcquisitionScaffoldTests(unittest.TestCase):
             )
 
             f107_payload = root / "noaa_solar_cycle_f107_2026-06-29T10-10-17Z.json"
-            f107_payload.write_text(json.dumps([{"time-tag": "2026-06", "f10.7": 131.45}]), encoding="utf-8")
+            f107_payload.write_text(json.dumps([{"time-tag": "2026-05", "f10.7": 131.45}]), encoding="utf-8")
             f107_metadata = f107_payload.with_suffix(".json.metadata.json")
             f107_metadata.write_text(
                 json.dumps({"captured_at_utc": "2026-06-29T10:10:17Z", "source_id": "noaa_solar_cycle_f107"}),
@@ -301,8 +332,93 @@ class AcquisitionScaffoldTests(unittest.TestCase):
             self.assertEqual(row["vlf_capture_count"], "1")
             self.assertEqual(row["astro_capture_count"], "2")
             self.assertEqual(row["astro_usno_next_phase"], "Full Moon")
+            self.assertEqual(row["astro_noaa_solar_cycle_f107_month"], "2026-05")
             self.assertEqual(row["astro_noaa_solar_cycle_f107_value"], "131.45")
             self.assertTrue(out.exists())
+
+    def test_vlf_feature_stub_summarizes_capture_metadata(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            payload = root / "last_E_VLF_2026-06-29T09-45-00Z.jpg"
+            payload.write_bytes(b"\xff\xd8jpeg")
+            metadata = payload.with_suffix(".jpg.metadata.json")
+            metadata.write_text(
+                json.dumps(
+                    {
+                        "captured_at_utc": "2026-06-29T09:57:24Z",
+                        "headers": {"Last-Modified": "Mon, 29 Jun 2026 09:45:00 GMT"},
+                        "source_id": "vlf_cumiana_last_E_VLF",
+                    }
+                ),
+                encoding="utf-8",
+            )
+
+            row = build_vlf_features(
+                metadata_paths=[metadata],
+                window_start_utc="2026-06-29T09:00:00Z",
+                window_end_utc="2026-06-29T10:00:00Z",
+                out_path=root / "vlf.csv",
+            )
+
+            self.assertEqual(row["vlf_capture_count"], "1")
+            self.assertEqual(row["vlf_jpeg_count"], "1")
+            self.assertEqual(row["quality_missing_vlf"], "0")
+
+    def test_astronomy_feature_stub_summarizes_captures(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            moon_payload = root / "usno_moon_phases_2026-06-29T09-56-53Z.json"
+            moon_payload.write_text(
+                json.dumps(
+                    {
+                        "phasedata": [
+                            {"year": 2026, "month": 6, "day": 29, "time": "23:56", "phase": "Full Moon"}
+                        ]
+                    }
+                ),
+                encoding="utf-8",
+            )
+            moon_metadata = moon_payload.with_suffix(".json.metadata.json")
+            moon_metadata.write_text(
+                json.dumps({"captured_at_utc": "2026-06-29T09:56:53Z", "source_id": "usno_moon_phases"}),
+                encoding="utf-8",
+            )
+            f107_payload = root / "noaa_solar_cycle_f107_2026-06-29T10-10-17Z.json"
+            f107_payload.write_text(json.dumps([{"time-tag": "2026-05", "f10.7": 125.69}]), encoding="utf-8")
+            f107_metadata = f107_payload.with_suffix(".json.metadata.json")
+            f107_metadata.write_text(
+                json.dumps({"captured_at_utc": "2026-06-29T10:10:17Z", "source_id": "noaa_solar_cycle_f107"}),
+                encoding="utf-8",
+            )
+
+            row = build_astronomy_features(
+                metadata_paths=[moon_metadata, f107_metadata],
+                window_start_utc="2026-06-29T09:00:00Z",
+                window_end_utc="2026-06-29T10:15:00Z",
+                out_path=root / "astro.csv",
+            )
+
+            self.assertEqual(row["astro_capture_count"], "2")
+            self.assertEqual(row["astro_usno_next_phase"], "Full Moon")
+            self.assertEqual(row["astro_noaa_solar_cycle_f107_value"], "125.69")
+
+    def test_space_weather_normalization_stubs_write_csvs(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            gfz = root / "kp.txt"
+            gfz.write_text("2026 06 29 1.0 4 2.0 7\n", encoding="utf-8")
+            dst = root / "dst.txt"
+            dst.write_text("2026 06 29 " + " ".join(str(value) for value in range(24)) + "\n", encoding="utf-8")
+            f107 = root / "f107.json"
+            f107.write_text(json.dumps([{"date": "2026-06-29", "f10.7": 125.1}]), encoding="utf-8")
+            goes = root / "goes.nc"
+            goes.write_bytes(b"CDF")
+
+            self.assertEqual(normalize_gfz_kp_ap(gfz, root / "kp.csv"), 2)
+            self.assertEqual(normalize_kyoto_dst_text(dst, root / "dst.csv"), 24)
+            self.assertEqual(normalize_f107_daily(f107, root / "f107.csv"), 1)
+            self.assertEqual(write_goes_xrs_netcdf_stub(goes, root / "goes.csv"), 1)
+            self.assertIn("requires_netcdf_decoder", (root / "goes.csv").read_text(encoding="utf-8"))
 
 
 def _fake_jpeg_capture(url: str) -> HttpCapture:

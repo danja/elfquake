@@ -28,6 +28,8 @@ Use UTC in filenames. Replace `:` with `-`.
 * Do not overwrite an existing file with the same endpoint and `Last-Modified`.
 * Respect the published cadence: poll no more often than every 30 minutes for 30-minute images and every 60 minutes for the geophone multistrip.
 
+Use `capture-vlf-cumiana-loop` for short cadence checks. It defaults to 30-minute spacing and rejects repeated polling below 60 seconds.
+
 ## First Feature Pass
 
 Before model training, derive only coarse image features:
@@ -38,3 +40,5 @@ Before model training, derive only coarse image features:
 * missing or stale image flags
 
 Raw waveform or numeric trace exports should replace image-derived features if they become available.
+
+Current coarse feature stub: [Feature Extraction](feature-extraction.md).
