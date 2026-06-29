@@ -16,6 +16,7 @@ from elfquake.connectors.space_archives import (
     fetch_spaceweather_canada_f107_daily,
 )
 from elfquake.connectors.vlf_cumiana import fetch_manifest_images
+from elfquake.features.multimodal_smoke import build_multimodal_smoke_row
 from elfquake.normalize.ingv import normalize_ingv_event_text
 
 
@@ -63,6 +64,17 @@ def main() -> int:
 
     f107 = subparsers.add_parser("fetch-f107-daily")
     f107.add_argument("--out-root", type=Path, default=Path("data/raw/astronomy"))
+
+    multimodal = subparsers.add_parser("build-multimodal-smoke")
+    multimodal.add_argument("--events", type=Path, required=True)
+    multimodal.add_argument("--vlf-metadata", type=Path, action="append", default=[])
+    multimodal.add_argument("--astronomy-metadata", type=Path, action="append", default=[])
+    multimodal.add_argument("--region-id", required=True)
+    multimodal.add_argument("--window-start", required=True)
+    multimodal.add_argument("--window-end", required=True)
+    multimodal.add_argument("--target-end", required=True)
+    multimodal.add_argument("--target-magnitude-min", default="3.0")
+    multimodal.add_argument("--out", type=Path, required=True)
 
     args = parser.parse_args()
     try:
@@ -115,6 +127,21 @@ def main() -> int:
             stored = [fetch_ncei_goes15_xrs_year(args.year, out_root=args.out_root)]
         elif args.command == "fetch-f107-daily":
             stored = [fetch_spaceweather_canada_f107_daily(out_root=args.out_root)]
+        elif args.command == "build-multimodal-smoke":
+            row = build_multimodal_smoke_row(
+                events_csv=args.events,
+                vlf_metadata_paths=args.vlf_metadata,
+                astronomy_metadata_paths=args.astronomy_metadata,
+                region_id=args.region_id,
+                window_start_utc=args.window_start,
+                window_end_utc=args.window_end,
+                target_end_utc=args.target_end,
+                target_magnitude_min=args.target_magnitude_min,
+                out_path=args.out,
+            )
+            print(f"wrote: {args.out}")
+            print(f"window_id: {row['window_id']}")
+            return 0
         else:
             parser.error(f"unknown command: {args.command}")
     except HTTPError as error:

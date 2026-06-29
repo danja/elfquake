@@ -22,6 +22,7 @@ from elfquake.connectors.space_archives import (
     fetch_spaceweather_canada_f107_daily,
 )
 from elfquake.connectors.vlf_cumiana import fetch_manifest_images
+from elfquake.features.multimodal_smoke import build_multimodal_smoke_row
 from elfquake.http import HttpCapture
 from elfquake.normalize.ingv import normalize_ingv_event_text, normalize_row
 from elfquake.storage import write_capture
@@ -231,6 +232,77 @@ class AcquisitionScaffoldTests(unittest.TestCase):
             self.assertTrue(dst.payload_path.name.startswith("kyoto_dst_final_201601_"))
             self.assertTrue(goes.payload_path.name.startswith("ncei_goes_xrs_g15_avg1m_2016_"))
             self.assertEqual(goes.payload_path.suffix, ".nc")
+
+    def test_multimodal_smoke_row_marks_future_target_unlabeled(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            events = root / "events.csv"
+            events.write_text(
+                "event_id,event_time_utc,magnitude\n"
+                "1,2026-06-28T00:00:00Z,2.5\n"
+                "2,2026-06-29T09:00:00Z,3.1\n",
+                encoding="utf-8",
+            )
+
+            vlf_payload = root / "last_E_VLF_2026-06-29T09-45-00Z.jpg"
+            vlf_payload.write_bytes(b"jpeg")
+            vlf_metadata = vlf_payload.with_suffix(".jpg.metadata.json")
+            vlf_metadata.write_text(
+                json.dumps(
+                    {
+                        "captured_at_utc": "2026-06-29T09:57:24Z",
+                        "headers": {"Last-Modified": "Mon, 29 Jun 2026 09:45:00 GMT"},
+                        "source_id": "vlf_cumiana_last_E_VLF",
+                    }
+                ),
+                encoding="utf-8",
+            )
+
+            moon_payload = root / "usno_moon_phases_2026-06-29T09-56-53Z.json"
+            moon_payload.write_text(
+                json.dumps(
+                    {
+                        "phasedata": [
+                            {"year": 2026, "month": 6, "day": 29, "time": "23:56", "phase": "Full Moon"}
+                        ]
+                    }
+                ),
+                encoding="utf-8",
+            )
+            moon_metadata = moon_payload.with_suffix(".json.metadata.json")
+            moon_metadata.write_text(
+                json.dumps({"captured_at_utc": "2026-06-29T09:56:53Z", "source_id": "usno_moon_phases"}),
+                encoding="utf-8",
+            )
+
+            f107_payload = root / "noaa_solar_cycle_f107_2026-06-29T10-10-17Z.json"
+            f107_payload.write_text(json.dumps([{"time-tag": "2026-06", "f10.7": 131.45}]), encoding="utf-8")
+            f107_metadata = f107_payload.with_suffix(".json.metadata.json")
+            f107_metadata.write_text(
+                json.dumps({"captured_at_utc": "2026-06-29T10:10:17Z", "source_id": "noaa_solar_cycle_f107"}),
+                encoding="utf-8",
+            )
+
+            out = root / "multimodal.csv"
+            row = build_multimodal_smoke_row(
+                events_csv=events,
+                vlf_metadata_paths=[vlf_metadata],
+                astronomy_metadata_paths=[moon_metadata, f107_metadata],
+                region_id="central_italy",
+                window_start_utc="2026-06-22T00:00:00Z",
+                window_end_utc="2026-06-29T10:15:00Z",
+                target_end_utc="2026-07-06T10:15:00Z",
+                out_path=out,
+            )
+
+            self.assertEqual(row["target_status"], "unlabeled_pending_future_events")
+            self.assertEqual(row["seismic_event_count"], "2")
+            self.assertEqual(row["seismic_max_magnitude"], "3.1")
+            self.assertEqual(row["vlf_capture_count"], "1")
+            self.assertEqual(row["astro_capture_count"], "2")
+            self.assertEqual(row["astro_usno_next_phase"], "Full Moon")
+            self.assertEqual(row["astro_noaa_solar_cycle_f107_value"], "131.45")
+            self.assertTrue(out.exists())
 
 
 def _fake_jpeg_capture(url: str) -> HttpCapture:
