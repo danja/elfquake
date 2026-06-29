@@ -7,13 +7,13 @@ Evaluation must show whether the system adds value beyond simple historical base
 * false positive and false negative rates
 * precision, recall, and calibration
 * lead time distribution
-* spatial and temporal error
+* spatial and temporal error within Italy
 * performance by magnitude threshold
 * comparison against naive historical-rate baselines
 
 ## Validation
 
-Use time-based backtesting first. Add geographic holdouts when coverage is sufficient. Keep all test periods isolated from feature selection and model tuning.
+Use time-based backtesting first. Add Italian regional holdouts when coverage is sufficient. Keep all test periods isolated from feature selection and model tuning.
 
 ## Reporting
 

@@ -6,8 +6,8 @@ The architecture should stay modular so data sources, features, and models can b
 
 1. Ingest raw source data.
 2. Validate schemas, timestamps, and required fields.
-3. Normalize records into consistent units and UTC time.
-4. Extract features over fixed temporal and spatial windows.
+3. Normalize Italy-scoped records into consistent units and UTC time.
+4. Extract features over fixed temporal windows and Italian spatial regions.
 5. Run exploratory analysis and quality checks.
 6. Train baseline and candidate models.
 7. Evaluate with backtests and holdouts.
@@ -19,6 +19,7 @@ The architecture should stay modular so data sources, features, and models can b
 * Keep source connectors separate from normalization logic.
 * Keep feature generation separate from model training.
 * Keep evaluation independent of training code.
+* Keep the Italy scope explicit in dataset metadata and reports.
 
 ## Outputs
 

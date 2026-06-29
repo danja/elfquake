@@ -1,6 +1,6 @@
 # ELFQuake
 
-ELFQuake is a research project for testing whether machine learning can identify useful earthquake-related signals from seismic, natural radio, and astronomical data.
+ELFQuake is a research project for testing whether machine learning can identify useful earthquake-related signals from seismic, natural radio, and astronomical data for Italy.
 
 The project should proceed cautiously: no prediction capability is assumed until it is demonstrated against reproducible baselines and held-out data.
 
@@ -8,6 +8,12 @@ The project should proceed cautiously: no prediction capability is assumed until
 
 * [Roadmap](roadmap.md)
 * [Data Sources](data-sources.md)
+* [Source Inventory](source-inventory.md)
+* [Connector Notes](connector-notes.md)
+* [Event Schema](event-schema.md)
+* [Sample Dataset](sample-dataset.md)
+* [Exploratory Report](exploratory-report.md)
+* [Baseline Targets](baseline-targets.md)
 * [System Architecture](system-architecture.md)
 * [Modeling Strategy](modeling-strategy.md)
 * [Evaluation](evaluation.md)
