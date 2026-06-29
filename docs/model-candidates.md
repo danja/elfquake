@@ -16,6 +16,8 @@ Current smoke command:
 
 It uses no external ML dependency and writes a JSON report. Treat `trained_in_sample` as a wiring check until there are enough historical windows for real validation.
 
+VLF handling is now explicit: `build-vlf-window-features` summarizes service captures per training window, and `join-vlf-design-matrix` adds those columns before smoke training.
+
 ## Later Models
 
 Use temporal models only after enough aligned windows exist:

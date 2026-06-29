@@ -7,7 +7,8 @@ Prioritize feasibility and reproducibility before modeling.
 3. Run a live Cumiana cadence check when a 30-minute wait is acceptable.
 4. Backfill enough historical INGV windows to get both positive and negative target classes by region.
 5. Determine whether usable historical Cumiana VLF imagery exists; otherwise plan prospective-only VLF evaluation.
-6. Add VLF summary columns to the design matrix once aligned historical or prospective captures exist.
+6. Schedule recurring prospective row generation from the active service captures.
+7. After `2026-07-06`, label the first prospective VLF rows against INGV events.
 
 Completed:
 
@@ -57,3 +58,6 @@ Completed:
 * Combine June normalized INGV event segments into Central Italy and all-Italy tables.
 * Expand June labeled training windows to three 7-day feature/target rows.
 * Add a dependency-free logistic regression smoke trainer and first model reports.
+* Add VLF window feature generation from service capture metadata.
+* Join VLF coverage columns into the multimodal design matrix with explicit missing flags.
+* Add prospective VLF-anchored rows with pending target labels.

@@ -19,11 +19,14 @@ from elfquake.connectors.space_archives import (
 from elfquake.connectors.vlf_cumiana import fetch_manifest_images, repeat_manifest_images
 from elfquake.features.astronomy import build_astronomy_features
 from elfquake.features.design_matrix import build_design_matrix
+from elfquake.features.multimodal_design import join_vlf_design_matrix
 from elfquake.features.multimodal_smoke import build_multimodal_smoke_row
+from elfquake.features.prospective import build_prospective_vlf_windows
 from elfquake.features.table import build_multimodal_table_from_manifest, write_multimodal_manifest_template
 from elfquake.features.targets import label_multimodal_targets
 from elfquake.features.training_windows import build_seismic_training_windows
 from elfquake.features.vlf import build_vlf_features
+from elfquake.features.vlf_windows import build_vlf_window_features
 from elfquake.models.logistic_smoke import train_logistic_smoke
 from elfquake.normalize.events import combine_normalized_events
 from elfquake.normalize.ingv import normalize_ingv_event_text
@@ -115,6 +118,11 @@ def main() -> int:
     vlf_features.add_argument("--window-end", required=True)
     vlf_features.add_argument("--out", type=Path, required=True)
 
+    vlf_window_features = subparsers.add_parser("build-vlf-window-features")
+    vlf_window_features.add_argument("--training-windows", type=Path, required=True)
+    vlf_window_features.add_argument("--metadata-root", type=Path, required=True)
+    vlf_window_features.add_argument("--out", type=Path, required=True)
+
     astro_features = subparsers.add_parser("build-astronomy-features")
     astro_features.add_argument("--metadata", type=Path, action="append", default=[])
     astro_features.add_argument("--window-start", required=True)
@@ -153,6 +161,17 @@ def main() -> int:
     table_template = subparsers.add_parser("write-multimodal-manifest-template")
     table_template.add_argument("--out", type=Path, required=True)
 
+    prospective = subparsers.add_parser("build-prospective-vlf-windows")
+    prospective.add_argument("--events", type=Path, required=True)
+    prospective.add_argument("--vlf-metadata-root", type=Path, required=True)
+    prospective.add_argument("--astronomy-metadata-root", type=Path, required=True)
+    prospective.add_argument("--region-id", required=True)
+    prospective.add_argument("--lookback-hours", type=int, default=24)
+    prospective.add_argument("--horizon-days", type=int, default=7)
+    prospective.add_argument("--min-anchor-gap-seconds", type=int, default=60)
+    prospective.add_argument("--target-magnitude-min", default="3.0")
+    prospective.add_argument("--out", type=Path, required=True)
+
     training = subparsers.add_parser("build-seismic-training-windows")
     training.add_argument("--events", type=Path, required=True)
     training.add_argument("--region-id", required=True)
@@ -168,6 +187,11 @@ def main() -> int:
     design.add_argument("--kp-ap", type=Path, required=True)
     design.add_argument("--f107", type=Path, required=True)
     design.add_argument("--out", type=Path, required=True)
+
+    vlf_design = subparsers.add_parser("join-vlf-design-matrix")
+    vlf_design.add_argument("--design-matrix", type=Path, required=True)
+    vlf_design.add_argument("--vlf-windows", type=Path, required=True)
+    vlf_design.add_argument("--out", type=Path, required=True)
 
     trainer = subparsers.add_parser("train-logistic-smoke")
     trainer.add_argument("--design-matrix", type=Path, required=True)
@@ -275,6 +299,15 @@ def main() -> int:
             print(f"wrote: {args.out}")
             print(f"vlf_capture_count: {row['vlf_capture_count']}")
             return 0
+        elif args.command == "build-vlf-window-features":
+            rows = build_vlf_window_features(
+                training_windows_csv=args.training_windows,
+                metadata_root=args.metadata_root,
+                out_path=args.out,
+            )
+            print(f"vlf window rows: {len(rows)}")
+            print(f"output: {args.out}")
+            return 0
         elif args.command == "build-astronomy-features":
             row = build_astronomy_features(
                 metadata_paths=args.metadata,
@@ -333,6 +366,21 @@ def main() -> int:
             write_multimodal_manifest_template(args.out)
             print(f"output: {args.out}")
             return 0
+        elif args.command == "build-prospective-vlf-windows":
+            rows = build_prospective_vlf_windows(
+                events_csv=args.events,
+                vlf_metadata_root=args.vlf_metadata_root,
+                astronomy_metadata_root=args.astronomy_metadata_root,
+                region_id=args.region_id,
+                lookback_hours=args.lookback_hours,
+                horizon_days=args.horizon_days,
+                min_anchor_gap_seconds=args.min_anchor_gap_seconds,
+                target_magnitude_min=args.target_magnitude_min,
+                out_path=args.out,
+            )
+            print(f"prospective rows: {len(rows)}")
+            print(f"output: {args.out}")
+            return 0
         elif args.command == "build-seismic-training-windows":
             rows = build_seismic_training_windows(
                 events_csv=args.events,
@@ -352,6 +400,15 @@ def main() -> int:
                 training_windows_csv=args.training_windows,
                 kp_ap_csv=args.kp_ap,
                 f107_csv=args.f107,
+                out_path=args.out,
+            )
+            print(f"design rows: {len(rows)}")
+            print(f"output: {args.out}")
+            return 0
+        elif args.command == "join-vlf-design-matrix":
+            rows = join_vlf_design_matrix(
+                design_matrix_csv=args.design_matrix,
+                vlf_windows_csv=args.vlf_windows,
                 out_path=args.out,
             )
             print(f"design rows: {len(rows)}")

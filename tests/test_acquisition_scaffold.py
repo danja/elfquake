@@ -25,11 +25,14 @@ from elfquake.connectors.space_archives import (
 from elfquake.connectors.vlf_cumiana import fetch_manifest_images, repeat_manifest_images
 from elfquake.features.astronomy import build_astronomy_features
 from elfquake.features.design_matrix import build_design_matrix
+from elfquake.features.multimodal_design import join_vlf_design_matrix
 from elfquake.features.multimodal_smoke import build_multimodal_smoke_row
+from elfquake.features.prospective import build_prospective_vlf_windows
 from elfquake.features.table import build_multimodal_table_from_manifest
 from elfquake.features.targets import label_multimodal_targets
 from elfquake.features.training_windows import build_seismic_training_windows
 from elfquake.features.vlf import build_vlf_features
+from elfquake.features.vlf_windows import build_vlf_window_features
 from elfquake.models.logistic_smoke import train_logistic_smoke
 from elfquake.normalize.events import combine_normalized_events
 from elfquake.http import HttpCapture
@@ -447,6 +450,41 @@ class AcquisitionScaffoldTests(unittest.TestCase):
             self.assertTrue(row["vlf_latest_entropy_bits_per_byte"])
             self.assertEqual(row["quality_missing_vlf"], "0")
 
+    def test_vlf_window_features_align_service_captures_to_training_windows(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            training = root / "training.csv"
+            training.write_text(
+                "window_id,window_start_utc,window_end_utc\n"
+                "w1,2026-06-29T09:00:00Z,2026-06-29T10:00:00Z\n"
+                "w2,2026-06-29T10:00:00Z,2026-06-29T11:00:00Z\n",
+                encoding="utf-8",
+            )
+            payload = root / "captures" / "2026-06-29" / "last_E_VLF_2026-06-29T09-45-00Z.jpg"
+            payload.parent.mkdir(parents=True)
+            payload.write_bytes(b"\xff\xd8\xff\xd9")
+            payload.with_suffix(".jpg.metadata.json").write_text(
+                json.dumps(
+                    {
+                        "captured_at_utc": "2026-06-29T09:57:24Z",
+                        "headers": {"Last-Modified": "Mon, 29 Jun 2026 09:45:00 GMT"},
+                        "source_id": "vlf_cumiana_last_E_VLF",
+                    }
+                ),
+                encoding="utf-8",
+            )
+
+            rows = build_vlf_window_features(
+                training_windows_csv=training,
+                metadata_root=root / "captures",
+                out_path=root / "vlf_windows.csv",
+            )
+
+            self.assertEqual(rows[0]["vlf_capture_count"], "1")
+            self.assertEqual(rows[0]["quality_missing_vlf"], "0")
+            self.assertEqual(rows[1]["vlf_capture_count"], "0")
+            self.assertEqual(rows[1]["quality_missing_vlf"], "1")
+
     def test_astronomy_feature_stub_summarizes_captures(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
@@ -587,6 +625,76 @@ class AcquisitionScaffoldTests(unittest.TestCase):
             self.assertEqual(rows[0]["seismic_event_count"], "1")
             self.assertTrue(out.exists())
 
+    def test_build_prospective_vlf_windows_anchors_on_capture_times(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            events = root / "events.csv"
+            events.write_text(
+                "event_id,event_time_utc,magnitude,italy_region\n"
+                "1,2026-06-29T09:30:00Z,2.2,central_italy\n"
+                "2,2026-06-28T08:00:00Z,3.1,central_italy\n",
+                encoding="utf-8",
+            )
+            vlf_payload = root / "vlf" / "captures" / "last_E_VLF_2026-06-29T09-45-00Z.jpg"
+            vlf_payload.parent.mkdir(parents=True)
+            vlf_payload.write_bytes(b"\xff\xd8\xff\xd9")
+            vlf_payload.with_suffix(".jpg.metadata.json").write_text(
+                json.dumps(
+                    {
+                        "captured_at_utc": "2026-06-29T09:57:24Z",
+                        "headers": {"Last-Modified": "Mon, 29 Jun 2026 09:45:00 GMT"},
+                        "source_id": "vlf_cumiana_last_E_VLF",
+                    }
+                ),
+                encoding="utf-8",
+            )
+            second_vlf_payload = root / "vlf" / "captures" / "last_geomar_2026-06-29T09-45-01Z.jpg"
+            second_vlf_payload.write_bytes(b"\xff\xd8\xff\xd9")
+            second_vlf_payload.with_suffix(".jpg.metadata.json").write_text(
+                json.dumps(
+                    {
+                        "captured_at_utc": "2026-06-29T09:57:25Z",
+                        "headers": {"Last-Modified": "Mon, 29 Jun 2026 09:45:01 GMT"},
+                        "source_id": "vlf_cumiana_last_geomar",
+                    }
+                ),
+                encoding="utf-8",
+            )
+            moon_payload = root / "astro" / "usno_moon_phases_2026-06-29T09-56-53Z.json"
+            moon_payload.parent.mkdir(parents=True)
+            moon_payload.write_text(
+                json.dumps(
+                    {
+                        "phasedata": [
+                            {"year": 2026, "month": 6, "day": 29, "time": "23:56", "phase": "Full Moon"}
+                        ]
+                    }
+                ),
+                encoding="utf-8",
+            )
+            moon_payload.with_suffix(".json.metadata.json").write_text(
+                json.dumps({"captured_at_utc": "2026-06-29T09:56:53Z", "source_id": "usno_moon_phases"}),
+                encoding="utf-8",
+            )
+
+            rows = build_prospective_vlf_windows(
+                events_csv=events,
+                vlf_metadata_root=root / "vlf",
+                astronomy_metadata_root=root / "astro",
+                region_id="central_italy",
+                lookback_hours=24,
+                horizon_days=7,
+                out_path=root / "prospective.csv",
+            )
+
+            self.assertEqual(len(rows), 1)
+            self.assertEqual(rows[0]["target_status"], "unlabeled_pending_future_events")
+            self.assertEqual(rows[0]["target_start_utc"], "2026-06-29T09:57:25Z")
+            self.assertEqual(rows[0]["target_end_utc"], "2026-07-06T09:57:25Z")
+            self.assertEqual(rows[0]["seismic_event_count"], "1")
+            self.assertEqual(rows[0]["vlf_capture_count"], "2")
+            self.assertEqual(rows[0]["quality_missing_vlf"], "0")
+
     def test_build_seismic_training_windows_labels_targets(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
@@ -653,6 +761,33 @@ class AcquisitionScaffoldTests(unittest.TestCase):
             self.assertEqual(rows[0]["astro_ap_max"], "15")
             self.assertEqual(rows[0]["astro_f107_mean"], "110")
             self.assertEqual(rows[0]["quality_kp_count"], "2")
+
+    def test_join_vlf_design_matrix_adds_vlf_columns(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            design = root / "design.csv"
+            design.write_text(
+                "window_id,region_id,seismic_event_count,target_occurred\n"
+                "w1,central_italy,2,0\n"
+                "w2,central_italy,3,1\n",
+                encoding="utf-8",
+            )
+            vlf = root / "vlf.csv"
+            vlf.write_text(
+                "window_id,window_start_utc,window_end_utc,vlf_capture_count,quality_missing_vlf\n"
+                "w1,2026-06-29T09:00:00Z,2026-06-29T10:00:00Z,1,0\n",
+                encoding="utf-8",
+            )
+
+            rows = join_vlf_design_matrix(
+                design_matrix_csv=design,
+                vlf_windows_csv=vlf,
+                out_path=root / "joined.csv",
+            )
+
+            self.assertEqual(rows[0]["vlf_capture_count"], "1")
+            self.assertEqual(rows[0]["quality_missing_vlf"], "0")
+            self.assertEqual(rows[1]["vlf_capture_count"], "")
 
     def test_logistic_smoke_reports_single_class_design_matrix(self) -> None:
         with tempfile.TemporaryDirectory() as directory:

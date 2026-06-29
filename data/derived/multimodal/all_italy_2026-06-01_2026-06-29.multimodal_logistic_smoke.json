@@ -1,0 +1,7 @@
+{
+  "input": "data/derived/multimodal/all_italy_2026-06-01_2026-06-29.multimodal_design_matrix.csv",
+  "negative_count": 0,
+  "positive_count": 3,
+  "row_count": 3,
+  "status": "insufficient_class_variation"
+}

@@ -37,6 +37,24 @@ def build_vlf_features(
 ) -> dict[str, str]:
     window_start = parse_utc(window_start_utc)
     window_end = parse_utc(window_end_utc)
+    row = summarize_vlf_features(
+        metadata_paths=metadata_paths,
+        window_start_utc=window_start_utc,
+        window_end_utc=window_end_utc,
+    )
+    _write_one_row(out_path, row)
+    return row
+
+
+def summarize_vlf_features(
+    *,
+    metadata_paths: Iterable[Path],
+    window_start_utc: str,
+    window_end_utc: str,
+    include_window_end: bool = False,
+) -> dict[str, str]:
+    window_start = parse_utc(window_start_utc)
+    window_end = parse_utc(window_end_utc)
     captures = []
     for metadata_path in metadata_paths:
         metadata = json.loads(metadata_path.read_text(encoding="utf-8"))
@@ -44,7 +62,10 @@ def build_vlf_features(
         if not captured_at:
             continue
         captured_dt = parse_utc(captured_at)
-        if not (window_start <= captured_dt < window_end):
+        in_window = window_start <= captured_dt < window_end
+        if include_window_end and captured_dt == window_end:
+            in_window = True
+        if not in_window:
             continue
         payload_path = Path(str(metadata_path).removesuffix(".metadata.json"))
         last_modified = http_datetime_to_utc(metadata.get("headers", {}).get("Last-Modified", ""))
@@ -88,7 +109,6 @@ def build_vlf_features(
         "quality_missing_vlf": "0" if captures else "1",
         "quality_stale_vlf": "1" if latest_modified and parse_utc(latest_modified) < window_start else "0",
     }
-    _write_one_row(out_path, row)
     return row
 
 
