@@ -17,7 +17,7 @@ Purpose:
 
 * run the Cumiana VLF capture loop as a long-running service
 * capture `last_E_VLF` every 30 minutes
-* optionally update cumulative prospective VLF feature rows every 30 minutes
+* optionally update cumulative prospective VLF rows and image-derived VLF features every 30 minutes
 * write only under `data/`
 
 Install manually:
@@ -54,4 +54,11 @@ The prospective timer uses:
 
 ```sh
 PYTHONPATH=src python3 -m elfquake.cli update-prospective-vlf-table ...
+```
+
+It also runs:
+
+```sh
+PYTHONPATH=src python3 -m elfquake.cli extract-vlf-image-features --image-root data/raw/vlf/cumiana/captures --filename-prefix last_E_VLF ...
+PYTHONPATH=src python3 -m elfquake.cli join-vlf-image-features ...
 ```

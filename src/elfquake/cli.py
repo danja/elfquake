@@ -126,7 +126,9 @@ def main() -> int:
     vlf_window_features.add_argument("--out", type=Path, required=True)
 
     vlf_image_features = subparsers.add_parser("extract-vlf-image-features")
-    vlf_image_features.add_argument("--image", type=Path, action="append", required=True)
+    vlf_image_features.add_argument("--image", type=Path, action="append", default=[])
+    vlf_image_features.add_argument("--image-root", type=Path, action="append", default=[])
+    vlf_image_features.add_argument("--filename-prefix", action="append", default=[])
     vlf_image_features.add_argument("--out", type=Path, required=True)
     vlf_image_features.add_argument("--crop-left", type=float, default=0.0)
     vlf_image_features.add_argument("--crop-top", type=float, default=0.13)
@@ -337,8 +339,13 @@ def main() -> int:
             print(f"output: {args.out}")
             return 0
         elif args.command == "extract-vlf-image-features":
-            rows = build_vlf_image_features(
+            image_paths = _resolve_image_paths(
                 image_paths=args.image,
+                image_roots=args.image_root,
+                filename_prefixes=args.filename_prefix,
+            )
+            rows = build_vlf_image_features(
+                image_paths=image_paths,
                 out_path=args.out,
                 crop_left=args.crop_left,
                 crop_top=args.crop_top,
@@ -510,6 +517,25 @@ def main() -> int:
         print(f"{status}: {capture.payload_path}")
         print(f"metadata: {capture.metadata_path}")
     return 0
+
+def _resolve_image_paths(
+    *,
+    image_paths: list[Path],
+    image_roots: list[Path],
+    filename_prefixes: list[str],
+) -> list[Path]:
+    resolved = list(image_paths)
+    for root in image_roots:
+        resolved.extend(sorted(root.glob("**/*.jpg")))
+        resolved.extend(sorted(root.glob("**/*.jpeg")))
+    if filename_prefixes:
+        resolved = [
+            path for path in resolved if any(path.name.startswith(prefix) for prefix in filename_prefixes)
+        ]
+    unique = sorted(dict.fromkeys(resolved))
+    if not unique:
+        raise ValueError("at least one --image or matching --image-root file is required")
+    return unique
 
 
 if __name__ == "__main__":

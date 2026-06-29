@@ -24,5 +24,8 @@ Image-derived feature tables:
 
 * `data/derived/multimodal/cumiana_last_E_VLF_2026-06-29.image_features.csv`
 * `data/derived/multimodal/cumiana_other_vlf_2026-06-29.image_features.csv`
+* `data/derived/multimodal/cumiana_last_E_VLF.image_features.csv`
+* `data/derived/multimodal/central_italy.prospective_vlf_image_windows.csv`
+* `data/derived/multimodal/all_italy.prospective_vlf_image_windows.csv`
 
 These summarize cropped JPEG spectrogram pixels: intensity distribution, hot-color ratio, band means, and vertical streak count. They are proxy features until raw VLF samples are available.
