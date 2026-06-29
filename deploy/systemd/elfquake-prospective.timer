@@ -1,0 +1,11 @@
+[Unit]
+Description=Run ELFQuake prospective VLF row updates
+
+[Timer]
+OnBootSec=10min
+OnUnitActiveSec=30min
+Unit=elfquake-prospective.service
+Persistent=true
+
+[Install]
+WantedBy=timers.target

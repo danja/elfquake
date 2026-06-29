@@ -1,0 +1,31 @@
+[Unit]
+Description=ELFQuake prospective VLF row update
+Documentation=file:/home/danny/github/elfquake/docs/systemd-service.md
+Wants=network-online.target
+After=network-online.target
+
+[Service]
+Type=oneshot
+User=danny
+Group=danny
+WorkingDirectory=/home/danny/github/elfquake
+Environment=PYTHONPATH=/home/danny/github/elfquake/src
+Environment=PYTHONDONTWRITEBYTECODE=1
+Environment=ELFQUAKE_LOOKBACK_HOURS=24
+Environment=ELFQUAKE_HORIZON_DAYS=7
+Environment=ELFQUAKE_TARGET_MAGNITUDE_MIN=3.0
+Environment=ELFQUAKE_MIN_ANCHOR_GAP_SECONDS=60
+Environment=ELFQUAKE_VLF_METADATA_ROOT=data/raw/vlf/cumiana/captures
+Environment=ELFQUAKE_ASTRONOMY_METADATA_ROOT=data/raw/astronomy/captures
+Environment=ELFQUAKE_CENTRAL_EVENTS=data/derived/ingv/events_central_italy_2026-06-01_2026-06-29.combined.normalized.csv
+Environment=ELFQUAKE_ALL_ITALY_EVENTS=data/derived/ingv/events_italy_2026-06-01_2026-06-29.combined.normalized.csv
+Environment=ELFQUAKE_CENTRAL_TABLE=data/derived/multimodal/central_italy.prospective_vlf_windows.csv
+Environment=ELFQUAKE_ALL_ITALY_TABLE=data/derived/multimodal/all_italy.prospective_vlf_windows.csv
+EnvironmentFile=-/etc/default/elfquake
+ExecStart=/usr/bin/python3 -m elfquake.cli update-prospective-vlf-table --table ${ELFQUAKE_CENTRAL_TABLE} --events ${ELFQUAKE_CENTRAL_EVENTS} --vlf-metadata-root ${ELFQUAKE_VLF_METADATA_ROOT} --astronomy-metadata-root ${ELFQUAKE_ASTRONOMY_METADATA_ROOT} --region-id central_italy --lookback-hours ${ELFQUAKE_LOOKBACK_HOURS} --horizon-days ${ELFQUAKE_HORIZON_DAYS} --min-anchor-gap-seconds ${ELFQUAKE_MIN_ANCHOR_GAP_SECONDS} --target-magnitude-min ${ELFQUAKE_TARGET_MAGNITUDE_MIN} --out ${ELFQUAKE_CENTRAL_TABLE}
+ExecStart=/usr/bin/python3 -m elfquake.cli update-prospective-vlf-table --table ${ELFQUAKE_ALL_ITALY_TABLE} --events ${ELFQUAKE_ALL_ITALY_EVENTS} --vlf-metadata-root ${ELFQUAKE_VLF_METADATA_ROOT} --astronomy-metadata-root ${ELFQUAKE_ASTRONOMY_METADATA_ROOT} --region-id all_italy --lookback-hours ${ELFQUAKE_LOOKBACK_HOURS} --horizon-days ${ELFQUAKE_HORIZON_DAYS} --min-anchor-gap-seconds ${ELFQUAKE_MIN_ANCHOR_GAP_SECONDS} --target-magnitude-min ${ELFQUAKE_TARGET_MAGNITUDE_MIN} --out ${ELFQUAKE_ALL_ITALY_TABLE}
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=read-only
+ReadWritePaths=/home/danny/github/elfquake/data

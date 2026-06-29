@@ -27,7 +27,7 @@ from elfquake.features.astronomy import build_astronomy_features
 from elfquake.features.design_matrix import build_design_matrix
 from elfquake.features.multimodal_design import join_vlf_design_matrix
 from elfquake.features.multimodal_smoke import build_multimodal_smoke_row
-from elfquake.features.prospective import build_prospective_vlf_windows
+from elfquake.features.prospective import build_prospective_vlf_windows, update_prospective_vlf_table
 from elfquake.features.table import build_multimodal_table_from_manifest
 from elfquake.features.targets import label_multimodal_targets
 from elfquake.features.training_windows import build_seismic_training_windows
@@ -694,6 +694,54 @@ class AcquisitionScaffoldTests(unittest.TestCase):
             self.assertEqual(rows[0]["seismic_event_count"], "1")
             self.assertEqual(rows[0]["vlf_capture_count"], "2")
             self.assertEqual(rows[0]["quality_missing_vlf"], "0")
+
+    def test_update_prospective_vlf_table_appends_only_new_windows(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            events = root / "events.csv"
+            events.write_text(
+                "event_id,event_time_utc,magnitude,italy_region\n"
+                "1,2026-06-29T09:30:00Z,2.2,central_italy\n",
+                encoding="utf-8",
+            )
+            vlf_payload = root / "vlf" / "last_E_VLF_2026-06-29T09-45-00Z.jpg"
+            vlf_payload.parent.mkdir(parents=True)
+            vlf_payload.write_bytes(b"\xff\xd8\xff\xd9")
+            vlf_payload.with_suffix(".jpg.metadata.json").write_text(
+                json.dumps(
+                    {
+                        "captured_at_utc": "2026-06-29T09:57:24Z",
+                        "headers": {"Last-Modified": "Mon, 29 Jun 2026 09:45:00 GMT"},
+                        "source_id": "vlf_cumiana_last_E_VLF",
+                    }
+                ),
+                encoding="utf-8",
+            )
+            astro_root = root / "astro"
+            astro_root.mkdir()
+            table = root / "prospective.csv"
+
+            first = update_prospective_vlf_table(
+                table_path=table,
+                events_csv=events,
+                vlf_metadata_root=root / "vlf",
+                astronomy_metadata_root=astro_root,
+                region_id="central_italy",
+                out_path=table,
+            )
+            second = update_prospective_vlf_table(
+                table_path=table,
+                events_csv=events,
+                vlf_metadata_root=root / "vlf",
+                astronomy_metadata_root=astro_root,
+                region_id="central_italy",
+                out_path=table,
+            )
+
+            self.assertEqual(first["new_rows"], 1)
+            self.assertEqual(first["total_rows"], 1)
+            self.assertEqual(second["new_rows"], 0)
+            self.assertEqual(second["total_rows"], 1)
 
     def test_build_seismic_training_windows_labels_targets(self) -> None:
         with tempfile.TemporaryDirectory() as directory:

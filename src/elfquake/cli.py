@@ -21,7 +21,7 @@ from elfquake.features.astronomy import build_astronomy_features
 from elfquake.features.design_matrix import build_design_matrix
 from elfquake.features.multimodal_design import join_vlf_design_matrix
 from elfquake.features.multimodal_smoke import build_multimodal_smoke_row
-from elfquake.features.prospective import build_prospective_vlf_windows
+from elfquake.features.prospective import build_prospective_vlf_windows, update_prospective_vlf_table
 from elfquake.features.table import build_multimodal_table_from_manifest, write_multimodal_manifest_template
 from elfquake.features.targets import label_multimodal_targets
 from elfquake.features.training_windows import build_seismic_training_windows
@@ -171,6 +171,18 @@ def main() -> int:
     prospective.add_argument("--min-anchor-gap-seconds", type=int, default=60)
     prospective.add_argument("--target-magnitude-min", default="3.0")
     prospective.add_argument("--out", type=Path, required=True)
+
+    prospective_update = subparsers.add_parser("update-prospective-vlf-table")
+    prospective_update.add_argument("--table", type=Path, required=True)
+    prospective_update.add_argument("--events", type=Path, required=True)
+    prospective_update.add_argument("--vlf-metadata-root", type=Path, required=True)
+    prospective_update.add_argument("--astronomy-metadata-root", type=Path, required=True)
+    prospective_update.add_argument("--region-id", required=True)
+    prospective_update.add_argument("--lookback-hours", type=int, default=24)
+    prospective_update.add_argument("--horizon-days", type=int, default=7)
+    prospective_update.add_argument("--min-anchor-gap-seconds", type=int, default=60)
+    prospective_update.add_argument("--target-magnitude-min", default="3.0")
+    prospective_update.add_argument("--out", type=Path, required=True)
 
     training = subparsers.add_parser("build-seismic-training-windows")
     training.add_argument("--events", type=Path, required=True)
@@ -379,6 +391,25 @@ def main() -> int:
                 out_path=args.out,
             )
             print(f"prospective rows: {len(rows)}")
+            print(f"output: {args.out}")
+            return 0
+        elif args.command == "update-prospective-vlf-table":
+            report = update_prospective_vlf_table(
+                table_path=args.table,
+                events_csv=args.events,
+                vlf_metadata_root=args.vlf_metadata_root,
+                astronomy_metadata_root=args.astronomy_metadata_root,
+                region_id=args.region_id,
+                lookback_hours=args.lookback_hours,
+                horizon_days=args.horizon_days,
+                min_anchor_gap_seconds=args.min_anchor_gap_seconds,
+                target_magnitude_min=args.target_magnitude_min,
+                out_path=args.out,
+            )
+            print(f"existing rows: {report['existing_rows']}")
+            print(f"candidate rows: {report['candidate_rows']}")
+            print(f"new rows: {report['new_rows']}")
+            print(f"total rows: {report['total_rows']}")
             print(f"output: {args.out}")
             return 0
         elif args.command == "build-seismic-training-windows":

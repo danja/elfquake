@@ -12,5 +12,9 @@ Prospective service rows:
 
 * `data/derived/multimodal/central_italy_2026-06-29.prospective_vlf_windows.csv`
 * `data/derived/multimodal/all_italy_2026-06-29.prospective_vlf_windows.csv`
+* `data/derived/multimodal/central_italy.prospective_vlf_windows.csv`
+* `data/derived/multimodal/all_italy.prospective_vlf_windows.csv`
 
 These rows are VLF-anchored, unlabeled, and targetable after their `target_end_utc`.
+
+Use `update-prospective-vlf-table` for recurring updates. It preserves existing rows and appends only unseen `window_id`s.

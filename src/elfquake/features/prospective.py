@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import csv
 import json
+import tempfile
 from datetime import timedelta
 from pathlib import Path
 
@@ -114,12 +115,70 @@ def build_prospective_vlf_windows(
     return rows
 
 
+def update_prospective_vlf_table(
+    *,
+    table_path: Path,
+    events_csv: Path,
+    vlf_metadata_root: Path,
+    astronomy_metadata_root: Path,
+    region_id: str,
+    out_path: Path,
+    lookback_hours: int = 24,
+    horizon_days: int = 7,
+    min_anchor_gap_seconds: int = 60,
+    target_magnitude_min: str = "3.0",
+) -> dict[str, object]:
+    existing_rows = _read_existing_table(table_path)
+    existing_ids = {row["window_id"] for row in existing_rows if row.get("window_id")}
+    with tempfile.TemporaryDirectory() as directory:
+        candidate_path = Path(directory) / "prospective.csv"
+        candidate_rows = build_prospective_vlf_windows(
+            events_csv=events_csv,
+            vlf_metadata_root=vlf_metadata_root,
+            astronomy_metadata_root=astronomy_metadata_root,
+            region_id=region_id,
+            out_path=candidate_path,
+            lookback_hours=lookback_hours,
+            horizon_days=horizon_days,
+            min_anchor_gap_seconds=min_anchor_gap_seconds,
+            target_magnitude_min=target_magnitude_min,
+        )
+
+    new_rows = [row for row in candidate_rows if row["window_id"] not in existing_ids]
+    merged_rows = existing_rows + new_rows
+    out_path.parent.mkdir(parents=True, exist_ok=True)
+    with out_path.open("w", newline="", encoding="utf-8") as handle:
+        writer = csv.DictWriter(handle, fieldnames=FIELDNAMES, lineterminator="\n")
+        writer.writeheader()
+        writer.writerows(_normalize_rows(merged_rows))
+    return {
+        "existing_rows": len(existing_rows),
+        "candidate_rows": len(candidate_rows),
+        "new_rows": len(new_rows),
+        "total_rows": len(merged_rows),
+    }
+
+
 def _read_events(events_csv: Path, region_id: str) -> list[dict[str, str]]:
     with events_csv.open(newline="", encoding="utf-8") as handle:
         rows = list(csv.DictReader(handle))
     if not region_id or region_id == "all_italy":
         return rows
     return [row for row in rows if row.get("italy_region", region_id) == region_id]
+
+
+def _read_existing_table(table_path: Path) -> list[dict[str, str]]:
+    if not table_path.exists():
+        return []
+    with table_path.open(newline="", encoding="utf-8") as handle:
+        return list(csv.DictReader(handle))
+
+
+def _normalize_rows(rows: list[dict[str, str]]) -> list[dict[str, str]]:
+    return [
+        {field: row.get(field, "") for field in FIELDNAMES}
+        for row in rows
+    ]
 
 
 def _vlf_anchor_times(metadata_paths: list[Path], *, min_gap_seconds: int) -> list[str]:
