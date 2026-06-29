@@ -3,3 +3,17 @@ __pycache__/
 .pytest_cache/
 .mypy_cache/
 .ruff_cache/
+
+# Generated raw captures and source payloads.
+data/raw/**/captures/
+data/raw/ingv/*.txt
+data/raw/ingv/*.metadata.json
+*.nc
+*.jpg
+*.jpeg
+*.metadata.json
+
+# Generated derived datasets.
+data/derived/**/*.csv
+!data/derived/**/manifests/
+!data/derived/**/manifests/*.csv

@@ -12,6 +12,7 @@ The project should proceed cautiously: no prediction capability is assumed until
 * [Data Sources](data-sources.md)
 * [Data Acquisition Code](data-acquisition-code.md)
 * [Acquisition Smoke Run](acquisition-smoke-run.md)
+* [Batch Run 2026-06-29](batch-run-2026-06-29.md)
 * [Source Inventory](source-inventory.md)
 * [Multimodal Feasibility](multimodal-feasibility.md)
 * [Multimodal Window Schema](multimodal-window-schema.md)
@@ -24,6 +25,7 @@ The project should proceed cautiously: no prediction capability is assumed until
 * [Backfill Planning](backfill-planning.md)
 * [Feature Extraction](feature-extraction.md)
 * [Target Labeling](target-labeling.md)
+* [Training Windows](training-windows.md)
 * [Archive Normalization](archive-normalization.md)
 * [Connector Notes](connector-notes.md)
 * [Event Schema](event-schema.md)
@@ -40,6 +42,7 @@ The project should proceed cautiously: no prediction capability is assumed until
 * [Systemd Service](systemd-service.md)
 * [Pre-Real-Data Checklist](pre-real-data-checklist.md)
 * [Modeling Strategy](modeling-strategy.md)
+* [Model Candidates](model-candidates.md)
 * [Evaluation](evaluation.md)
 * [Next Actions](next-actions.md)
 

@@ -21,6 +21,7 @@ from elfquake.features.astronomy import build_astronomy_features
 from elfquake.features.multimodal_smoke import build_multimodal_smoke_row
 from elfquake.features.table import build_multimodal_table_from_manifest, write_multimodal_manifest_template
 from elfquake.features.targets import label_multimodal_targets
+from elfquake.features.training_windows import build_seismic_training_windows
 from elfquake.features.vlf import build_vlf_features
 from elfquake.normalize.ingv import normalize_ingv_event_text
 from elfquake.normalize.space_weather import (
@@ -128,6 +129,9 @@ def main() -> int:
     goes_norm = subparsers.add_parser("normalize-goes-xrs")
     goes_norm.add_argument("--raw", type=Path, required=True)
     goes_norm.add_argument("--out", type=Path, required=True)
+    goes_norm.add_argument("--max-rows", type=int)
+    goes_norm.add_argument("--start")
+    goes_norm.add_argument("--end")
 
     label_targets = subparsers.add_parser("label-multimodal-targets")
     label_targets.add_argument("--input", type=Path, required=True)
@@ -141,6 +145,16 @@ def main() -> int:
 
     table_template = subparsers.add_parser("write-multimodal-manifest-template")
     table_template.add_argument("--out", type=Path, required=True)
+
+    training = subparsers.add_parser("build-seismic-training-windows")
+    training.add_argument("--events", type=Path, required=True)
+    training.add_argument("--region-id", required=True)
+    training.add_argument("--start", required=True)
+    training.add_argument("--end", required=True)
+    training.add_argument("--window-days", type=int, default=7)
+    training.add_argument("--horizon-days", type=int, default=7)
+    training.add_argument("--target-magnitude-min", default="3.0")
+    training.add_argument("--out", type=Path, required=True)
 
     args = parser.parse_args()
     try:
@@ -263,7 +277,13 @@ def main() -> int:
             print(f"output: {args.out}")
             return 0
         elif args.command == "normalize-goes-xrs":
-            count = normalize_goes_xrs_netcdf(args.raw, args.out)
+            count = normalize_goes_xrs_netcdf(
+                args.raw,
+                args.out,
+                max_rows=args.max_rows,
+                start_utc=args.start,
+                end_utc=args.end,
+            )
             print(f"normalized rows: {count}")
             print(f"output: {args.out}")
             return 0
@@ -287,6 +307,20 @@ def main() -> int:
             return 0
         elif args.command == "write-multimodal-manifest-template":
             write_multimodal_manifest_template(args.out)
+            print(f"output: {args.out}")
+            return 0
+        elif args.command == "build-seismic-training-windows":
+            rows = build_seismic_training_windows(
+                events_csv=args.events,
+                region_id=args.region_id,
+                start_utc=args.start,
+                end_utc=args.end,
+                window_days=args.window_days,
+                horizon_days=args.horizon_days,
+                target_magnitude_min=args.target_magnitude_min,
+                out_path=args.out,
+            )
+            print(f"training rows: {len(rows)}")
             print(f"output: {args.out}")
             return 0
         else:

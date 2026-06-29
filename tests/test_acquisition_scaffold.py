@@ -27,6 +27,7 @@ from elfquake.features.astronomy import build_astronomy_features
 from elfquake.features.multimodal_smoke import build_multimodal_smoke_row
 from elfquake.features.table import build_multimodal_table_from_manifest
 from elfquake.features.targets import label_multimodal_targets
+from elfquake.features.training_windows import build_seismic_training_windows
 from elfquake.features.vlf import build_vlf_features
 from elfquake.http import HttpCapture
 from elfquake.normalize.ingv import normalize_ingv_event_text, normalize_row
@@ -483,11 +484,20 @@ class AcquisitionScaffoldTests(unittest.TestCase):
                 flux_var.units = "W/m^2"
                 flux_var[:] = [1.2e-6, 1.4e-6]
 
-            self.assertEqual(normalize_goes_xrs_netcdf(goes, root / "goes.csv"), 2)
+            self.assertEqual(
+                normalize_goes_xrs_netcdf(
+                    goes,
+                    root / "goes.csv",
+                    max_rows=1,
+                    start_utc="2026-06-29T00:01:00Z",
+                    end_utc="2026-06-29T00:02:00Z",
+                ),
+                1,
+            )
             self.assertEqual(write_goes_xrs_netcdf_stub(goes, root / "goes_alias.csv"), 2)
             lines = (root / "goes.csv").read_text(encoding="utf-8").splitlines()
             self.assertEqual(lines[0], "time_utc,variable,value,units,source_file")
-            self.assertIn("2026-06-29T00:00:00Z,xrs_flux,1.2e-06,W/m^2", lines[1])
+            self.assertIn("2026-06-29T00:01:00Z,xrs_flux,1.4e-06,W/m^2", lines[1])
 
     def test_target_labeler_labels_elapsed_windows_only(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
@@ -541,6 +551,32 @@ class AcquisitionScaffoldTests(unittest.TestCase):
             self.assertEqual(len(rows), 1)
             self.assertEqual(rows[0]["seismic_event_count"], "1")
             self.assertTrue(out.exists())
+
+    def test_build_seismic_training_windows_labels_targets(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            events = root / "events.csv"
+            events.write_text(
+                "event_time_utc,magnitude,italy_region\n"
+                "2026-06-01T00:00:00Z,2.0,central_italy\n"
+                "2026-06-08T00:00:00Z,3.1,central_italy\n"
+                "2026-06-15T00:00:00Z,2.1,central_italy\n",
+                encoding="utf-8",
+            )
+
+            rows = build_seismic_training_windows(
+                events_csv=events,
+                region_id="central_italy",
+                start_utc="2026-06-01T00:00:00Z",
+                end_utc="2026-06-22T00:00:00Z",
+                out_path=root / "training.csv",
+            )
+
+            self.assertEqual(len(rows), 2)
+            self.assertEqual(rows[0]["seismic_event_count"], "1")
+            self.assertEqual(rows[0]["target_event_count"], "1")
+            self.assertEqual(rows[0]["target_occurred"], "1")
+            self.assertEqual(rows[1]["target_occurred"], "0")
 
 
 def _fake_jpeg_capture(url: str) -> HttpCapture:

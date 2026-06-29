@@ -7,6 +7,8 @@ import json
 from datetime import timezone
 from pathlib import Path
 
+from elfquake.features.common import parse_utc
+
 
 GFZ_FIELDNAMES = ["date", "slot", "kp", "ap", "source_file"]
 DST_FIELDNAMES = ["date", "hour", "dst_nt", "source_file"]
@@ -73,13 +75,21 @@ def normalize_f107_daily(raw_path: Path, out_path: Path) -> int:
     return len(rows)
 
 
-def normalize_goes_xrs_netcdf(raw_path: Path, out_path: Path) -> int:
+def normalize_goes_xrs_netcdf(
+    raw_path: Path,
+    out_path: Path,
+    max_rows: int | None = None,
+    start_utc: str | None = None,
+    end_utc: str | None = None,
+) -> int:
     try:
         from netCDF4 import Dataset, num2date
     except ImportError as error:
         raise RuntimeError("GOES XRS NetCDF extraction requires netCDF4") from error
 
     rows = []
+    start = parse_utc(start_utc) if start_utc else None
+    end = parse_utc(end_utc) if end_utc else None
     with Dataset(raw_path) as dataset:
         time_variable = _find_time_variable(dataset.variables)
         if time_variable is None:
@@ -99,8 +109,17 @@ def normalize_goes_xrs_netcdf(raw_path: Path, out_path: Path) -> int:
                 continue
             time_axis = variable.dimensions.index(time_dimension)
             units = str(getattr(variable, "units", ""))
+            values = variable[:]
             for index, time_utc in enumerate(times):
-                value = variable[:].take(index, axis=time_axis)
+                time_dt = parse_utc(time_utc)
+                if start and time_dt < start:
+                    continue
+                if end and time_dt >= end:
+                    continue
+                if max_rows is not None and len(rows) >= max_rows:
+                    _write_rows(out_path, GOES_FIELDNAMES, rows)
+                    return len(rows)
+                value = values.take(index, axis=time_axis)
                 scalar = _first_scalar(value)
                 if scalar is None:
                     continue

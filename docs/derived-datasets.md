@@ -16,5 +16,14 @@ Current derived smoke datasets:
 | `data/derived/multimodal/central_italy_smoke_windows.multimodal.csv` | 1 | Manifest-built multimodal table |
 | `data/derived/multimodal/central_italy_2026-06-22_2026-06-29T1015.target_labeled.csv` | 1 | Target-label pass; still future-pending |
 | `data/derived/backfill/ingv_italy_2026-06.plan.csv` | 3 | INGV backfill request plan |
+| `data/derived/ingv/events_italy_2026-06-01_2026-06-15_2026-06-29T14-40-08Z.normalized.csv` | 91 | Batch all-Italy INGV segment |
+| `data/derived/ingv/events_central_italy_2026-06-01_2026-06-15_2026-06-29T14-40-08Z.normalized.csv` | 9 | Batch Central Italy INGV segment |
+| `data/derived/multimodal/cumiana_vlf_2026-06-29T1400_1445.features.csv` | 1 | Batch VLF feature row |
+| `data/derived/multimodal/astronomy_2026-06-29T1400_1445.features.csv` | 1 | Batch astronomy feature row |
+| `data/derived/multimodal/spaceweather_canada_f107_daily_2026-06-29T14-40-43Z.normalized.csv` | 23708 | Batch daily F10.7 archive |
+| `data/derived/multimodal/gfz_kp_ap_since_1932_2026-06-29T14-41-24Z.normalized.csv` | 828312 | Batch Kp/Ap archive |
+| `data/derived/multimodal/ncei_goes_xrs_g15_avg1m_2016_2026-06-29T14-41-27Z.sample10000.normalized.csv` | 10000 | Batch GOES XRS sample |
+| `data/derived/multimodal/ncei_goes_xrs_g15_avg1m_2016_2016-01-01.normalized.csv` | 11520 | One-day GOES XRS window |
+| `data/derived/multimodal/central_italy_2026-06-01_2026-06-15.seismic_training_windows.csv` | 1 | First labeled seismic training window |
 
 The Central Italy subset uses the rule in [Normalization](normalization.md). Derived files should be regenerated, not hand-edited.

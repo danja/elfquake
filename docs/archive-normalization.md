@@ -11,6 +11,12 @@ Current normalizers:
 
 GOES XRS extraction requires `netCDF4`.
 
+Use `--start` and `--end` for time-windowed extraction from large yearly files. Use `--max-rows` for bounded smoke extraction.
+
+Current windowed sample:
+
+`data/derived/multimodal/ncei_goes_xrs_g15_avg1m_2016_2016-01-01.normalized.csv`
+
 Installed choices:
 
 * Debian/Ubuntu system Python: `sudo apt install python3-netcdf4`
