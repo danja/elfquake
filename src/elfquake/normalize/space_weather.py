@@ -23,22 +23,18 @@ def normalize_gfz_kp_ap(raw_path: Path, out_path: Path) -> int:
         if not stripped or stripped.startswith("#"):
             continue
         parts = stripped.split()
-        if len(parts) < 5:
+        if len(parts) < 9:
             continue
         date = _date_from_parts(parts[0], parts[1], parts[2])
-        values = parts[3:]
-        for index in range(0, min(len(values), 16), 2):
-            if index + 1 >= len(values):
-                break
-            rows.append(
-                {
-                    "date": date,
-                    "slot": str(index // 2),
-                    "kp": values[index],
-                    "ap": values[index + 1],
-                    "source_file": str(raw_path),
-                }
-            )
+        rows.append(
+            {
+                "date": date,
+                "slot": str(int(float(parts[3]) // 3)),
+                "kp": parts[7],
+                "ap": parts[8],
+                "source_file": str(raw_path),
+            }
+        )
     _write_rows(out_path, GFZ_FIELDNAMES, rows)
     return len(rows)
 
@@ -165,14 +161,40 @@ def _normalize_f107_text(text: str, raw_path: Path) -> list[dict[str, str]]:
         if not stripped or stripped.startswith("#"):
             continue
         parts = stripped.split()
-        if len(parts) < 2:
+        if len(parts) >= 6 and parts[0].isdigit() and len(parts[0]) == 8:
+            rows.append(
+                {
+                    "date": _compact_date(parts[0]),
+                    "f107": str(float(parts[5])),
+                    "source_file": str(raw_path),
+                }
+            )
             continue
-        rows.append({"date": parts[0], "f107": parts[1], "source_file": str(raw_path)})
+        if len(parts) >= 2 and _looks_like_date(parts[0]) and _looks_like_number(parts[1]):
+            rows.append({"date": parts[0], "f107": parts[1], "source_file": str(raw_path)})
     return rows
 
 
 def _date_from_parts(year: str, month: str, day: str) -> str:
     return f"{int(year):04d}-{int(month):02d}-{int(day):02d}"
+
+
+def _compact_date(value: str) -> str:
+    return f"{value[0:4]}-{value[4:6]}-{value[6:8]}"
+
+
+def _looks_like_date(value: str) -> bool:
+    if len(value) == 10 and value[4] == "-" and value[7] == "-":
+        return True
+    return value.isdigit() and len(value) == 8
+
+
+def _looks_like_number(value: str) -> bool:
+    try:
+        float(value)
+    except ValueError:
+        return False
+    return True
 
 
 def _find_time_variable(variables) -> object | None:

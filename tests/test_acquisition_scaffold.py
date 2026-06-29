@@ -459,15 +459,20 @@ class AcquisitionScaffoldTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
             gfz = root / "kp.txt"
-            gfz.write_text("2026 06 29 1.0 4 2.0 7\n", encoding="utf-8")
+            gfz.write_text("2026 06 29 03.0 04.50 34423.12500 34423.18750 2.667 12 1\n", encoding="utf-8")
             dst = root / "dst.txt"
             dst.write_text("2026 06 29 " + " ".join(str(value) for value in range(24)) + "\n", encoding="utf-8")
-            f107 = root / "f107.json"
-            f107.write_text(json.dumps([{"date": "2026-06-29", "f10.7": 125.1}]), encoding="utf-8")
+            f107 = root / "f107.txt"
+            f107.write_text(
+                "fluxdate fluxtime fluxjulian fluxcarrington fluxobsflux fluxadjflux fluxursi\n"
+                "20260629 200000 02461234.354 002300.610 000125.7 000123.4 000111.1\n",
+                encoding="utf-8",
+            )
 
-            self.assertEqual(normalize_gfz_kp_ap(gfz, root / "kp.csv"), 2)
+            self.assertEqual(normalize_gfz_kp_ap(gfz, root / "kp.csv"), 1)
             self.assertEqual(normalize_kyoto_dst_text(dst, root / "dst.csv"), 24)
             self.assertEqual(normalize_f107_daily(f107, root / "f107.csv"), 1)
+            self.assertIn("2026-06-29,123.4", (root / "f107.csv").read_text(encoding="utf-8"))
 
     def test_goes_xrs_netcdf_normalizer_extracts_flux_rows(self) -> None:
         from netCDF4 import Dataset
