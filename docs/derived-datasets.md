@@ -25,5 +25,9 @@ Current derived smoke datasets:
 | `data/derived/multimodal/ncei_goes_xrs_g15_avg1m_2016_2026-06-29T14-41-27Z.sample10000.normalized.csv` | 10000 | Batch GOES XRS sample |
 | `data/derived/multimodal/ncei_goes_xrs_g15_avg1m_2016_2016-01-01.normalized.csv` | 11520 | One-day GOES XRS window |
 | `data/derived/multimodal/central_italy_2026-06-01_2026-06-15.seismic_training_windows.csv` | 1 | First labeled seismic training window |
+| `data/derived/multimodal/cumiana_vlf_service_2026-06-29T1430_1500.features.csv` | 1 | Service-produced VLF capture feature row |
+| `data/derived/multimodal/gfz_kp_ap_since_1932_2026-06-29T14-41-24Z.v2.normalized.csv` | 276104 | Corrected Kp/Ap archive normalization |
+| `data/derived/multimodal/spaceweather_canada_f107_daily_2026-06-29T14-40-43Z.v2.normalized.csv` | 23706 | Corrected daily F10.7 normalization |
+| `data/derived/multimodal/central_italy_2026-06-01_2026-06-15.design_matrix.csv` | 1 | First model-ready design matrix row |
 
 The Central Italy subset uses the rule in [Normalization](normalization.md). Derived files should be regenerated, not hand-edited.

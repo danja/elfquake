@@ -27,6 +27,7 @@ Observed fields:
 * Narrow Central Italy bounding boxes returned server error.
 * Some historical 2016 requests returned server error.
 * A 30-day Italy request for `2026-05-30T00:00:00Z` through `2026-06-29T23:59:59Z` returned HTTP 500.
+* A live endpoint test for the known-valid recent Italy text query returned HTTP 500 on `2026-06-29`; live tests now skip this as endpoint instability.
 
 ## Next Connector Work
 

@@ -24,11 +24,14 @@ from elfquake.connectors.space_archives import (
 )
 from elfquake.connectors.vlf_cumiana import fetch_manifest_images, repeat_manifest_images
 from elfquake.features.astronomy import build_astronomy_features
+from elfquake.features.design_matrix import build_design_matrix
 from elfquake.features.multimodal_smoke import build_multimodal_smoke_row
 from elfquake.features.table import build_multimodal_table_from_manifest
 from elfquake.features.targets import label_multimodal_targets
 from elfquake.features.training_windows import build_seismic_training_windows
 from elfquake.features.vlf import build_vlf_features
+from elfquake.models.logistic_smoke import train_logistic_smoke
+from elfquake.normalize.events import combine_normalized_events
 from elfquake.http import HttpCapture
 from elfquake.normalize.ingv import normalize_ingv_event_text, normalize_row
 from elfquake.normalize.space_weather import (
@@ -277,6 +280,33 @@ class AcquisitionScaffoldTests(unittest.TestCase):
             lines = out_path.read_text(encoding="utf-8").splitlines()
             self.assertEqual(len(lines), 2)
             self.assertIn("central_italy", lines[1])
+
+    def test_combine_normalized_events_deduplicates_and_sorts(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            first = root / "first.csv"
+            second = root / "second.csv"
+            header = (
+                "event_id,source,event_time_utc,latitude,longitude,depth_km,magnitude,magnitude_type,"
+                "italy_region,event_location_name,event_type,raw_file,ingested_at_utc,raw_uri\n"
+            )
+            first.write_text(
+                header
+                + "2,ingv,2026-06-02T00:00:00Z,42,13,8,2.0,ML,central_italy,B,earthquake,a,now,url\n"
+                + "1,ingv,2026-06-01T00:00:00Z,42,13,8,2.1,ML,central_italy,A,earthquake,a,now,url\n",
+                encoding="utf-8",
+            )
+            second.write_text(
+                header
+                + "2,ingv,2026-06-02T00:00:00Z,42,13,8,2.0,ML,central_italy,B duplicate,earthquake,b,now,url\n"
+                + "3,ingv,2026-06-03T00:00:00Z,42,13,8,2.2,ML,central_italy,C,earthquake,b,now,url\n",
+                encoding="utf-8",
+            )
+
+            rows = combine_normalized_events(input_paths=[first, second], out_path=root / "combined.csv")
+
+            self.assertEqual([row["event_id"] for row in rows], ["1", "2", "3"])
+            self.assertEqual(rows[1]["event_location_name"], "B")
 
     def test_archive_url_builders(self) -> None:
         self.assertEqual(
@@ -582,6 +612,87 @@ class AcquisitionScaffoldTests(unittest.TestCase):
             self.assertEqual(rows[0]["target_event_count"], "1")
             self.assertEqual(rows[0]["target_occurred"], "1")
             self.assertEqual(rows[1]["target_occurred"], "0")
+
+    def test_design_matrix_joins_archive_features(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            training = root / "training.csv"
+            training.write_text(
+                "window_id,region_id,window_start_utc,window_end_utc,target_start_utc,target_end_utc,"
+                "target_magnitude_min,seismic_event_count,seismic_max_magnitude,target_event_count,"
+                "target_occurred,target_status,source_file\n"
+                "w1,central_italy,2026-06-01T00:00:00Z,2026-06-08T00:00:00Z,"
+                "2026-06-08T00:00:00Z,2026-06-15T00:00:00Z,3.0,7,2.4,0,0,labeled,events.csv\n",
+                encoding="utf-8",
+            )
+            kp = root / "kp.csv"
+            kp.write_text(
+                "date,slot,kp,ap,source_file\n"
+                "2026-06-01,0,2.0,7,kp.txt\n"
+                "2026-06-07,1,3.0,15,kp.txt\n"
+                "2026-06-08,1,9.0,99,kp.txt\n",
+                encoding="utf-8",
+            )
+            f107 = root / "f107.csv"
+            f107.write_text(
+                "date,f107,source_file\n"
+                "2026-06-01,100,f107.txt\n"
+                "2026-06-07,120,f107.txt\n",
+                encoding="utf-8",
+            )
+
+            rows = build_design_matrix(
+                training_windows_csv=training,
+                kp_ap_csv=kp,
+                f107_csv=f107,
+                out_path=root / "design.csv",
+            )
+
+            self.assertEqual(len(rows), 1)
+            self.assertEqual(rows[0]["astro_kp_mean"], "2.5")
+            self.assertEqual(rows[0]["astro_ap_max"], "15")
+            self.assertEqual(rows[0]["astro_f107_mean"], "110")
+            self.assertEqual(rows[0]["quality_kp_count"], "2")
+
+    def test_logistic_smoke_reports_single_class_design_matrix(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            design = root / "design.csv"
+            design.write_text(
+                "window_id,region_id,seismic_event_count,astro_kp_mean,target_occurred,target_status\n"
+                "w1,central_italy,1,2.0,0,labeled\n"
+                "w2,central_italy,2,3.0,0,labeled\n",
+                encoding="utf-8",
+            )
+
+            report = train_logistic_smoke(design_matrix_csv=design, out_path=root / "report.json")
+
+            self.assertEqual(report["status"], "insufficient_class_variation")
+            self.assertTrue((root / "report.json").exists())
+
+    def test_logistic_smoke_trains_on_tiny_two_class_design_matrix(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            design = root / "design.csv"
+            design.write_text(
+                "window_id,region_id,seismic_event_count,astro_kp_mean,target_occurred,target_status\n"
+                "w1,central_italy,1,1.0,0,labeled\n"
+                "w2,central_italy,2,1.5,0,labeled\n"
+                "w3,central_italy,8,6.0,1,labeled\n"
+                "w4,central_italy,9,7.0,1,labeled\n",
+                encoding="utf-8",
+            )
+
+            report = train_logistic_smoke(
+                design_matrix_csv=design,
+                out_path=root / "report.json",
+                epochs=100,
+                learning_rate=0.1,
+            )
+
+            self.assertEqual(report["status"], "trained_in_sample")
+            self.assertEqual(report["positive_count"], 2)
+            self.assertIn("seismic_event_count", report["feature_names"])
 
 
 def _fake_jpeg_capture(url: str) -> HttpCapture:

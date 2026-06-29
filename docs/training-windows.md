@@ -4,16 +4,16 @@ Initial labeled training-window builder:
 
 `build-seismic-training-windows`
 
-Current output:
+Current expanded outputs:
 
-`data/derived/multimodal/central_italy_2026-06-01_2026-06-15.seismic_training_windows.csv`
+* `data/derived/multimodal/central_italy_2026-06-01_2026-06-29.seismic_training_windows.csv`
+* `data/derived/multimodal/all_italy_2026-06-01_2026-06-29.seismic_training_windows.csv`
 
-Current row:
+Current shape:
 
-* region: `central_italy`
-* feature window: `2026-06-01T00:00:00Z` to `2026-06-08T00:00:00Z`
-* target window: `2026-06-08T00:00:00Z` to `2026-06-15T00:00:00Z`
+* 7-day feature windows
+* 7-day target windows
 * target: M3.0+
-* label: `target_occurred=0`
+* three labeled June rows per table
 
-This is a seismic-only seed table. Join VLF and archive-backed astronomy features only after matching historical source coverage exists.
+Central Italy has both classes in this tiny sample. All-Italy is all positive at M3.0+, so it needs a different threshold, regioning, or more history.

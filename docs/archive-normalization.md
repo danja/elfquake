@@ -17,6 +17,11 @@ Current windowed sample:
 
 `data/derived/multimodal/ncei_goes_xrs_g15_avg1m_2016_2016-01-01.normalized.csv`
 
+Corrected current archive outputs:
+
+* `data/derived/multimodal/gfz_kp_ap_since_1932_2026-06-29T14-41-24Z.v2.normalized.csv`
+* `data/derived/multimodal/spaceweather_canada_f107_daily_2026-06-29T14-40-43Z.v2.normalized.csv`
+
 Installed choices:
 
 * Debian/Ubuntu system Python: `sudo apt install python3-netcdf4`

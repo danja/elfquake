@@ -8,7 +8,13 @@ Start with models that can prove whether VLF and astronomy add value over seismi
 2. Regularized logistic regression on tabular window features.
 3. Gradient-boosted trees on tabular multimodal features.
 
-The first model table should be assembled from labeled windows, starting with [Training Windows](training-windows.md).
+The first model table should be assembled from labeled windows, starting with [Training Windows](training-windows.md) and [Design Matrix](design-matrix.md).
+
+Current smoke command:
+
+`train-logistic-smoke`
+
+It uses no external ML dependency and writes a JSON report. Treat `trained_in_sample` as a wiring check until there are enough historical windows for real validation.
 
 ## Later Models
 

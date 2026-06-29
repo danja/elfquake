@@ -26,6 +26,7 @@ The project should proceed cautiously: no prediction capability is assumed until
 * [Feature Extraction](feature-extraction.md)
 * [Target Labeling](target-labeling.md)
 * [Training Windows](training-windows.md)
+* [Design Matrix](design-matrix.md)
 * [Archive Normalization](archive-normalization.md)
 * [Connector Notes](connector-notes.md)
 * [Event Schema](event-schema.md)

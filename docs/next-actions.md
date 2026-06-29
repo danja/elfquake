@@ -5,8 +5,9 @@ Prioritize feasibility and reproducibility before modeling.
 1. Run planned INGV live backfill windows when network use is intended.
 2. Install and smoke-test the systemd service on the target host.
 3. Run a live Cumiana cadence check when a 30-minute wait is acceptable.
-4. Join archive-backed astronomy features into labeled historical windows.
-5. Build a first logistic-regression-ready design matrix.
+4. Backfill enough historical INGV windows to get both positive and negative target classes by region.
+5. Determine whether usable historical Cumiana VLF imagery exists; otherwise plan prospective-only VLF evaluation.
+6. Add VLF summary columns to the design matrix once aligned historical or prospective captures exist.
 
 Completed:
 
@@ -51,3 +52,8 @@ Completed:
 * Define first model candidates for multimodal tabular and temporal data.
 * Add time-windowed GOES XRS normalization for routine batches.
 * Build first labeled seismic training window table.
+* Join archive-backed Kp/Ap and F10.7 features into a first design matrix.
+* Verify service-produced VLF capture through a derived feature row.
+* Combine June normalized INGV event segments into Central Italy and all-Italy tables.
+* Expand June labeled training windows to three 7-day feature/target rows.
+* Add a dependency-free logistic regression smoke trainer and first model reports.

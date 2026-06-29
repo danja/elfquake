@@ -18,11 +18,14 @@ from elfquake.connectors.space_archives import (
 )
 from elfquake.connectors.vlf_cumiana import fetch_manifest_images, repeat_manifest_images
 from elfquake.features.astronomy import build_astronomy_features
+from elfquake.features.design_matrix import build_design_matrix
 from elfquake.features.multimodal_smoke import build_multimodal_smoke_row
 from elfquake.features.table import build_multimodal_table_from_manifest, write_multimodal_manifest_template
 from elfquake.features.targets import label_multimodal_targets
 from elfquake.features.training_windows import build_seismic_training_windows
 from elfquake.features.vlf import build_vlf_features
+from elfquake.models.logistic_smoke import train_logistic_smoke
+from elfquake.normalize.events import combine_normalized_events
 from elfquake.normalize.ingv import normalize_ingv_event_text
 from elfquake.normalize.space_weather import (
     normalize_f107_daily,
@@ -75,6 +78,10 @@ def main() -> int:
     normalize.add_argument("--raw-uri")
     normalize.add_argument("--ingested-at-utc")
     normalize.add_argument("--only-region")
+
+    combine_events = subparsers.add_parser("combine-normalized-events")
+    combine_events.add_argument("--input", type=Path, action="append", required=True)
+    combine_events.add_argument("--out", type=Path, required=True)
 
     gfz = subparsers.add_parser("fetch-gfz-kp-ap")
     gfz.add_argument("--out-root", type=Path, default=Path("data/raw/astronomy"))
@@ -156,6 +163,18 @@ def main() -> int:
     training.add_argument("--target-magnitude-min", default="3.0")
     training.add_argument("--out", type=Path, required=True)
 
+    design = subparsers.add_parser("build-design-matrix")
+    design.add_argument("--training-windows", type=Path, required=True)
+    design.add_argument("--kp-ap", type=Path, required=True)
+    design.add_argument("--f107", type=Path, required=True)
+    design.add_argument("--out", type=Path, required=True)
+
+    trainer = subparsers.add_parser("train-logistic-smoke")
+    trainer.add_argument("--design-matrix", type=Path, required=True)
+    trainer.add_argument("--out", type=Path, required=True)
+    trainer.add_argument("--epochs", type=int, default=600)
+    trainer.add_argument("--learning-rate", type=float, default=0.2)
+
     args = parser.parse_args()
     try:
         if args.command == "fetch-ingv-events":
@@ -210,6 +229,11 @@ def main() -> int:
                 only_region=args.only_region,
             )
             print(f"normalized rows: {count}")
+            print(f"output: {args.out}")
+            return 0
+        elif args.command == "combine-normalized-events":
+            rows = combine_normalized_events(input_paths=args.input, out_path=args.out)
+            print(f"combined rows: {len(rows)}")
             print(f"output: {args.out}")
             return 0
         elif args.command == "fetch-gfz-kp-ap":
@@ -321,6 +345,26 @@ def main() -> int:
                 out_path=args.out,
             )
             print(f"training rows: {len(rows)}")
+            print(f"output: {args.out}")
+            return 0
+        elif args.command == "build-design-matrix":
+            rows = build_design_matrix(
+                training_windows_csv=args.training_windows,
+                kp_ap_csv=args.kp_ap,
+                f107_csv=args.f107,
+                out_path=args.out,
+            )
+            print(f"design rows: {len(rows)}")
+            print(f"output: {args.out}")
+            return 0
+        elif args.command == "train-logistic-smoke":
+            report = train_logistic_smoke(
+                design_matrix_csv=args.design_matrix,
+                out_path=args.out,
+                epochs=args.epochs,
+                learning_rate=args.learning_rate,
+            )
+            print(f"status: {report['status']}")
             print(f"output: {args.out}")
             return 0
         else:
