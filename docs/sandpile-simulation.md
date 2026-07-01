@@ -11,7 +11,7 @@ Use a 2D `x,y` lattice with a height or stress value per cell. The visible 3D te
 At each step:
 
 1. choose a stochastic subset of source points
-2. deposit grains or stress at those sources
+2. deposit grains or stress at those localized sources
 3. find cells higher than a neighbour by at least the slope threshold
 4. topple unstable slopes until the grid is stable
 5. record avalanche statistics and sensor readings
@@ -22,7 +22,7 @@ Defaults:
 * fixed random seed support for replay
 * configurable grid size, source count, sensor count, threshold, deposition probability, and step count
 * if the relaxation sweep limit is hit, unstable slopes are drained until stable
-* mountain mode uses uniform deposition, target refilling, and periodic bottom-layer removal
+* mountain mode uses localized point-source deposition plus target refilling and periodic bottom-layer removal
 
 ## Outputs
 
@@ -108,9 +108,10 @@ For terrain-like sanity checks, use mountain mode instead of the default low-thr
 Mountain mode:
 
 * treats `threshold` as a local slope limit, not a maximum height
-* uses uniform random deposition
-* fills toward `target_mean_height`, defaulting to `width / 2`
+* uses localized point-source deposition by default, so stress accumulates systematically around repeated locations
+* fills toward `target_mean_height`, defaulting to `width / 2`, as broad background loading
 * adds full uniform layers during target filling before adding any random remainder
+* can limit target filling per step, so terrain builds visibly rather than appearing fully formed
 * periodically removes one bottom layer from every nonzero cell
 
 Example:
@@ -120,8 +121,10 @@ PYTHONDONTWRITEBYTECODE=1 PYTHONPATH=src .venv/bin/python -m elfquake.cli run-sa
   --mountain-mode \
   --width 128 --height 128 --steps 1000 \
   --threshold 8 \
-  --source-count 16 --sensor-count 16 \
+  --deposition-mode sources \
+  --source-count 256 --sensor-count 16 \
   --deposition-probability 0.7 --seed 42 \
+  --target-fill-limit 1024 \
   --bottom-layer-removal-interval 100 \
   --summary-out data/derived/sim/mountain_128x128_seed42_1000.summary.csv \
   --sensors-out data/derived/sim/mountain_128x128_seed42_1000.sensors.csv \
@@ -145,7 +148,9 @@ The root helper `./sim.sh` runs a parameterized mountain-mode simulation with fi
 ./sim.sh
 ```
 
-`sim.sh` defaults to `STEPS=10000`, `SNAPSHOT_INTERVAL=10`, `PROGRESS_INTERVAL=100`, `HEATMAP_WORKERS=4`, `HEATMAP_PROGRESS_INTERVAL=50`, and `HEATMAP_GAMMA=0.85`, producing 1001 heatmap frames: steps `0, 10, ..., 9990, 9999`.
+`sim.sh` defaults to `STEPS=10000`, `SNAPSHOT_INTERVAL=10`, `PROGRESS_INTERVAL=100`, `DEPOSITION_MODE=sources`, `SOURCE_COUNT=WIDTH * HEIGHT / 64`, `TARGET_FILL_LIMIT=WIDTH * HEIGHT / 16`, `HEATMAP_WORKERS=4`, `HEATMAP_PROGRESS_INTERVAL=50`, and `HEATMAP_GAMMA=0.85`, producing 1001 heatmap frames: steps `0, 10, ..., 9990, 9999`.
+
+The default target fill limit adds at most one sixteenth of a full layer per step. This provides background loading without replacing the localized point-source stress pattern.
 
 `sim.sh` sets `SLOPE_THRESHOLD` to `max(WIDTH / 16, 4)` unless overridden.
 

@@ -1203,6 +1203,37 @@ class AcquisitionScaffoldTests(unittest.TestCase):
             self.assertGreater(int(summary_rows[2]["target_fill_count"]), 0)
 
     @unittest.skipIf(importlib.util.find_spec("numba") is None, "numba not installed")
+    def test_sandpile_mountain_mode_can_limit_target_fill_per_step(self) -> None:
+        from elfquake.sim.sandpile import SandpileConfig, run_sandpile_simulation
+
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            summary_rows, _ = run_sandpile_simulation(
+                config=SandpileConfig(
+                    width=8,
+                    height=8,
+                    steps=3,
+                    threshold=32,
+                    source_count=1,
+                    sensor_count=1,
+                    deposition_probability=0.0,
+                    seed=7,
+                    deposition_mode="uniform",
+                    target_mean_height=4.0,
+                    target_fill_limit=64,
+                ),
+                summary_out=root / "summary.csv",
+                sensors_out=root / "sensors.csv",
+            )
+
+            self.assertEqual([row["target_fill_count"] for row in summary_rows], ["64", "64", "64"])
+            self.assertEqual([row["mean_height"] for row in summary_rows], [
+                "1.000000",
+                "2.000000",
+                "3.000000",
+            ])
+
+    @unittest.skipIf(importlib.util.find_spec("numba") is None, "numba not installed")
     def test_sandpile_simulation_writes_grid_snapshots(self) -> None:
         from elfquake.sim.sandpile import SandpileConfig, run_sandpile_simulation
 

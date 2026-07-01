@@ -24,8 +24,8 @@ if [[ "${1:-}" == "-h" || "${1:-}" == "--help" ]]; then
   exit 0
 fi
 
-input_dir="${1:-data/derived/sim/mountain_256x256_seed42_10000.heatmaps}"
-output_mp4="${2:-data/derived/sim/mountain_256x256_seed42_10000.mp4}"
+input_dir="${1:-data/derived/sim/mountain_256x256_seed42_100000.heatmaps}"
+output_mp4="${2:-data/derived/sim/mountain_256x256_seed42_100000.mp4}"
 fps="${3:-20}"
 pattern="sandpile_step_*.png"
 

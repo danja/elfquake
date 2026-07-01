@@ -53,6 +53,7 @@ class SandpileConfig:
     max_relaxation_sweeps: int = 10000
     deposition_mode: str = "sources"
     target_mean_height: float = 0.0
+    target_fill_limit: int = 0
     bottom_layer_removal_interval: int = 0
 
 
@@ -156,6 +157,8 @@ def validate_config(config: SandpileConfig) -> None:
         raise ValueError("deposition_mode must be 'sources' or 'uniform'")
     if config.target_mean_height < 0:
         raise ValueError("target_mean_height must be non-negative")
+    if config.target_fill_limit < 0:
+        raise ValueError("target_fill_limit must be non-negative")
     if config.bottom_layer_removal_interval < 0:
         raise ValueError("bottom_layer_removal_interval must be non-negative")
 
@@ -184,6 +187,8 @@ def _fill_to_target_mean(grid: np.ndarray, rng, config: SandpileConfig) -> int:
     deficit = target_mass - int(grid.sum())
     if deficit <= 0:
         return 0
+    if config.target_fill_limit > 0:
+        deficit = min(deficit, config.target_fill_limit)
     cell_count = config.width * config.height
     full_layers = deficit // cell_count
     remainder = deficit % cell_count

@@ -260,6 +260,7 @@ def main() -> int:
     sandpile.add_argument("--max-relaxation-sweeps", type=int, default=10000)
     sandpile.add_argument("--deposition-mode", choices=["sources", "uniform"], default="sources")
     sandpile.add_argument("--target-mean-height", type=float)
+    sandpile.add_argument("--target-fill-limit", type=int, default=0)
     sandpile.add_argument("--bottom-layer-removal-interval", type=int, default=0)
     sandpile.add_argument("--mountain-mode", action="store_true")
     sandpile.add_argument("--summary-out", type=Path, required=True)
@@ -606,7 +607,7 @@ def main() -> int:
 
             started = time.perf_counter()
             threshold = args.threshold
-            deposition_mode = "uniform" if args.mountain_mode else args.deposition_mode
+            deposition_mode = args.deposition_mode
             target_mean_height = (
                 args.target_mean_height
                 if args.target_mean_height is not None
@@ -647,6 +648,7 @@ def main() -> int:
                     max_relaxation_sweeps=args.max_relaxation_sweeps,
                     deposition_mode=deposition_mode,
                     target_mean_height=target_mean_height,
+                    target_fill_limit=args.target_fill_limit,
                     bottom_layer_removal_interval=bottom_layer_removal_interval,
                 ),
                 summary_out=args.summary_out,

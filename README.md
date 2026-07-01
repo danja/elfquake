@@ -21,7 +21,7 @@ Right now, while awaiting further data from INGV, the focus is on the simulation
 
 ## Simulation
 
-The simulation is an artificial mountain-like grid where material slowly builds up, slopes become unstable, and small avalanches redistribute height to neighbouring cells. The aim is to generate synthetic sequences that are close enough in shape to real-world seismic data to be useful as training data for a deep learning system, especially before enough matched seismic, VLF, and astronomical data is available.
+The simulation is an artificial mountain-like grid where broad background loading is combined with repeated localized stress at fixed point sources. As slopes become unstable, small avalanches redistribute height to neighbouring cells. The aim is to generate synthetic sequences that are close enough in shape to real-world seismic data to be useful as training data for a deep learning system, especially before enough matched seismic, VLF, and astronomical data is available.
 
 This is a simplified stress-and-release analogy, not a geological model. Its value depends on whether the generated data has useful structural similarity to real observations. Good performance on simulated avalanches would only show that the tooling can learn synthetic patterns; real claims still require held-out seismic, VLF, and astronomical data.
 
@@ -35,5 +35,4 @@ This is a simplified stress-and-release analogy, not a geological model. Its val
 * [Systemd Service](docs/systemd-service.md)
 * [Initial Model Trials](docs/initial-model-trials.md)
 * [Sandpile Simulation](docs/sandpile-simulation.md)
-
 

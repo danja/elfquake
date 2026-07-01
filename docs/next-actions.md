@@ -82,3 +82,5 @@ Completed:
 * Change sandpile relaxation to topple local neighbour slopes rather than absolute z-height.
 * Add sandpile heatmap render progress, CPU worker parallelism, and broader color controls.
 * Add a dry-run derived-data cleanup helper.
+* Slow mountain-mode target filling and scale deposition defaults so videos visibly develop.
+* Restore localized point-source stress deposition as the mountain-mode default.

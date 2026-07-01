@@ -3,11 +3,20 @@ set -euo pipefail
 
 width="${WIDTH:-256}"
 height="${HEIGHT:-256}"
-steps="${STEPS:-10000}"
+steps="${STEPS:-100000}"
 seed="${SEED:-42}"
 snapshot_interval="${SNAPSHOT_INTERVAL:-10}"
 progress_interval="${PROGRESS_INTERVAL:-100}"
 bottom_layer_interval="${BOTTOM_LAYER_INTERVAL:-100}"
+deposition_mode="${DEPOSITION_MODE:-sources}"
+target_fill_limit="${TARGET_FILL_LIMIT:-$(( width * height / 16 ))}"
+if [[ "$target_fill_limit" -lt 1 ]]; then
+  target_fill_limit=1
+fi
+source_count="${SOURCE_COUNT:-$(( width * height / 64 ))}"
+if [[ "$source_count" -lt 16 ]]; then
+  source_count=16
+fi
 heatmap_scale="${HEATMAP_SCALE:-4}"
 heatmap_color_min="${HEATMAP_COLOR_MIN:-0}"
 heatmap_color_max="${HEATMAP_COLOR_MAX:-$width}"
@@ -24,8 +33,10 @@ PYTHONDONTWRITEBYTECODE=1 PYTHONPATH=src .venv/bin/python -m elfquake.cli run-sa
   --mountain-mode \
   --width "$width" --height "$height" --steps "$steps" \
   --threshold "$slope_threshold" \
-  --source-count 16 --sensor-count 16 \
+  --deposition-mode "$deposition_mode" \
+  --source-count "$source_count" --sensor-count 16 \
   --deposition-probability 0.7 --seed "$seed" \
+  --target-fill-limit "$target_fill_limit" \
   --bottom-layer-removal-interval "$bottom_layer_interval" \
   --summary-out "${prefix}.summary.csv" \
   --sensors-out "${prefix}.sensors.csv" \
