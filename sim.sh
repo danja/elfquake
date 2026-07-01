@@ -9,7 +9,11 @@ snapshot_interval="${SNAPSHOT_INTERVAL:-10}"
 progress_interval="${PROGRESS_INTERVAL:-100}"
 bottom_layer_interval="${BOTTOM_LAYER_INTERVAL:-100}"
 heatmap_scale="${HEATMAP_SCALE:-4}"
+heatmap_color_min="${HEATMAP_COLOR_MIN:-0}"
 heatmap_color_max="${HEATMAP_COLOR_MAX:-$width}"
+heatmap_gamma="${HEATMAP_GAMMA:-0.85}"
+heatmap_workers="${HEATMAP_WORKERS:-4}"
+heatmap_progress_interval="${HEATMAP_PROGRESS_INTERVAL:-50}"
 slope_threshold="${SLOPE_THRESHOLD:-$(( width / 16 ))}"
 if [[ "$slope_threshold" -lt 4 ]]; then
   slope_threshold=4
@@ -29,5 +33,9 @@ PYTHONDONTWRITEBYTECODE=1 PYTHONPATH=src .venv/bin/python -m elfquake.cli run-sa
   --snapshot-interval "$snapshot_interval" \
   --heatmap-dir "${prefix}.heatmaps" \
   --heatmap-scale "$heatmap_scale" \
+  --heatmap-color-min "$heatmap_color_min" \
   --heatmap-color-max "$heatmap_color_max" \
+  --heatmap-gamma "$heatmap_gamma" \
+  --heatmap-workers "$heatmap_workers" \
+  --heatmap-progress-interval "$heatmap_progress_interval" \
   --progress-interval "$progress_interval"

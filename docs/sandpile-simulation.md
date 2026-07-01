@@ -1,8 +1,8 @@
 # Sandpile Simulation
 
-The sandpile simulator is a synthetic-data generator for ELFQuake. It should produce controlled avalanche-like sequences that can be used for pipeline testing, representation learning, and pretraining experiments before fine-tuning on real seismic, VLF, and astronomical data.
+The sandpile simulator is a synthetic-data generator for ELFQuake. It should produce controlled avalanche-like sequences that are close enough in shape to real-world seismic data to support deep-learning pretraining experiments before fine-tuning on real seismic, VLF, and astronomical data.
 
-This is an analogy, not a validated geological model. Do not treat simulated avalanche targets as earthquake labels.
+This is an analogy, not a validated geological model. Its usefulness depends on measured structural similarity to real observations. Do not treat simulated avalanche targets as earthquake labels.
 
 ## Model
 
@@ -129,11 +129,15 @@ PYTHONDONTWRITEBYTECODE=1 PYTHONPATH=src .venv/bin/python -m elfquake.cli run-sa
   --snapshot-interval 100 \
   --heatmap-dir data/derived/sim/mountain_128x128_seed42_1000.heatmaps \
   --heatmap-scale 4 \
+  --heatmap-color-min 0 \
   --heatmap-color-max 128 \
+  --heatmap-gamma 0.85 \
+  --heatmap-workers 4 \
+  --heatmap-progress-interval 50 \
   --progress-interval 100
 ```
 
-Use `--heatmap-color-max` to keep colors comparable across frames. For mountain mode, set it to the grid width unless you have a specific z-axis range.
+Use `--heatmap-color-min` and `--heatmap-color-max` to keep colors comparable across frames. For mountain mode, set the max to the grid width unless you have a specific z-axis range. `--heatmap-gamma` adjusts visual contrast without changing the underlying values.
 
 The root helper `./sim.sh` runs a parameterized mountain-mode simulation with fixed heatmap scaling:
 
@@ -141,9 +145,15 @@ The root helper `./sim.sh` runs a parameterized mountain-mode simulation with fi
 ./sim.sh
 ```
 
-`sim.sh` defaults to `STEPS=10000`, `SNAPSHOT_INTERVAL=10`, and `PROGRESS_INTERVAL=100`, producing 1001 heatmap frames: steps `0, 10, ..., 9990, 9999`.
+`sim.sh` defaults to `STEPS=10000`, `SNAPSHOT_INTERVAL=10`, `PROGRESS_INTERVAL=100`, `HEATMAP_WORKERS=4`, `HEATMAP_PROGRESS_INTERVAL=50`, and `HEATMAP_GAMMA=0.85`, producing 1001 heatmap frames: steps `0, 10, ..., 9990, 9999`.
 
 `sim.sh` sets `SLOPE_THRESHOLD` to `max(WIDTH / 16, 4)` unless overridden.
+
+Create a video from generated PNG heatmaps:
+
+```sh
+./make-video.sh
+```
 
 ## Install Notes
 

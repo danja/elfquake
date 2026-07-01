@@ -1258,7 +1258,9 @@ class AcquisitionScaffoldTests(unittest.TestCase):
             self.assertEqual(report["width_px"], "6")
             self.assertEqual(report["height_px"], "6")
             self.assertEqual(report["max_height"], "4")
+            self.assertEqual(report["color_min"], "0.0")
             self.assertEqual(report["color_max"], "4")
+            self.assertEqual(report["gamma"], "1.0")
             self.assertEqual((root / "heatmap.png").read_bytes()[:8], b"\x89PNG\r\n\x1a\n")
 
     def test_render_sandpile_heatmap_can_use_fixed_color_scale(self) -> None:
@@ -1303,16 +1305,24 @@ class AcquisitionScaffoldTests(unittest.TestCase):
                 f"100,{second}\n",
                 encoding="utf-8",
             )
+            progress = []
 
             rows = render_sandpile_heatmaps_from_manifest(
                 manifest_path=manifest,
                 out_dir=root / "heatmaps",
                 scale=2,
+                color_min=0,
                 color_max=4,
+                gamma=0.85,
+                workers=2,
+                progress_interval=1,
+                progress_callback=lambda completed, total, _row: progress.append((completed, total)),
             )
 
             self.assertEqual(len(rows), 2)
             self.assertEqual(rows[0]["color_max"], "4")
+            self.assertEqual(rows[0]["gamma"], "0.85")
+            self.assertEqual(sorted(progress), [(1, 2), (2, 2)])
             self.assertTrue((root / "heatmaps" / "sandpile_step_000000.png").exists())
             self.assertTrue((root / "heatmaps" / "sandpile_step_000100.png").exists())
 

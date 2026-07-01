@@ -268,7 +268,11 @@ def main() -> int:
     sandpile.add_argument("--snapshot-interval", type=int, default=0)
     sandpile.add_argument("--heatmap-dir", type=Path)
     sandpile.add_argument("--heatmap-scale", type=int, default=8)
+    sandpile.add_argument("--heatmap-color-min", type=float, default=0.0)
     sandpile.add_argument("--heatmap-color-max", type=float)
+    sandpile.add_argument("--heatmap-gamma", type=float, default=1.0)
+    sandpile.add_argument("--heatmap-workers", type=int, default=1)
+    sandpile.add_argument("--heatmap-progress-interval", type=int, default=50)
     sandpile.add_argument("--progress-interval", type=int, default=100)
 
     sandpile_summary = subparsers.add_parser("summarize-sandpile-sim")
@@ -292,7 +296,9 @@ def main() -> int:
     sandpile_heatmap.add_argument("--snapshot", type=Path, required=True)
     sandpile_heatmap.add_argument("--out", type=Path, required=True)
     sandpile_heatmap.add_argument("--scale", type=int, default=8)
+    sandpile_heatmap.add_argument("--color-min", type=float, default=0.0)
     sandpile_heatmap.add_argument("--color-max", type=float)
+    sandpile_heatmap.add_argument("--gamma", type=float, default=1.0)
 
     args = parser.parse_args()
     try:
@@ -656,11 +662,39 @@ def main() -> int:
                     raise ValueError("--heatmap-dir requires --snapshot-dir")
                 from elfquake.sim.heatmap import render_sandpile_heatmaps_from_manifest
 
+                heatmap_started = time.perf_counter()
+
+                def report_heatmap_progress(completed: int, total: int, row: dict[str, str]) -> None:
+                    elapsed_seconds = time.perf_counter() - heatmap_started
+                    rate = completed / elapsed_seconds if elapsed_seconds else 0.0
+                    print(
+                        "heatmap progress: "
+                        f"frame {completed}/{total} "
+                        f"elapsed {elapsed_seconds:.2f}s "
+                        f"rate {rate:.2f} frames/s "
+                        f"latest {Path(row['heatmap_file']).name}",
+                        flush=True,
+                    )
+
+                print(
+                    "heatmap rendering: "
+                    f"workers {args.heatmap_workers} "
+                    f"scale {args.heatmap_scale} "
+                    f"color_min {args.heatmap_color_min} "
+                    f"color_max {args.heatmap_color_max if args.heatmap_color_max is not None else 'auto'} "
+                    f"gamma {args.heatmap_gamma}",
+                    flush=True,
+                )
                 heatmap_rows = render_sandpile_heatmaps_from_manifest(
                     manifest_path=args.snapshot_dir / "manifest.csv",
                     out_dir=args.heatmap_dir,
                     scale=args.heatmap_scale,
+                    color_min=args.heatmap_color_min,
                     color_max=args.heatmap_color_max,
+                    gamma=args.heatmap_gamma,
+                    workers=args.heatmap_workers,
+                    progress_interval=args.heatmap_progress_interval,
+                    progress_callback=report_heatmap_progress if args.heatmap_progress_interval else None,
                 )
             print(f"summary rows: {len(summary_rows)}")
             print(f"sensor rows: {len(sensor_rows)}")
@@ -716,7 +750,9 @@ def main() -> int:
                 snapshot_path=args.snapshot,
                 out_path=args.out,
                 scale=args.scale,
+                color_min=args.color_min,
                 color_max=args.color_max,
+                gamma=args.gamma,
             )
             print(f"snapshot: {report['snapshot_file']}")
             print(f"heatmap: {report['heatmap_file']}")

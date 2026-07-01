@@ -80,3 +80,5 @@ Completed:
 * Add sandpile mountain mode with target mean height and periodic bottom-layer removal.
 * Add fixed-scale sandpile heatmap rendering so colors reflect absolute height across frames.
 * Change sandpile relaxation to topple local neighbour slopes rather than absolute z-height.
+* Add sandpile heatmap render progress, CPU worker parallelism, and broader color controls.
+* Add a dry-run derived-data cleanup helper.
