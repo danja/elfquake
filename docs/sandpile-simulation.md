@@ -131,6 +131,16 @@ The emitted source is therefore based on stored charge and release, not only ins
 
 Piezo CSV diagnostics include total charge, maximum charge, and total release per step so the charge-store behavior can be audited.
 
+Default charge parameters in `sim.sh`:
+
+* `PIEZO_CHARGE_DECAY=0.995`
+* `PIEZO_CHARGE_COUPLING=1.0`
+* `PIEZO_RELEASE_RATIO=0.15`
+* `PIEZO_CRITICAL_RELEASE_RATIO=0.05`
+* `PIEZO_SATURATION=1000`
+
+A `32 x 32`, `200` step smoke run with these defaults produced a rough log-log PSD slope near `-1` for sensor `0`, which is the intended 1/f-like diagnostic target. Treat this as a simulation sanity check, not validation against real VLF data.
+
 ## Derived Synthetic Outputs
 
 Convert avalanche-like steps into an INGV-like event list:
@@ -174,6 +184,14 @@ Render a WAV sonification of the summed piezo signal:
 ```
 
 The WAV is a time-compressed audio rendering for inspection, not a physical radio waveform. The default `SMOOTH_STEPS=64` suppresses step-to-step jitter before resampling to audio rate; reduce it to hear more high-frequency simulation jitter.
+
+Render normalized or synthetic events over a simple offline Italy map:
+
+```sh
+./event-map.sh
+```
+
+The helper prefers the newest combined INGV normalized CSV and falls back to the newest synthetic event CSV. It intentionally uses a schematic built-in basemap so it works without cartography packages. For publication-quality maps, add geospatial libraries such as `geopandas`, `shapely`, `contextily`, and `xyzservices`.
 
 ## Mountain Mode
 

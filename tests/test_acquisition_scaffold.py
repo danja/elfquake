@@ -1487,6 +1487,35 @@ class AcquisitionScaffoldTests(unittest.TestCase):
             self.assertEqual(report["selected_sensor_id"], "0")
             self.assertEqual(report["dc_block"], "0.95")
 
+    @unittest.skipIf(importlib.util.find_spec("matplotlib") is None, "matplotlib not installed")
+    def test_render_event_map_writes_png_and_metadata(self) -> None:
+        from elfquake.visualization.event_map import render_event_map
+
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            events = root / "events.csv"
+            events.write_text(
+                "event_id,source,event_time_utc,latitude,longitude,depth_km,magnitude,magnitude_type,"
+                "italy_region,event_location_name,event_type,raw_file,ingested_at_utc,raw_uri\n"
+                "a,ingv,2026-01-01T00:00:00Z,42.5,13.1,8,2.4,ML,central,Apennines,earthquake,,,\n"
+                "b,ingv,2026-01-01T01:00:00Z,38.1,15.0,12,3.1,ML,sicily,Sicily,earthquake,,,\n"
+                "bad,ingv,2026-01-01T02:00:00Z,,,,,,,,,,,\n",
+                encoding="utf-8",
+            )
+
+            report = render_event_map(
+                events_csv=events,
+                out_path=root / "map.png",
+                metadata_out=root / "map.json",
+                min_magnitude=2.0,
+            )
+
+            self.assertEqual((root / "map.png").read_bytes()[:8], b"\x89PNG\r\n\x1a\n")
+            metadata = json.loads((root / "map.json").read_text(encoding="utf-8"))
+            self.assertEqual(metadata["event_count"], "2")
+            self.assertEqual(metadata["map_type"], "offline_schematic_italy")
+            self.assertEqual(report["event_count"], "2")
+
     @unittest.skipIf(importlib.util.find_spec("numba") is None, "numba not installed")
     def test_sandpile_simulation_writes_grid_snapshots(self) -> None:
         from elfquake.sim.sandpile import SandpileConfig, run_sandpile_simulation

@@ -9,6 +9,7 @@ Prioritize feasibility and reproducibility before modeling.
 5. Add slope/erosion smoothing to mountain-mode synthetic terrain if ridgeline-like visuals are needed.
 6. Backfill enough historical INGV windows to get both positive and negative target classes by region.
 7. Continue with prospective-only VLF evaluation unless a separate historical Cumiana archive is obtained.
+8. Replace the schematic event-map basemap with a real cartographic basemap if geospatial dependencies are installed.
 
 Completed:
 
@@ -91,3 +92,4 @@ Completed:
 * Compress long piezo plots for display and smooth WAV sonification defaults.
 * Add single-sensor piezo rendering and DC-blocking filters for diagnostics.
 * Replace instantaneous piezo emission with a stateful charge-store/release model.
+* Add an offline Italy event-map renderer for normalized INGV-like event CSVs.

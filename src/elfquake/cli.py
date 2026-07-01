@@ -374,6 +374,18 @@ def main() -> int:
     piezo_audio.add_argument("--sensor-id", type=int)
     piezo_audio.add_argument("--dc-block", type=float, default=0.0)
 
+    event_map = subparsers.add_parser("render-event-map")
+    event_map.add_argument("--events", type=Path, required=True)
+    event_map.add_argument("--out", type=Path, required=True)
+    event_map.add_argument("--metadata-out", type=Path)
+    event_map.add_argument("--title", default="ELFQuake Italy event map")
+    event_map.add_argument("--lon-min", type=float, default=5.5)
+    event_map.add_argument("--lon-max", type=float, default=19.5)
+    event_map.add_argument("--lat-min", type=float, default=35.0)
+    event_map.add_argument("--lat-max", type=float, default=47.8)
+    event_map.add_argument("--min-magnitude", type=float)
+    event_map.add_argument("--max-events", type=int)
+
     args = parser.parse_args()
     try:
         if args.command == "fetch-ingv-events":
@@ -957,6 +969,27 @@ def main() -> int:
             print(f"selected sensor: {report['selected_sensor_id'] or 'sum'}")
             print(f"dc block: {report['dc_block']}")
             print(f"type: {report['audio_type']}")
+            return 0
+        elif args.command == "render-event-map":
+            from elfquake.visualization.event_map import render_event_map
+
+            report = render_event_map(
+                events_csv=args.events,
+                out_path=args.out,
+                metadata_out=args.metadata_out,
+                title=args.title,
+                lon_min=args.lon_min,
+                lon_max=args.lon_max,
+                lat_min=args.lat_min,
+                lat_max=args.lat_max,
+                min_magnitude=args.min_magnitude,
+                max_events=args.max_events,
+            )
+            print(f"map: {report['map_file']}")
+            print(f"events: {report['event_count']}")
+            print(f"type: {report['map_type']}")
+            if args.metadata_out:
+                print(f"metadata: {args.metadata_out}")
             return 0
         else:
             parser.error(f"unknown command: {args.command}")
