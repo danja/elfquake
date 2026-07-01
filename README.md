@@ -1,6 +1,6 @@
 # ELFQuake
 
-ELFQuake is an Italy-scoped research project testing whether VLF radio data, combined with seismic and astronomical context, can add useful signal to earthquake-related predictive modeling.
+ELFQuake is an research project testing whether VLF radio data, combined with seismic and astronomical context, can add useful signal to earthquake-related predictive modeling.
 
 Status: acquisition and feature pipelines are running; only smoke-model trials have been performed; no prediction capability is claimed.
 

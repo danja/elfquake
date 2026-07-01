@@ -141,6 +141,8 @@ The root helper `./sim.sh` runs a parameterized mountain-mode simulation with fi
 ./sim.sh
 ```
 
+`sim.sh` defaults to `STEPS=10000`, `SNAPSHOT_INTERVAL=10`, and `PROGRESS_INTERVAL=100`, producing 1001 heatmap frames: steps `0, 10, ..., 9990, 9999`.
+
 `sim.sh` sets `SLOPE_THRESHOLD` to `max(WIDTH / 16, 4)` unless overridden.
 
 ## Install Notes

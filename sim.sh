@@ -5,7 +5,8 @@ width="${WIDTH:-256}"
 height="${HEIGHT:-256}"
 steps="${STEPS:-10000}"
 seed="${SEED:-42}"
-snapshot_interval="${SNAPSHOT_INTERVAL:-100}"
+snapshot_interval="${SNAPSHOT_INTERVAL:-10}"
+progress_interval="${PROGRESS_INTERVAL:-100}"
 bottom_layer_interval="${BOTTOM_LAYER_INTERVAL:-100}"
 heatmap_scale="${HEATMAP_SCALE:-4}"
 heatmap_color_max="${HEATMAP_COLOR_MAX:-$width}"
@@ -29,4 +30,4 @@ PYTHONDONTWRITEBYTECODE=1 PYTHONPATH=src .venv/bin/python -m elfquake.cli run-sa
   --heatmap-dir "${prefix}.heatmaps" \
   --heatmap-scale "$heatmap_scale" \
   --heatmap-color-max "$heatmap_color_max" \
-  --progress-interval "$snapshot_interval"
+  --progress-interval "$progress_interval"
