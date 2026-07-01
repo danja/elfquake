@@ -9,6 +9,8 @@ from typing import Callable
 
 import numpy as np
 
+from elfquake.sim.piezo import PIEZO_SENSOR_FIELDS, PiezoConfig, build_piezo_sensor_rows, build_piezo_susceptibility
+
 try:
     from numba import njit
 except ImportError as error:  # pragma: no cover - exercised by runtime environment.
@@ -62,6 +64,8 @@ def run_sandpile_simulation(
     config: SandpileConfig,
     summary_out: Path,
     sensors_out: Path,
+    piezo_out: Path | None = None,
+    piezo_config: PiezoConfig | None = None,
     snapshot_dir: Path | None = None,
     snapshot_interval: int = 0,
     progress_interval: int = 0,
@@ -76,9 +80,30 @@ def run_sandpile_simulation(
     grid = np.zeros((config.height, config.width), dtype=np.int64)
     sources = _random_points(rng, config.width, config.height, config.source_count)
     sensors = _random_points(rng, config.width, config.height, config.sensor_count)
+    piezo_rows = []
+    piezo_sensors = None
+    piezo_susceptibility = None
+    if piezo_out is not None:
+        resolved_piezo_config = piezo_config or PiezoConfig()
+        piezo_rng = np.random.default_rng(config.seed + 1_000_003)
+        piezo_sensors = _random_points(
+            piezo_rng,
+            config.width,
+            config.height,
+            resolved_piezo_config.sensor_count,
+        )
+        piezo_susceptibility = build_piezo_susceptibility(
+            rng=piezo_rng,
+            width=config.width,
+            height=config.height,
+            config=resolved_piezo_config,
+        )
+    else:
+        resolved_piezo_config = None
     summary_rows = []
     sensor_rows = []
     snapshot_rows = []
+    previous_grid = grid.copy()
 
     for step in range(config.steps):
         deposition_count = _apply_deposition(
@@ -88,6 +113,21 @@ def run_sandpile_simulation(
             sources=sources,
         )
         target_fill_count = _fill_to_target_mean(grid, rng, config)
+        if piezo_out is not None:
+            assert resolved_piezo_config is not None
+            assert piezo_sensors is not None
+            assert piezo_susceptibility is not None
+            piezo_rows.extend(
+                build_piezo_sensor_rows(
+                    step=step,
+                    sensors=piezo_sensors,
+                    grid=grid,
+                    previous_grid=previous_grid,
+                    susceptibility=piezo_susceptibility,
+                    threshold=config.threshold,
+                    config=resolved_piezo_config,
+                )
+            )
         topple_counts = np.zeros_like(grid)
         (
             topple_count,
@@ -132,9 +172,12 @@ def run_sandpile_simulation(
             completed_steps % progress_interval == 0 or completed_steps == config.steps
         ):
             progress_callback(completed_steps, config.steps, summary_row)
+        previous_grid = grid.copy()
 
     _write_csv(summary_out, SUMMARY_FIELDS, summary_rows)
     _write_csv(sensors_out, SENSOR_FIELDS, sensor_rows)
+    if piezo_out is not None:
+        _write_csv(piezo_out, PIEZO_SENSOR_FIELDS, piezo_rows)
     if snapshot_dir is not None:
         _write_csv(snapshot_dir / "manifest.csv", ["step", "snapshot_file"], snapshot_rows)
     return summary_rows, sensor_rows

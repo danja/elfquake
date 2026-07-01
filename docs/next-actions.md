@@ -84,3 +84,4 @@ Completed:
 * Add a dry-run derived-data cleanup helper.
 * Slow mountain-mode target filling and scale deposition defaults so videos visibly develop.
 * Restore localized point-source stress deposition as the mountain-mode default.
+* Add a modular piezo-like precursor sensor channel for pre-avalanche stress signals.

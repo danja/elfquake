@@ -23,6 +23,12 @@ heatmap_color_max="${HEATMAP_COLOR_MAX:-$width}"
 heatmap_gamma="${HEATMAP_GAMMA:-0.85}"
 heatmap_workers="${HEATMAP_WORKERS:-4}"
 heatmap_progress_interval="${HEATMAP_PROGRESS_INTERVAL:-50}"
+piezo_sensor_count="${PIEZO_SENSOR_COUNT:-16}"
+piezo_cluster_count="${PIEZO_CLUSTER_COUNT:-8}"
+piezo_activation_ratio="${PIEZO_ACTIVATION_RATIO:-0.75}"
+piezo_susceptibility_base="${PIEZO_SUSCEPTIBILITY_BASE:-0.15}"
+piezo_susceptibility_variation="${PIEZO_SUSCEPTIBILITY_VARIATION:-0.85}"
+piezo_attenuation_radius="${PIEZO_ATTENUATION_RADIUS:-0}"
 slope_threshold="${SLOPE_THRESHOLD:-$(( width / 16 ))}"
 if [[ "$slope_threshold" -lt 4 ]]; then
   slope_threshold=4
@@ -40,6 +46,13 @@ PYTHONDONTWRITEBYTECODE=1 PYTHONPATH=src .venv/bin/python -m elfquake.cli run-sa
   --bottom-layer-removal-interval "$bottom_layer_interval" \
   --summary-out "${prefix}.summary.csv" \
   --sensors-out "${prefix}.sensors.csv" \
+  --piezo-out "${prefix}.piezo.csv" \
+  --piezo-sensor-count "$piezo_sensor_count" \
+  --piezo-cluster-count "$piezo_cluster_count" \
+  --piezo-activation-ratio "$piezo_activation_ratio" \
+  --piezo-susceptibility-base "$piezo_susceptibility_base" \
+  --piezo-susceptibility-variation "$piezo_susceptibility_variation" \
+  --piezo-attenuation-radius "$piezo_attenuation_radius" \
   --snapshot-dir "${prefix}.snapshots" \
   --snapshot-interval "$snapshot_interval" \
   --heatmap-dir "${prefix}.heatmaps" \

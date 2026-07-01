@@ -1234,6 +1234,48 @@ class AcquisitionScaffoldTests(unittest.TestCase):
             ])
 
     @unittest.skipIf(importlib.util.find_spec("numba") is None, "numba not installed")
+    def test_sandpile_can_write_piezo_precursor_sensor_rows(self) -> None:
+        from elfquake.sim.piezo import PIEZO_SENSOR_FIELDS, PiezoConfig
+        from elfquake.sim.sandpile import SandpileConfig, run_sandpile_simulation
+
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            piezo_out = root / "piezo.csv"
+
+            run_sandpile_simulation(
+                config=SandpileConfig(
+                    width=8,
+                    height=8,
+                    steps=8,
+                    threshold=4,
+                    source_count=4,
+                    sensor_count=2,
+                    deposition_probability=1.0,
+                    seed=11,
+                ),
+                summary_out=root / "summary.csv",
+                sensors_out=root / "sensors.csv",
+                piezo_out=piezo_out,
+                piezo_config=PiezoConfig(
+                    sensor_count=3,
+                    susceptibility_base=1.0,
+                    susceptibility_variation=0.0,
+                    cluster_count=0,
+                    activation_ratio=0.25,
+                    attenuation_radius=8.0,
+                ),
+            )
+
+            lines = piezo_out.read_text(encoding="utf-8").splitlines()
+            self.assertEqual(lines[0], ",".join(PIEZO_SENSOR_FIELDS))
+            self.assertEqual(len(lines), 1 + 8 * 3)
+            signal_index = PIEZO_SENSOR_FIELDS.index("piezo_signal")
+            self.assertGreater(
+                max(float(line.split(",")[signal_index]) for line in lines[1:]),
+                0.0,
+            )
+
+    @unittest.skipIf(importlib.util.find_spec("numba") is None, "numba not installed")
     def test_sandpile_simulation_writes_grid_snapshots(self) -> None:
         from elfquake.sim.sandpile import SandpileConfig, run_sandpile_simulation
 

@@ -265,6 +265,15 @@ def main() -> int:
     sandpile.add_argument("--mountain-mode", action="store_true")
     sandpile.add_argument("--summary-out", type=Path, required=True)
     sandpile.add_argument("--sensors-out", type=Path, required=True)
+    sandpile.add_argument("--piezo-out", type=Path)
+    sandpile.add_argument("--piezo-sensor-count", type=int, default=16)
+    sandpile.add_argument("--piezo-susceptibility-base", type=float, default=0.15)
+    sandpile.add_argument("--piezo-susceptibility-variation", type=float, default=0.85)
+    sandpile.add_argument("--piezo-cluster-count", type=int, default=8)
+    sandpile.add_argument("--piezo-cluster-radius", type=float, default=0.0)
+    sandpile.add_argument("--piezo-activation-ratio", type=float, default=0.75)
+    sandpile.add_argument("--piezo-attenuation-radius", type=float, default=0.0)
+    sandpile.add_argument("--piezo-max-distance-radius", type=float, default=0.0)
     sandpile.add_argument("--snapshot-dir", type=Path)
     sandpile.add_argument("--snapshot-interval", type=int, default=0)
     sandpile.add_argument("--heatmap-dir", type=Path)
@@ -603,6 +612,7 @@ def main() -> int:
             print(f"output: {args.out}")
             return 0
         elif args.command == "run-sandpile-sim":
+            from elfquake.sim.piezo import PiezoConfig
             from elfquake.sim.sandpile import SandpileConfig, run_sandpile_simulation
 
             started = time.perf_counter()
@@ -653,6 +663,19 @@ def main() -> int:
                 ),
                 summary_out=args.summary_out,
                 sensors_out=args.sensors_out,
+                piezo_out=args.piezo_out,
+                piezo_config=PiezoConfig(
+                    sensor_count=args.piezo_sensor_count,
+                    susceptibility_base=args.piezo_susceptibility_base,
+                    susceptibility_variation=args.piezo_susceptibility_variation,
+                    cluster_count=args.piezo_cluster_count,
+                    cluster_radius=args.piezo_cluster_radius,
+                    activation_ratio=args.piezo_activation_ratio,
+                    attenuation_radius=args.piezo_attenuation_radius,
+                    max_distance_radius=args.piezo_max_distance_radius,
+                )
+                if args.piezo_out
+                else None,
                 snapshot_dir=args.snapshot_dir,
                 snapshot_interval=args.snapshot_interval,
                 progress_interval=args.progress_interval,
@@ -702,6 +725,8 @@ def main() -> int:
             print(f"sensor rows: {len(sensor_rows)}")
             print(f"summary output: {args.summary_out}")
             print(f"sensors output: {args.sensors_out}")
+            if args.piezo_out:
+                print(f"piezo output: {args.piezo_out}")
             if args.snapshot_dir:
                 print(f"snapshot dir: {args.snapshot_dir}")
             if args.heatmap_dir:

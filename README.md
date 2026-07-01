@@ -17,7 +17,7 @@ Right now, while awaiting further data from INGV, the focus is on the simulation
 * Astronomical and space-weather archive connectors and normalization.
 * Prospective VLF-anchored feature rows with pending target labels.
 * Dependency-light logistic and ablation smoke models for feasibility checks.
-* Sandpile simulation for synthetic avalanche-like sequences and pipeline testing.
+* Sandpile simulation with separate seismic-like and piezo-like precursor sensor channels.
 
 ## Simulation
 
@@ -35,4 +35,3 @@ This is a simplified stress-and-release analogy, not a geological model. Its val
 * [Systemd Service](docs/systemd-service.md)
 * [Initial Model Trials](docs/initial-model-trials.md)
 * [Sandpile Simulation](docs/sandpile-simulation.md)
-

@@ -85,3 +85,13 @@ Run project commands with the venv activated when using optional simulation or v
 ## Simulation Environment
 
 The current system has no GPU. Keep sandpile simulation and related smoke tests CPU-only, using Numba CPU kernels. Do not add CUDA, CuPy, or GPU-only ML dependencies unless the runtime target changes.
+
+## Simulation Code Practices
+
+Keep simulation extensions modular:
+
+* Put new simulated modalities or sensor families in their own `src/elfquake/sim/` module.
+* Keep source loading, state evolution, sensors, visualization, and reporting separate.
+* Write separate CSV outputs for distinct modalities instead of overloading existing sensor tables.
+* Preserve timing semantics: precursor channels must be sampled before relaxation/toppling; seismic-like avalanche outputs are sampled after relaxation.
+* Keep deterministic seeds stable. Optional sensors should not change the core sandpile trajectory.

@@ -50,6 +50,19 @@ Sensor CSV:
 * `height`
 * optional local activity counters
 
+Piezo precursor sensor CSV:
+
+* `step`
+* `sensor_id`
+* `x`
+* `y`
+* `piezo_signal`
+* `piezo_total_source`
+* `near_critical_cell_count`
+* `critical_cell_count`
+* `nearest_critical_distance`
+* `max_stress_ratio`
+
 Optional later outputs:
 
 * height-grid snapshots at configured intervals
@@ -101,6 +114,18 @@ Use simulation outputs for:
 
 Do not use simulation performance as evidence of earthquake prediction ability. Any useful claim must come from held-out real data and ablation comparisons.
 
+## Piezo Precursor Analogue
+
+The piezo channel is an analogue for electromagnetic precursors from quartz-like rock under stress. It is not a physical EM model.
+
+The simulator creates a clustered susceptibility map to represent quartz-bearing regions. After deposition and background loading, but before relaxation/toppling, it measures cells whose local slope is near the failure threshold. Those cells emit a piezo-like source proportional to:
+
+* local susceptibility
+* positive stress/height change since the previous step
+* closeness to the local slope threshold
+
+Piezo sensors record a distance-weighted sum from nearby source cells. This creates a separate precursor time series that can appear before the avalanche-like toppling event. Keep this channel separate from seismic-like toppling outputs so later ML experiments can test whether precursor features add value.
+
 ## Mountain Mode
 
 For terrain-like sanity checks, use mountain mode instead of the default low-threshold avalanche mode.
@@ -128,6 +153,7 @@ PYTHONDONTWRITEBYTECODE=1 PYTHONPATH=src .venv/bin/python -m elfquake.cli run-sa
   --bottom-layer-removal-interval 100 \
   --summary-out data/derived/sim/mountain_128x128_seed42_1000.summary.csv \
   --sensors-out data/derived/sim/mountain_128x128_seed42_1000.sensors.csv \
+  --piezo-out data/derived/sim/mountain_128x128_seed42_1000.piezo.csv \
   --snapshot-dir data/derived/sim/mountain_128x128_seed42_1000.snapshots \
   --snapshot-interval 100 \
   --heatmap-dir data/derived/sim/mountain_128x128_seed42_1000.heatmaps \
@@ -148,7 +174,7 @@ The root helper `./sim.sh` runs a parameterized mountain-mode simulation with fi
 ./sim.sh
 ```
 
-`sim.sh` defaults to `STEPS=10000`, `SNAPSHOT_INTERVAL=10`, `PROGRESS_INTERVAL=100`, `DEPOSITION_MODE=sources`, `SOURCE_COUNT=WIDTH * HEIGHT / 64`, `TARGET_FILL_LIMIT=WIDTH * HEIGHT / 16`, `HEATMAP_WORKERS=4`, `HEATMAP_PROGRESS_INTERVAL=50`, and `HEATMAP_GAMMA=0.85`, producing 1001 heatmap frames: steps `0, 10, ..., 9990, 9999`.
+`sim.sh` defaults to `STEPS=10000`, `SNAPSHOT_INTERVAL=10`, `PROGRESS_INTERVAL=100`, `DEPOSITION_MODE=sources`, `SOURCE_COUNT=WIDTH * HEIGHT / 64`, `TARGET_FILL_LIMIT=WIDTH * HEIGHT / 16`, `PIEZO_SENSOR_COUNT=16`, `PIEZO_ACTIVATION_RATIO=0.75`, `HEATMAP_WORKERS=4`, `HEATMAP_PROGRESS_INTERVAL=50`, and `HEATMAP_GAMMA=0.85`, producing 1001 heatmap frames: steps `0, 10, ..., 9990, 9999`.
 
 The default target fill limit adds at most one sixteenth of a full layer per step. This provides background loading without replacing the localized point-source stress pattern.
 
