@@ -1,0 +1,11 @@
+  PYTHONDONTWRITEBYTECODE=1 PYTHONPATH=src .venv/bin/python -m elfquake.cli run-sandpile-sim \
+    --width 128 --height 128 --steps 10000 \
+    --source-count 16 --sensor-count 16 \
+    --deposition-probability 0.7 --seed 42 \
+    --summary-out data/derived/sim/sandpile_128x128_seed42_1000.summary.csv \
+    --sensors-out data/derived/sim/sandpile_128x128_seed42_1000.sensors.csv \
+    --snapshot-dir data/derived/sim/sandpile_128x128_seed42_1000.snapshots \
+    --snapshot-interval 1000 \
+    --heatmap-dir data/derived/sim/sandpile_128x128_seed42_10000.heatmaps \
+    --heatmap-scale 4 \
+    --progress-interval 100

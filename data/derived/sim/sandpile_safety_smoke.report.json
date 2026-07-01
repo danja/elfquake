@@ -1,0 +1,22 @@
+{
+  "avalanche_step_count": 1,
+  "expected_sensor_rows": 1,
+  "max_height_max": 1,
+  "max_local_topple_count": 27,
+  "max_unstable_cell_count": 4,
+  "mean_height_last": "1.000000",
+  "nonconverged_step_count": 1,
+  "safety_drain_step_count": 1,
+  "sensor_count": 1,
+  "sensor_row_count": 1,
+  "sensor_rows_match_expected": true,
+  "sensors_input": "data/derived/sim/sandpile_safety_smoke.sensors.csv",
+  "status": "ok",
+  "step_count": 1,
+  "summary_input": "data/derived/sim/sandpile_safety_smoke.summary.csv",
+  "summary_row_count": 1,
+  "total_deposition_count": 200,
+  "total_released_mass": 394,
+  "total_safety_released_mass": 196,
+  "total_topple_count": 99
+}

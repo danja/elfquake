@@ -21,6 +21,7 @@ Defaults:
 * open boundaries, so material can leave the grid
 * fixed random seed support for replay
 * configurable grid size, source count, sensor count, threshold, deposition probability, and step count
+* if the relaxation sweep limit is hit, unstable cells are drained down to `threshold - 1`
 
 ## Outputs
 
@@ -33,6 +34,9 @@ Per-step summary CSV:
 * `max_height`
 * `mean_height`
 * `released_mass`
+* `relaxation_converged`
+* `unstable_cell_count`
+* `safety_released_mass`
 
 Sensor CSV:
 
@@ -51,7 +55,7 @@ Optional later outputs:
 
 ## Implementation
 
-Target a CPU Numba-first implementation under a future `src/elfquake/sim/` package.
+Use the CPU Numba-first implementation under `src/elfquake/sim/`.
 
 Use NumPy arrays for simulation state and Numba-compiled kernels for hot loops:
 
@@ -66,9 +70,10 @@ Initial milestone:
 
 * `128 x 128` grid
 * fixed-seed deterministic replay
-* CSV outputs only
+* CSV outputs plus optional `.npy` grid snapshots
 * small command-line runner
-* optional near-real-time 2D heatmap visualization
+* JSON summary and benchmark reports
+* PNG heatmap rendering for snapshot sanity checks
 
 ## Validation
 
@@ -77,6 +82,7 @@ Before using generated data for ML experiments, verify:
 * same seed produces identical outputs
 * no unstable cells remain after relaxation
 * mass accounting matches deposition minus open-boundary loss
+* any `safety_released_mass` is treated as a corrective artifact, not a physical signal
 * sensor table has `steps * sensor_count` rows
 * summary and sensor CSV schemas are stable
 * small benchmark reports steps per second
@@ -97,7 +103,7 @@ Do not use simulation performance as evidence of earthquake prediction ability. 
 Required for the first implementation:
 
 * `numpy` - already available in the current environment
-* `numba` - needs installing
+* `numba` - install in the project venv
 
 Optional:
 
@@ -105,15 +111,76 @@ Optional:
 * `pyvista` for later interactive 3D visualization
 * `h5py` or `zarr` for large chunked snapshot storage
 
-GPU libraries are out of scope for the first version.
+The current system has no GPU. Keep this path CPU-only; do not add CUDA, CuPy, or GPU-only ML dependencies for current work.
 
 First smoke command:
 
 ```sh
-PYTHONPATH=src python3 -m elfquake.cli run-sandpile-sim \
+PYTHONDONTWRITEBYTECODE=1 PYTHONPATH=src .venv/bin/python -m elfquake.cli run-sandpile-sim \
   --width 32 --height 32 --steps 20 \
   --source-count 8 --sensor-count 6 \
   --deposition-probability 0.7 --seed 42 \
   --summary-out data/derived/sim/sandpile_32x32_seed42.summary.csv \
-  --sensors-out data/derived/sim/sandpile_32x32_seed42.sensors.csv
+  --sensors-out data/derived/sim/sandpile_32x32_seed42.sensors.csv \
+  --snapshot-dir data/derived/sim/sandpile_32x32_seed42.snapshots \
+  --snapshot-interval 5 \
+  --heatmap-dir data/derived/sim/sandpile_32x32_seed42.heatmaps \
+  --progress-interval 5
 ```
+
+Summarize generated CSVs:
+
+```sh
+PYTHONDONTWRITEBYTECODE=1 PYTHONPATH=src .venv/bin/python -m elfquake.cli summarize-sandpile-sim \
+  --summary data/derived/sim/sandpile_32x32_seed42.summary.csv \
+  --sensors data/derived/sim/sandpile_32x32_seed42.sensors.csv \
+  --out data/derived/sim/sandpile_32x32_seed42.report.json
+```
+
+Run a CPU benchmark smoke:
+
+```sh
+PYTHONDONTWRITEBYTECODE=1 PYTHONPATH=src .venv/bin/python -m elfquake.cli benchmark-sandpile-sim \
+  --width 32 --height 32 --steps 20 \
+  --source-count 8 --sensor-count 6 \
+  --deposition-probability 0.7 --seed 42 \
+  --out data/derived/sim/sandpile_32x32_seed42.benchmark.json
+```
+
+The benchmark report includes Numba first-call overhead, including compile or cache-load time.
+
+Render a snapshot heatmap:
+
+```sh
+PYTHONDONTWRITEBYTECODE=1 PYTHONPATH=src .venv/bin/python -m elfquake.cli render-sandpile-heatmap \
+  --snapshot data/derived/sim/sandpile_32x32_seed42.snapshots/sandpile_step_000019.npy \
+  --out data/derived/sim/sandpile_32x32_seed42.step_000019.png \
+  --scale 8
+```
+
+Run 1000 steps with one PNG heatmap every 100 steps:
+
+```sh
+PYTHONDONTWRITEBYTECODE=1 PYTHONPATH=src .venv/bin/python -m elfquake.cli run-sandpile-sim \
+  --width 128 --height 128 --steps 1000 \
+  --source-count 16 --sensor-count 16 \
+  --deposition-probability 0.7 --seed 42 \
+  --summary-out data/derived/sim/sandpile_128x128_seed42_1000.summary.csv \
+  --sensors-out data/derived/sim/sandpile_128x128_seed42_1000.sensors.csv \
+  --snapshot-dir data/derived/sim/sandpile_128x128_seed42_1000.snapshots \
+  --snapshot-interval 100 \
+  --heatmap-dir data/derived/sim/sandpile_128x128_seed42_1000.heatmaps \
+  --heatmap-scale 4 \
+  --progress-interval 100
+```
+
+Create an MP4 from generated heatmaps:
+
+```sh
+./make-video.sh \
+  data/derived/sim/sandpile_128x128_seed42_1000.heatmaps \
+  data/derived/sim/sandpile_128x128_seed42_1000.mp4 \
+  4
+```
+
+The helper requires `ffmpeg` on `PATH`.

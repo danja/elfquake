@@ -81,3 +81,7 @@ pip install netCDF4
 ```
 
 Run project commands with the venv activated when using optional simulation or visualization dependencies.
+
+## Simulation Environment
+
+The current system has no GPU. Keep sandpile simulation and related smoke tests CPU-only, using Numba CPU kernels. Do not add CUDA, CuPy, or GPU-only ML dependencies unless the runtime target changes.

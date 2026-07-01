@@ -5,8 +5,9 @@ Prioritize feasibility and reproducibility before modeling.
 1. Reinstall/reload the updated prospective systemd unit if timer-managed image features and summaries are desired.
 2. Keep the VLF capture and prospective timers running until the first target windows mature.
 3. On or after `2026-07-06T09:57:24Z`, refresh INGV events through `2026-07-07` and label the first prospective rows.
-4. Backfill enough historical INGV windows to get both positive and negative target classes by region.
-5. Continue with prospective-only VLF evaluation unless a separate historical Cumiana archive is obtained.
+4. Add chunked sandpile snapshot storage only if larger pretraining runs outgrow `.npy` sanity snapshots.
+5. Backfill enough historical INGV windows to get both positive and negative target classes by region.
+6. Continue with prospective-only VLF evaluation unless a separate historical Cumiana archive is obtained.
 
 Completed:
 
@@ -69,3 +70,9 @@ Completed:
 * Add a concise first-rollover labeling runbook.
 * Add model-readiness reports for label balance and ablation feature groups.
 * Run initial in-sample ablation smoke models on currently labeled tables.
+* Add CPU-only sandpile simulation CSV output for deterministic synthetic avalanche sequences.
+* Add sandpile JSON summary and CPU benchmark smoke reports.
+* Add optional sandpile `.npy` grid snapshots and PNG heatmap rendering for sanity checks.
+* Add periodic sandpile CLI progress output and batch heatmap rendering from captured snapshots.
+* Add corrective sandpile safety draining so z-axis overflow is stabilized and recorded.
+* Add an ffmpeg helper script for building MP4 videos from sandpile heatmap PNGs.

@@ -50,6 +50,8 @@ from elfquake.normalize.space_weather import (
     normalize_kyoto_dst_text,
     write_goes_xrs_netcdf_stub,
 )
+from elfquake.sim.heatmap import render_sandpile_heatmap, render_sandpile_heatmaps_from_manifest
+from elfquake.sim.report import benchmark_sandpile_simulation, summarize_sandpile_outputs
 from elfquake.storage import write_capture
 
 
@@ -860,6 +862,41 @@ class AcquisitionScaffoldTests(unittest.TestCase):
             self.assertEqual(report["labeled_positive_count"], 1)
             self.assertEqual(report["latest_vlf_image_source_file"], "img1.jpg")
 
+    def test_summarize_sandpile_outputs_reports_shape_and_activity(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            summary = root / "summary.csv"
+            sensors = root / "sensors.csv"
+            summary.write_text(
+                "step,deposition_count,avalanche_count,topple_count,max_height,mean_height,released_mass\n"
+                "0,2,0,0,1,0.500000,0\n"
+                "1,3,1,4,2,0.750000,1\n",
+                encoding="utf-8",
+            )
+            sensors.write_text(
+                "step,sensor_id,x,y,height,local_topple_count\n"
+                "0,0,1,1,1,0\n"
+                "0,1,2,1,0,0\n"
+                "1,0,1,1,0,2\n"
+                "1,1,2,1,2,0\n",
+                encoding="utf-8",
+            )
+
+            report = summarize_sandpile_outputs(
+                summary_csv=summary,
+                sensors_csv=sensors,
+                out_path=root / "report.json",
+            )
+
+            self.assertEqual(report["status"], "ok")
+            self.assertEqual(report["summary_row_count"], 2)
+            self.assertEqual(report["sensor_row_count"], 4)
+            self.assertEqual(report["expected_sensor_rows"], 4)
+            self.assertEqual(report["total_topple_count"], 4)
+            self.assertEqual(report["avalanche_step_count"], 1)
+            self.assertEqual(report["max_local_topple_count"], 2)
+            self.assertTrue((root / "report.json").exists())
+
     def test_build_seismic_training_windows_labels_targets(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
@@ -1100,7 +1137,148 @@ class AcquisitionScaffoldTests(unittest.TestCase):
             self.assertEqual(first_sensors, second_sensors)
             self.assertEqual(len(first_summary), 5)
             self.assertEqual(len(first_sensors), 20)
-            self.assertEqual((root / "first_summary.csv").read_text(encoding="utf-8").splitlines()[0], "step,deposition_count,avalanche_count,topple_count,max_height,mean_height,released_mass")
+            self.assertEqual(
+                (root / "first_summary.csv").read_text(encoding="utf-8").splitlines()[0],
+                "step,deposition_count,avalanche_count,topple_count,max_height,mean_height,released_mass,"
+                "relaxation_converged,unstable_cell_count,safety_released_mass",
+            )
+
+    @unittest.skipIf(importlib.util.find_spec("numba") is None, "numba not installed")
+    def test_sandpile_relaxation_drains_unstable_cells_when_sweep_limit_is_hit(self) -> None:
+        import numpy as np
+        from elfquake.sim.sandpile import _relax
+
+        grid = np.array([[16, 0], [0, 0]], dtype=np.int64)
+        topple_counts = np.zeros_like(grid)
+
+        (
+            topple_count,
+            released_mass,
+            avalanche_count,
+            relaxation_converged,
+            unstable_cell_count,
+            safety_released_mass,
+        ) = _relax(grid, topple_counts, 4, 1)
+
+        self.assertEqual(topple_count, 4)
+        self.assertEqual(avalanche_count, 1)
+        self.assertEqual(relaxation_converged, 0)
+        self.assertEqual(unstable_cell_count, 2)
+        self.assertEqual(safety_released_mass, 2)
+        self.assertEqual(released_mass, 10)
+        self.assertLess(int(grid.max()), 4)
+
+    @unittest.skipIf(importlib.util.find_spec("numba") is None, "numba not installed")
+    def test_sandpile_simulation_writes_grid_snapshots(self) -> None:
+        from elfquake.sim.sandpile import SandpileConfig, run_sandpile_simulation
+
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            progress: list[tuple[int, int, str]] = []
+            run_sandpile_simulation(
+                config=SandpileConfig(
+                    width=8,
+                    height=6,
+                    steps=5,
+                    source_count=2,
+                    sensor_count=2,
+                    deposition_probability=1.0,
+                    seed=3,
+                ),
+                summary_out=root / "summary.csv",
+                sensors_out=root / "sensors.csv",
+                snapshot_dir=root / "snapshots",
+                snapshot_interval=2,
+                progress_interval=2,
+                progress_callback=lambda completed, total, row: progress.append(
+                    (completed, total, row["max_height"])
+                ),
+            )
+
+            snapshots = sorted((root / "snapshots").glob("sandpile_step_*.npy"))
+            manifest = (root / "snapshots" / "manifest.csv").read_text(encoding="utf-8").splitlines()
+            self.assertEqual([path.name for path in snapshots], [
+                "sandpile_step_000000.npy",
+                "sandpile_step_000002.npy",
+                "sandpile_step_000004.npy",
+            ])
+            self.assertEqual(len(manifest), 4)
+            self.assertEqual([item[0] for item in progress], [2, 4, 5])
+            self.assertEqual({item[1] for item in progress}, {5})
+
+    def test_render_sandpile_heatmap_writes_png(self) -> None:
+        import numpy as np
+
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            snapshot = root / "snapshot.npy"
+            np.save(snapshot, np.array([[0, 1], [2, 4]], dtype=np.int64))
+
+            report = render_sandpile_heatmap(
+                snapshot_path=snapshot,
+                out_path=root / "heatmap.png",
+                scale=3,
+            )
+
+            self.assertEqual(report["width_px"], "6")
+            self.assertEqual(report["height_px"], "6")
+            self.assertEqual(report["max_height"], "4")
+            self.assertEqual((root / "heatmap.png").read_bytes()[:8], b"\x89PNG\r\n\x1a\n")
+
+    def test_render_sandpile_heatmaps_from_manifest_writes_all_pngs(self) -> None:
+        import numpy as np
+
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            snapshots = root / "snapshots"
+            snapshots.mkdir()
+            first = snapshots / "sandpile_step_000000.npy"
+            second = snapshots / "sandpile_step_000100.npy"
+            np.save(first, np.array([[0, 1]], dtype=np.int64))
+            np.save(second, np.array([[2, 3]], dtype=np.int64))
+            manifest = snapshots / "manifest.csv"
+            manifest.write_text(
+                "step,snapshot_file\n"
+                f"0,{first}\n"
+                f"100,{second}\n",
+                encoding="utf-8",
+            )
+
+            rows = render_sandpile_heatmaps_from_manifest(
+                manifest_path=manifest,
+                out_dir=root / "heatmaps",
+                scale=2,
+            )
+
+            self.assertEqual(len(rows), 2)
+            self.assertTrue((root / "heatmaps" / "sandpile_step_000000.png").exists())
+            self.assertTrue((root / "heatmaps" / "sandpile_step_000100.png").exists())
+
+    @unittest.skipIf(importlib.util.find_spec("numba") is None, "numba not installed")
+    def test_sandpile_benchmark_reports_cpu_backend(self) -> None:
+        from elfquake.sim.sandpile import SandpileConfig
+
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            report = benchmark_sandpile_simulation(
+                config=SandpileConfig(
+                    width=8,
+                    height=8,
+                    steps=3,
+                    source_count=2,
+                    sensor_count=2,
+                    deposition_probability=1.0,
+                    seed=7,
+                ),
+                out_path=root / "benchmark.json",
+            )
+
+            self.assertEqual(report["status"], "ok")
+            self.assertEqual(report["backend"], "numba_cpu")
+            self.assertFalse(report["gpu_required"])
+            self.assertEqual(report["summary_row_count"], 3)
+            self.assertEqual(report["sensor_row_count"], 6)
+            self.assertTrue((root / "benchmark.json").exists())
 
 
 def _fake_jpeg_capture(url: str) -> HttpCapture:

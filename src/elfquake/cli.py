@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import argparse
 import sys
+import time
 from pathlib import Path
 from urllib.error import HTTPError, URLError
 
@@ -259,6 +260,33 @@ def main() -> int:
     sandpile.add_argument("--max-relaxation-sweeps", type=int, default=10000)
     sandpile.add_argument("--summary-out", type=Path, required=True)
     sandpile.add_argument("--sensors-out", type=Path, required=True)
+    sandpile.add_argument("--snapshot-dir", type=Path)
+    sandpile.add_argument("--snapshot-interval", type=int, default=0)
+    sandpile.add_argument("--heatmap-dir", type=Path)
+    sandpile.add_argument("--heatmap-scale", type=int, default=8)
+    sandpile.add_argument("--progress-interval", type=int, default=100)
+
+    sandpile_summary = subparsers.add_parser("summarize-sandpile-sim")
+    sandpile_summary.add_argument("--summary", type=Path, required=True)
+    sandpile_summary.add_argument("--sensors", type=Path, required=True)
+    sandpile_summary.add_argument("--out", type=Path, required=True)
+
+    sandpile_benchmark = subparsers.add_parser("benchmark-sandpile-sim")
+    sandpile_benchmark.add_argument("--width", type=int, default=64)
+    sandpile_benchmark.add_argument("--height", type=int, default=64)
+    sandpile_benchmark.add_argument("--steps", type=int, default=100)
+    sandpile_benchmark.add_argument("--threshold", type=int, default=4)
+    sandpile_benchmark.add_argument("--source-count", type=int, default=16)
+    sandpile_benchmark.add_argument("--sensor-count", type=int, default=16)
+    sandpile_benchmark.add_argument("--deposition-probability", type=float, default=0.5)
+    sandpile_benchmark.add_argument("--seed", type=int, default=1)
+    sandpile_benchmark.add_argument("--max-relaxation-sweeps", type=int, default=10000)
+    sandpile_benchmark.add_argument("--out", type=Path, required=True)
+
+    sandpile_heatmap = subparsers.add_parser("render-sandpile-heatmap")
+    sandpile_heatmap.add_argument("--snapshot", type=Path, required=True)
+    sandpile_heatmap.add_argument("--out", type=Path, required=True)
+    sandpile_heatmap.add_argument("--scale", type=int, default=8)
 
     args = parser.parse_args()
     try:
@@ -564,6 +592,22 @@ def main() -> int:
         elif args.command == "run-sandpile-sim":
             from elfquake.sim.sandpile import SandpileConfig, run_sandpile_simulation
 
+            started = time.perf_counter()
+
+            def report_progress(completed_steps: int, total_steps: int, row: dict[str, str]) -> None:
+                elapsed_seconds = time.perf_counter() - started
+                rate = completed_steps / elapsed_seconds if elapsed_seconds else 0.0
+                print(
+                    "progress: "
+                    f"step {completed_steps}/{total_steps} "
+                    f"elapsed {elapsed_seconds:.2f}s "
+                    f"rate {rate:.2f} steps/s "
+                    f"topples {row['topple_count']} "
+                    f"max_height {row['max_height']} "
+                    f"safety_release {row.get('safety_released_mass', '0')}",
+                    flush=True,
+                )
+
             summary_rows, sensor_rows = run_sandpile_simulation(
                 config=SandpileConfig(
                     width=args.width,
@@ -578,11 +622,81 @@ def main() -> int:
                 ),
                 summary_out=args.summary_out,
                 sensors_out=args.sensors_out,
+                snapshot_dir=args.snapshot_dir,
+                snapshot_interval=args.snapshot_interval,
+                progress_interval=args.progress_interval,
+                progress_callback=report_progress if args.progress_interval else None,
             )
+            heatmap_rows = []
+            if args.heatmap_dir:
+                if not args.snapshot_dir:
+                    raise ValueError("--heatmap-dir requires --snapshot-dir")
+                from elfquake.sim.heatmap import render_sandpile_heatmaps_from_manifest
+
+                heatmap_rows = render_sandpile_heatmaps_from_manifest(
+                    manifest_path=args.snapshot_dir / "manifest.csv",
+                    out_dir=args.heatmap_dir,
+                    scale=args.heatmap_scale,
+                )
             print(f"summary rows: {len(summary_rows)}")
             print(f"sensor rows: {len(sensor_rows)}")
             print(f"summary output: {args.summary_out}")
             print(f"sensors output: {args.sensors_out}")
+            if args.snapshot_dir:
+                print(f"snapshot dir: {args.snapshot_dir}")
+            if args.heatmap_dir:
+                print(f"heatmap rows: {len(heatmap_rows)}")
+                print(f"heatmap dir: {args.heatmap_dir}")
+            return 0
+        elif args.command == "summarize-sandpile-sim":
+            from elfquake.sim.report import summarize_sandpile_outputs
+
+            report = summarize_sandpile_outputs(
+                summary_csv=args.summary,
+                sensors_csv=args.sensors,
+                out_path=args.out,
+            )
+            print(f"status: {report['status']}")
+            print(f"summary rows: {report['summary_row_count']}")
+            print(f"sensor rows: {report['sensor_row_count']}")
+            print(f"avalanche steps: {report['avalanche_step_count']}")
+            print(f"output: {args.out}")
+            return 0
+        elif args.command == "benchmark-sandpile-sim":
+            from elfquake.sim.report import benchmark_sandpile_simulation
+            from elfquake.sim.sandpile import SandpileConfig
+
+            report = benchmark_sandpile_simulation(
+                config=SandpileConfig(
+                    width=args.width,
+                    height=args.height,
+                    steps=args.steps,
+                    threshold=args.threshold,
+                    source_count=args.source_count,
+                    sensor_count=args.sensor_count,
+                    deposition_probability=args.deposition_probability,
+                    seed=args.seed,
+                    max_relaxation_sweeps=args.max_relaxation_sweeps,
+                ),
+                out_path=args.out,
+            )
+            print(f"status: {report['status']}")
+            print(f"backend: {report['backend']}")
+            print(f"steps per second: {report['steps_per_second']}")
+            print(f"output: {args.out}")
+            return 0
+        elif args.command == "render-sandpile-heatmap":
+            from elfquake.sim.heatmap import render_sandpile_heatmap
+
+            report = render_sandpile_heatmap(
+                snapshot_path=args.snapshot,
+                out_path=args.out,
+                scale=args.scale,
+            )
+            print(f"snapshot: {report['snapshot_file']}")
+            print(f"heatmap: {report['heatmap_file']}")
+            print(f"image size: {report['width_px']}x{report['height_px']}")
+            print(f"max height: {report['max_height']}")
             return 0
         else:
             parser.error(f"unknown command: {args.command}")
@@ -591,6 +705,9 @@ def main() -> int:
         return 2
     except URLError as error:
         print(f"fetch failed: {error.reason}", file=sys.stderr)
+        return 2
+    except ValueError as error:
+        print(f"invalid arguments: {error}", file=sys.stderr)
         return 2
     except OSError as error:
         print(f"fetch failed: {error}", file=sys.stderr)

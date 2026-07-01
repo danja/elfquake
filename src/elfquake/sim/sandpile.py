@@ -5,6 +5,7 @@ from __future__ import annotations
 import csv
 from dataclasses import dataclass
 from pathlib import Path
+from typing import Callable
 
 import numpy as np
 
@@ -22,6 +23,9 @@ SUMMARY_FIELDS = [
     "max_height",
     "mean_height",
     "released_mass",
+    "relaxation_converged",
+    "unstable_cell_count",
+    "safety_released_mass",
 ]
 
 SENSOR_FIELDS = [
@@ -52,41 +56,68 @@ def run_sandpile_simulation(
     config: SandpileConfig,
     summary_out: Path,
     sensors_out: Path,
+    snapshot_dir: Path | None = None,
+    snapshot_interval: int = 0,
+    progress_interval: int = 0,
+    progress_callback: Callable[[int, int, dict[str, str]], None] | None = None,
 ) -> tuple[list[dict[str, str]], list[dict[str, str]]]:
     validate_config(config)
+    if snapshot_dir is not None and snapshot_interval < 1:
+        raise ValueError("snapshot_interval must be at least 1 when snapshot_dir is set")
+    if progress_callback is not None and progress_interval < 1:
+        raise ValueError("progress_interval must be at least 1 when progress_callback is set")
     rng = np.random.default_rng(config.seed)
     grid = np.zeros((config.height, config.width), dtype=np.int64)
     sources = _random_points(rng, config.width, config.height, config.source_count)
     sensors = _random_points(rng, config.width, config.height, config.sensor_count)
     summary_rows = []
     sensor_rows = []
+    snapshot_rows = []
 
     for step in range(config.steps):
         active_sources = rng.random(config.source_count) < config.deposition_probability
         deposition_count = int(active_sources.sum())
         _deposit(grid, sources, active_sources)
         topple_counts = np.zeros_like(grid)
-        topple_count, released_mass, avalanche_count = _relax(
+        (
+            topple_count,
+            released_mass,
+            avalanche_count,
+            relaxation_converged,
+            unstable_cell_count,
+            safety_released_mass,
+        ) = _relax(
             grid,
             topple_counts,
             config.threshold,
             config.max_relaxation_sweeps,
         )
-        summary_rows.append(
-            {
-                "step": str(step),
-                "deposition_count": str(deposition_count),
-                "avalanche_count": str(avalanche_count),
-                "topple_count": str(int(topple_count)),
-                "max_height": str(int(grid.max())),
-                "mean_height": f"{float(grid.mean()):.6f}",
-                "released_mass": str(int(released_mass)),
-            }
-        )
+        summary_row = {
+            "step": str(step),
+            "deposition_count": str(deposition_count),
+            "avalanche_count": str(avalanche_count),
+            "topple_count": str(int(topple_count)),
+            "max_height": str(int(grid.max())),
+            "mean_height": f"{float(grid.mean()):.6f}",
+            "released_mass": str(int(released_mass)),
+            "relaxation_converged": str(int(relaxation_converged)),
+            "unstable_cell_count": str(int(unstable_cell_count)),
+            "safety_released_mass": str(int(safety_released_mass)),
+        }
+        summary_rows.append(summary_row)
         sensor_rows.extend(_sensor_rows(step, sensors, grid, topple_counts))
+        if snapshot_dir is not None and (step % snapshot_interval == 0 or step == config.steps - 1):
+            snapshot_rows.append(_write_snapshot(snapshot_dir, step, grid))
+        completed_steps = step + 1
+        if progress_callback is not None and (
+            completed_steps % progress_interval == 0 or completed_steps == config.steps
+        ):
+            progress_callback(completed_steps, config.steps, summary_row)
 
     _write_csv(summary_out, SUMMARY_FIELDS, summary_rows)
     _write_csv(sensors_out, SENSOR_FIELDS, sensor_rows)
+    if snapshot_dir is not None:
+        _write_csv(snapshot_dir / "manifest.csv", ["step", "snapshot_file"], snapshot_rows)
     return summary_rows, sensor_rows
 
 
@@ -126,6 +157,7 @@ def _relax(grid, topple_counts, threshold: int, max_sweeps: int):
     topple_count = 0
     released_mass = 0
     avalanche_count = 0
+    relaxation_converged = 0
     in_avalanche = False
     for _ in range(max_sweeps):
         unstable_found = False
@@ -144,9 +176,56 @@ def _relax(grid, topple_counts, threshold: int, max_sweeps: int):
         if not unstable_found:
             if in_avalanche:
                 avalanche_count = 1
+            relaxation_converged = 1
             break
         grid += delta
-    return topple_count, released_mass, avalanche_count
+
+    unstable_cell_count = 0
+    safety_released_mass = 0
+    if relaxation_converged == 0:
+        unstable_cell_count = _count_unstable(grid, threshold)
+        if unstable_cell_count == 0:
+            relaxation_converged = 1
+        else:
+            unstable_cell_count, safety_released_mass = _drain_unstable(grid, threshold)
+            released_mass += safety_released_mass
+            if in_avalanche:
+                avalanche_count = 1
+    return (
+        topple_count,
+        released_mass,
+        avalanche_count,
+        relaxation_converged,
+        unstable_cell_count,
+        safety_released_mass,
+    )
+
+
+@njit(cache=True)
+def _count_unstable(grid, threshold: int) -> int:
+    height, width = grid.shape
+    count = 0
+    for y in range(height):
+        for x in range(width):
+            if grid[y, x] >= threshold:
+                count += 1
+    return count
+
+
+@njit(cache=True)
+def _drain_unstable(grid, threshold: int):
+    height, width = grid.shape
+    count = 0
+    released = 0
+    stable_max = threshold - 1
+    for y in range(height):
+        for x in range(width):
+            if grid[y, x] >= threshold:
+                count += 1
+                excess = grid[y, x] - stable_max
+                grid[y, x] = stable_max
+                released += excess
+    return count, released
 
 
 @njit(cache=True)
@@ -195,3 +274,10 @@ def _write_csv(path: Path, fieldnames: list[str], rows: list[dict[str, str]]) ->
         writer = csv.DictWriter(handle, fieldnames=fieldnames, lineterminator="\n")
         writer.writeheader()
         writer.writerows(rows)
+
+
+def _write_snapshot(snapshot_dir: Path, step: int, grid: np.ndarray) -> dict[str, str]:
+    snapshot_dir.mkdir(parents=True, exist_ok=True)
+    path = snapshot_dir / f"sandpile_step_{step:06d}.npy"
+    np.save(path, grid)
+    return {"step": str(step), "snapshot_file": str(path)}
