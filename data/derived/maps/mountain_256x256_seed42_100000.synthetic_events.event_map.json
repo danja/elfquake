@@ -1,0 +1,9 @@
+{
+  "bounds": "5.5,19.5,35.0,47.8",
+  "event_count": "99991",
+  "event_file": "data/derived/sim/mountain_256x256_seed42_100000.synthetic_events.csv",
+  "map_file": "data/derived/maps/mountain_256x256_seed42_100000.synthetic_events.event_map.png",
+  "map_type": "offline_schematic_italy",
+  "max_events": "",
+  "min_magnitude": ""
+}

@@ -191,7 +191,9 @@ Render normalized or synthetic events over a simple offline Italy map:
 ./event-map.sh
 ```
 
-The helper prefers the newest combined INGV normalized CSV and falls back to the newest synthetic event CSV. It intentionally uses a schematic built-in basemap so it works without cartography packages. For publication-quality maps, add geospatial libraries such as `geopandas`, `shapely`, `contextily`, and `xyzservices`.
+The helper prefers the newest synthetic event CSV and falls back to the newest combined INGV normalized CSV. It intentionally uses a schematic built-in basemap so it works without cartography packages. For publication-quality maps, add geospatial libraries such as `geopandas`, `shapely`, `contextily`, and `xyzservices`.
+
+Current synthetic event locations are proxy locations from the fixed simulation sensor set. They are suitable for a demo overlay, but not yet for evaluating spatial realism. Add avalanche centroid or rupture-mask output before using synthetic maps as spatial training data.
 
 ## Mountain Mode
 

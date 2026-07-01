@@ -10,6 +10,7 @@ Prioritize feasibility and reproducibility before modeling.
 6. Backfill enough historical INGV windows to get both positive and negative target classes by region.
 7. Continue with prospective-only VLF evaluation unless a separate historical Cumiana archive is obtained.
 8. Replace the schematic event-map basemap with a real cartographic basemap if geospatial dependencies are installed.
+9. Add avalanche centroid or rupture-mask outputs so synthetic event maps are not limited to fixed sensor proxy locations.
 
 Completed:
 
