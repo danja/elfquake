@@ -13,9 +13,12 @@ def render_sandpile_heatmap(
     snapshot_path: Path,
     out_path: Path,
     scale: int = 8,
+    color_max: float | None = None,
 ) -> dict[str, str]:
     if scale < 1:
         raise ValueError("scale must be at least 1")
+    if color_max is not None and color_max <= 0:
+        raise ValueError("color_max must be positive")
     try:
         from PIL import Image
     except ImportError as error:  # pragma: no cover - depends on optional environment.
@@ -24,7 +27,7 @@ def render_sandpile_heatmap(
     grid = np.load(snapshot_path)
     if grid.ndim != 2:
         raise ValueError("snapshot must be a 2D grid")
-    image = Image.fromarray(_grid_to_rgb(grid), mode="RGB")
+    image = Image.fromarray(_grid_to_rgb(grid, color_max=color_max), mode="RGB")
     if scale > 1:
         image = image.resize((image.width * scale, image.height * scale), Image.Resampling.NEAREST)
     out_path.parent.mkdir(parents=True, exist_ok=True)
@@ -37,6 +40,7 @@ def render_sandpile_heatmap(
         "grid_width": str(grid.shape[1]),
         "grid_height": str(grid.shape[0]),
         "max_height": str(int(grid.max())) if grid.size else "0",
+        "color_max": str(color_max) if color_max is not None else "auto",
     }
 
 
@@ -45,22 +49,30 @@ def render_sandpile_heatmaps_from_manifest(
     manifest_path: Path,
     out_dir: Path,
     scale: int = 8,
+    color_max: float | None = None,
 ) -> list[dict[str, str]]:
     rows = []
     with manifest_path.open(newline="", encoding="utf-8") as handle:
         for row in csv.DictReader(handle):
             snapshot_path = Path(row["snapshot_file"])
             out_path = out_dir / f"{snapshot_path.stem}.png"
-            rows.append(render_sandpile_heatmap(snapshot_path=snapshot_path, out_path=out_path, scale=scale))
+            rows.append(
+                render_sandpile_heatmap(
+                    snapshot_path=snapshot_path,
+                    out_path=out_path,
+                    scale=scale,
+                    color_max=color_max,
+                )
+            )
     return rows
 
 
-def _grid_to_rgb(grid: np.ndarray) -> np.ndarray:
-    maximum = int(grid.max()) if grid.size else 0
+def _grid_to_rgb(grid: np.ndarray, *, color_max: float | None = None) -> np.ndarray:
+    maximum = color_max if color_max is not None else int(grid.max()) if grid.size else 0
     if maximum <= 0:
         normalized = np.zeros_like(grid, dtype=np.float64)
     else:
-        normalized = grid.astype(np.float64) / maximum
+        normalized = np.clip(grid.astype(np.float64) / maximum, 0.0, 1.0)
     rgb = np.zeros((grid.shape[0], grid.shape[1], 3), dtype=np.uint8)
     for y in range(grid.shape[0]):
         for x in range(grid.shape[1]):

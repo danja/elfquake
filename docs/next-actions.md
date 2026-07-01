@@ -6,8 +6,9 @@ Prioritize feasibility and reproducibility before modeling.
 2. Keep the VLF capture and prospective timers running until the first target windows mature.
 3. On or after `2026-07-06T09:57:24Z`, refresh INGV events through `2026-07-07` and label the first prospective rows.
 4. Add chunked sandpile snapshot storage only if larger pretraining runs outgrow `.npy` sanity snapshots.
-5. Backfill enough historical INGV windows to get both positive and negative target classes by region.
-6. Continue with prospective-only VLF evaluation unless a separate historical Cumiana archive is obtained.
+5. Add slope/erosion smoothing to mountain-mode synthetic terrain if ridgeline-like visuals are needed.
+6. Backfill enough historical INGV windows to get both positive and negative target classes by region.
+7. Continue with prospective-only VLF evaluation unless a separate historical Cumiana archive is obtained.
 
 Completed:
 
@@ -76,3 +77,6 @@ Completed:
 * Add periodic sandpile CLI progress output and batch heatmap rendering from captured snapshots.
 * Add corrective sandpile safety draining so z-axis overflow is stabilized and recorded.
 * Add an ffmpeg helper script for building MP4 videos from sandpile heatmap PNGs.
+* Add sandpile mountain mode with target mean height and periodic bottom-layer removal.
+* Add fixed-scale sandpile heatmap rendering so colors reflect absolute height across frames.
+* Change sandpile relaxation to topple local neighbour slopes rather than absolute z-height.

@@ -1140,13 +1140,14 @@ class AcquisitionScaffoldTests(unittest.TestCase):
             self.assertEqual(
                 (root / "first_summary.csv").read_text(encoding="utf-8").splitlines()[0],
                 "step,deposition_count,avalanche_count,topple_count,max_height,mean_height,released_mass,"
-                "relaxation_converged,unstable_cell_count,safety_released_mass",
+                "relaxation_converged,unstable_cell_count,safety_released_mass,target_fill_count,"
+                "bottom_layer_removed_mass",
             )
 
     @unittest.skipIf(importlib.util.find_spec("numba") is None, "numba not installed")
     def test_sandpile_relaxation_drains_unstable_cells_when_sweep_limit_is_hit(self) -> None:
         import numpy as np
-        from elfquake.sim.sandpile import _relax
+        from elfquake.sim.sandpile import _count_unstable, _relax
 
         grid = np.array([[16, 0], [0, 0]], dtype=np.int64)
         topple_counts = np.zeros_like(grid)
@@ -1160,13 +1161,46 @@ class AcquisitionScaffoldTests(unittest.TestCase):
             safety_released_mass,
         ) = _relax(grid, topple_counts, 4, 1)
 
-        self.assertEqual(topple_count, 4)
+        self.assertEqual(topple_count, 14)
         self.assertEqual(avalanche_count, 1)
         self.assertEqual(relaxation_converged, 0)
         self.assertEqual(unstable_cell_count, 2)
-        self.assertEqual(safety_released_mass, 2)
-        self.assertEqual(released_mass, 10)
+        self.assertEqual(safety_released_mass, 8)
+        self.assertEqual(released_mass, 8)
+        self.assertEqual(_count_unstable(grid, 4), 0)
         self.assertLess(int(grid.max()), 4)
+
+    @unittest.skipIf(importlib.util.find_spec("numba") is None, "numba not installed")
+    def test_sandpile_mountain_mode_refills_target_and_removes_bottom_layer(self) -> None:
+        from elfquake.sim.sandpile import SandpileConfig, run_sandpile_simulation
+
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            summary_rows, _ = run_sandpile_simulation(
+                config=SandpileConfig(
+                    width=16,
+                    height=16,
+                    steps=3,
+                    threshold=32,
+                    source_count=1,
+                    sensor_count=2,
+                    deposition_probability=0.0,
+                    seed=9,
+                    deposition_mode="uniform",
+                    target_mean_height=8.0,
+                    bottom_layer_removal_interval=2,
+                ),
+                summary_out=root / "summary.csv",
+                sensors_out=root / "sensors.csv",
+            )
+
+            self.assertEqual(summary_rows[0]["mean_height"], "8.000000")
+            self.assertEqual(summary_rows[0]["target_fill_count"], "2048")
+            self.assertEqual(summary_rows[0]["max_height"], "8")
+            self.assertGreater(int(summary_rows[1]["bottom_layer_removed_mass"]), 0)
+            self.assertLess(float(summary_rows[1]["mean_height"]), 8.0)
+            self.assertEqual(summary_rows[2]["mean_height"], "8.000000")
+            self.assertGreater(int(summary_rows[2]["target_fill_count"]), 0)
 
     @unittest.skipIf(importlib.util.find_spec("numba") is None, "numba not installed")
     def test_sandpile_simulation_writes_grid_snapshots(self) -> None:
@@ -1218,12 +1252,38 @@ class AcquisitionScaffoldTests(unittest.TestCase):
                 snapshot_path=snapshot,
                 out_path=root / "heatmap.png",
                 scale=3,
+                color_max=4,
             )
 
             self.assertEqual(report["width_px"], "6")
             self.assertEqual(report["height_px"], "6")
             self.assertEqual(report["max_height"], "4")
+            self.assertEqual(report["color_max"], "4")
             self.assertEqual((root / "heatmap.png").read_bytes()[:8], b"\x89PNG\r\n\x1a\n")
+
+    def test_render_sandpile_heatmap_can_use_fixed_color_scale(self) -> None:
+        import numpy as np
+        from PIL import Image
+
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            snapshot = root / "snapshot.npy"
+            np.save(snapshot, np.array([[0, 2]], dtype=np.int64))
+
+            render_sandpile_heatmap(snapshot_path=snapshot, out_path=root / "auto.png", scale=1)
+            render_sandpile_heatmap(
+                snapshot_path=snapshot,
+                out_path=root / "fixed.png",
+                scale=1,
+                color_max=4,
+            )
+
+            with Image.open(root / "auto.png") as auto_image:
+                auto_pixel = auto_image.convert("RGB").getpixel((1, 0))
+            with Image.open(root / "fixed.png") as fixed_image:
+                fixed_pixel = fixed_image.convert("RGB").getpixel((1, 0))
+
+            self.assertNotEqual(auto_pixel, fixed_pixel)
 
     def test_render_sandpile_heatmaps_from_manifest_writes_all_pngs(self) -> None:
         import numpy as np
@@ -1248,9 +1308,11 @@ class AcquisitionScaffoldTests(unittest.TestCase):
                 manifest_path=manifest,
                 out_dir=root / "heatmaps",
                 scale=2,
+                color_max=4,
             )
 
             self.assertEqual(len(rows), 2)
+            self.assertEqual(rows[0]["color_max"], "4")
             self.assertTrue((root / "heatmaps" / "sandpile_step_000000.png").exists())
             self.assertTrue((root / "heatmaps" / "sandpile_step_000100.png").exists())
 

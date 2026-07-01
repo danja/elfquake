@@ -7,15 +7,15 @@ Usage:
   ./make-video.sh [input_dir] [output_mp4] [fps]
 
 Defaults:
-  input_dir  data/derived/sim/sandpile_128x128_seed42_1000.heatmaps
-  output_mp4 data/derived/sim/sandpile_128x128_seed42_1000.mp4
-  fps        4
+  input_dir  data/derived/sim/mountain_256x256_seed42_10000.heatmaps
+  output_mp4 data/derived/sim/mountain_256x256_seed42_10000.mp4
+  fps        20
 
 Example:
   ./make-video.sh \
-    data/derived/sim/sandpile_128x128_seed42_1000.heatmaps \
-    data/derived/sim/sandpile_128x128_seed42_1000.mp4 \
-    4
+    data/derived/sim/mountain_256x256_seed42_10000.heatmaps \
+    data/derived/sim/mountain_256x256_seed42_10000.mp4 \
+    20
 USAGE
 }
 
@@ -24,9 +24,9 @@ if [[ "${1:-}" == "-h" || "${1:-}" == "--help" ]]; then
   exit 0
 fi
 
-input_dir="${1:-data/derived/sim/sandpile_128x128_seed42_1000.heatmaps}"
-output_mp4="${2:-data/derived/sim/sandpile_128x128_seed42_1000.mp4}"
-fps="${3:-4}"
+input_dir="${1:-data/derived/sim/mountain_256x256_seed42_10000.heatmaps}"
+output_mp4="${2:-data/derived/sim/mountain_256x256_seed42_10000.mp4}"
+fps="${3:-20}"
 pattern="sandpile_step_*.png"
 
 if ! command -v ffmpeg >/dev/null 2>&1; then

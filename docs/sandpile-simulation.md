@@ -12,8 +12,8 @@ At each step:
 
 1. choose a stochastic subset of source points
 2. deposit grains or stress at those sources
-3. find cells above the critical threshold
-4. topple unstable cells until the grid is stable
+3. find cells higher than a neighbour by at least the slope threshold
+4. topple unstable slopes until the grid is stable
 5. record avalanche statistics and sensor readings
 
 Defaults:
@@ -21,7 +21,8 @@ Defaults:
 * open boundaries, so material can leave the grid
 * fixed random seed support for replay
 * configurable grid size, source count, sensor count, threshold, deposition probability, and step count
-* if the relaxation sweep limit is hit, unstable cells are drained down to `threshold - 1`
+* if the relaxation sweep limit is hit, unstable slopes are drained until stable
+* mountain mode uses uniform deposition, target refilling, and periodic bottom-layer removal
 
 ## Outputs
 
@@ -37,6 +38,8 @@ Per-step summary CSV:
 * `relaxation_converged`
 * `unstable_cell_count`
 * `safety_released_mass`
+* `target_fill_count`
+* `bottom_layer_removed_mass`
 
 Sensor CSV:
 
@@ -80,7 +83,7 @@ Initial milestone:
 Before using generated data for ML experiments, verify:
 
 * same seed produces identical outputs
-* no unstable cells remain after relaxation
+* no unstable neighbour slopes remain after relaxation
 * mass accounting matches deposition minus open-boundary loss
 * any `safety_released_mass` is treated as a corrective artifact, not a physical signal
 * sensor table has `steps * sensor_count` rows
@@ -97,6 +100,48 @@ Use simulation outputs for:
 * comparing synthetic avalanche targets with real event-label pipelines
 
 Do not use simulation performance as evidence of earthquake prediction ability. Any useful claim must come from held-out real data and ablation comparisons.
+
+## Mountain Mode
+
+For terrain-like sanity checks, use mountain mode instead of the default low-threshold avalanche mode.
+
+Mountain mode:
+
+* treats `threshold` as a local slope limit, not a maximum height
+* uses uniform random deposition
+* fills toward `target_mean_height`, defaulting to `width / 2`
+* adds full uniform layers during target filling before adding any random remainder
+* periodically removes one bottom layer from every nonzero cell
+
+Example:
+
+```sh
+PYTHONDONTWRITEBYTECODE=1 PYTHONPATH=src .venv/bin/python -m elfquake.cli run-sandpile-sim \
+  --mountain-mode \
+  --width 128 --height 128 --steps 1000 \
+  --threshold 8 \
+  --source-count 16 --sensor-count 16 \
+  --deposition-probability 0.7 --seed 42 \
+  --bottom-layer-removal-interval 100 \
+  --summary-out data/derived/sim/mountain_128x128_seed42_1000.summary.csv \
+  --sensors-out data/derived/sim/mountain_128x128_seed42_1000.sensors.csv \
+  --snapshot-dir data/derived/sim/mountain_128x128_seed42_1000.snapshots \
+  --snapshot-interval 100 \
+  --heatmap-dir data/derived/sim/mountain_128x128_seed42_1000.heatmaps \
+  --heatmap-scale 4 \
+  --heatmap-color-max 128 \
+  --progress-interval 100
+```
+
+Use `--heatmap-color-max` to keep colors comparable across frames. For mountain mode, set it to the grid width unless you have a specific z-axis range.
+
+The root helper `./sim.sh` runs a parameterized mountain-mode simulation with fixed heatmap scaling:
+
+```sh
+./sim.sh
+```
+
+`sim.sh` sets `SLOPE_THRESHOLD` to `max(WIDTH / 16, 4)` unless overridden.
 
 ## Install Notes
 

@@ -26,6 +26,8 @@ SUMMARY_FIELDS = [
     "relaxation_converged",
     "unstable_cell_count",
     "safety_released_mass",
+    "target_fill_count",
+    "bottom_layer_removed_mass",
 ]
 
 SENSOR_FIELDS = [
@@ -49,6 +51,9 @@ class SandpileConfig:
     deposition_probability: float = 0.5
     seed: int = 1
     max_relaxation_sweeps: int = 10000
+    deposition_mode: str = "sources"
+    target_mean_height: float = 0.0
+    bottom_layer_removal_interval: int = 0
 
 
 def run_sandpile_simulation(
@@ -75,9 +80,13 @@ def run_sandpile_simulation(
     snapshot_rows = []
 
     for step in range(config.steps):
-        active_sources = rng.random(config.source_count) < config.deposition_probability
-        deposition_count = int(active_sources.sum())
-        _deposit(grid, sources, active_sources)
+        deposition_count = _apply_deposition(
+            grid=grid,
+            rng=rng,
+            config=config,
+            sources=sources,
+        )
+        target_fill_count = _fill_to_target_mean(grid, rng, config)
         topple_counts = np.zeros_like(grid)
         (
             topple_count,
@@ -92,6 +101,13 @@ def run_sandpile_simulation(
             config.threshold,
             config.max_relaxation_sweeps,
         )
+        bottom_layer_removed_mass = 0
+        if (
+            config.bottom_layer_removal_interval > 0
+            and (step + 1) % config.bottom_layer_removal_interval == 0
+        ):
+            bottom_layer_removed_mass = _remove_bottom_layer(grid)
+            released_mass += bottom_layer_removed_mass
         summary_row = {
             "step": str(step),
             "deposition_count": str(deposition_count),
@@ -103,6 +119,8 @@ def run_sandpile_simulation(
             "relaxation_converged": str(int(relaxation_converged)),
             "unstable_cell_count": str(int(unstable_cell_count)),
             "safety_released_mass": str(int(safety_released_mass)),
+            "target_fill_count": str(int(target_fill_count)),
+            "bottom_layer_removed_mass": str(int(bottom_layer_removed_mass)),
         }
         summary_rows.append(summary_row)
         sensor_rows.extend(_sensor_rows(step, sensors, grid, topple_counts))
@@ -134,12 +152,46 @@ def validate_config(config: SandpileConfig) -> None:
         raise ValueError("deposition_probability must be between 0 and 1")
     if config.max_relaxation_sweeps < 1:
         raise ValueError("max_relaxation_sweeps must be at least 1")
+    if config.deposition_mode not in {"sources", "uniform"}:
+        raise ValueError("deposition_mode must be 'sources' or 'uniform'")
+    if config.target_mean_height < 0:
+        raise ValueError("target_mean_height must be non-negative")
+    if config.bottom_layer_removal_interval < 0:
+        raise ValueError("bottom_layer_removal_interval must be non-negative")
 
 
 def _random_points(rng, width: int, height: int, count: int) -> np.ndarray:
     xs = rng.integers(0, width, size=count, dtype=np.int64)
     ys = rng.integers(0, height, size=count, dtype=np.int64)
     return np.column_stack((ys, xs)).astype(np.int64)
+
+
+def _apply_deposition(*, grid: np.ndarray, rng, config: SandpileConfig, sources: np.ndarray) -> int:
+    active_sources = rng.random(config.source_count) < config.deposition_probability
+    deposition_count = int(active_sources.sum())
+    if config.deposition_mode == "sources":
+        _deposit(grid, sources, active_sources)
+        return deposition_count
+    if deposition_count:
+        _deposit_points(grid, _random_points(rng, config.width, config.height, deposition_count))
+    return deposition_count
+
+
+def _fill_to_target_mean(grid: np.ndarray, rng, config: SandpileConfig) -> int:
+    if config.target_mean_height <= 0:
+        return 0
+    target_mass = int(round(config.target_mean_height * config.width * config.height))
+    deficit = target_mass - int(grid.sum())
+    if deficit <= 0:
+        return 0
+    cell_count = config.width * config.height
+    full_layers = deficit // cell_count
+    remainder = deficit % cell_count
+    if full_layers:
+        _add_uniform_layers(grid, full_layers)
+    if remainder:
+        _deposit_points(grid, _random_points(rng, config.width, config.height, remainder))
+    return deficit
 
 
 @njit(cache=True)
@@ -149,6 +201,22 @@ def _deposit(grid, sources, active_sources):
             y = sources[index, 0]
             x = sources[index, 1]
             grid[y, x] += 1
+
+
+@njit(cache=True)
+def _deposit_points(grid, points):
+    for index in range(points.shape[0]):
+        y = points[index, 0]
+        x = points[index, 1]
+        grid[y, x] += 1
+
+
+@njit(cache=True)
+def _add_uniform_layers(grid, layers: int):
+    height, width = grid.shape
+    for y in range(height):
+        for x in range(width):
+            grid[y, x] += layers
 
 
 @njit(cache=True)
@@ -164,15 +232,23 @@ def _relax(grid, topple_counts, threshold: int, max_sweeps: int):
         delta = np.zeros_like(grid)
         for y in range(height):
             for x in range(width):
-                topples = grid[y, x] // threshold
-                if topples <= 0:
+                available = grid[y, x]
+                if available <= 0:
                     continue
-                unstable_found = True
-                in_avalanche = True
-                grid[y, x] -= topples * threshold
-                topple_counts[y, x] += topples
-                topple_count += topples
-                released_mass += _spread(delta, y, x, height, width, topples)
+                moved = 0
+                if y > 0:
+                    moved += _move_downhill(grid, delta, y, x, y - 1, x, threshold, available - moved)
+                if y < height - 1:
+                    moved += _move_downhill(grid, delta, y, x, y + 1, x, threshold, available - moved)
+                if x > 0:
+                    moved += _move_downhill(grid, delta, y, x, y, x - 1, threshold, available - moved)
+                if x < width - 1:
+                    moved += _move_downhill(grid, delta, y, x, y, x + 1, threshold, available - moved)
+                if moved > 0:
+                    unstable_found = True
+                    in_avalanche = True
+                    topple_counts[y, x] += moved
+                    topple_count += moved
         if not unstable_found:
             if in_avalanche:
                 avalanche_count = 1
@@ -202,12 +278,36 @@ def _relax(grid, topple_counts, threshold: int, max_sweeps: int):
 
 
 @njit(cache=True)
+def _move_downhill(grid, delta, y: int, x: int, ny: int, nx: int, threshold: int, available: int) -> int:
+    if available <= 0:
+        return 0
+    difference = grid[y, x] - grid[ny, nx]
+    if difference < threshold:
+        return 0
+    transfer = ((difference - threshold) // 2) + 1
+    if transfer > available:
+        transfer = available
+    delta[y, x] -= transfer
+    delta[ny, nx] += transfer
+    return transfer
+
+
+@njit(cache=True)
 def _count_unstable(grid, threshold: int) -> int:
     height, width = grid.shape
     count = 0
     for y in range(height):
         for x in range(width):
-            if grid[y, x] >= threshold:
+            unstable = False
+            if y > 0 and grid[y, x] - grid[y - 1, x] >= threshold:
+                unstable = True
+            if y < height - 1 and grid[y, x] - grid[y + 1, x] >= threshold:
+                unstable = True
+            if x > 0 and grid[y, x] - grid[y, x - 1] >= threshold:
+                unstable = True
+            if x < width - 1 and grid[y, x] - grid[y, x + 1] >= threshold:
+                unstable = True
+            if unstable:
                 count += 1
     return count
 
@@ -215,17 +315,41 @@ def _count_unstable(grid, threshold: int) -> int:
 @njit(cache=True)
 def _drain_unstable(grid, threshold: int):
     height, width = grid.shape
-    count = 0
     released = 0
-    stable_max = threshold - 1
+    initial_count = _count_unstable(grid, threshold)
+    max_passes = height + width + threshold
+    for _ in range(max_passes):
+        changed = False
+        for y in range(height):
+            for x in range(width):
+                allowed = grid[y, x]
+                if y > 0 and grid[y, x] - grid[y - 1, x] >= threshold:
+                    allowed = min(allowed, grid[y - 1, x] + threshold - 1)
+                if y < height - 1 and grid[y, x] - grid[y + 1, x] >= threshold:
+                    allowed = min(allowed, grid[y + 1, x] + threshold - 1)
+                if x > 0 and grid[y, x] - grid[y, x - 1] >= threshold:
+                    allowed = min(allowed, grid[y, x - 1] + threshold - 1)
+                if x < width - 1 and grid[y, x] - grid[y, x + 1] >= threshold:
+                    allowed = min(allowed, grid[y, x + 1] + threshold - 1)
+                if allowed < grid[y, x]:
+                    released += grid[y, x] - allowed
+                    grid[y, x] = allowed
+                    changed = True
+        if not changed or _count_unstable(grid, threshold) == 0:
+            break
+    return initial_count, released
+
+
+@njit(cache=True)
+def _remove_bottom_layer(grid):
+    height, width = grid.shape
+    removed = 0
     for y in range(height):
         for x in range(width):
-            if grid[y, x] >= threshold:
-                count += 1
-                excess = grid[y, x] - stable_max
-                grid[y, x] = stable_max
-                released += excess
-    return count, released
+            if grid[y, x] > 0:
+                grid[y, x] -= 1
+                removed += 1
+    return removed
 
 
 @njit(cache=True)

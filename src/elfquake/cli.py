@@ -258,12 +258,17 @@ def main() -> int:
     sandpile.add_argument("--deposition-probability", type=float, default=0.5)
     sandpile.add_argument("--seed", type=int, default=1)
     sandpile.add_argument("--max-relaxation-sweeps", type=int, default=10000)
+    sandpile.add_argument("--deposition-mode", choices=["sources", "uniform"], default="sources")
+    sandpile.add_argument("--target-mean-height", type=float)
+    sandpile.add_argument("--bottom-layer-removal-interval", type=int, default=0)
+    sandpile.add_argument("--mountain-mode", action="store_true")
     sandpile.add_argument("--summary-out", type=Path, required=True)
     sandpile.add_argument("--sensors-out", type=Path, required=True)
     sandpile.add_argument("--snapshot-dir", type=Path)
     sandpile.add_argument("--snapshot-interval", type=int, default=0)
     sandpile.add_argument("--heatmap-dir", type=Path)
     sandpile.add_argument("--heatmap-scale", type=int, default=8)
+    sandpile.add_argument("--heatmap-color-max", type=float)
     sandpile.add_argument("--progress-interval", type=int, default=100)
 
     sandpile_summary = subparsers.add_parser("summarize-sandpile-sim")
@@ -287,6 +292,7 @@ def main() -> int:
     sandpile_heatmap.add_argument("--snapshot", type=Path, required=True)
     sandpile_heatmap.add_argument("--out", type=Path, required=True)
     sandpile_heatmap.add_argument("--scale", type=int, default=8)
+    sandpile_heatmap.add_argument("--color-max", type=float)
 
     args = parser.parse_args()
     try:
@@ -593,6 +599,18 @@ def main() -> int:
             from elfquake.sim.sandpile import SandpileConfig, run_sandpile_simulation
 
             started = time.perf_counter()
+            threshold = args.threshold
+            deposition_mode = "uniform" if args.mountain_mode else args.deposition_mode
+            target_mean_height = (
+                args.target_mean_height
+                if args.target_mean_height is not None
+                else (args.width / 2 if args.mountain_mode else 0.0)
+            )
+            bottom_layer_removal_interval = (
+                args.bottom_layer_removal_interval
+                if args.bottom_layer_removal_interval
+                else (100 if args.mountain_mode else 0)
+            )
 
             def report_progress(completed_steps: int, total_steps: int, row: dict[str, str]) -> None:
                 elapsed_seconds = time.perf_counter() - started
@@ -604,6 +622,8 @@ def main() -> int:
                     f"rate {rate:.2f} steps/s "
                     f"topples {row['topple_count']} "
                     f"max_height {row['max_height']} "
+                    f"mean_height {row['mean_height']} "
+                    f"bottom_removed {row.get('bottom_layer_removed_mass', '0')} "
                     f"safety_release {row.get('safety_released_mass', '0')}",
                     flush=True,
                 )
@@ -613,12 +633,15 @@ def main() -> int:
                     width=args.width,
                     height=args.height,
                     steps=args.steps,
-                    threshold=args.threshold,
+                    threshold=threshold,
                     source_count=args.source_count,
                     sensor_count=args.sensor_count,
                     deposition_probability=args.deposition_probability,
                     seed=args.seed,
                     max_relaxation_sweeps=args.max_relaxation_sweeps,
+                    deposition_mode=deposition_mode,
+                    target_mean_height=target_mean_height,
+                    bottom_layer_removal_interval=bottom_layer_removal_interval,
                 ),
                 summary_out=args.summary_out,
                 sensors_out=args.sensors_out,
@@ -637,6 +660,7 @@ def main() -> int:
                     manifest_path=args.snapshot_dir / "manifest.csv",
                     out_dir=args.heatmap_dir,
                     scale=args.heatmap_scale,
+                    color_max=args.heatmap_color_max,
                 )
             print(f"summary rows: {len(summary_rows)}")
             print(f"sensor rows: {len(sensor_rows)}")
@@ -692,11 +716,13 @@ def main() -> int:
                 snapshot_path=args.snapshot,
                 out_path=args.out,
                 scale=args.scale,
+                color_max=args.color_max,
             )
             print(f"snapshot: {report['snapshot_file']}")
             print(f"heatmap: {report['heatmap_file']}")
             print(f"image size: {report['width_px']}x{report['height_px']}")
             print(f"max height: {report['max_height']}")
+            print(f"color max: {report['color_max']}")
             return 0
         else:
             parser.error(f"unknown command: {args.command}")

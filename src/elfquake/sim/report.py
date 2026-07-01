@@ -37,6 +37,11 @@ def summarize_sandpile_outputs(
         "total_topple_count": _sum_int(summary_rows, "topple_count"),
         "total_released_mass": _sum_int(summary_rows, "released_mass"),
         "total_safety_released_mass": _sum_int(summary_rows, "safety_released_mass"),
+        "total_target_fill_count": _sum_int(summary_rows, "target_fill_count"),
+        "total_bottom_layer_removed_mass": _sum_int(summary_rows, "bottom_layer_removed_mass"),
+        "bottom_layer_removal_step_count": sum(
+            1 for row in summary_rows if _int(row.get("bottom_layer_removed_mass")) > 0
+        ),
         "safety_drain_step_count": sum(1 for row in summary_rows if _int(row.get("safety_released_mass")) > 0),
         "nonconverged_step_count": sum(1 for row in summary_rows if row.get("relaxation_converged") == "0"),
         "max_unstable_cell_count": _max_int(summary_rows, "unstable_cell_count"),
