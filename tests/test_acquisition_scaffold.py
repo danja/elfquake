@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 import io
+import importlib.util
 import tempfile
 import unittest
 from datetime import datetime, timezone
@@ -1066,6 +1067,40 @@ class AcquisitionScaffoldTests(unittest.TestCase):
 
             self.assertEqual(report["status"], "insufficient_class_variation")
             self.assertEqual(report["ablations"]["seismic_only"]["status"], "insufficient_class_variation")
+
+    @unittest.skipIf(importlib.util.find_spec("numba") is None, "numba not installed")
+    def test_sandpile_simulation_is_deterministic_and_writes_expected_rows(self) -> None:
+        from elfquake.sim.sandpile import SandpileConfig, run_sandpile_simulation
+
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            config = SandpileConfig(
+                width=8,
+                height=8,
+                steps=5,
+                threshold=4,
+                source_count=3,
+                sensor_count=4,
+                deposition_probability=1.0,
+                seed=42,
+            )
+
+            first_summary, first_sensors = run_sandpile_simulation(
+                config=config,
+                summary_out=root / "first_summary.csv",
+                sensors_out=root / "first_sensors.csv",
+            )
+            second_summary, second_sensors = run_sandpile_simulation(
+                config=config,
+                summary_out=root / "second_summary.csv",
+                sensors_out=root / "second_sensors.csv",
+            )
+
+            self.assertEqual(first_summary, second_summary)
+            self.assertEqual(first_sensors, second_sensors)
+            self.assertEqual(len(first_summary), 5)
+            self.assertEqual(len(first_sensors), 20)
+            self.assertEqual((root / "first_summary.csv").read_text(encoding="utf-8").splitlines()[0], "step,deposition_count,avalanche_count,topple_count,max_height,mean_height,released_mass")
 
 
 def _fake_jpeg_capture(url: str) -> HttpCapture:

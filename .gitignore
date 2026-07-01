@@ -4,6 +4,17 @@ __pycache__/
 .mypy_cache/
 .ruff_cache/
 
+# Local Python environments and dependency artifacts.
+.venv/
+venv/
+env/
+.env/
+*.egg-info/
+
+# Numba JIT cache artifacts.
+*.nbc
+*.nbi
+
 # Generated raw captures and source payloads.
 data/raw/**/captures/
 data/raw/ingv/*.txt

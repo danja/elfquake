@@ -247,6 +247,19 @@ def main() -> int:
     ablation.add_argument("--epochs", type=int, default=600)
     ablation.add_argument("--learning-rate", type=float, default=0.2)
 
+    sandpile = subparsers.add_parser("run-sandpile-sim")
+    sandpile.add_argument("--width", type=int, default=128)
+    sandpile.add_argument("--height", type=int, default=128)
+    sandpile.add_argument("--steps", type=int, default=100)
+    sandpile.add_argument("--threshold", type=int, default=4)
+    sandpile.add_argument("--source-count", type=int, default=16)
+    sandpile.add_argument("--sensor-count", type=int, default=16)
+    sandpile.add_argument("--deposition-probability", type=float, default=0.5)
+    sandpile.add_argument("--seed", type=int, default=1)
+    sandpile.add_argument("--max-relaxation-sweeps", type=int, default=10000)
+    sandpile.add_argument("--summary-out", type=Path, required=True)
+    sandpile.add_argument("--sensors-out", type=Path, required=True)
+
     args = parser.parse_args()
     try:
         if args.command == "fetch-ingv-events":
@@ -547,6 +560,29 @@ def main() -> int:
             print(f"rows: {report['row_count']}")
             print(f"labeled rows: {report['labeled_row_count']}")
             print(f"output: {args.out}")
+            return 0
+        elif args.command == "run-sandpile-sim":
+            from elfquake.sim.sandpile import SandpileConfig, run_sandpile_simulation
+
+            summary_rows, sensor_rows = run_sandpile_simulation(
+                config=SandpileConfig(
+                    width=args.width,
+                    height=args.height,
+                    steps=args.steps,
+                    threshold=args.threshold,
+                    source_count=args.source_count,
+                    sensor_count=args.sensor_count,
+                    deposition_probability=args.deposition_probability,
+                    seed=args.seed,
+                    max_relaxation_sweeps=args.max_relaxation_sweeps,
+                ),
+                summary_out=args.summary_out,
+                sensors_out=args.sensors_out,
+            )
+            print(f"summary rows: {len(summary_rows)}")
+            print(f"sensor rows: {len(sensor_rows)}")
+            print(f"summary output: {args.summary_out}")
+            print(f"sensors output: {args.sensors_out}")
             return 0
         else:
             parser.error(f"unknown command: {args.command}")

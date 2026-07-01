@@ -61,3 +61,23 @@ For astronomical and geomagnetic data, NOAA SWPC live JSON and USNO moon phase J
 Start with naive and historical-rate seismic baselines, then compare against multimodal models. Do not claim value from VLF or astronomical features without ablation tests on held-out data.
 
 Use time-based validation first. Training data must occur before validation data.
+
+## Python Environment
+
+Ubuntu may block user-level `pip` installs through PEP 668. Use a project virtual environment for non-apt Python packages.
+
+Recommended setup:
+
+```sh
+python3 -m venv .venv
+. .venv/bin/activate
+pip install numba pyvista h5py zarr
+```
+
+Install `netCDF4` in the venv too if running the full offline test suite there:
+
+```sh
+pip install netCDF4
+```
+
+Run project commands with the venv activated when using optional simulation or visualization dependencies.
