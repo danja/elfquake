@@ -19,6 +19,9 @@ PIEZO_SENSOR_FIELDS = [
     "critical_cell_count",
     "nearest_critical_distance",
     "max_stress_ratio",
+    "piezo_charge_total",
+    "piezo_charge_max",
+    "piezo_release_total",
 ]
 
 
@@ -32,6 +35,11 @@ class PiezoConfig:
     activation_ratio: float = 0.75
     attenuation_radius: float = 0.0
     max_distance_radius: float = 0.0
+    charge_decay: float = 0.995
+    charge_coupling: float = 1.0
+    release_ratio: float = 0.15
+    critical_release_ratio: float = 0.05
+    saturation: float = 1000.0
 
 
 def validate_piezo_config(config: PiezoConfig) -> None:
@@ -51,6 +59,16 @@ def validate_piezo_config(config: PiezoConfig) -> None:
         raise ValueError("piezo attenuation_radius must be non-negative")
     if config.max_distance_radius < 0:
         raise ValueError("piezo max_distance_radius must be non-negative")
+    if not 0 <= config.charge_decay <= 1:
+        raise ValueError("piezo charge_decay must be between 0 and 1")
+    if config.charge_coupling < 0:
+        raise ValueError("piezo charge_coupling must be non-negative")
+    if not 0 <= config.release_ratio <= 1:
+        raise ValueError("piezo release_ratio must be between 0 and 1")
+    if not 0 <= config.critical_release_ratio <= 1:
+        raise ValueError("piezo critical_release_ratio must be between 0 and 1")
+    if config.saturation < 0:
+        raise ValueError("piezo saturation must be non-negative")
 
 
 def build_piezo_susceptibility(
@@ -85,6 +103,7 @@ def build_piezo_sensor_rows(
     sensors: np.ndarray,
     grid: np.ndarray,
     previous_grid: np.ndarray,
+    charge: np.ndarray,
     susceptibility: np.ndarray,
     threshold: int,
     config: PiezoConfig,
@@ -99,15 +118,24 @@ def build_piezo_sensor_rows(
         near_critical_count,
         critical_count,
         max_stress_ratio,
+        charge_total,
+        charge_max,
+        release_total,
     ) = _piezo_sensor_values(
         grid.astype(np.float64),
         previous_grid.astype(np.float64),
+        charge,
         susceptibility.astype(np.float64),
         sensors.astype(np.int64),
         float(threshold),
         float(config.activation_ratio),
         float(attenuation_radius),
         float(max_distance_radius),
+        float(config.charge_decay),
+        float(config.charge_coupling),
+        float(config.release_ratio),
+        float(config.critical_release_ratio),
+        float(config.saturation),
     )
     rows = []
     for sensor_id, point in enumerate(sensors):
@@ -124,6 +152,9 @@ def build_piezo_sensor_rows(
                 "critical_cell_count": str(int(critical_count)),
                 "nearest_critical_distance": "" if nearest < 0 else f"{float(nearest):.6f}",
                 "max_stress_ratio": f"{float(max_stress_ratio):.6f}",
+                "piezo_charge_total": f"{float(charge_total):.9f}",
+                "piezo_charge_max": f"{float(charge_max):.9f}",
+                "piezo_release_total": f"{float(release_total):.9f}",
             }
         )
     return rows
@@ -133,12 +164,18 @@ def build_piezo_sensor_rows(
 def _piezo_sensor_values(
     grid,
     previous_grid,
+    charge,
     susceptibility,
     sensors,
     threshold: float,
     activation_ratio: float,
     attenuation_radius: float,
     max_distance_radius: float,
+    charge_decay: float,
+    charge_coupling: float,
+    release_ratio: float,
+    critical_release_ratio: float,
+    saturation: float,
 ):
     height, width = grid.shape
     sensor_count = sensors.shape[0]
@@ -154,12 +191,16 @@ def _piezo_sensor_values(
         denominator = 1.0
 
     total_source = 0.0
+    total_release = 0.0
     near_critical_count = 0
     critical_count = 0
     max_stress_ratio = 0.0
+    charge_total = 0.0
+    charge_max = 0.0
 
     for y in range(height):
         for x in range(width):
+            charge[y, x] = charge[y, x] * charge_decay
             max_difference = 0.0
             value = grid[y, x]
             if y > 0:
@@ -182,39 +223,45 @@ def _piezo_sensor_values(
             stress_ratio = max_difference / threshold
             if stress_ratio > max_stress_ratio:
                 max_stress_ratio = stress_ratio
-            if stress_ratio < activation_ratio:
-                continue
+            positive_change = value - previous_grid[y, x]
+            if positive_change > 0 and stress_ratio >= activation_ratio:
+                strength = (stress_ratio - activation_ratio) / denominator
+                added_charge = susceptibility[y, x] * positive_change * strength * charge_coupling
+                if added_charge > 0:
+                    charge[y, x] += added_charge
+                    if saturation > 0 and charge[y, x] > saturation:
+                        excess = charge[y, x] - saturation
+                        charge[y, x] = saturation
+                        total_release += excess
 
-            near_critical_count += 1
+            if stress_ratio >= activation_ratio:
+                near_critical_count += 1
+            critical_release = 0.0
             if stress_ratio >= 1.0:
                 critical_count += 1
+                critical_release = charge[y, x] * critical_release_ratio
+                charge[y, x] -= critical_release
+                total_release += critical_release
 
-            for sensor_index in range(sensor_count):
-                sensor_y = sensors[sensor_index, 0]
-                sensor_x = sensors[sensor_index, 1]
-                dy = float(y - sensor_y)
-                dx = float(x - sensor_x)
-                distance_sq = dy * dy + dx * dx
-                if nearest_sq[sensor_index] < 0 or distance_sq < nearest_sq[sensor_index]:
-                    nearest_sq[sensor_index] = distance_sq
+            charge_total += charge[y, x]
+            if charge[y, x] > charge_max:
+                charge_max = charge[y, x]
 
-            positive_change = value - previous_grid[y, x]
-            if positive_change <= 0:
-                continue
-            strength = (stress_ratio - activation_ratio) / denominator
-            source = susceptibility[y, x] * positive_change * strength
-            if source <= 0:
-                continue
-
-            total_source += source
-            for sensor_index in range(sensor_count):
-                sensor_y = sensors[sensor_index, 0]
-                sensor_x = sensors[sensor_index, 1]
-                dy = float(y - sensor_y)
-                dx = float(x - sensor_x)
-                distance_sq = dy * dy + dx * dx
-                if distance_sq <= max_distance_sq:
-                    signals[sensor_index] += source / (1.0 + distance_sq / attenuation_sq)
+            source = charge[y, x] * release_ratio + critical_release
+            if source > 0:
+                total_source += source
+            if stress_ratio >= activation_ratio or source > 0:
+                for sensor_index in range(sensor_count):
+                    sensor_y = sensors[sensor_index, 0]
+                    sensor_x = sensors[sensor_index, 1]
+                    dy = float(y - sensor_y)
+                    dx = float(x - sensor_x)
+                    distance_sq = dy * dy + dx * dx
+                    if stress_ratio >= activation_ratio:
+                        if nearest_sq[sensor_index] < 0 or distance_sq < nearest_sq[sensor_index]:
+                            nearest_sq[sensor_index] = distance_sq
+                    if source > 0 and distance_sq <= max_distance_sq:
+                        signals[sensor_index] += source / (1.0 + distance_sq / attenuation_sq)
 
     nearest_distances = np.empty(sensor_count, dtype=np.float64)
     for sensor_index in range(sensor_count):
@@ -229,4 +276,7 @@ def _piezo_sensor_values(
         near_critical_count,
         critical_count,
         max_stress_ratio,
+        charge_total,
+        charge_max,
+        total_release,
     )

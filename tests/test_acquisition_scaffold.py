@@ -1270,10 +1270,222 @@ class AcquisitionScaffoldTests(unittest.TestCase):
             self.assertEqual(lines[0], ",".join(PIEZO_SENSOR_FIELDS))
             self.assertEqual(len(lines), 1 + 8 * 3)
             signal_index = PIEZO_SENSOR_FIELDS.index("piezo_signal")
+            charge_index = PIEZO_SENSOR_FIELDS.index("piezo_charge_total")
             self.assertGreater(
                 max(float(line.split(",")[signal_index]) for line in lines[1:]),
                 0.0,
             )
+            self.assertGreater(
+                max(float(line.split(",")[charge_index]) for line in lines[1:]),
+                0.0,
+            )
+
+    def test_build_synthetic_event_list_writes_ingv_like_rows(self) -> None:
+        from elfquake.sim.synthetic_events import SYNTHETIC_EVENT_FIELDS, build_synthetic_event_list
+
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            summary = root / "summary.csv"
+            sensors = root / "sensors.csv"
+            summary.write_text(
+                "step,deposition_count,avalanche_count,topple_count,max_height,mean_height,released_mass,"
+                "relaxation_converged,unstable_cell_count,safety_released_mass,target_fill_count,"
+                "bottom_layer_removed_mass\n"
+                "0,1,0,0,2,1.0,0,1,0,0,0,0\n"
+                "1,1,1,10,3,1.2,0,1,0,0,0,0\n"
+                "2,1,1,100,4,1.4,0,1,0,0,0,0\n",
+                encoding="utf-8",
+            )
+            sensors.write_text(
+                "step,sensor_id,x,y,height,local_topple_count\n"
+                "1,0,2,3,5,0\n"
+                "1,1,7,4,6,4\n"
+                "2,0,1,1,2,0\n"
+                "2,1,8,8,9,0\n",
+                encoding="utf-8",
+            )
+
+            rows = build_synthetic_event_list(
+                summary_csv=summary,
+                sensors_csv=sensors,
+                out_path=root / "events.csv",
+                grid_width=10,
+                grid_height=10,
+                start_time_utc="2026-01-01T00:00:00Z",
+                step_seconds=30,
+            )
+
+            self.assertEqual(len(rows), 2)
+            self.assertEqual((root / "events.csv").read_text(encoding="utf-8").splitlines()[0], ",".join(SYNTHETIC_EVENT_FIELDS))
+            self.assertEqual(rows[0]["event_id"], "synthetic_sandpile_step_000001")
+            self.assertEqual(rows[0]["event_time_utc"], "2026-01-01T00:00:30Z")
+            self.assertEqual(rows[0]["italy_region"], "central_italy")
+            self.assertEqual(rows[0]["location_quality"], "topple_sensor")
+            self.assertEqual(rows[1]["location_quality"], "height_proxy")
+            self.assertGreater(float(rows[1]["magnitude"]), float(rows[0]["magnitude"]))
+            self.assertTrue(41.5 <= float(rows[0]["latitude"]) <= 43.5)
+            self.assertTrue(12.0 <= float(rows[0]["longitude"]) <= 14.5)
+
+    def test_build_synthetic_event_list_allows_empty_outputs(self) -> None:
+        from elfquake.sim.synthetic_events import SYNTHETIC_EVENT_FIELDS, build_synthetic_event_list
+
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            summary = root / "summary.csv"
+            sensors = root / "sensors.csv"
+            summary.write_text(
+                "step,deposition_count,avalanche_count,topple_count,max_height,mean_height,released_mass,"
+                "relaxation_converged,unstable_cell_count,safety_released_mass,target_fill_count,"
+                "bottom_layer_removed_mass\n"
+                "0,1,0,0,2,1.0,0,1,0,0,0,0\n",
+                encoding="utf-8",
+            )
+            sensors.write_text("step,sensor_id,x,y,height,local_topple_count\n", encoding="utf-8")
+
+            rows = build_synthetic_event_list(
+                summary_csv=summary,
+                sensors_csv=sensors,
+                out_path=root / "events.csv",
+                grid_width=10,
+                grid_height=10,
+            )
+
+            self.assertEqual(rows, [])
+            self.assertEqual((root / "events.csv").read_text(encoding="utf-8").strip(), ",".join(SYNTHETIC_EVENT_FIELDS))
+
+    def test_render_piezo_spectrogram_writes_png_and_metadata(self) -> None:
+        from elfquake.sim.piezo_spectrogram import render_piezo_spectrogram
+
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            piezo = root / "piezo.csv"
+            piezo.write_text(
+                "step,sensor_id,x,y,piezo_signal,piezo_total_source,near_critical_cell_count,"
+                "critical_cell_count,nearest_critical_distance,max_stress_ratio\n"
+                "0,0,0,0,0.0,0.0,0,0,,0.0\n"
+                "1,0,0,0,2.0,2.0,2,0,1.0,0.8\n"
+                "1,1,1,0,3.0,3.0,2,0,1.0,0.9\n",
+                encoding="utf-8",
+            )
+
+            report = render_piezo_spectrogram(
+                piezo_csv=piezo,
+                out_path=root / "spectrogram.png",
+                metadata_out=root / "spectrogram.json",
+                step_seconds=2,
+                freq_bins=8,
+                window_steps=8,
+                scale=2,
+            )
+
+            self.assertEqual((root / "spectrogram.png").read_bytes()[:8], b"\x89PNG\r\n\x1a\n")
+            metadata = json.loads((root / "spectrogram.json").read_text(encoding="utf-8"))
+            self.assertEqual(metadata["step_count"], "2")
+            self.assertEqual(metadata["frequency_axis"], "fft_from_step_seconds")
+            self.assertEqual(metadata["nyquist_hz"], "0.250000000000")
+            self.assertEqual(metadata["freq_bins"], "8")
+            self.assertEqual(report["width_px"], "4")
+            self.assertEqual(report["height_px"], "16")
+            self.assertGreater(float(report["max_power"]), 0.0)
+
+    def test_render_piezo_spectrogram_allows_zero_signal(self) -> None:
+        from elfquake.sim.piezo_spectrogram import render_piezo_spectrogram
+
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            piezo = root / "piezo.csv"
+            piezo.write_text(
+                "step,sensor_id,x,y,piezo_signal,piezo_total_source,near_critical_cell_count,"
+                "critical_cell_count,nearest_critical_distance,max_stress_ratio\n"
+                "0,0,0,0,0.0,0.0,0,0,,0.0\n",
+                encoding="utf-8",
+            )
+
+            report = render_piezo_spectrogram(
+                piezo_csv=piezo,
+                out_path=root / "spectrogram.png",
+                freq_bins=4,
+                window_steps=4,
+            )
+
+            self.assertEqual((root / "spectrogram.png").read_bytes()[:8], b"\x89PNG\r\n\x1a\n")
+            self.assertEqual(report["max_power"], "0.000000000")
+
+    def test_render_piezo_summary_writes_timeseries_and_spectrogram_png(self) -> None:
+        from elfquake.sim.piezo_spectrogram import render_piezo_timeseries_spectrogram
+
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            piezo = root / "piezo.csv"
+            piezo.write_text(
+                "step,sensor_id,x,y,piezo_signal,piezo_total_source,near_critical_cell_count,"
+                "critical_cell_count,nearest_critical_distance,max_stress_ratio\n"
+                "0,0,0,0,0.0,0.0,0,0,,0.0\n"
+                "1,0,0,0,2.0,2.0,2,0,1.0,0.8\n"
+                "2,0,0,0,0.5,0.5,1,0,1.0,0.7\n",
+                encoding="utf-8",
+            )
+
+            report = render_piezo_timeseries_spectrogram(
+                piezo_csv=piezo,
+                out_path=root / "summary.png",
+                metadata_out=root / "summary.json",
+                step_seconds=2,
+                freq_bins=8,
+                window_steps=8,
+                scale=2,
+                timeseries_height=24,
+                output_width=2,
+                sensor_id=0,
+                dc_block=0.95,
+            )
+
+            self.assertEqual((root / "summary.png").read_bytes()[:8], b"\x89PNG\r\n\x1a\n")
+            metadata = json.loads((root / "summary.json").read_text(encoding="utf-8"))
+            self.assertEqual(metadata["plot_type"], "timeseries_plus_fft_spectrogram")
+            self.assertEqual(metadata["timeseries_height_px"], "48")
+            self.assertEqual(metadata["selected_sensor_id"], "0")
+            self.assertEqual(metadata["dc_block"], "0.95")
+            self.assertEqual(metadata["display_sample_count"], "2")
+            self.assertEqual(report["width_px"], "4")
+            self.assertEqual(report["height_px"], "68")
+
+    def test_render_piezo_audio_writes_wav_sonification(self) -> None:
+        import wave
+        from elfquake.sim.piezo_spectrogram import render_piezo_audio
+
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            piezo = root / "piezo.csv"
+            piezo.write_text(
+                "step,sensor_id,x,y,piezo_signal,piezo_total_source,near_critical_cell_count,"
+                "critical_cell_count,nearest_critical_distance,max_stress_ratio\n"
+                "0,0,0,0,0.0,0.0,0,0,,0.0\n"
+                "1,0,0,0,2.0,2.0,2,0,1.0,0.8\n"
+                "2,0,0,0,0.5,0.5,1,0,1.0,0.7\n",
+                encoding="utf-8",
+            )
+
+            report = render_piezo_audio(
+                piezo_csv=piezo,
+                out_path=root / "piezo.wav",
+                sample_rate=8000,
+                duration_seconds=1.0,
+                smooth_steps=2,
+                sensor_id=0,
+                dc_block=0.95,
+            )
+
+            with wave.open(str(root / "piezo.wav"), "rb") as handle:
+                self.assertEqual(handle.getnchannels(), 1)
+                self.assertEqual(handle.getsampwidth(), 2)
+                self.assertEqual(handle.getframerate(), 8000)
+                self.assertEqual(handle.getnframes(), 8000)
+            self.assertEqual(report["audio_type"], "sonified_sum_piezo_signal_by_step")
+            self.assertEqual(report["audio_sample_count"], "8000")
+            self.assertEqual(report["smooth_steps"], "2")
+            self.assertEqual(report["selected_sensor_id"], "0")
+            self.assertEqual(report["dc_block"], "0.95")
 
     @unittest.skipIf(importlib.util.find_spec("numba") is None, "numba not installed")
     def test_sandpile_simulation_writes_grid_snapshots(self) -> None:

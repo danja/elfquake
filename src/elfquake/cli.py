@@ -274,6 +274,11 @@ def main() -> int:
     sandpile.add_argument("--piezo-activation-ratio", type=float, default=0.75)
     sandpile.add_argument("--piezo-attenuation-radius", type=float, default=0.0)
     sandpile.add_argument("--piezo-max-distance-radius", type=float, default=0.0)
+    sandpile.add_argument("--piezo-charge-decay", type=float, default=0.995)
+    sandpile.add_argument("--piezo-charge-coupling", type=float, default=1.0)
+    sandpile.add_argument("--piezo-release-ratio", type=float, default=0.15)
+    sandpile.add_argument("--piezo-critical-release-ratio", type=float, default=0.05)
+    sandpile.add_argument("--piezo-saturation", type=float, default=1000.0)
     sandpile.add_argument("--snapshot-dir", type=Path)
     sandpile.add_argument("--snapshot-interval", type=int, default=0)
     sandpile.add_argument("--heatmap-dir", type=Path)
@@ -309,6 +314,65 @@ def main() -> int:
     sandpile_heatmap.add_argument("--color-min", type=float, default=0.0)
     sandpile_heatmap.add_argument("--color-max", type=float)
     sandpile_heatmap.add_argument("--gamma", type=float, default=1.0)
+
+    synthetic_events = subparsers.add_parser("build-synthetic-event-list")
+    synthetic_events.add_argument("--summary", type=Path, required=True)
+    synthetic_events.add_argument("--sensors", type=Path, required=True)
+    synthetic_events.add_argument("--out", type=Path, required=True)
+    synthetic_events.add_argument("--grid-width", type=int, required=True)
+    synthetic_events.add_argument("--grid-height", type=int, required=True)
+    synthetic_events.add_argument("--start-time-utc", default="2026-01-01T00:00:00Z")
+    synthetic_events.add_argument("--step-seconds", type=int, default=60)
+    synthetic_events.add_argument("--min-topple-count", type=int, default=1)
+    synthetic_events.add_argument("--lat-min", type=float, default=41.5)
+    synthetic_events.add_argument("--lat-max", type=float, default=43.5)
+    synthetic_events.add_argument("--lon-min", type=float, default=12.0)
+    synthetic_events.add_argument("--lon-max", type=float, default=14.5)
+    synthetic_events.add_argument("--magnitude-type", default="MLs")
+    synthetic_events.add_argument("--source", default="elfquake_sandpile_synthetic")
+    synthetic_events.add_argument("--ingested-at-utc")
+
+    piezo_spectrogram = subparsers.add_parser("render-piezo-spectrogram")
+    piezo_spectrogram.add_argument("--piezo", type=Path, required=True)
+    piezo_spectrogram.add_argument("--out", type=Path, required=True)
+    piezo_spectrogram.add_argument("--metadata-out", type=Path)
+    piezo_spectrogram.add_argument("--start-time-utc", default="2026-01-01T00:00:00Z")
+    piezo_spectrogram.add_argument("--step-seconds", type=int, default=60)
+    piezo_spectrogram.add_argument("--freq-min", type=float, default=0.0)
+    piezo_spectrogram.add_argument("--freq-max", type=float)
+    piezo_spectrogram.add_argument("--freq-bins", type=int, default=96)
+    piezo_spectrogram.add_argument("--window-steps", type=int, default=64)
+    piezo_spectrogram.add_argument("--scale", type=int, default=4)
+    piezo_spectrogram.add_argument("--gamma", type=float, default=0.85)
+    piezo_spectrogram.add_argument("--sensor-id", type=int)
+    piezo_spectrogram.add_argument("--dc-block", type=float, default=0.0)
+
+    piezo_summary = subparsers.add_parser("render-piezo-summary")
+    piezo_summary.add_argument("--piezo", type=Path, required=True)
+    piezo_summary.add_argument("--out", type=Path, required=True)
+    piezo_summary.add_argument("--metadata-out", type=Path)
+    piezo_summary.add_argument("--start-time-utc", default="2026-01-01T00:00:00Z")
+    piezo_summary.add_argument("--step-seconds", type=int, default=60)
+    piezo_summary.add_argument("--freq-min", type=float, default=0.0)
+    piezo_summary.add_argument("--freq-max", type=float)
+    piezo_summary.add_argument("--freq-bins", type=int, default=96)
+    piezo_summary.add_argument("--window-steps", type=int, default=64)
+    piezo_summary.add_argument("--scale", type=int, default=4)
+    piezo_summary.add_argument("--gamma", type=float, default=0.85)
+    piezo_summary.add_argument("--timeseries-height", type=int, default=48)
+    piezo_summary.add_argument("--output-width", type=int, default=1600)
+    piezo_summary.add_argument("--sensor-id", type=int)
+    piezo_summary.add_argument("--dc-block", type=float, default=0.0)
+
+    piezo_audio = subparsers.add_parser("render-piezo-audio")
+    piezo_audio.add_argument("--piezo", type=Path, required=True)
+    piezo_audio.add_argument("--out", type=Path, required=True)
+    piezo_audio.add_argument("--sample-rate", type=int, default=44100)
+    piezo_audio.add_argument("--duration-seconds", type=float, default=20.0)
+    piezo_audio.add_argument("--gain", type=float, default=0.95)
+    piezo_audio.add_argument("--smooth-steps", type=int, default=64)
+    piezo_audio.add_argument("--sensor-id", type=int)
+    piezo_audio.add_argument("--dc-block", type=float, default=0.0)
 
     args = parser.parse_args()
     try:
@@ -673,6 +737,11 @@ def main() -> int:
                     activation_ratio=args.piezo_activation_ratio,
                     attenuation_radius=args.piezo_attenuation_radius,
                     max_distance_radius=args.piezo_max_distance_radius,
+                    charge_decay=args.piezo_charge_decay,
+                    charge_coupling=args.piezo_charge_coupling,
+                    release_ratio=args.piezo_release_ratio,
+                    critical_release_ratio=args.piezo_critical_release_ratio,
+                    saturation=args.piezo_saturation,
                 )
                 if args.piezo_out
                 else None,
@@ -786,6 +855,108 @@ def main() -> int:
             print(f"image size: {report['width_px']}x{report['height_px']}")
             print(f"max height: {report['max_height']}")
             print(f"color max: {report['color_max']}")
+            return 0
+        elif args.command == "build-synthetic-event-list":
+            from elfquake.sim.synthetic_events import build_synthetic_event_list
+
+            rows = build_synthetic_event_list(
+                summary_csv=args.summary,
+                sensors_csv=args.sensors,
+                out_path=args.out,
+                grid_width=args.grid_width,
+                grid_height=args.grid_height,
+                start_time_utc=args.start_time_utc,
+                step_seconds=args.step_seconds,
+                min_topple_count=args.min_topple_count,
+                lat_min=args.lat_min,
+                lat_max=args.lat_max,
+                lon_min=args.lon_min,
+                lon_max=args.lon_max,
+                magnitude_type=args.magnitude_type,
+                source=args.source,
+                ingested_at_utc=args.ingested_at_utc,
+            )
+            print(f"synthetic events: {len(rows)}")
+            print(f"output: {args.out}")
+            return 0
+        elif args.command == "render-piezo-spectrogram":
+            from elfquake.sim.piezo_spectrogram import render_piezo_spectrogram
+
+            report = render_piezo_spectrogram(
+                piezo_csv=args.piezo,
+                out_path=args.out,
+                metadata_out=args.metadata_out,
+                start_time_utc=args.start_time_utc,
+                step_seconds=args.step_seconds,
+                freq_min=args.freq_min,
+                freq_max=args.freq_max,
+                freq_bins=args.freq_bins,
+                window_steps=args.window_steps,
+                scale=args.scale,
+                gamma=args.gamma,
+                sensor_id=args.sensor_id,
+                dc_block=args.dc_block,
+            )
+            print(f"spectrogram: {report['spectrogram_file']}")
+            print(f"steps: {report['step_count']}")
+            print(f"sensors: {report['sensor_count']}")
+            print(f"selected sensor: {report['selected_sensor_id'] or 'sum'}")
+            print(f"dc block: {report['dc_block']}")
+            print(f"frequency range: {report['freq_min_hz']}..{report['freq_max_hz']} Hz")
+            print(f"nyquist: {report['nyquist_hz']} Hz")
+            if args.metadata_out:
+                print(f"metadata: {args.metadata_out}")
+            return 0
+        elif args.command == "render-piezo-summary":
+            from elfquake.sim.piezo_spectrogram import render_piezo_timeseries_spectrogram
+
+            report = render_piezo_timeseries_spectrogram(
+                piezo_csv=args.piezo,
+                out_path=args.out,
+                metadata_out=args.metadata_out,
+                start_time_utc=args.start_time_utc,
+                step_seconds=args.step_seconds,
+                freq_min=args.freq_min,
+                freq_max=args.freq_max,
+                freq_bins=args.freq_bins,
+                window_steps=args.window_steps,
+                scale=args.scale,
+                gamma=args.gamma,
+                timeseries_height=args.timeseries_height,
+                output_width=args.output_width,
+                sensor_id=args.sensor_id,
+                dc_block=args.dc_block,
+            )
+            print(f"image: {report['image_file']}")
+            print(f"steps: {report['step_count']}")
+            print(f"sensors: {report['sensor_count']}")
+            print(f"selected sensor: {report['selected_sensor_id'] or 'sum'}")
+            print(f"dc block: {report['dc_block']}")
+            print(f"frequency range: {report['freq_min_hz']}..{report['freq_max_hz']} Hz")
+            print(f"nyquist: {report['nyquist_hz']} Hz")
+            if args.metadata_out:
+                print(f"metadata: {args.metadata_out}")
+            return 0
+        elif args.command == "render-piezo-audio":
+            from elfquake.sim.piezo_spectrogram import render_piezo_audio
+
+            report = render_piezo_audio(
+                piezo_csv=args.piezo,
+                out_path=args.out,
+                sample_rate=args.sample_rate,
+                duration_seconds=args.duration_seconds,
+                gain=args.gain,
+                smooth_steps=args.smooth_steps,
+                sensor_id=args.sensor_id,
+                dc_block=args.dc_block,
+            )
+            print(f"audio: {report['audio_file']}")
+            print(f"duration: {report['duration_seconds']}s")
+            print(f"sample rate: {report['sample_rate_hz']} Hz")
+            print(f"smooth steps: {report['smooth_steps']}")
+            print(f"selected sensor: {report['selected_sensor_id'] or 'sum'}")
+            print(f"dc block: {report['dc_block']}")
+            print(f"type: {report['audio_type']}")
             return 0
         else:
             parser.error(f"unknown command: {args.command}")

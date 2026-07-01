@@ -26,7 +26,7 @@ fi
 
 input_dir="${1:-data/derived/sim/mountain_256x256_seed42_100000.heatmaps}"
 output_mp4="${2:-data/derived/sim/mountain_256x256_seed42_100000.mp4}"
-fps="${3:-20}"
+fps="${3:-30}"
 pattern="sandpile_step_*.png"
 
 if ! command -v ffmpeg >/dev/null 2>&1; then

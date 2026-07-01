@@ -85,3 +85,9 @@ Completed:
 * Slow mountain-mode target filling and scale deposition defaults so videos visibly develop.
 * Restore localized point-source stress deposition as the mountain-mode default.
 * Add a modular piezo-like precursor sensor channel for pre-avalanche stress signals.
+* Add derived synthetic INGV-like event lists and piezo spectrogram rendering.
+* Correct piezo spectrogram frequency axis to derive from simulation timestep.
+* Add combined piezo time-series/spectrogram PNG and WAV sonification helpers.
+* Compress long piezo plots for display and smooth WAV sonification defaults.
+* Add single-sensor piezo rendering and DC-blocking filters for diagnostics.
+* Replace instantaneous piezo emission with a stateful charge-store/release model.

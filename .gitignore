@@ -27,6 +27,7 @@ data/raw/ingv/*.metadata.json
 # Generated derived datasets.
 data/derived/**/*.csv
 data/derived/**/*.mp4
+data/derived/**/*.wav
 data/derived/**/*.npy
 data/derived/**/*.png
 !data/derived/**/manifests/

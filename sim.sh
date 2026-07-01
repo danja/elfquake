@@ -29,6 +29,11 @@ piezo_activation_ratio="${PIEZO_ACTIVATION_RATIO:-0.75}"
 piezo_susceptibility_base="${PIEZO_SUSCEPTIBILITY_BASE:-0.15}"
 piezo_susceptibility_variation="${PIEZO_SUSCEPTIBILITY_VARIATION:-0.85}"
 piezo_attenuation_radius="${PIEZO_ATTENUATION_RADIUS:-0}"
+piezo_charge_decay="${PIEZO_CHARGE_DECAY:-0.995}"
+piezo_charge_coupling="${PIEZO_CHARGE_COUPLING:-1.0}"
+piezo_release_ratio="${PIEZO_RELEASE_RATIO:-0.15}"
+piezo_critical_release_ratio="${PIEZO_CRITICAL_RELEASE_RATIO:-0.05}"
+piezo_saturation="${PIEZO_SATURATION:-1000}"
 slope_threshold="${SLOPE_THRESHOLD:-$(( width / 16 ))}"
 if [[ "$slope_threshold" -lt 4 ]]; then
   slope_threshold=4
@@ -53,6 +58,11 @@ PYTHONDONTWRITEBYTECODE=1 PYTHONPATH=src .venv/bin/python -m elfquake.cli run-sa
   --piezo-susceptibility-base "$piezo_susceptibility_base" \
   --piezo-susceptibility-variation "$piezo_susceptibility_variation" \
   --piezo-attenuation-radius "$piezo_attenuation_radius" \
+  --piezo-charge-decay "$piezo_charge_decay" \
+  --piezo-charge-coupling "$piezo_charge_coupling" \
+  --piezo-release-ratio "$piezo_release_ratio" \
+  --piezo-critical-release-ratio "$piezo_critical_release_ratio" \
+  --piezo-saturation "$piezo_saturation" \
   --snapshot-dir "${prefix}.snapshots" \
   --snapshot-interval "$snapshot_interval" \
   --heatmap-dir "${prefix}.heatmaps" \

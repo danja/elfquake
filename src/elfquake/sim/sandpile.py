@@ -83,6 +83,7 @@ def run_sandpile_simulation(
     piezo_rows = []
     piezo_sensors = None
     piezo_susceptibility = None
+    piezo_charge = None
     if piezo_out is not None:
         resolved_piezo_config = piezo_config or PiezoConfig()
         piezo_rng = np.random.default_rng(config.seed + 1_000_003)
@@ -98,6 +99,7 @@ def run_sandpile_simulation(
             height=config.height,
             config=resolved_piezo_config,
         )
+        piezo_charge = np.zeros((config.height, config.width), dtype=np.float64)
     else:
         resolved_piezo_config = None
     summary_rows = []
@@ -117,12 +119,14 @@ def run_sandpile_simulation(
             assert resolved_piezo_config is not None
             assert piezo_sensors is not None
             assert piezo_susceptibility is not None
+            assert piezo_charge is not None
             piezo_rows.extend(
                 build_piezo_sensor_rows(
                     step=step,
                     sensors=piezo_sensors,
                     grid=grid,
                     previous_grid=previous_grid,
+                    charge=piezo_charge,
                     susceptibility=piezo_susceptibility,
                     threshold=config.threshold,
                     config=resolved_piezo_config,

@@ -118,13 +118,62 @@ Do not use simulation performance as evidence of earthquake prediction ability. 
 
 The piezo channel is an analogue for electromagnetic precursors from quartz-like rock under stress. It is not a physical EM model.
 
-The simulator creates a clustered susceptibility map to represent quartz-bearing regions. After deposition and background loading, but before relaxation/toppling, it measures cells whose local slope is near the failure threshold. Those cells emit a piezo-like source proportional to:
+The simulator creates a clustered susceptibility map to represent quartz-bearing regions and a persistent `piezo_charge` grid. After deposition and background loading, but before relaxation/toppling, it updates the charge state:
 
-* local susceptibility
-* positive stress/height change since the previous step
-* closeness to the local slope threshold
+1. decay existing charge by `PIEZO_CHARGE_DECAY`
+2. measure each cell's steepest local downhill slope
+3. add charge from positive stress/height change when the cell is near the failure threshold
+4. cap charge with `PIEZO_SATURATION`, releasing any excess
+5. release a configurable fraction of charge every step
+6. release an additional fraction for cells already over the critical slope
 
-Piezo sensors record a distance-weighted sum from nearby source cells. This creates a separate precursor time series that can appear before the avalanche-like toppling event. Keep this channel separate from seismic-like toppling outputs so later ML experiments can test whether precursor features add value.
+The emitted source is therefore based on stored charge and release, not only instantaneous height change. Piezo sensors record a distance-weighted sum from nearby emitting cells. This creates a separate precursor time series sampled before the avalanche-like toppling event. Keep this channel separate from seismic-like toppling outputs so later ML experiments can test whether precursor features add value.
+
+Piezo CSV diagnostics include total charge, maximum charge, and total release per step so the charge-store behavior can be audited.
+
+## Derived Synthetic Outputs
+
+Convert avalanche-like steps into an INGV-like event list:
+
+```sh
+PYTHONDONTWRITEBYTECODE=1 PYTHONPATH=src .venv/bin/python -m elfquake.cli build-synthetic-event-list \
+  --summary data/derived/sim/mountain_128x128_seed42_1000.summary.csv \
+  --sensors data/derived/sim/mountain_128x128_seed42_1000.sensors.csv \
+  --grid-width 128 \
+  --grid-height 128 \
+  --out data/derived/sim/mountain_128x128_seed42_1000.synthetic_events.csv
+```
+
+The event list uses the normalized INGV-compatible fields first, then appends synthetic traceability fields such as `step`, `x`, `y`, `topple_count`, and `location_quality`. Grid coordinates are mapped to Central Italy by default.
+
+Render a VLF-style spectrogram from the piezo sensor CSV:
+
+```sh
+PYTHONDONTWRITEBYTECODE=1 PYTHONPATH=src .venv/bin/python -m elfquake.cli render-piezo-spectrogram \
+  --piezo data/derived/sim/mountain_128x128_seed42_1000.piezo.csv \
+  --out data/derived/sim/mountain_128x128_seed42_1000.piezo_spectrogram.png \
+  --metadata-out data/derived/sim/mountain_128x128_seed42_1000.piezo_spectrogram.json
+```
+
+The spectrogram treats piezo sensor amplitudes as receiver time series and computes an FFT-based time-frequency view. The frequency axis is determined by `--step-seconds`; with the default `60` seconds per simulation step, the Nyquist frequency is only about `0.0083 Hz`. Use smaller `--step-seconds` values only when the simulation run is intended to represent faster physical sampling. This is an analogue display, not a physical EM spectrum.
+
+Render a combined time-series and spectrogram PNG:
+
+```sh
+./piezo-summary.sh
+```
+
+Long runs are compressed to a display width before plotting. The default `OUTPUT_WIDTH=1600` keeps large runs inspectable without relying on image-viewer downsampling.
+
+By default the helper renders one receiver (`SENSOR_ID=0`) with a one-pole DC-blocking filter (`DC_BLOCK=0.995`). Set `SENSOR_ID` to another integer or clear the filter with `DC_BLOCK=0` when comparing sensors.
+
+Render a WAV sonification of the summed piezo signal:
+
+```sh
+./piezo-audio.sh
+```
+
+The WAV is a time-compressed audio rendering for inspection, not a physical radio waveform. The default `SMOOTH_STEPS=64` suppresses step-to-step jitter before resampling to audio rate; reduce it to hear more high-frequency simulation jitter.
 
 ## Mountain Mode
 
