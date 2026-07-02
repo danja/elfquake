@@ -1235,12 +1235,13 @@ class AcquisitionScaffoldTests(unittest.TestCase):
 
     @unittest.skipIf(importlib.util.find_spec("numba") is None, "numba not installed")
     def test_sandpile_can_write_piezo_precursor_sensor_rows(self) -> None:
-        from elfquake.sim.piezo import PIEZO_SENSOR_FIELDS, PiezoConfig
+        from elfquake.sim.piezo import AVALANCHE_PIEZO_SENSOR_FIELDS, PIEZO_SENSOR_FIELDS, PiezoConfig
         from elfquake.sim.sandpile import SandpileConfig, run_sandpile_simulation
 
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
             piezo_out = root / "piezo.csv"
+            piezo_avalanche_out = root / "piezo_avalanche.csv"
 
             run_sandpile_simulation(
                 config=SandpileConfig(
@@ -1256,6 +1257,7 @@ class AcquisitionScaffoldTests(unittest.TestCase):
                 summary_out=root / "summary.csv",
                 sensors_out=root / "sensors.csv",
                 piezo_out=piezo_out,
+                piezo_avalanche_out=piezo_avalanche_out,
                 piezo_config=PiezoConfig(
                     sensor_count=3,
                     susceptibility_base=1.0,
@@ -1277,6 +1279,14 @@ class AcquisitionScaffoldTests(unittest.TestCase):
             )
             self.assertGreater(
                 max(float(line.split(",")[charge_index]) for line in lines[1:]),
+                0.0,
+            )
+            avalanche_lines = piezo_avalanche_out.read_text(encoding="utf-8").splitlines()
+            self.assertEqual(avalanche_lines[0], ",".join(AVALANCHE_PIEZO_SENSOR_FIELDS))
+            self.assertEqual(len(avalanche_lines), 1 + 8 * 3)
+            avalanche_signal_index = AVALANCHE_PIEZO_SENSOR_FIELDS.index("piezo_signal")
+            self.assertGreater(
+                max(float(line.split(",")[avalanche_signal_index]) for line in avalanche_lines[1:]),
                 0.0,
             )
 

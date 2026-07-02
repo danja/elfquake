@@ -9,11 +9,10 @@ Usage:
 Runs the simulation demo pipeline in dependency order:
   1. sim.sh
   2. synthetic event list
-  3. piezo-summary.sh
-  4. piezo-vlf-summary.sh
-  5. piezo-audio.sh
-  6. make-video.sh
-  7. event-map.sh
+  3. piezo-vlf-summary.sh
+  4. piezo-audio.sh
+  5. make-video.sh
+  6. event-map.sh
 
 Defaults match sim.sh:
   WIDTH=256 HEIGHT=256 STEPS=10000 SEED=42
@@ -22,6 +21,7 @@ Environment:
   RUN_SIM=0        skip sim.sh and reuse existing outputs
   RUN_VIDEO=0      skip make-video.sh
   RUN_EVENT_MAP=0  skip synthetic event list and event-map.sh
+  RUN_FFT=1        also render the FFT diagnostic PNG
   FPS=20           video frame rate
 USAGE
 }
@@ -39,19 +39,20 @@ prefix="data/derived/sim/mountain_${width}x${height}_seed${seed}_${steps}"
 run_sim="${RUN_SIM:-1}"
 run_video="${RUN_VIDEO:-1}"
 run_event_map="${RUN_EVENT_MAP:-1}"
+run_fft="${RUN_FFT:-0}"
 fps="${FPS:-20}"
 
 echo "prefix: $prefix"
 
 if [[ "$run_sim" != "0" ]]; then
-  echo "step 1/7: simulation"
+  echo "step 1/6: simulation"
   WIDTH="$width" HEIGHT="$height" STEPS="$steps" SEED="$seed" ./sim.sh
 else
-  echo "step 1/7: simulation skipped"
+  echo "step 1/6: simulation skipped"
 fi
 
 if [[ "$run_event_map" != "0" ]]; then
-  echo "step 2/7: synthetic event list"
+  echo "step 2/6: synthetic event list"
   PYTHONDONTWRITEBYTECODE=1 PYTHONPATH=src .venv/bin/python -m elfquake.cli build-synthetic-event-list \
     --summary "${prefix}.summary.csv" \
     --sensors "${prefix}.sensors.csv" \
@@ -59,30 +60,32 @@ if [[ "$run_event_map" != "0" ]]; then
     --grid-height "$height" \
     --out "${prefix}.synthetic_events.csv"
 else
-  echo "step 2/7: synthetic event list skipped"
+  echo "step 2/6: synthetic event list skipped"
 fi
 
-echo "step 3/7: piezo FFT diagnostic summary"
-WIDTH="$width" HEIGHT="$height" STEPS="$steps" SEED="$seed" ./piezo-summary.sh "${prefix}.piezo.csv"
+if [[ "$run_fft" != "0" ]]; then
+  echo "optional: piezo FFT diagnostic summary"
+  WIDTH="$width" HEIGHT="$height" STEPS="$steps" SEED="$seed" ./piezo-summary.sh "${prefix}.piezo.csv"
+fi
 
-echo "step 4/7: piezo VLF analogue summary"
-WIDTH="$width" HEIGHT="$height" STEPS="$steps" SEED="$seed" ./piezo-vlf-summary.sh "${prefix}.piezo.csv"
+echo "step 3/6: avalanche-derived piezo VLF summary"
+WIDTH="$width" HEIGHT="$height" STEPS="$steps" SEED="$seed" ./piezo-vlf-summary.sh "${prefix}.piezo_avalanche.csv"
 
-echo "step 5/7: piezo WAV sonification"
-WIDTH="$width" HEIGHT="$height" STEPS="$steps" SEED="$seed" ./piezo-audio.sh "${prefix}.piezo.csv"
+echo "step 4/6: avalanche-derived piezo WAV sonification"
+WIDTH="$width" HEIGHT="$height" STEPS="$steps" SEED="$seed" ./piezo-audio.sh "${prefix}.piezo_avalanche.csv"
 
 if [[ "$run_video" != "0" ]]; then
-  echo "step 6/7: heatmap video"
+  echo "step 5/6: heatmap video"
   WIDTH="$width" HEIGHT="$height" STEPS="$steps" SEED="$seed" ./make-video.sh "${prefix}.heatmaps" "${prefix}.mp4" "$fps"
 else
-  echo "step 6/7: heatmap video skipped"
+  echo "step 5/6: heatmap video skipped"
 fi
 
 if [[ "$run_event_map" != "0" ]]; then
-  echo "step 7/7: synthetic event map"
+  echo "step 6/6: synthetic event map"
   ./event-map.sh "${prefix}.synthetic_events.csv"
 else
-  echo "step 7/7: synthetic event map skipped"
+  echo "step 6/6: synthetic event map skipped"
 fi
 
 echo "done: $prefix"

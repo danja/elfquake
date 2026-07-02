@@ -24,6 +24,21 @@ PIEZO_SENSOR_FIELDS = [
     "piezo_release_total",
 ]
 
+AVALANCHE_PIEZO_SENSOR_FIELDS = [
+    "step",
+    "sensor_id",
+    "x",
+    "y",
+    "piezo_signal",
+    "piezo_total_source",
+    "active_topple_cell_count",
+    "max_local_topple",
+    "nearest_topple_distance",
+    "stress_drop_total",
+    "stress_drop_max",
+    "piezo_release_total",
+]
+
 
 @dataclass(frozen=True)
 class PiezoConfig:
@@ -155,6 +170,58 @@ def build_piezo_sensor_rows(
                 "piezo_charge_total": f"{float(charge_total):.9f}",
                 "piezo_charge_max": f"{float(charge_max):.9f}",
                 "piezo_release_total": f"{float(release_total):.9f}",
+            }
+        )
+    return rows
+
+
+def build_avalanche_piezo_sensor_rows(
+    *,
+    step: int,
+    sensors: np.ndarray,
+    pre_relax_grid: np.ndarray,
+    post_relax_grid: np.ndarray,
+    topple_counts: np.ndarray,
+    susceptibility: np.ndarray,
+    config: PiezoConfig,
+) -> list[dict[str, str]]:
+    validate_piezo_config(config)
+    attenuation_radius = config.attenuation_radius or max(post_relax_grid.shape) / 8.0
+    max_distance_radius = config.max_distance_radius or attenuation_radius * 3.0
+    (
+        signals,
+        nearest_distances,
+        total_source,
+        active_count,
+        max_local_topple,
+        stress_drop_total,
+        stress_drop_max,
+    ) = _avalanche_piezo_sensor_values(
+        pre_relax_grid.astype(np.float64),
+        post_relax_grid.astype(np.float64),
+        topple_counts.astype(np.float64),
+        susceptibility.astype(np.float64),
+        sensors.astype(np.int64),
+        float(attenuation_radius),
+        float(max_distance_radius),
+    )
+    rows = []
+    for sensor_id, point in enumerate(sensors):
+        nearest = nearest_distances[sensor_id]
+        rows.append(
+            {
+                "step": str(step),
+                "sensor_id": str(sensor_id),
+                "x": str(int(point[1])),
+                "y": str(int(point[0])),
+                "piezo_signal": f"{float(signals[sensor_id]):.9f}",
+                "piezo_total_source": f"{float(total_source):.9f}",
+                "active_topple_cell_count": str(int(active_count)),
+                "max_local_topple": str(int(max_local_topple)),
+                "nearest_topple_distance": "" if nearest < 0 else f"{float(nearest):.6f}",
+                "stress_drop_total": f"{float(stress_drop_total):.9f}",
+                "stress_drop_max": f"{float(stress_drop_max):.9f}",
+                "piezo_release_total": f"{float(total_source):.9f}",
             }
         )
     return rows
@@ -317,4 +384,75 @@ def _piezo_sensor_values(
         charge_total,
         charge_max,
         total_release,
+    )
+
+
+@njit(cache=True)
+def _avalanche_piezo_sensor_values(
+    pre_relax_grid,
+    post_relax_grid,
+    topple_counts,
+    susceptibility,
+    sensors,
+    attenuation_radius: float,
+    max_distance_radius: float,
+):
+    height, width = post_relax_grid.shape
+    sensor_count = sensors.shape[0]
+    signals = np.zeros(sensor_count, dtype=np.float64)
+    nearest_sq = np.empty(sensor_count, dtype=np.float64)
+    for sensor_index in range(sensor_count):
+        nearest_sq[sensor_index] = -1.0
+
+    attenuation_sq = attenuation_radius * attenuation_radius
+    max_distance_sq = max_distance_radius * max_distance_radius
+    total_source = 0.0
+    active_count = 0
+    max_local_topple = 0.0
+    stress_drop_total = 0.0
+    stress_drop_max = 0.0
+
+    for y in range(height):
+        for x in range(width):
+            local_topple = topple_counts[y, x]
+            if local_topple <= 0:
+                continue
+            active_count += 1
+            if local_topple > max_local_topple:
+                max_local_topple = local_topple
+            stress_drop = pre_relax_grid[y, x] - post_relax_grid[y, x]
+            if stress_drop < 0:
+                stress_drop = 0.0
+            release = susceptibility[y, x] * local_topple * (1.0 + stress_drop)
+            if release <= 0:
+                continue
+            stress_drop_total += stress_drop
+            if stress_drop > stress_drop_max:
+                stress_drop_max = stress_drop
+            total_source += release
+            for sensor_index in range(sensor_count):
+                sensor_y = sensors[sensor_index, 0]
+                sensor_x = sensors[sensor_index, 1]
+                dy = float(y - sensor_y)
+                dx = float(x - sensor_x)
+                distance_sq = dy * dy + dx * dx
+                if nearest_sq[sensor_index] < 0 or distance_sq < nearest_sq[sensor_index]:
+                    nearest_sq[sensor_index] = distance_sq
+                if distance_sq <= max_distance_sq:
+                    signals[sensor_index] += release / (1.0 + distance_sq / attenuation_sq)
+
+    nearest_distances = np.empty(sensor_count, dtype=np.float64)
+    for sensor_index in range(sensor_count):
+        if nearest_sq[sensor_index] < 0:
+            nearest_distances[sensor_index] = -1.0
+        else:
+            nearest_distances[sensor_index] = np.sqrt(nearest_sq[sensor_index])
+    return (
+        signals,
+        nearest_distances,
+        total_source,
+        active_count,
+        max_local_topple,
+        stress_drop_total,
+        stress_drop_max,
     )

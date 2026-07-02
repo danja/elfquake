@@ -99,3 +99,4 @@ Completed:
 * Update model candidates with time-series Transformer architectures from `2202.07125v5`.
 * Correct piezo charge release accounting and add a VLF-shaped strain-envelope summary renderer.
 * Standardize simulation helper defaults on the `10000` step run and add `run-all.sh`.
+* Add an avalanche-derived piezo sensor so VLF/WAV spikes come from simulated toppling dynamics.

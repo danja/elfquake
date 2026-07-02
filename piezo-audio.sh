@@ -7,7 +7,7 @@ Usage:
   ./piezo-audio.sh [piezo_csv] [output_wav]
 
 Defaults:
-  piezo_csv  data/derived/sim/mountain_${WIDTH}x${HEIGHT}_seed${SEED}_${STEPS}.piezo.csv
+  piezo_csv  data/derived/sim/mountain_${WIDTH}x${HEIGHT}_seed${SEED}_${STEPS}.piezo_avalanche.csv
   output_wav same prefix with .piezo.wav
 
 Environment:
@@ -39,7 +39,7 @@ else
   height="${HEIGHT:-256}"
   steps="${STEPS:-10000}"
   seed="${SEED:-42}"
-  input="data/derived/sim/mountain_${width}x${height}_seed${seed}_${steps}.piezo.csv"
+  input="data/derived/sim/mountain_${width}x${height}_seed${seed}_${steps}.piezo_avalanche.csv"
 fi
 
 if [[ -z "$input" || ! -f "$input" ]]; then
@@ -48,7 +48,10 @@ if [[ -z "$input" || ! -f "$input" ]]; then
   exit 2
 fi
 
-prefix="${input%.piezo.csv}"
+prefix="${input%.piezo_avalanche.csv}"
+if [[ "$prefix" == "$input" ]]; then
+  prefix="${input%.piezo.csv}"
+fi
 output="${2:-${prefix}.piezo.wav}"
 sample_rate="${SAMPLE_RATE:-44100}"
 duration_seconds="${DURATION_SECONDS:-20}"

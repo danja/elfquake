@@ -266,6 +266,7 @@ def main() -> int:
     sandpile.add_argument("--summary-out", type=Path, required=True)
     sandpile.add_argument("--sensors-out", type=Path, required=True)
     sandpile.add_argument("--piezo-out", type=Path)
+    sandpile.add_argument("--piezo-avalanche-out", type=Path)
     sandpile.add_argument("--piezo-sensor-count", type=int, default=16)
     sandpile.add_argument("--piezo-susceptibility-base", type=float, default=0.15)
     sandpile.add_argument("--piezo-susceptibility-variation", type=float, default=0.85)
@@ -755,6 +756,7 @@ def main() -> int:
                 summary_out=args.summary_out,
                 sensors_out=args.sensors_out,
                 piezo_out=args.piezo_out,
+                piezo_avalanche_out=args.piezo_avalanche_out,
                 piezo_config=PiezoConfig(
                     sensor_count=args.piezo_sensor_count,
                     susceptibility_base=args.piezo_susceptibility_base,
@@ -823,6 +825,8 @@ def main() -> int:
             print(f"sensors output: {args.sensors_out}")
             if args.piezo_out:
                 print(f"piezo output: {args.piezo_out}")
+            if args.piezo_avalanche_out:
+                print(f"piezo avalanche output: {args.piezo_avalanche_out}")
             if args.snapshot_dir:
                 print(f"snapshot dir: {args.snapshot_dir}")
             if args.heatmap_dir:

@@ -52,6 +52,7 @@ PYTHONDONTWRITEBYTECODE=1 PYTHONPATH=src .venv/bin/python -m elfquake.cli run-sa
   --summary-out "${prefix}.summary.csv" \
   --sensors-out "${prefix}.sensors.csv" \
   --piezo-out "${prefix}.piezo.csv" \
+  --piezo-avalanche-out "${prefix}.piezo_avalanche.csv" \
   --piezo-sensor-count "$piezo_sensor_count" \
   --piezo-cluster-count "$piezo_cluster_count" \
   --piezo-activation-ratio "$piezo_activation_ratio" \
