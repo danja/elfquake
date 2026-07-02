@@ -11,6 +11,7 @@ Prioritize feasibility and reproducibility before modeling.
 7. Continue with prospective-only VLF evaluation unless a separate historical Cumiana archive is obtained.
 8. Replace the schematic event-map basemap with a real cartographic basemap if geospatial dependencies are installed.
 9. Add avalanche centroid or rupture-mask outputs so synthetic event maps are not limited to fixed sensor proxy locations.
+10. Define regular-cadence multimodal tensors with missing-data masks before implementing Transformer candidates.
 
 Completed:
 
@@ -94,3 +95,4 @@ Completed:
 * Add single-sensor piezo rendering and DC-blocking filters for diagnostics.
 * Replace instantaneous piezo emission with a stateful charge-store/release model.
 * Add an offline Italy event-map renderer for normalized INGV-like event CSVs.
+* Update model candidates with time-series Transformer architectures from `2202.07125v5`.

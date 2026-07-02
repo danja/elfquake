@@ -8,7 +8,7 @@
   "frequency_axis": "fft_from_step_seconds",
   "height_px": "584",
   "image_file": "data/derived/sim/mountain_256x256_seed42_100000.piezo_summary.png",
-  "max_power": "10105461.855301408",
+  "max_power": "919410003.067206740",
   "nyquist_hz": "0.008333333333",
   "piezo_file": "data/derived/sim/mountain_256x256_seed42_100000.piezo.csv",
   "plot_type": "timeseries_plus_fft_spectrogram",
