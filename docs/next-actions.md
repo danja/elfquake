@@ -12,7 +12,7 @@ Prioritize feasibility and reproducibility before modeling.
 8. Replace the schematic event-map basemap with a real cartographic basemap if geospatial dependencies are installed.
 9. Add avalanche centroid or rupture-mask outputs so synthetic event maps are not limited to fixed sensor proxy locations.
 10. Define regular-cadence multimodal tensors with missing-data masks before implementing Transformer candidates.
-11. Compare simulated piezo VLF analogue displays against Cumiana spectrogram image features.
+11. Use the piezo/Cumiana comparison report to tune only simulation-derived sensors and display mappings.
 
 Completed:
 
@@ -100,3 +100,4 @@ Completed:
 * Correct piezo charge release accounting and add a VLF-shaped strain-envelope summary renderer.
 * Standardize simulation helper defaults on the `10000` step run and add `run-all.sh`.
 * Add an avalanche-derived piezo sensor so VLF/WAV spikes come from simulated toppling dynamics.
+* Add a reproducible comparison report for simulated piezo VLF images against Cumiana spectrogram features.

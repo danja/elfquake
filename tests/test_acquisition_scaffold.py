@@ -529,6 +529,37 @@ class AcquisitionScaffoldTests(unittest.TestCase):
             self.assertEqual(rows[0]["vlf_image_source_file"], str(image_path))
             self.assertTrue((root / "features.csv").exists())
 
+    def test_compare_vlf_image_features_writes_distance_report(self) -> None:
+        from PIL import Image
+        from elfquake.features.vlf_image_compare import compare_vlf_image_features
+
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            sim = root / "sim.png"
+            real_one = root / "last_E_VLF_one.jpg"
+            real_two = root / "last_E_VLF_two.jpg"
+
+            Image.new("RGB", (20, 10), (0, 0, 30)).save(sim)
+            Image.new("RGB", (20, 10), (0, 0, 25)).save(real_one)
+            bright = Image.new("RGB", (20, 10), (0, 0, 20))
+            pixels = bright.load()
+            for y in range(10):
+                pixels[5, y] = (255, 220, 20)
+            bright.save(real_two)
+
+            row = compare_vlf_image_features(
+                sim_image=sim,
+                real_images=[real_one, real_two],
+                out_path=root / "comparison.csv",
+                sim_crop_top=0.0,
+                real_crop_top=0.0,
+            )
+
+            self.assertEqual(row["real_image_count"], "2")
+            self.assertTrue(row["nearest_real_image_file"])
+            self.assertTrue(row["nearest_real_distance"])
+            self.assertTrue((root / "comparison.csv").exists())
+
     def test_join_vlf_image_features_to_windows_aggregates_by_capture_time(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)

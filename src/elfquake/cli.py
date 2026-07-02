@@ -28,6 +28,7 @@ from elfquake.features.table import build_multimodal_table_from_manifest, write_
 from elfquake.features.targets import label_multimodal_targets
 from elfquake.features.training_windows import build_seismic_training_windows
 from elfquake.features.vlf import build_vlf_features
+from elfquake.features.vlf_image_compare import compare_vlf_image_features
 from elfquake.features.vlf_image import build_vlf_image_features
 from elfquake.features.vlf_image_windows import join_vlf_image_features_to_windows
 from elfquake.features.vlf_windows import build_vlf_window_features
@@ -138,6 +139,21 @@ def main() -> int:
     vlf_image_features.add_argument("--crop-top", type=float, default=0.13)
     vlf_image_features.add_argument("--crop-right", type=float, default=0.83)
     vlf_image_features.add_argument("--crop-bottom", type=float, default=0.95)
+
+    vlf_image_compare = subparsers.add_parser("compare-vlf-image-features")
+    vlf_image_compare.add_argument("--sim-image", type=Path, required=True)
+    vlf_image_compare.add_argument("--real-image", type=Path, action="append", default=[])
+    vlf_image_compare.add_argument("--real-image-root", type=Path, action="append", default=[])
+    vlf_image_compare.add_argument("--filename-prefix", action="append", default=["last_E_VLF"])
+    vlf_image_compare.add_argument("--out", type=Path, required=True)
+    vlf_image_compare.add_argument("--sim-crop-left", type=float, default=0.0)
+    vlf_image_compare.add_argument("--sim-crop-top", type=float, default=0.13)
+    vlf_image_compare.add_argument("--sim-crop-right", type=float, default=1.0)
+    vlf_image_compare.add_argument("--sim-crop-bottom", type=float, default=1.0)
+    vlf_image_compare.add_argument("--real-crop-left", type=float, default=0.0)
+    vlf_image_compare.add_argument("--real-crop-top", type=float, default=0.13)
+    vlf_image_compare.add_argument("--real-crop-right", type=float, default=0.83)
+    vlf_image_compare.add_argument("--real-crop-bottom", type=float, default=0.95)
 
     vlf_image_join = subparsers.add_parser("join-vlf-image-features")
     vlf_image_join.add_argument("--windows", type=Path, required=True)
@@ -526,6 +542,30 @@ def main() -> int:
                 crop_bottom=args.crop_bottom,
             )
             print(f"image rows: {len(rows)}")
+            print(f"output: {args.out}")
+            return 0
+        elif args.command == "compare-vlf-image-features":
+            real_images = _resolve_image_paths(
+                image_paths=args.real_image,
+                image_roots=args.real_image_root,
+                filename_prefixes=args.filename_prefix,
+            )
+            row = compare_vlf_image_features(
+                sim_image=args.sim_image,
+                real_images=real_images,
+                out_path=args.out,
+                sim_crop_left=args.sim_crop_left,
+                sim_crop_top=args.sim_crop_top,
+                sim_crop_right=args.sim_crop_right,
+                sim_crop_bottom=args.sim_crop_bottom,
+                real_crop_left=args.real_crop_left,
+                real_crop_top=args.real_crop_top,
+                real_crop_right=args.real_crop_right,
+                real_crop_bottom=args.real_crop_bottom,
+            )
+            print(f"real images: {row['real_image_count']}")
+            print(f"nearest real: {row['nearest_real_image_file']}")
+            print(f"nearest distance: {row['nearest_real_distance']}")
             print(f"output: {args.out}")
             return 0
         elif args.command == "join-vlf-image-features":
