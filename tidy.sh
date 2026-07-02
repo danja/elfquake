@@ -76,7 +76,7 @@ fi
 find_args=(
   "$target_dir"
   -type f
-  \( -name '*.csv' -o -name '*.json' -o -name '*.npy' -o -name '*.png' -o -name '*.mp4' -o -name '*.txt' \)
+  \( -name '*.csv' -o -name '*.json' -o -name '*.npy' -o -name '*.png' -o -name '*.mp4' -o -name '*.txt' -o -name '*.wav' \)
 )
 
 if [[ "$days" != "all" ]]; then

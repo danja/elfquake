@@ -1,2 +1,0 @@
-window_start_utc,window_end_utc,region,target_magnitude_min,historical_window_count,historical_positive_count,predicted_probability,predicted_label,target_occurred,status
-2026-06-22T00:00:00Z,2026-06-29T23:59:59Z,central_italy,3.0,0,0,,0,0,insufficient_history

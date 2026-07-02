@@ -1,9 +1,0 @@
-{
-  "bounds": "5.5,19.5,35.0,47.8",
-  "event_count": "151",
-  "event_file": "data/derived/ingv/events_italy_2026-06-01_2026-06-29.combined.normalized.csv",
-  "map_file": "data/derived/maps/events_italy_2026-06-01_2026-06-29.combined.normalized.event_map.png",
-  "map_type": "offline_schematic_italy",
-  "max_events": "",
-  "min_magnitude": ""
-}

@@ -1,4 +1,0 @@
-window_start_utc,window_end_utc,command
-2026-06-01T00:00:00Z,2026-06-15T00:00:00Z,PYTHONPATH=src python -m elfquake.cli fetch-ingv-events --start 2026-06-01T00:00:00Z --end 2026-06-15T00:00:00Z --min-mag 2.0
-2026-06-15T00:00:00Z,2026-06-29T00:00:00Z,PYTHONPATH=src python -m elfquake.cli fetch-ingv-events --start 2026-06-15T00:00:00Z --end 2026-06-29T00:00:00Z --min-mag 2.0
-2026-06-29T00:00:00Z,2026-07-01T00:00:00Z,PYTHONPATH=src python -m elfquake.cli fetch-ingv-events --start 2026-06-29T00:00:00Z --end 2026-07-01T00:00:00Z --min-mag 2.0

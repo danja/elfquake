@@ -1,2 +1,0 @@
-window_start_utc,window_end_utc,astro_capture_count,astro_sources,astro_latest_capture_utc,astro_usno_next_phase,astro_usno_next_phase_utc,astro_noaa_solar_cycle_f107_month,astro_noaa_solar_cycle_f107_value,quality_missing_astro
-2026-06-29T09:00:00Z,2026-06-29T10:15:00Z,2,noaa_solar_cycle_f107;usno_moon_phases,2026-06-29T10:10:17Z,Full Moon,2026-06-29T23:56:00Z,2026-05,125.69,0
