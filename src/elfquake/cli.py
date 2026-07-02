@@ -374,6 +374,21 @@ def main() -> int:
     piezo_audio.add_argument("--sensor-id", type=int)
     piezo_audio.add_argument("--dc-block", type=float, default=0.0)
 
+    piezo_vlf_summary = subparsers.add_parser("render-piezo-vlf-summary")
+    piezo_vlf_summary.add_argument("--piezo", type=Path, required=True)
+    piezo_vlf_summary.add_argument("--out", type=Path, required=True)
+    piezo_vlf_summary.add_argument("--metadata-out", type=Path)
+    piezo_vlf_summary.add_argument("--start-time-utc", default="2026-01-01T00:00:00Z")
+    piezo_vlf_summary.add_argument("--carrier-freq-min-hz", type=float, default=0.0)
+    piezo_vlf_summary.add_argument("--carrier-freq-max-hz", type=float, default=24000.0)
+    piezo_vlf_summary.add_argument("--freq-bins", type=int, default=192)
+    piezo_vlf_summary.add_argument("--scale", type=int, default=4)
+    piezo_vlf_summary.add_argument("--gamma", type=float, default=0.85)
+    piezo_vlf_summary.add_argument("--timeseries-height", type=int, default=48)
+    piezo_vlf_summary.add_argument("--output-width", type=int, default=1600)
+    piezo_vlf_summary.add_argument("--sensor-id", type=int)
+    piezo_vlf_summary.add_argument("--dc-block", type=float, default=0.995)
+
     event_map = subparsers.add_parser("render-event-map")
     event_map.add_argument("--events", type=Path, required=True)
     event_map.add_argument("--out", type=Path, required=True)
@@ -969,6 +984,33 @@ def main() -> int:
             print(f"selected sensor: {report['selected_sensor_id'] or 'sum'}")
             print(f"dc block: {report['dc_block']}")
             print(f"type: {report['audio_type']}")
+            return 0
+        elif args.command == "render-piezo-vlf-summary":
+            from elfquake.sim.piezo_spectrogram import render_piezo_strain_vlf_summary
+
+            report = render_piezo_strain_vlf_summary(
+                piezo_csv=args.piezo,
+                out_path=args.out,
+                metadata_out=args.metadata_out,
+                start_time_utc=args.start_time_utc,
+                carrier_freq_min_hz=args.carrier_freq_min_hz,
+                carrier_freq_max_hz=args.carrier_freq_max_hz,
+                freq_bins=args.freq_bins,
+                scale=args.scale,
+                gamma=args.gamma,
+                timeseries_height=args.timeseries_height,
+                output_width=args.output_width,
+                sensor_id=args.sensor_id,
+                dc_block=args.dc_block,
+            )
+            print(f"image: {report['image_file']}")
+            print(f"steps: {report['step_count']}")
+            print(f"sensors: {report['sensor_count']}")
+            print(f"selected sensor: {report['selected_sensor_id'] or 'sum'}")
+            print(f"carrier frequency range: {report['carrier_freq_min_hz']}..{report['carrier_freq_max_hz']} Hz")
+            print(f"type: {report['plot_type']}")
+            if args.metadata_out:
+                print(f"metadata: {args.metadata_out}")
             return 0
         elif args.command == "render-event-map":
             from elfquake.visualization.event_map import render_event_map

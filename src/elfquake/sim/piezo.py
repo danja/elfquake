@@ -202,31 +202,52 @@ def _piezo_sensor_values(
         for x in range(width):
             charge[y, x] = charge[y, x] * charge_decay
             max_difference = 0.0
+            previous_max_difference = 0.0
             value = grid[y, x]
+            previous_value = previous_grid[y, x]
             if y > 0:
                 diff = value - grid[y - 1, x]
                 if diff > max_difference:
                     max_difference = diff
+                previous_diff = previous_value - previous_grid[y - 1, x]
+                if previous_diff > previous_max_difference:
+                    previous_max_difference = previous_diff
             if y < height - 1:
                 diff = value - grid[y + 1, x]
                 if diff > max_difference:
                     max_difference = diff
+                previous_diff = previous_value - previous_grid[y + 1, x]
+                if previous_diff > previous_max_difference:
+                    previous_max_difference = previous_diff
             if x > 0:
                 diff = value - grid[y, x - 1]
                 if diff > max_difference:
                     max_difference = diff
+                previous_diff = previous_value - previous_grid[y, x - 1]
+                if previous_diff > previous_max_difference:
+                    previous_max_difference = previous_diff
             if x < width - 1:
                 diff = value - grid[y, x + 1]
                 if diff > max_difference:
                     max_difference = diff
+                previous_diff = previous_value - previous_grid[y, x + 1]
+                if previous_diff > previous_max_difference:
+                    previous_max_difference = previous_diff
 
             stress_ratio = max_difference / threshold
+            previous_stress_ratio = previous_max_difference / threshold
+            stress_delta = stress_ratio - previous_stress_ratio
             if stress_ratio > max_stress_ratio:
                 max_stress_ratio = stress_ratio
-            positive_change = value - previous_grid[y, x]
-            if positive_change > 0 and stress_ratio >= activation_ratio:
+            positive_change = value - previous_value
+            strain_drive = 0.0
+            if positive_change > 0:
+                strain_drive += positive_change
+            if stress_delta > 0:
+                strain_drive += stress_delta * threshold
+            if strain_drive > 0 and stress_ratio >= activation_ratio:
                 strength = (stress_ratio - activation_ratio) / denominator
-                added_charge = susceptibility[y, x] * positive_change * strength * charge_coupling
+                added_charge = susceptibility[y, x] * strain_drive * strength * charge_coupling
                 if added_charge > 0:
                     charge[y, x] += added_charge
                     if saturation > 0 and charge[y, x] > saturation:
@@ -236,18 +257,35 @@ def _piezo_sensor_values(
 
             if stress_ratio >= activation_ratio:
                 near_critical_count += 1
+            stress_gate = 0.0
+            if stress_ratio >= activation_ratio:
+                stress_gate = (stress_ratio - activation_ratio) / denominator
+                if stress_gate > 1.0:
+                    stress_gate = 1.0
+
+            regular_release = 0.0
+            if stress_gate > 0.0 and strain_drive > 0.0 and charge[y, x] > 0.0:
+                drive_gate = strain_drive / threshold
+                if drive_gate > 1.0:
+                    drive_gate = 1.0
+                regular_release = charge[y, x] * release_ratio * stress_gate * stress_gate * drive_gate
+                charge[y, x] -= regular_release
+                total_release += regular_release
+
             critical_release = 0.0
-            if stress_ratio >= 1.0:
+            if stress_ratio >= 1.0 and previous_stress_ratio < 1.0:
                 critical_count += 1
                 critical_release = charge[y, x] * critical_release_ratio
                 charge[y, x] -= critical_release
                 total_release += critical_release
+            elif stress_ratio >= 1.0:
+                critical_count += 1
 
             charge_total += charge[y, x]
             if charge[y, x] > charge_max:
                 charge_max = charge[y, x]
 
-            source = charge[y, x] * release_ratio + critical_release
+            source = regular_release + critical_release
             if source > 0:
                 total_source += source
             if stress_ratio >= activation_ratio or source > 0:

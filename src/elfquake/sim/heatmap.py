@@ -127,7 +127,7 @@ def _grid_to_rgb(
     color_max: float | None = None,
     gamma: float = 1.0,
 ) -> np.ndarray:
-    maximum = color_max if color_max is not None else int(grid.max()) if grid.size else color_min
+    maximum = color_max if color_max is not None else float(grid.max()) if grid.size else color_min
     if maximum <= color_min:
         normalized = np.zeros_like(grid, dtype=np.float64)
     else:

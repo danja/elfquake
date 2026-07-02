@@ -124,10 +124,10 @@ The simulator creates a clustered susceptibility map to represent quartz-bearing
 2. measure each cell's steepest local downhill slope
 3. add charge from positive stress/height change when the cell is near the failure threshold
 4. cap charge with `PIEZO_SATURATION`, releasing any excess
-5. release a configurable fraction of charge every step
-6. release an additional fraction for cells already over the critical slope
+5. release charge when strain is increasing near the failure threshold
+6. release an additional fraction when a cell crosses into critical slope
 
-The emitted source is therefore based on stored charge and release, not only instantaneous height change. Piezo sensors record a distance-weighted sum from nearby emitting cells. This creates a separate precursor time series sampled before the avalanche-like toppling event. Keep this channel separate from seismic-like toppling outputs so later ML experiments can test whether precursor features add value.
+The emitted source is therefore based on stored charge and strain-driven release, not only instantaneous height change. Sustained stress alone should not create a constant radio floor. Piezo sensors record a distance-weighted sum from nearby emitting cells. This creates a separate precursor time series sampled before the avalanche-like toppling event. Keep this channel separate from seismic-like toppling outputs so later ML experiments can test whether precursor features add value.
 
 Piezo CSV diagnostics include total charge, maximum charge, and total release per step so the charge-store behavior can be audited.
 
@@ -173,9 +173,17 @@ Render a combined time-series and spectrogram PNG:
 ./piezo-summary.sh
 ```
 
-Long runs are compressed to a display width before plotting. The default `OUTPUT_WIDTH=1600` keeps large runs inspectable without relying on image-viewer downsampling.
+This is an FFT diagnostic of the simulated receiver envelope. It is useful for checking drift, bursts, and rough spectral slope, but it is not expected to look like a real VLF receiver spectrogram because the simulation timestep is much slower than VLF carrier sampling.
 
 By default the helper renders one receiver (`SENSOR_ID=0`) with a one-pole DC-blocking filter (`DC_BLOCK=0.995`). Set `SENSOR_ID` to another integer or clear the filter with `DC_BLOCK=0` when comparing sensors.
+
+Render a VLF-shaped analogue summary:
+
+```sh
+./piezo-vlf-summary.sh
+```
+
+This maps the simulated strain-release envelope onto deterministic carrier-like bands from `0` to `24000` Hz. It is a display analogue for sanity checking the piezo-strain hypothesis, not a physical RF waveform or FFT of the simulation timestep.
 
 Render a WAV sonification of the summed piezo signal:
 
@@ -248,6 +256,14 @@ The root helper `./sim.sh` runs a parameterized mountain-mode simulation with fi
 The default target fill limit adds at most one sixteenth of a full layer per step. This provides background loading without replacing the localized point-source stress pattern.
 
 `sim.sh` sets `SLOPE_THRESHOLD` to `max(WIDTH / 16, 4)` unless overridden.
+
+Run the full local demo pipeline:
+
+```sh
+./run-all.sh
+```
+
+This runs `sim.sh`, builds synthetic events, renders the FFT piezo diagnostic, renders the VLF-shaped piezo analogue, writes the WAV sonification, builds the heatmap video, and renders the synthetic event map. It defaults to `mountain_256x256_seed42_10000`. Set `RUN_SIM=0` to reuse existing simulation files or `RUN_VIDEO=0` to skip MP4 generation.
 
 Create a video from generated PNG heatmaps:
 

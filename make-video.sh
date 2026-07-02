@@ -24,9 +24,14 @@ if [[ "${1:-}" == "-h" || "${1:-}" == "--help" ]]; then
   exit 0
 fi
 
-input_dir="${1:-data/derived/sim/mountain_256x256_seed42_100000.heatmaps}"
-output_mp4="${2:-data/derived/sim/mountain_256x256_seed42_100000.mp4}"
-fps="${3:-30}"
+width="${WIDTH:-256}"
+height="${HEIGHT:-256}"
+steps="${STEPS:-10000}"
+seed="${SEED:-42}"
+prefix="data/derived/sim/mountain_${width}x${height}_seed${seed}_${steps}"
+input_dir="${1:-${prefix}.heatmaps}"
+output_mp4="${2:-${prefix}.mp4}"
+fps="${3:-20}"
 pattern="sandpile_step_*.png"
 
 if ! command -v ffmpeg >/dev/null 2>&1; then

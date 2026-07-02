@@ -3,7 +3,7 @@ set -euo pipefail
 
 width="${WIDTH:-256}"
 height="${HEIGHT:-256}"
-steps="${STEPS:-100000}"
+steps="${STEPS:-10000}"
 seed="${SEED:-42}"
 snapshot_interval="${SNAPSHOT_INTERVAL:-10}"
 progress_interval="${PROGRESS_INTERVAL:-100}"

@@ -1487,6 +1487,39 @@ class AcquisitionScaffoldTests(unittest.TestCase):
             self.assertEqual(report["selected_sensor_id"], "0")
             self.assertEqual(report["dc_block"], "0.95")
 
+    def test_render_piezo_vlf_summary_writes_analogue_png(self) -> None:
+        from elfquake.sim.piezo_spectrogram import render_piezo_strain_vlf_summary
+
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            piezo = root / "piezo.csv"
+            piezo.write_text(
+                "step,sensor_id,x,y,piezo_signal,piezo_total_source,near_critical_cell_count,"
+                "critical_cell_count,nearest_critical_distance,max_stress_ratio\n"
+                "0,0,0,0,0.0,0.0,0,0,,0.0\n"
+                "1,0,0,0,2.0,2.0,2,0,1.0,0.8\n"
+                "2,0,0,0,0.5,0.5,1,0,1.0,0.7\n",
+                encoding="utf-8",
+            )
+
+            report = render_piezo_strain_vlf_summary(
+                piezo_csv=piezo,
+                out_path=root / "vlf.png",
+                metadata_out=root / "vlf.json",
+                freq_bins=16,
+                scale=2,
+                timeseries_height=24,
+                output_width=3,
+                sensor_id=0,
+            )
+
+            self.assertEqual((root / "vlf.png").read_bytes()[:8], b"\x89PNG\r\n\x1a\n")
+            metadata = json.loads((root / "vlf.json").read_text(encoding="utf-8"))
+            self.assertEqual(metadata["plot_type"], "strain_envelope_vlf_analogue")
+            self.assertEqual(metadata["frequency_axis"], "analogue_vlf_carrier_hz")
+            self.assertEqual(metadata["selected_sensor_id"], "0")
+            self.assertEqual(report["width_px"], "6")
+
     @unittest.skipIf(importlib.util.find_spec("matplotlib") is None, "matplotlib not installed")
     def test_render_event_map_writes_png_and_metadata(self) -> None:
         from elfquake.visualization.event_map import render_event_map
