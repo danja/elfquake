@@ -9,6 +9,7 @@ from typing import Callable
 
 import numpy as np
 
+from elfquake.sim.avalanche_activity import AVALANCHE_ACTIVITY_FIELDS, build_avalanche_activity_row
 from elfquake.sim.piezo import (
     AVALANCHE_SIGNAL_SENSOR_FIELDS,
     PIEZO_SENSOR_FIELDS,
@@ -73,6 +74,7 @@ def run_sandpile_simulation(
     sensors_out: Path,
     piezo_out: Path | None = None,
     avalanche_signal_out: Path | None = None,
+    avalanche_activity_out: Path | None = None,
     piezo_avalanche_out: Path | None = None,
     piezo_config: PiezoConfig | None = None,
     snapshot_dir: Path | None = None,
@@ -98,6 +100,7 @@ def run_sandpile_simulation(
     sensors = _random_points(rng, config.width, config.height, config.sensor_count)
     piezo_rows = []
     avalanche_signal_rows = []
+    avalanche_activity_rows = []
     piezo_sensors = None
     piezo_susceptibility = None
     piezo_charge = None
@@ -164,6 +167,8 @@ def run_sandpile_simulation(
             config.threshold,
             config.max_relaxation_sweeps,
         )
+        if avalanche_activity_out is not None:
+            avalanche_activity_rows.append(build_avalanche_activity_row(step=step, topple_counts=topple_counts))
         if resolved_avalanche_signal_out is not None:
             assert resolved_piezo_config is not None
             assert piezo_sensors is not None
@@ -217,6 +222,8 @@ def run_sandpile_simulation(
         _write_csv(piezo_out, PIEZO_SENSOR_FIELDS, piezo_rows)
     if resolved_avalanche_signal_out is not None:
         _write_csv(resolved_avalanche_signal_out, AVALANCHE_SIGNAL_SENSOR_FIELDS, avalanche_signal_rows)
+    if avalanche_activity_out is not None:
+        _write_csv(avalanche_activity_out, AVALANCHE_ACTIVITY_FIELDS, avalanche_activity_rows)
     if snapshot_dir is not None:
         _write_csv(snapshot_dir / "manifest.csv", ["step", "snapshot_file"], snapshot_rows)
     return summary_rows, sensor_rows

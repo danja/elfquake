@@ -1,6 +1,6 @@
 # ELFQuake
 
-ELFQuake is a research project testing whether [Extremely](https://en.wikipedia.org/wiki/Extremely_low_frequency)/[Very Low Frequency](https://en.wikipedia.org/wiki/Very_low_frequency) radio observations can augment seismic and astronomical data enough to support useful earthquake-related predictive modeling.
+ELFQuake is a research project examining whether [Extremely](https://en.wikipedia.org/wiki/Extremely_low_frequency)/[Very Low Frequency](https://en.wikipedia.org/wiki/Very_low_frequency) radio observations can augment seismic and astronomical data enough to support useful predictive modeling of earthquakes.
 
 The core hypothesis is that natural ELF/VLF radio anomalies may contain signal that is not present in seismic event history alone. At least [one study](https://pubs.geoscienceworld.org/ssa/bssa/article-abstract/113/6/2461/627949/Earthquake-Forecasting-Using-Big-Data-and)
  suggests this may be a viable approach.

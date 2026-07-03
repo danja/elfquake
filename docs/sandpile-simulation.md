@@ -77,10 +77,21 @@ Direct avalanche signal CSV:
 * `stress_drop_total`
 * `stress_drop_max`
 
+Direct avalanche activity CSV:
+
+* `step`
+* `active_topple_cell_count`
+* `topple_count`
+* `centroid_x`
+* `centroid_y`
+* `weighted_centroid_x`
+* `weighted_centroid_y`
+* rupture bounding box and peak-topple cell
+
 Optional later outputs:
 
 * height-grid snapshots at configured intervals
-* avalanche masks or event maps
+* avalanche rupture masks
 * chunked binary snapshots for larger runs
 
 ## Implementation
@@ -149,6 +160,7 @@ The simulator writes separate VLF-like and seismic-like signal forms when config
 
 * `*.piezo.csv` - piezo strain/charge sensor for VLF-like analogue outputs
 * `*.avalanche_signal.csv` - direct toppling/stress-release signal sampled from avalanche relaxation
+* `*.avalanche_activity.csv` - direct toppling footprint, centroid, bounding box, and peak cell
 * `*.synthetic_events.csv` - INGV-like direct seismic event rows from summary/sensor tables
 * `*.avalanche_events.csv` - INGV-like direct seismic event rows from the avalanche signal table
 
@@ -184,6 +196,7 @@ For direct avalanche-signal events, use sparse peak extraction so small continuo
 ```sh
 PYTHONDONTWRITEBYTECODE=1 PYTHONPATH=src .venv/bin/python -m elfquake.cli build-avalanche-signal-event-list \
   --avalanche data/derived/sim/mountain_128x128_seed42_1000.avalanche_signal.csv \
+  --activity data/derived/sim/mountain_128x128_seed42_1000.avalanche_activity.csv \
   --grid-width 128 \
   --grid-height 128 \
   --min-signal-quantile 0.95 \
@@ -248,7 +261,7 @@ Render avalanche-derived seismic-like events over an offline Italy map:
 
 The helper prefers the newest `*.avalanche_events.csv`, then falls back to `*.synthetic_events.csv` and normalized INGV CSVs. By default it uses a packaged Natural Earth 1:10m Italy GeoJSON as a realistic offline line basemap and still works without `geopandas`, `shapely`, or web tiles. Use `BASEMAP_GEOJSON=/path/to/map.geojson ./event-map.sh` to override the outline.
 
-Current synthetic event locations are proxy locations from direct avalanche-signal sensors. They are suitable for a demo overlay, but not yet for evaluating spatial realism. Add avalanche centroid or rupture-mask output before using synthetic maps as spatial training data.
+Current synthetic event locations use the weighted centroid from direct avalanche toppling activity when `*.avalanche_activity.csv` is available, falling back to direct avalanche-signal sensor locations for older runs. They are suitable for a demo overlay, but not yet for evaluating spatial realism. Add full rupture-mask output before using synthetic maps as spatial training data.
 
 ## Mountain Mode
 

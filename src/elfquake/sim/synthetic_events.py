@@ -121,6 +121,7 @@ def build_avalanche_signal_event_list(
     out_path: Path,
     grid_width: int,
     grid_height: int,
+    avalanche_activity_csv: Path | None = None,
     start_time_utc: str = "2026-01-01T00:00:00Z",
     step_seconds: int = 60,
     min_signal: float = 0.0,
@@ -153,6 +154,7 @@ def build_avalanche_signal_event_list(
     start = _parse_utc(start_time_utc)
     ingested = ingested_at_utc or start_time_utc
     grouped = _read_avalanche_signal_by_step(avalanche_csv)
+    activity_by_step = _read_avalanche_activity_by_step(avalanche_activity_csv) if avalanche_activity_csv else {}
     candidates = []
     for step in sorted(grouped):
         step_rows = grouped[step]
@@ -173,8 +175,7 @@ def build_avalanche_signal_event_list(
 
     rows = []
     for step, strongest, signal, total_source, _score in candidates:
-        x = int(strongest.get("x", "0") or "0")
-        y = int(strongest.get("y", "0") or "0")
+        x, y, location_quality = _avalanche_event_location(strongest, activity_by_step.get(step))
         latitude, longitude = _grid_to_central_italy(
             x=x,
             y=y,
@@ -186,9 +187,13 @@ def build_avalanche_signal_event_list(
             lon_max=lon_max,
         )
         event_time = start + timedelta(seconds=step * step_seconds)
-        active_topple_cell_count = int(strongest.get("active_topple_cell_count", "0") or "0")
+        active_topple_cell_count = _int_value(
+            (activity_by_step.get(step) or {}).get("active_topple_cell_count", "")
+            or strongest.get("active_topple_cell_count", "0")
+        )
         max_local_topple = int(strongest.get("max_local_topple", "0") or "0")
         stress_drop_total = float(strongest.get("stress_drop_total", "0") or "0")
+        event_topple_count = _int_value((activity_by_step.get(step) or {}).get("topple_count", "")) or active_topple_cell_count
         row = {
             "event_id": f"synthetic_avalanche_signal_step_{step:06d}",
             "source": source,
@@ -199,17 +204,17 @@ def build_avalanche_signal_event_list(
             "magnitude": _signal_magnitude(total_source=total_source, signal=signal),
             "magnitude_type": magnitude_type,
             "italy_region": "central_italy",
-            "event_location_name": f"Synthetic avalanche signal cell x={x} y={y}",
+            "event_location_name": f"Synthetic avalanche signal cell x={_format_grid_coord(x)} y={_format_grid_coord(y)}",
             "event_type": "earthquake",
             "raw_file": str(avalanche_csv),
             "ingested_at_utc": ingested,
             "raw_uri": str(avalanche_csv),
             "step": str(step),
-            "x": str(x),
-            "y": str(y),
-            "topple_count": str(active_topple_cell_count),
+            "x": _format_grid_coord(x),
+            "y": _format_grid_coord(y),
+            "topple_count": str(event_topple_count),
             "released_mass": str(int(round(total_source))),
-            "location_quality": "avalanche_signal_sensor",
+            "location_quality": location_quality,
             "avalanche_signal": f"{signal:.9f}",
             "avalanche_total_source": f"{total_source:.9f}",
             "active_topple_cell_count": str(active_topple_cell_count),
@@ -240,6 +245,28 @@ def _read_avalanche_signal_by_step(avalanche_csv: Path) -> dict[int, list[dict[s
         for row in csv.DictReader(handle):
             grouped.setdefault(int(row["step"]), []).append(row)
     return grouped
+
+
+def _read_avalanche_activity_by_step(avalanche_activity_csv: Path) -> dict[int, dict[str, str]]:
+    grouped: dict[int, dict[str, str]] = {}
+    with avalanche_activity_csv.open(newline="", encoding="utf-8") as handle:
+        for row in csv.DictReader(handle):
+            grouped[int(row["step"])] = row
+    return grouped
+
+
+def _avalanche_event_location(
+    strongest: dict[str, str],
+    activity: dict[str, str] | None,
+) -> tuple[float, float, str]:
+    if activity and _int_value(activity.get("active_topple_cell_count", "0")) > 0:
+        x_text = activity.get("weighted_centroid_x") or activity.get("centroid_x") or activity.get("peak_x") or ""
+        y_text = activity.get("weighted_centroid_y") or activity.get("centroid_y") or activity.get("peak_y") or ""
+        try:
+            return float(x_text), float(y_text), "avalanche_activity_weighted_centroid"
+        except ValueError:
+            pass
+    return float(strongest.get("x", "0") or "0"), float(strongest.get("y", "0") or "0"), "avalanche_signal_sensor"
 
 
 def _avalanche_signal_value(row: dict[str, str]) -> float:
@@ -280,8 +307,8 @@ def _event_sensor(rows: list[dict[str, str]]) -> tuple[dict[str, str], str]:
 
 def _grid_to_central_italy(
     *,
-    x: int,
-    y: int,
+    x: float,
+    y: float,
     grid_width: int,
     grid_height: int,
     lat_min: float,
@@ -309,6 +336,19 @@ def _signal_magnitude(*, total_source: float, signal: float) -> str:
 def _depth_km(*, y: int, grid_height: int) -> str:
     y_ratio = min(1.0, max(0.0, y / (grid_height - 1)))
     return f"{2.0 + y_ratio * 18.0:.2f}"
+
+
+def _format_grid_coord(value: float) -> str:
+    if float(value).is_integer():
+        return str(int(value))
+    return f"{value:.3f}"
+
+
+def _int_value(value: str) -> int:
+    try:
+        return int(float(value or "0"))
+    except ValueError:
+        return 0
 
 
 def _parse_utc(value: str) -> datetime:

@@ -289,6 +289,7 @@ def main() -> int:
     sandpile.add_argument("--sensors-out", type=Path, required=True)
     sandpile.add_argument("--piezo-out", type=Path)
     sandpile.add_argument("--avalanche-signal-out", type=Path)
+    sandpile.add_argument("--avalanche-activity-out", type=Path)
     sandpile.add_argument("--piezo-avalanche-out", type=Path)
     sandpile.add_argument("--piezo-sensor-count", type=int, default=16)
     sandpile.add_argument("--piezo-susceptibility-base", type=float, default=0.15)
@@ -358,6 +359,7 @@ def main() -> int:
 
     avalanche_events = subparsers.add_parser("build-avalanche-signal-event-list")
     avalanche_events.add_argument("--avalanche", type=Path, required=True)
+    avalanche_events.add_argument("--activity", type=Path)
     avalanche_events.add_argument("--out", type=Path, required=True)
     avalanche_events.add_argument("--grid-width", type=int, required=True)
     avalanche_events.add_argument("--grid-height", type=int, required=True)
@@ -843,6 +845,7 @@ def main() -> int:
                 sensors_out=args.sensors_out,
                 piezo_out=args.piezo_out,
                 avalanche_signal_out=args.avalanche_signal_out,
+                avalanche_activity_out=args.avalanche_activity_out,
                 piezo_avalanche_out=args.piezo_avalanche_out,
                 piezo_config=PiezoConfig(
                     sensor_count=args.piezo_sensor_count,
@@ -859,7 +862,7 @@ def main() -> int:
                     critical_release_ratio=args.piezo_critical_release_ratio,
                     saturation=args.piezo_saturation,
                 )
-                if args.piezo_out
+                if args.piezo_out or args.avalanche_signal_out or args.piezo_avalanche_out
                 else None,
                 snapshot_dir=args.snapshot_dir,
                 snapshot_interval=args.snapshot_interval,
@@ -915,6 +918,8 @@ def main() -> int:
             direct_avalanche_out = args.avalanche_signal_out or args.piezo_avalanche_out
             if direct_avalanche_out:
                 print(f"avalanche signal output: {direct_avalanche_out}")
+            if args.avalanche_activity_out:
+                print(f"avalanche activity output: {args.avalanche_activity_out}")
             if args.snapshot_dir:
                 print(f"snapshot dir: {args.snapshot_dir}")
             if args.heatmap_dir:
@@ -1003,6 +1008,7 @@ def main() -> int:
 
             rows = build_avalanche_signal_event_list(
                 avalanche_csv=args.avalanche,
+                avalanche_activity_csv=args.activity,
                 out_path=args.out,
                 grid_width=args.grid_width,
                 grid_height=args.grid_height,

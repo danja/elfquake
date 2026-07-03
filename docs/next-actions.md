@@ -16,7 +16,7 @@
 5. Add slope/erosion smoothing to mountain-mode synthetic terrain if ridgeline-like visuals are needed.
 6. Backfill enough historical INGV windows to get both positive and negative target classes by region.
 7. Continue with prospective-only VLF evaluation unless a separate historical Cumiana archive is obtained.
-8. Add avalanche centroid or rupture-mask outputs so synthetic event maps are not limited to fixed sensor proxy locations.
+8. Add full rupture-mask outputs if synthetic event maps need spatial extent rather than centroid locations.
 9. Define regular-cadence multimodal tensors with missing-data masks before implementing Transformer candidates.
 10. Use the piezo/Cumiana comparison report to tune only the piezo VLF mapping derived from `*.piezo.csv`.
 11. Shape direct avalanche signal events for INGV-like seismic event experiments without using the piezo/VLF path.
@@ -26,6 +26,7 @@
 
 * Add sparse local-peak extraction for direct avalanche-derived seismic events.
 * Add a Natural Earth Italy line basemap for avalanche-derived event-map demos.
+* Add direct avalanche activity centroids for synthetic seismic event locations.
 * Add VLF display scaling controls derived from the piezo signal.
 * Add `compare-simulation-grid.sh` for multi-seed simulation comparison.
 * Add a declared simulation-to-real time-scale note before PSD interpretation.

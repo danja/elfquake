@@ -67,6 +67,7 @@ if [[ "$run_event_map" != "0" ]]; then
     --out "${prefix}.synthetic_events.csv"
   PYTHONDONTWRITEBYTECODE=1 PYTHONPATH=src .venv/bin/python -m elfquake.cli build-avalanche-signal-event-list \
     --avalanche "${prefix}.avalanche_signal.csv" \
+    --activity "${prefix}.avalanche_activity.csv" \
     --grid-width "$width" \
     --grid-height "$height" \
     --min-signal-quantile "$avalanche_event_quantile" \

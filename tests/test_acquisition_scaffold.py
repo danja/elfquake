@@ -1341,6 +1341,7 @@ class AcquisitionScaffoldTests(unittest.TestCase):
 
     @unittest.skipIf(importlib.util.find_spec("numba") is None, "numba not installed")
     def test_sandpile_can_write_piezo_precursor_and_avalanche_signal_rows(self) -> None:
+        from elfquake.sim.avalanche_activity import AVALANCHE_ACTIVITY_FIELDS
         from elfquake.sim.piezo import AVALANCHE_SIGNAL_SENSOR_FIELDS, PIEZO_SENSOR_FIELDS, PiezoConfig
         from elfquake.sim.sandpile import SandpileConfig, run_sandpile_simulation
 
@@ -1348,6 +1349,7 @@ class AcquisitionScaffoldTests(unittest.TestCase):
             root = Path(directory)
             piezo_out = root / "piezo.csv"
             avalanche_signal_out = root / "avalanche_signal.csv"
+            avalanche_activity_out = root / "avalanche_activity.csv"
 
             run_sandpile_simulation(
                 config=SandpileConfig(
@@ -1364,6 +1366,7 @@ class AcquisitionScaffoldTests(unittest.TestCase):
                 sensors_out=root / "sensors.csv",
                 piezo_out=piezo_out,
                 avalanche_signal_out=avalanche_signal_out,
+                avalanche_activity_out=avalanche_activity_out,
                 piezo_config=PiezoConfig(
                     sensor_count=3,
                     susceptibility_base=1.0,
@@ -1394,6 +1397,13 @@ class AcquisitionScaffoldTests(unittest.TestCase):
             self.assertGreater(
                 max(float(line.split(",")[avalanche_signal_index]) for line in avalanche_lines[1:]),
                 0.0,
+            )
+            activity_lines = avalanche_activity_out.read_text(encoding="utf-8").splitlines()
+            self.assertEqual(activity_lines[0], ",".join(AVALANCHE_ACTIVITY_FIELDS))
+            self.assertEqual(len(activity_lines), 1 + 8)
+            self.assertGreater(
+                max(int(line.split(",")[AVALANCHE_ACTIVITY_FIELDS.index("topple_count")]) for line in activity_lines[1:]),
+                0,
             )
 
     def test_build_synthetic_event_list_writes_ingv_like_rows(self) -> None:
@@ -1503,6 +1513,40 @@ class AcquisitionScaffoldTests(unittest.TestCase):
             self.assertEqual(rows[0]["location_quality"], "avalanche_signal_sensor")
             self.assertEqual(rows[0]["avalanche_signal"], "8.000000000")
             self.assertEqual((root / "events.csv").read_text(encoding="utf-8").splitlines()[0], ",".join(AVALANCHE_SIGNAL_EVENT_FIELDS))
+
+    def test_build_avalanche_signal_event_list_prefers_activity_centroid_location(self) -> None:
+        from elfquake.sim.synthetic_events import build_avalanche_signal_event_list
+
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            avalanche = root / "avalanche.csv"
+            activity = root / "activity.csv"
+            avalanche.write_text(
+                "step,sensor_id,x,y,avalanche_signal,avalanche_total_source,active_topple_cell_count,"
+                "max_local_topple,nearest_topple_distance,stress_drop_total,stress_drop_max,avalanche_release_total\n"
+                "1,0,2,3,8.0,10.0,5,3,0.5,3.0,2.0,10.0\n",
+                encoding="utf-8",
+            )
+            activity.write_text(
+                "step,active_topple_cell_count,topple_count,centroid_x,centroid_y,weighted_centroid_x,"
+                "weighted_centroid_y,min_x,max_x,min_y,max_y,peak_x,peak_y,peak_topple_count\n"
+                "1,3,12,5.0,6.0,6.5,7.25,4,8,6,9,7,8,5\n",
+                encoding="utf-8",
+            )
+
+            rows = build_avalanche_signal_event_list(
+                avalanche_csv=avalanche,
+                avalanche_activity_csv=activity,
+                out_path=root / "events.csv",
+                grid_width=10,
+                grid_height=10,
+                min_signal=1.0,
+            )
+
+            self.assertEqual(rows[0]["x"], "6.500")
+            self.assertEqual(rows[0]["y"], "7.250")
+            self.assertEqual(rows[0]["topple_count"], "12")
+            self.assertEqual(rows[0]["location_quality"], "avalanche_activity_weighted_centroid")
 
     def test_build_avalanche_signal_event_list_can_select_sparse_local_peaks(self) -> None:
         from elfquake.sim.synthetic_events import build_avalanche_signal_event_list
