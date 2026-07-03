@@ -59,6 +59,7 @@ def _tensor_summary(path: Path, manifest: dict[str, object]) -> dict[str, object
         "layout": manifest.get("layout", ""),
         "row_count": manifest.get("row_count", 0),
         "feature_count": manifest.get("feature_count", 0),
+        "time_field": manifest.get("time_field", ""),
         "modalities": modalities,
         "values_csv": manifest.get("values_csv", ""),
         "masks_csv": manifest.get("masks_csv", ""),
@@ -71,6 +72,11 @@ def _tensor_summary(path: Path, manifest: dict[str, object]) -> dict[str, object
 def _sequence_summary(path: Path, manifest: dict[str, object]) -> dict[str, object]:
     time_axis_csv = Path(str(manifest.get("time_axis_csv", "")))
     entity_axis_csv = Path(str(manifest.get("entity_axis_csv", "")))
+    time_mapping = manifest.get("time_mapping", {})
+    utc_axis_field = ""
+    if isinstance(time_mapping, dict):
+        utc_axis_field = str(time_mapping.get("utc_axis_field", ""))
+    coverage_field = utc_axis_field or str(manifest.get("time_field", "time"))
     return {
         "name": path.parent.name,
         "kind": "sequence_tensor",
@@ -81,6 +87,8 @@ def _sequence_summary(path: Path, manifest: dict[str, object]) -> dict[str, obje
         "time_count": manifest.get("time_count", 0),
         "entity_count": manifest.get("entity_count", 0),
         "channel_count": manifest.get("channel_count", 0),
+        "time_field": manifest.get("time_field", ""),
+        "time_mapping": time_mapping,
         "modalities": [str(manifest.get("modality", ""))],
         "values_csv": manifest.get("values_csv", ""),
         "masks_csv": manifest.get("masks_csv", ""),
@@ -88,7 +96,7 @@ def _sequence_summary(path: Path, manifest: dict[str, object]) -> dict[str, obje
         "time_axis_csv": manifest.get("time_axis_csv", ""),
         "entity_axis_csv": manifest.get("entity_axis_csv", ""),
         "supports_missing_masks": bool(manifest.get("masks_csv") and manifest.get("mask_fields")),
-        "time_coverage": _axis_coverage(time_axis_csv, str(manifest.get("time_field", "time"))) if time_axis_csv else {},
+        "time_coverage": _axis_coverage(time_axis_csv, coverage_field) if time_axis_csv else {},
         "entity_coverage": _axis_coverage(entity_axis_csv, str(manifest.get("entity_field", "entity"))) if entity_axis_csv else {},
     }
 
@@ -183,10 +191,23 @@ def _ablation_groups(datasets: list[dict[str, object]]) -> dict[str, list[str]]:
 
 def _alignment_notes(datasets: list[dict[str, object]]) -> list[str]:
     notes = []
-    if any(dataset["kind"] == "sequence_tensor" for dataset in datasets):
+    if any(
+        dataset["kind"] == "sequence_tensor"
+        and not _has_sequence_utc_mapping(dataset)
+        for dataset in datasets
+    ):
         notes.append("sequence tensors need an explicit time-scale mapping before joining to UTC event windows")
-    if any("vlf_image" in dataset.get("modalities", []) for dataset in datasets):
+    if any(
+        "vlf_image" in dataset.get("modalities", [])
+        and dataset.get("time_field") != "vlf_image_captured_at_utc"
+        for dataset in datasets
+    ):
         notes.append("VLF image tensors use capture-time inference from source filenames unless an explicit time field is added")
     if "synthetic_piezo_vlf" in _ablation_groups(datasets) and "synthetic_direct_avalanche" in _ablation_groups(datasets):
         notes.append("synthetic piezo/VLF and direct avalanche/seismic channels must remain separate ablation groups")
     return notes
+
+
+def _has_sequence_utc_mapping(dataset: dict[str, object]) -> bool:
+    mapping = dataset.get("time_mapping", {})
+    return isinstance(mapping, dict) and bool(mapping.get("utc_axis_field"))

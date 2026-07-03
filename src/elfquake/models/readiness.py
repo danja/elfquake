@@ -22,7 +22,10 @@ ID_FIELDS = {
     "region_id",
     "window_start_utc",
     "window_end_utc",
+    "source_file",
     "seismic_source_file",
+    "vlf_image_source_file",
+    "vlf_image_latest_source_file",
 }
 
 FEATURE_GROUP_PREFIXES = {
@@ -30,6 +33,10 @@ FEATURE_GROUP_PREFIXES = {
     "astronomy": ("astro_",),
     "vlf_metadata": ("vlf_capture_", "vlf_latest_", "vlf_total_", "vlf_jpeg_"),
     "vlf_image": ("vlf_image_",),
+    "synthetic_seismic": ("synthetic_seismic_",),
+    "synthetic_piezo_vlf": ("synthetic_piezo_vlf_",),
+    "synthetic_direct_avalanche": ("synthetic_direct_avalanche_",),
+    "synthetic_summary": ("synthetic_summary_",),
     "quality": ("quality_",),
 }
 
@@ -38,6 +45,15 @@ ABLATIONS = {
     "seismic_astronomy": ("seismic", "astronomy"),
     "seismic_vlf": ("seismic", "vlf_metadata", "vlf_image"),
     "full_multimodal": ("seismic", "astronomy", "vlf_metadata", "vlf_image"),
+    "synthetic_seismic_only": ("synthetic_seismic",),
+    "synthetic_seismic_piezo_vlf": ("synthetic_seismic", "synthetic_piezo_vlf"),
+    "synthetic_seismic_direct_avalanche": ("synthetic_seismic", "synthetic_direct_avalanche"),
+    "synthetic_full": (
+        "synthetic_seismic",
+        "synthetic_piezo_vlf",
+        "synthetic_direct_avalanche",
+        "synthetic_summary",
+    ),
 }
 
 

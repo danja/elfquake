@@ -4,7 +4,8 @@
     "window_id",
     "region_id",
     "window_start_utc",
-    "window_end_utc"
+    "window_end_utc",
+    "source_file"
   ],
   "input_csv": "data/derived/models/ingv_italy_2026-06-01_2026-06-30.daily_event_windows.csv",
   "mask_convention": "one binary present-mask channel per numeric feature",

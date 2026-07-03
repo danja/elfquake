@@ -23,3 +23,9 @@ SIM_STEP_SECONDS=30 EVENT_BIN_SECONDS=1800 ./compare-signal-shapes.sh
 ```
 
 Use the same declared mapping across all simulation seeds in a tuning run.
+
+Current sequence tensor artifacts use this mapping in `time_axis.csv`:
+
+* `time_utc = 2026-01-01T00:00:00Z + step * 60 seconds`
+
+This appears in each sequence manifest under `time_mapping`.

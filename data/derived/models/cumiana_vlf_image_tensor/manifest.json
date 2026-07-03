@@ -84,6 +84,12 @@
       "mask_fields": [],
       "missing_cell_count": 0
     },
+    "synthetic_seismic": {
+      "feature_count": 0,
+      "feature_fields": [],
+      "mask_fields": [],
+      "missing_cell_count": 0
+    },
     "vlf_image": {
       "feature_count": 25,
       "feature_fields": [
@@ -150,10 +156,10 @@
     }
   },
   "region_field": "station",
-  "row_count": 116,
+  "row_count": 119,
   "schema": "elfquake.tensor_dataset.v1",
   "spec_file": "data/derived/models/cumiana_vlf_image_tensor_spec.json",
   "target_field": "target_occurred",
-  "time_field": "vlf_image_source_file",
+  "time_field": "vlf_image_captured_at_utc",
   "values_csv": "data/derived/models/cumiana_vlf_image_tensor/values.csv"
 }

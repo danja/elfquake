@@ -4,8 +4,10 @@ from __future__ import annotations
 
 import csv
 import json
+from datetime import timedelta
 from pathlib import Path
 
+from elfquake.features.common import format_utc, parse_utc
 from elfquake.models.readiness import ID_FIELDS, TARGET_FIELDS
 
 
@@ -28,12 +30,18 @@ def materialize_sequence_dataset(
     entity_field: str | None = "sensor_id",
     fill_value: float = 0.0,
     modality: str = "simulation",
+    time_start_utc: str | None = None,
+    time_step_seconds: int | None = None,
 ) -> dict[str, object]:
     rows, fieldnames = _read_rows_and_fields(input_csv)
     if time_field not in fieldnames:
         raise ValueError(f"time_field not found: {time_field}")
     if entity_field and entity_field not in fieldnames:
         raise ValueError(f"entity_field not found: {entity_field}")
+    if time_step_seconds is not None and time_step_seconds < 1:
+        raise ValueError("time_step_seconds must be at least 1")
+    if time_start_utc and time_step_seconds is None:
+        raise ValueError("time_step_seconds is required when time_start_utc is set")
 
     channel_fields = [
         field
@@ -95,7 +103,8 @@ def materialize_sequence_dataset(
         time_index=time_index,
         entity_index=entity_index,
     )
-    _write_axis(time_axis_path, "time_index", time_field, time_values)
+    time_mapping = _time_mapping(time_values, time_start_utc=time_start_utc, time_step_seconds=time_step_seconds)
+    _write_time_axis(time_axis_path, "time_index", time_field, time_values, utc_values=time_mapping["utc_values"])
     _write_axis(entity_axis_path, "entity_index", entity_field or "entity_id", entity_values)
 
     manifest: dict[str, object] = {
@@ -117,6 +126,12 @@ def materialize_sequence_dataset(
         "entity_axis_csv": str(entity_axis_path),
         "channel_fields": channel_fields,
         "mask_fields": mask_fields,
+        "time_mapping": {
+            "time_start_utc": time_start_utc or "",
+            "time_step_seconds": time_step_seconds or "",
+            "utc_axis_field": "time_utc" if time_mapping["utc_values"] else "",
+            "assumption": "synthetic simulation time mapping" if time_mapping["utc_values"] else "",
+        },
     }
     manifest_path.write_text(json.dumps(manifest, indent=2, sort_keys=True) + "\n", encoding="utf-8")
     return manifest
@@ -201,6 +216,43 @@ def _write_axis(path: Path, index_field: str, value_field: str, values: list[str
         writer.writeheader()
         for index, value in enumerate(values):
             writer.writerow({index_field: str(index), value_field: value})
+
+
+def _write_time_axis(
+    path: Path,
+    index_field: str,
+    value_field: str,
+    values: list[str],
+    *,
+    utc_values: list[str],
+) -> None:
+    fieldnames = [index_field, value_field]
+    if utc_values:
+        fieldnames.append("time_utc")
+    with path.open("w", newline="", encoding="utf-8") as handle:
+        writer = csv.DictWriter(handle, fieldnames=fieldnames, lineterminator="\n")
+        writer.writeheader()
+        for index, value in enumerate(values):
+            row = {index_field: str(index), value_field: value}
+            if utc_values:
+                row["time_utc"] = utc_values[index]
+            writer.writerow(row)
+
+
+def _time_mapping(
+    time_values: list[str],
+    *,
+    time_start_utc: str | None,
+    time_step_seconds: int | None,
+) -> dict[str, list[str]]:
+    if not time_start_utc:
+        return {"utc_values": []}
+    assert time_step_seconds is not None
+    start = parse_utc(time_start_utc)
+    utc_values = []
+    for value in time_values:
+        utc_values.append(format_utc(start + timedelta(seconds=float(value) * time_step_seconds)))
+    return {"utc_values": utc_values}
 
 
 def _axis_row(

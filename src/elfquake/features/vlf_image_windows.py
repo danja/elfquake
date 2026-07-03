@@ -74,6 +74,9 @@ def _read_image_rows(path: Path) -> list[dict[str, str]]:
     with path.open(newline="", encoding="utf-8") as handle:
         rows = list(csv.DictReader(handle))
     for row in rows:
+        if row.get("vlf_image_captured_at_utc"):
+            row["_captured_at_utc"] = row["vlf_image_captured_at_utc"]
+            continue
         source = Path(row["vlf_image_source_file"])
         metadata_path = source.with_suffix(source.suffix + ".metadata.json")
         row["_captured_at_utc"] = _captured_at(metadata_path)

@@ -70,6 +70,36 @@ Sequence tensor manifests:
 
 Sequence manifests point to separate `time_axis.csv` and `entity_axis.csv` files so large runs do not bloat manifest JSON.
 
+Aligned window datasets:
+
+* `data/derived/models/mountain_256x256_seed42_10000.aligned_synthetic_windows.csv`
+* `data/derived/models/mountain_256x256_seed42_10000_aligned_synthetic_windows_tensor/manifest.json`
+* `data/derived/models/mountain_256x256_seed42_10000.aligned_hourly_synthetic_windows_gt1.csv`
+* `data/derived/models/mountain_256x256_seed42_10000_aligned_hourly_synthetic_windows_gt1_tensor/manifest.json`
+* `data/derived/models/ingv_italy_2026-06-01_2026-06-30.aligned_real_windows.csv`
+* `data/derived/models/ingv_italy_2026-06-01_2026-06-30_aligned_real_windows_tensor/manifest.json`
+
+The synthetic aligned table uses next-window synthetic event count as a smoke target. The current real aligned table is unlabeled and waits for target maturation.
+
+The hourly synthetic `gt1` table is the current best smoke target:
+
+* `167` labeled hourly rows
+* target is next-hour synthetic event count greater than `1`
+* chronological test fold has both classes
+
+Synthetic smoke reports:
+
+* `data/derived/models/mountain_256x256_seed42_10000.aligned_synthetic_windows.logistic_smoke.json`
+* `data/derived/models/mountain_256x256_seed42_10000.aligned_synthetic_windows.ablation_smoke.json`
+* `data/derived/models/mountain_256x256_seed42_10000.aligned_synthetic_windows.temporal_holdout.json`
+* `data/derived/models/mountain_256x256_seed42_10000.aligned_hourly_synthetic_windows_gt1.temporal_holdout.json`
+
+The temporal holdout trains on earlier rows and tests on later rows. The current six-row synthetic sample is only a pipeline check; its test fold contains only positive labels.
+
+For the hourly `gt1` table, multimodal variants still overpredict positives and recover almost no true negatives. Treat this as a useful evaluator sanity check, not model evidence.
+
+The temporal holdout report includes naive baselines and train-calibrated probability thresholds. Current `gt1` balanced accuracy is close to the naive `0.5` baseline, so the present single-seed synthetic data should not be used for model claims.
+
 Alignment manifest:
 
 * `data/derived/models/current_interface_alignment_manifest.json`
@@ -78,5 +108,6 @@ This links the current window tensors and sequence tensors into one model-run co
 
 Current caveats:
 
-* VLF image tensor time coverage is inferred from capture filenames.
-* Simulation sequence time coverage is still in step units, so it needs an explicit simulation-to-UTC mapping before direct joining to real event windows.
+* Simulation sequence time coverage uses the declared synthetic mapping `2026-01-01T00:00:00Z` plus `60` seconds per step. This is a modeling assumption, not a physical calibration.
+
+VLF image tensors now use explicit `vlf_image_captured_at_utc` index fields while preserving `vlf_image_source_file` provenance.

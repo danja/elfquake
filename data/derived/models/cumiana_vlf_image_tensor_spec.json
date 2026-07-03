@@ -1,6 +1,8 @@
 {
-  "field_count": 26,
-  "id_fields": [],
+  "field_count": 27,
+  "id_fields": [
+    "vlf_image_source_file"
+  ],
   "input_csv": "data/derived/multimodal/cumiana_last_E_VLF.image_features.csv",
   "mask_convention": "one binary present-mask channel per numeric feature",
   "modalities": {
@@ -23,6 +25,12 @@
       "missing_cell_count": 0
     },
     "simulation": {
+      "feature_count": 0,
+      "feature_fields": [],
+      "mask_fields": [],
+      "missing_cell_count": 0
+    },
+    "synthetic_seismic": {
       "feature_count": 0,
       "feature_fields": [],
       "mask_fields": [],
@@ -123,10 +131,10 @@
   ],
   "recommended_layout": "batch,time,channel",
   "region_field": "station",
-  "row_count": 116,
+  "row_count": 119,
   "schema": "elfquake.tensor_spec.v1",
   "target_field": "target_occurred",
   "target_fields": [],
-  "time_field": "vlf_image_source_file",
+  "time_field": "vlf_image_captured_at_utc",
   "unassigned_numeric_features": []
 }

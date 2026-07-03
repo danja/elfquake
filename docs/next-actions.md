@@ -16,15 +16,19 @@
 6. Backfill enough historical INGV windows to get both positive and negative target classes by region.
 7. Continue with prospective-only VLF evaluation unless a separate historical Cumiana archive is obtained.
 8. Add full rupture-mask outputs if synthetic event maps need spatial extent rather than centroid locations.
-9. Add explicit VLF capture timestamps to VLF tensor indexes instead of relying on filename inference.
-10. Add simulation time-scale metadata so step-indexed sequence tensors can be aligned to UTC windows.
-11. Align seismic, VLF, astronomy, and simulation features onto regular-cadence multimodal tensor rows.
-12. Use the piezo/Cumiana comparison report to tune only the piezo VLF mapping derived from `*.piezo.csv`.
-13. Shape direct avalanche signal events for INGV-like seismic event experiments without using the piezo/VLF path.
-14. Use the signal-shape comparison report to tune simulation parameters separately for VLF-like and seismic-like outputs.
+9. Generate a longer or multi-seed synthetic aligned dataset to reduce time-split distribution drift.
+10. Use the piezo/Cumiana comparison report to tune only the piezo VLF mapping derived from `*.piezo.csv`.
+11. Shape direct avalanche signal events for INGV-like seismic event experiments without using the piezo/VLF path.
+12. Use the signal-shape comparison report to tune simulation parameters separately for VLF-like and seismic-like outputs.
 
 ## Completed
 
+* Add naive baseline and threshold-calibrated metrics to temporal holdout reports.
+* Generate an hourly synthetic aligned dataset with enough rows for a non-trivial chronological holdout check.
+* Add a time-ordered train/test smoke evaluator for aligned synthetic and real labeled rows.
+* Align seismic, VLF, astronomy, and simulation features onto regular-cadence model rows for current synthetic and real data paths.
+* Add simulation time-scale metadata so step-indexed sequence tensors can be aligned to UTC windows.
+* Add explicit VLF capture timestamps to VLF tensor indexes while preserving source-file provenance.
 * Add an alignment manifest that links window tensors, sequence tensors, source time ranges, and ablation groups for one model run.
 * Add event-window adapter for real and synthetic seismic event lists.
 * Add sequence materializer for `time x sensor x channel` simulation and VLF-like signals.

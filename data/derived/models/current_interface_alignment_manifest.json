@@ -24,8 +24,6 @@
     ]
   },
   "alignment_notes": [
-    "sequence tensors need an explicit time-scale mapping before joining to UTC event windows",
-    "VLF image tensors use capture-time inference from source filenames unless an explicit time field is added",
     "synthetic piezo/VLF and direct avalanche/seismic channels must remain separate ablation groups"
   ],
   "dataset_count": 6,
@@ -50,6 +48,7 @@
         "end": "2026-06-29T00:00:00Z",
         "start": "2026-06-01T00:00:00Z"
       },
+      "time_field": "window_start_utc",
       "values_csv": "data/derived/models/ingv_italy_2026-06-01_2026-06-30_daily_event_windows_tensor/values.csv"
     },
     {
@@ -72,6 +71,7 @@
         "end": "2026-01-07T00:00:00Z",
         "start": "2026-01-01T00:00:00Z"
       },
+      "time_field": "window_start_utc",
       "values_csv": "data/derived/models/mountain_256x256_seed42_10000_daily_synthetic_seismic_windows_tensor/values.csv"
     },
     {
@@ -85,14 +85,15 @@
         "vlf_image"
       ],
       "name": "cumiana_vlf_image_tensor",
-      "row_count": 116,
+      "row_count": 119,
       "schema": "elfquake.tensor_dataset.v1",
       "supports_missing_masks": true,
       "time_coverage": {
-        "count": 116,
-        "end": "2026-07-03T13:15:00Z",
-        "start": "2026-06-29T09:45:00Z"
+        "count": 119,
+        "end": "2026-07-03T14:49:11Z",
+        "start": "2026-06-29T09:57:24Z"
       },
+      "time_field": "vlf_image_captured_at_utc",
       "values_csv": "data/derived/models/cumiana_vlf_image_tensor/values.csv"
     },
     {
@@ -120,8 +121,15 @@
       "time_count": 10000,
       "time_coverage": {
         "count": 10000,
-        "end": "9999",
-        "start": "0"
+        "end": "2026-01-07T22:39:00Z",
+        "start": "2026-01-01T00:00:00Z"
+      },
+      "time_field": "step",
+      "time_mapping": {
+        "assumption": "synthetic simulation time mapping",
+        "time_start_utc": "2026-01-01T00:00:00Z",
+        "time_step_seconds": 60,
+        "utc_axis_field": "time_utc"
       },
       "values_csv": "data/derived/models/mountain_256x256_seed42_10000_piezo_sequence/values.csv"
     },
@@ -150,8 +158,15 @@
       "time_count": 10000,
       "time_coverage": {
         "count": 10000,
-        "end": "9999",
-        "start": "0"
+        "end": "2026-01-07T22:39:00Z",
+        "start": "2026-01-01T00:00:00Z"
+      },
+      "time_field": "step",
+      "time_mapping": {
+        "assumption": "synthetic simulation time mapping",
+        "time_start_utc": "2026-01-01T00:00:00Z",
+        "time_step_seconds": 60,
+        "utc_axis_field": "time_utc"
       },
       "values_csv": "data/derived/models/mountain_256x256_seed42_10000_avalanche_sequence/values.csv"
     },
@@ -180,8 +195,15 @@
       "time_count": 10000,
       "time_coverage": {
         "count": 10000,
-        "end": "9999",
-        "start": "0"
+        "end": "2026-01-07T22:39:00Z",
+        "start": "2026-01-01T00:00:00Z"
+      },
+      "time_field": "step",
+      "time_mapping": {
+        "assumption": "synthetic simulation time mapping",
+        "time_start_utc": "2026-01-01T00:00:00Z",
+        "time_step_seconds": 60,
+        "utc_axis_field": "time_utc"
       },
       "values_csv": "data/derived/models/mountain_256x256_seed42_10000_summary_sequence/values.csv"
     }

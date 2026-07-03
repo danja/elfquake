@@ -40,5 +40,11 @@
   "time_axis_csv": "data/derived/models/mountain_256x256_seed42_10000_summary_sequence/time_axis.csv",
   "time_count": 10000,
   "time_field": "step",
+  "time_mapping": {
+    "assumption": "synthetic simulation time mapping",
+    "time_start_utc": "2026-01-01T00:00:00Z",
+    "time_step_seconds": 60,
+    "utc_axis_field": "time_utc"
+  },
   "values_csv": "data/derived/models/mountain_256x256_seed42_10000_summary_sequence/values.csv"
 }

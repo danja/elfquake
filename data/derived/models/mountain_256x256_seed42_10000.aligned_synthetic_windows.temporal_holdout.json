@@ -1,0 +1,2110 @@
+{
+  "baselines": {
+    "always_negative": {
+      "accuracy": 0.0,
+      "balanced_accuracy": 0.0,
+      "confusion": {
+        "false_negative": 2,
+        "false_positive": 0,
+        "true_negative": 0,
+        "true_positive": 0
+      },
+      "negative_recall": 0.0,
+      "positive_precision": 0.0,
+      "positive_recall": 0.0
+    },
+    "always_positive": {
+      "accuracy": 1.0,
+      "balanced_accuracy": 0.5,
+      "confusion": {
+        "false_negative": 0,
+        "false_positive": 0,
+        "true_negative": 0,
+        "true_positive": 2
+      },
+      "negative_recall": 0.0,
+      "positive_precision": 1.0,
+      "positive_recall": 1.0
+    },
+    "majority_class": {
+      "accuracy": 1.0,
+      "balanced_accuracy": 0.5,
+      "confusion": {
+        "false_negative": 0,
+        "false_positive": 0,
+        "true_negative": 0,
+        "true_positive": 2
+      },
+      "negative_recall": 0.0,
+      "positive_precision": 1.0,
+      "positive_recall": 1.0
+    },
+    "train_majority_class": 1
+  },
+  "epochs": 600,
+  "evaluations": {
+    "all_features": {
+      "calibrated_test_metrics": {
+        "accuracy": 1.0,
+        "balanced_accuracy": 0.5,
+        "confusion": {
+          "false_negative": 0,
+          "false_positive": 0,
+          "true_negative": 0,
+          "true_positive": 2
+        },
+        "negative_recall": 0.0,
+        "positive_precision": 1.0,
+        "positive_recall": 1.0
+      },
+      "calibrated_threshold": 0.5,
+      "calibrated_train_metrics": {
+        "accuracy": 1.0,
+        "balanced_accuracy": 1.0,
+        "confusion": {
+          "false_negative": 0,
+          "false_positive": 0,
+          "true_negative": 2,
+          "true_positive": 2
+        },
+        "negative_recall": 1.0,
+        "positive_precision": 1.0,
+        "positive_recall": 1.0
+      },
+      "coefficients": {
+        "quality_missing_synthetic_direct_avalanche": {
+          "mean": 0.0,
+          "scale": 1.0,
+          "weight": 0.0
+        },
+        "quality_missing_synthetic_piezo_vlf": {
+          "mean": 0.0,
+          "scale": 1.0,
+          "weight": 0.0
+        },
+        "quality_missing_synthetic_seismic_event_aggregates": {
+          "mean": 0.25,
+          "scale": 0.4330127,
+          "weight": -0.01841523
+        },
+        "quality_missing_synthetic_summary": {
+          "mean": 0.0,
+          "scale": 1.0,
+          "weight": 0.0
+        },
+        "synthetic_direct_avalanche_active_topple_cell_count_max": {
+          "mean": 2494.25,
+          "scale": 551.11676394,
+          "weight": -0.10429774
+        },
+        "synthetic_direct_avalanche_active_topple_cell_count_mean": {
+          "mean": 1601.95954861,
+          "scale": 353.93050365,
+          "weight": 0.12854307
+        },
+        "synthetic_direct_avalanche_active_topple_cell_count_sum": {
+          "mean": 36909148.0,
+          "scale": 8154558.8041311,
+          "weight": 0.12854307
+        },
+        "synthetic_direct_avalanche_avalanche_release_total_max": {
+          "mean": 4368.18188154,
+          "scale": 838.74979796,
+          "weight": -0.15847167
+        },
+        "synthetic_direct_avalanche_avalanche_release_total_mean": {
+          "mean": 2854.19945847,
+          "scale": 308.40507284,
+          "weight": 0.08103977
+        },
+        "synthetic_direct_avalanche_avalanche_release_total_sum": {
+          "mean": 65760755.52309225,
+          "scale": 7105652.8781458,
+          "weight": 0.08103977
+        },
+        "synthetic_direct_avalanche_avalanche_signal_max": {
+          "mean": 815.25164952,
+          "scale": 142.21981954,
+          "weight": -0.01449074
+        },
+        "synthetic_direct_avalanche_avalanche_signal_mean": {
+          "mean": 270.57651827,
+          "scale": 28.78024353,
+          "weight": 0.0795269
+        },
+        "synthetic_direct_avalanche_avalanche_signal_sum": {
+          "mean": 6234082.98086709,
+          "scale": 663096.81094124,
+          "weight": 0.0795269
+        },
+        "synthetic_direct_avalanche_avalanche_total_source_max": {
+          "mean": 4368.18188154,
+          "scale": 838.74979796,
+          "weight": -0.15847167
+        },
+        "synthetic_direct_avalanche_avalanche_total_source_mean": {
+          "mean": 2854.19945847,
+          "scale": 308.40507284,
+          "weight": 0.08103977
+        },
+        "synthetic_direct_avalanche_avalanche_total_source_sum": {
+          "mean": 65760755.52309225,
+          "scale": 7105652.8781458,
+          "weight": 0.08103977
+        },
+        "synthetic_direct_avalanche_max_local_topple_max": {
+          "mean": 7.25,
+          "scale": 0.8291562,
+          "weight": -0.20380237
+        },
+        "synthetic_direct_avalanche_max_local_topple_mean": {
+          "mean": 4.34427083,
+          "scale": 0.34770916,
+          "weight": -0.12894613
+        },
+        "synthetic_direct_avalanche_max_local_topple_sum": {
+          "mean": 100092.0,
+          "scale": 8011.21913319,
+          "weight": -0.12894613
+        },
+        "synthetic_direct_avalanche_nearest_topple_distance_max": {
+          "mean": 58.5009765,
+          "scale": 50.28057056,
+          "weight": -0.02106783
+        },
+        "synthetic_direct_avalanche_nearest_topple_distance_mean": {
+          "mean": 6.06205453,
+          "scale": 0.28797201,
+          "weight": 0.16862569
+        },
+        "synthetic_direct_avalanche_nearest_topple_distance_sum": {
+          "mean": 139669.7363485,
+          "scale": 6634.87507745,
+          "weight": 0.16862569
+        },
+        "synthetic_direct_avalanche_sample_count": {
+          "mean": 23040.0,
+          "scale": 1.0,
+          "weight": 0.0
+        },
+        "synthetic_direct_avalanche_stress_drop_max_max": {
+          "mean": 6.0,
+          "scale": 2.0,
+          "weight": -0.22848454
+        },
+        "synthetic_direct_avalanche_stress_drop_max_mean": {
+          "mean": 4.31597222,
+          "scale": 0.35922115,
+          "weight": -0.13484822
+        },
+        "synthetic_direct_avalanche_stress_drop_max_sum": {
+          "mean": 99440.0,
+          "scale": 8276.45527989,
+          "weight": -0.13484822
+        },
+        "synthetic_direct_avalanche_stress_drop_total_max": {
+          "mean": 1849.25,
+          "scale": 451.39582131,
+          "weight": -0.26104081
+        },
+        "synthetic_direct_avalanche_stress_drop_total_mean": {
+          "mean": 1215.15486111,
+          "scale": 74.19913139,
+          "weight": -0.26443943
+        },
+        "synthetic_direct_avalanche_stress_drop_total_sum": {
+          "mean": 27997168.0,
+          "scale": 1709547.98734168,
+          "weight": -0.26443943
+        },
+        "synthetic_piezo_vlf_critical_cell_count_max": {
+          "mean": 757.5,
+          "scale": 397.76971981,
+          "weight": -0.26046076
+        },
+        "synthetic_piezo_vlf_critical_cell_count_mean": {
+          "mean": 473.1078125,
+          "scale": 144.18925558,
+          "weight": -0.19436879
+        },
+        "synthetic_piezo_vlf_critical_cell_count_sum": {
+          "mean": 10900404.0,
+          "scale": 3322120.44867491,
+          "weight": -0.19436879
+        },
+        "synthetic_piezo_vlf_max_stress_ratio_max": {
+          "mean": 1.125,
+          "scale": 0.0625,
+          "weight": -0.22848454
+        },
+        "synthetic_piezo_vlf_max_stress_ratio_mean": {
+          "mean": 1.06411675,
+          "scale": 0.01917785,
+          "weight": -0.14392454
+        },
+        "synthetic_piezo_vlf_max_stress_ratio_sum": {
+          "mean": 24517.25,
+          "scale": 441.85765525,
+          "weight": -0.14392454
+        },
+        "synthetic_piezo_vlf_near_critical_cell_count_max": {
+          "mean": 44096.75,
+          "scale": 7355.65613576,
+          "weight": 0.13101926
+        },
+        "synthetic_piezo_vlf_near_critical_cell_count_mean": {
+          "mean": 38948.46770833,
+          "scale": 11075.74082035,
+          "weight": 0.11765971
+        },
+        "synthetic_piezo_vlf_near_critical_cell_count_sum": {
+          "mean": 897372696.0,
+          "scale": 255185068.50086877,
+          "weight": 0.11765971
+        },
+        "synthetic_piezo_vlf_nearest_critical_distance_max": {
+          "mean": 37.6606635,
+          "scale": 62.30709789,
+          "weight": -0.01985174
+        },
+        "synthetic_piezo_vlf_nearest_critical_distance_mean": {
+          "mean": 0.64423454,
+          "scale": 0.47858115,
+          "weight": -0.05115901
+        },
+        "synthetic_piezo_vlf_nearest_critical_distance_sum": {
+          "mean": 14843.16384275,
+          "scale": 11026.50962947,
+          "weight": -0.05115901
+        },
+        "synthetic_piezo_vlf_piezo_charge_max_max": {
+          "mean": 43.99826883,
+          "scale": 2.31675496,
+          "weight": -0.08963014
+        },
+        "synthetic_piezo_vlf_piezo_charge_max_mean": {
+          "mean": 39.51149555,
+          "scale": 0.67253081,
+          "weight": -0.15956577
+        },
+        "synthetic_piezo_vlf_piezo_charge_max_sum": {
+          "mean": 910344.85741784,
+          "scale": 15495.10984341,
+          "weight": -0.15956577
+        },
+        "synthetic_piezo_vlf_piezo_charge_total_max": {
+          "mean": 132735.33894716,
+          "scale": 112179.53336968,
+          "weight": -0.24169092
+        },
+        "synthetic_piezo_vlf_piezo_charge_total_mean": {
+          "mean": 79515.96290444,
+          "scale": 59985.11136025,
+          "weight": -0.23399047
+        },
+        "synthetic_piezo_vlf_piezo_charge_total_sum": {
+          "mean": 1832047785.3184,
+          "scale": 1382056965.7401242,
+          "weight": -0.23399047
+        },
+        "synthetic_piezo_vlf_piezo_release_total_max": {
+          "mean": 810.33012366,
+          "scale": 233.0814843,
+          "weight": -0.2421043
+        },
+        "synthetic_piezo_vlf_piezo_release_total_mean": {
+          "mean": 611.47022729,
+          "scale": 100.95945814,
+          "weight": -0.20355469
+        },
+        "synthetic_piezo_vlf_piezo_release_total_sum": {
+          "mean": 14088274.03680594,
+          "scale": 2326105.91560935,
+          "weight": -0.20355469
+        },
+        "synthetic_piezo_vlf_piezo_signal_max": {
+          "mean": 139.58681814,
+          "scale": 36.40239697,
+          "weight": -0.23855334
+        },
+        "synthetic_piezo_vlf_piezo_signal_mean": {
+          "mean": 57.80844674,
+          "scale": 9.6103885,
+          "weight": -0.20256766
+        },
+        "synthetic_piezo_vlf_piezo_signal_sum": {
+          "mean": 1331906.61299364,
+          "scale": 221423.35097367,
+          "weight": -0.20256766
+        },
+        "synthetic_piezo_vlf_piezo_total_source_max": {
+          "mean": 810.33012366,
+          "scale": 233.0814843,
+          "weight": -0.2421043
+        },
+        "synthetic_piezo_vlf_piezo_total_source_mean": {
+          "mean": 611.47022729,
+          "scale": 100.95945814,
+          "weight": -0.20355469
+        },
+        "synthetic_piezo_vlf_piezo_total_source_sum": {
+          "mean": 14088274.03680594,
+          "scale": 2326105.91560935,
+          "weight": -0.20355469
+        },
+        "synthetic_piezo_vlf_sample_count": {
+          "mean": 23040.0,
+          "scale": 1.0,
+          "weight": 0.0
+        },
+        "synthetic_seismic_depth_km_mean": {
+          "mean": 8.41548077,
+          "scale": 4.85987933,
+          "weight": 0.01379674
+        },
+        "synthetic_seismic_energy_sum": {
+          "mean": 81154118.05665131,
+          "scale": 79538908.66636814,
+          "weight": 0.19299498
+        },
+        "synthetic_seismic_event_count": {
+          "mean": 10.25,
+          "scale": 10.35313962,
+          "weight": 0.19763281
+        },
+        "synthetic_seismic_latitude_mean": {
+          "mean": 30.96398712,
+          "scale": 17.87933883,
+          "weight": 0.02192871
+        },
+        "synthetic_seismic_longitude_mean": {
+          "mean": 10.18882135,
+          "scale": 5.8947907,
+          "weight": 0.00628176
+        },
+        "synthetic_seismic_magnitude_max": {
+          "mean": 3.5025,
+          "scale": 2.02276265,
+          "weight": 0.0119478
+        },
+        "synthetic_seismic_magnitude_mean": {
+          "mean": 3.46442308,
+          "scale": 2.0004272,
+          "weight": 0.01426632
+        },
+        "synthetic_summary_avalanche_count_max": {
+          "mean": 1.0,
+          "scale": 1.0,
+          "weight": 0.0
+        },
+        "synthetic_summary_avalanche_count_mean": {
+          "mean": 0.9984375,
+          "scale": 0.00270633,
+          "weight": 0.01841523
+        },
+        "synthetic_summary_avalanche_count_sum": {
+          "mean": 1437.75,
+          "scale": 3.89711432,
+          "weight": 0.01841523
+        },
+        "synthetic_summary_bottom_layer_removed_mass_max": {
+          "mean": 65536.0,
+          "scale": 1.0,
+          "weight": 0.0
+        },
+        "synthetic_summary_bottom_layer_removed_mass_mean": {
+          "mean": 648.51302083,
+          "scale": 19.71864451,
+          "weight": 0.1263781
+        },
+        "synthetic_summary_bottom_layer_removed_mass_sum": {
+          "mean": 933858.75,
+          "scale": 28394.84810115,
+          "weight": 0.1263781
+        },
+        "synthetic_summary_deposition_count_max": {
+          "mean": 765.0,
+          "scale": 3.0,
+          "weight": 0.05561509
+        },
+        "synthetic_summary_deposition_count_mean": {
+          "mean": 716.49270833,
+          "scale": 0.19174748,
+          "weight": -0.21352746
+        },
+        "synthetic_summary_deposition_count_sum": {
+          "mean": 1031749.5,
+          "scale": 276.11637039,
+          "weight": -0.21352746
+        },
+        "synthetic_summary_max_height_max": {
+          "mean": 263.5,
+          "scale": 44.29729111,
+          "weight": 0.10782711
+        },
+        "synthetic_summary_max_height_mean": {
+          "mean": 232.17795139,
+          "scale": 71.22929546,
+          "weight": 0.09346905
+        },
+        "synthetic_summary_max_height_sum": {
+          "mean": 334336.25,
+          "scale": 102570.18546433,
+          "weight": 0.09346905
+        },
+        "synthetic_summary_mean_height_max": {
+          "mean": 121.18611525,
+          "scale": 17.02240979,
+          "weight": 0.03166884
+        },
+        "synthetic_summary_mean_height_mean": {
+          "mean": 107.16006632,
+          "scale": 35.40345138,
+          "weight": 0.0467478
+        },
+        "synthetic_summary_mean_height_sum": {
+          "mean": 154310.49550175,
+          "scale": 50980.96998222,
+          "weight": 0.0467478
+        },
+        "synthetic_summary_relaxation_converged_max": {
+          "mean": 1.0,
+          "scale": 1.0,
+          "weight": 0.0
+        },
+        "synthetic_summary_relaxation_converged_mean": {
+          "mean": 1.0,
+          "scale": 1.0,
+          "weight": 0.0
+        },
+        "synthetic_summary_relaxation_converged_sum": {
+          "mean": 1440.0,
+          "scale": 1.0,
+          "weight": 0.0
+        },
+        "synthetic_summary_released_mass_max": {
+          "mean": 65536.0,
+          "scale": 1.0,
+          "weight": 0.0
+        },
+        "synthetic_summary_released_mass_mean": {
+          "mean": 648.51302083,
+          "scale": 19.71864451,
+          "weight": 0.1263781
+        },
+        "synthetic_summary_released_mass_sum": {
+          "mean": 933858.75,
+          "scale": 28394.84810115,
+          "weight": 0.1263781
+        },
+        "synthetic_summary_safety_released_mass_max": {
+          "mean": 0.0,
+          "scale": 1.0,
+          "weight": 0.0
+        },
+        "synthetic_summary_safety_released_mass_mean": {
+          "mean": 0.0,
+          "scale": 1.0,
+          "weight": 0.0
+        },
+        "synthetic_summary_safety_released_mass_sum": {
+          "mean": 0.0,
+          "scale": 1.0,
+          "weight": 0.0
+        },
+        "synthetic_summary_sample_count": {
+          "mean": 1440.0,
+          "scale": 1.0,
+          "weight": 0.0
+        },
+        "synthetic_summary_target_fill_count_max": {
+          "mean": 2048.0,
+          "scale": 2048.0,
+          "weight": -0.22848454
+        },
+        "synthetic_summary_target_fill_count_mean": {
+          "mean": 1433.86545139,
+          "scale": 1676.39274046,
+          "weight": -0.12341043
+        },
+        "synthetic_summary_target_fill_count_sum": {
+          "mean": 2064766.25,
+          "scale": 2414005.54626894,
+          "weight": -0.12341043
+        },
+        "synthetic_summary_topple_count_max": {
+          "mean": 3911.75,
+          "scale": 868.89682213,
+          "weight": -0.06382921
+        },
+        "synthetic_summary_topple_count_mean": {
+          "mean": 2519.48836806,
+          "scale": 551.09641487,
+          "weight": 0.12846715
+        },
+        "synthetic_summary_topple_count_sum": {
+          "mean": 3628063.25,
+          "scale": 793578.8374098,
+          "weight": 0.12846715
+        },
+        "synthetic_summary_unstable_cell_count_max": {
+          "mean": 0.0,
+          "scale": 1.0,
+          "weight": 0.0
+        },
+        "synthetic_summary_unstable_cell_count_mean": {
+          "mean": 0.0,
+          "scale": 1.0,
+          "weight": 0.0
+        },
+        "synthetic_summary_unstable_cell_count_sum": {
+          "mean": 0.0,
+          "scale": 1.0,
+          "weight": 0.0
+        }
+      },
+      "default_threshold": 0.5,
+      "feature_count": 98,
+      "feature_names": [
+        "synthetic_seismic_event_count",
+        "synthetic_seismic_magnitude_max",
+        "synthetic_seismic_magnitude_mean",
+        "synthetic_seismic_depth_km_mean",
+        "synthetic_seismic_latitude_mean",
+        "synthetic_seismic_longitude_mean",
+        "synthetic_seismic_energy_sum",
+        "quality_missing_synthetic_seismic_event_aggregates",
+        "synthetic_piezo_vlf_sample_count",
+        "quality_missing_synthetic_piezo_vlf",
+        "synthetic_piezo_vlf_piezo_signal_mean",
+        "synthetic_piezo_vlf_piezo_signal_max",
+        "synthetic_piezo_vlf_piezo_signal_sum",
+        "synthetic_piezo_vlf_piezo_total_source_mean",
+        "synthetic_piezo_vlf_piezo_total_source_max",
+        "synthetic_piezo_vlf_piezo_total_source_sum",
+        "synthetic_piezo_vlf_near_critical_cell_count_mean",
+        "synthetic_piezo_vlf_near_critical_cell_count_max",
+        "synthetic_piezo_vlf_near_critical_cell_count_sum",
+        "synthetic_piezo_vlf_critical_cell_count_mean",
+        "synthetic_piezo_vlf_critical_cell_count_max",
+        "synthetic_piezo_vlf_critical_cell_count_sum",
+        "synthetic_piezo_vlf_nearest_critical_distance_mean",
+        "synthetic_piezo_vlf_nearest_critical_distance_max",
+        "synthetic_piezo_vlf_nearest_critical_distance_sum",
+        "synthetic_piezo_vlf_max_stress_ratio_mean",
+        "synthetic_piezo_vlf_max_stress_ratio_max",
+        "synthetic_piezo_vlf_max_stress_ratio_sum",
+        "synthetic_piezo_vlf_piezo_charge_total_mean",
+        "synthetic_piezo_vlf_piezo_charge_total_max",
+        "synthetic_piezo_vlf_piezo_charge_total_sum",
+        "synthetic_piezo_vlf_piezo_charge_max_mean",
+        "synthetic_piezo_vlf_piezo_charge_max_max",
+        "synthetic_piezo_vlf_piezo_charge_max_sum",
+        "synthetic_piezo_vlf_piezo_release_total_mean",
+        "synthetic_piezo_vlf_piezo_release_total_max",
+        "synthetic_piezo_vlf_piezo_release_total_sum",
+        "synthetic_direct_avalanche_sample_count",
+        "quality_missing_synthetic_direct_avalanche",
+        "synthetic_direct_avalanche_avalanche_signal_mean",
+        "synthetic_direct_avalanche_avalanche_signal_max",
+        "synthetic_direct_avalanche_avalanche_signal_sum",
+        "synthetic_direct_avalanche_avalanche_total_source_mean",
+        "synthetic_direct_avalanche_avalanche_total_source_max",
+        "synthetic_direct_avalanche_avalanche_total_source_sum",
+        "synthetic_direct_avalanche_active_topple_cell_count_mean",
+        "synthetic_direct_avalanche_active_topple_cell_count_max",
+        "synthetic_direct_avalanche_active_topple_cell_count_sum",
+        "synthetic_direct_avalanche_max_local_topple_mean",
+        "synthetic_direct_avalanche_max_local_topple_max",
+        "synthetic_direct_avalanche_max_local_topple_sum",
+        "synthetic_direct_avalanche_nearest_topple_distance_mean",
+        "synthetic_direct_avalanche_nearest_topple_distance_max",
+        "synthetic_direct_avalanche_nearest_topple_distance_sum",
+        "synthetic_direct_avalanche_stress_drop_total_mean",
+        "synthetic_direct_avalanche_stress_drop_total_max",
+        "synthetic_direct_avalanche_stress_drop_total_sum",
+        "synthetic_direct_avalanche_stress_drop_max_mean",
+        "synthetic_direct_avalanche_stress_drop_max_max",
+        "synthetic_direct_avalanche_stress_drop_max_sum",
+        "synthetic_direct_avalanche_avalanche_release_total_mean",
+        "synthetic_direct_avalanche_avalanche_release_total_max",
+        "synthetic_direct_avalanche_avalanche_release_total_sum",
+        "synthetic_summary_sample_count",
+        "quality_missing_synthetic_summary",
+        "synthetic_summary_deposition_count_mean",
+        "synthetic_summary_deposition_count_max",
+        "synthetic_summary_deposition_count_sum",
+        "synthetic_summary_avalanche_count_mean",
+        "synthetic_summary_avalanche_count_max",
+        "synthetic_summary_avalanche_count_sum",
+        "synthetic_summary_topple_count_mean",
+        "synthetic_summary_topple_count_max",
+        "synthetic_summary_topple_count_sum",
+        "synthetic_summary_max_height_mean",
+        "synthetic_summary_max_height_max",
+        "synthetic_summary_max_height_sum",
+        "synthetic_summary_mean_height_mean",
+        "synthetic_summary_mean_height_max",
+        "synthetic_summary_mean_height_sum",
+        "synthetic_summary_released_mass_mean",
+        "synthetic_summary_released_mass_max",
+        "synthetic_summary_released_mass_sum",
+        "synthetic_summary_relaxation_converged_mean",
+        "synthetic_summary_relaxation_converged_max",
+        "synthetic_summary_relaxation_converged_sum",
+        "synthetic_summary_unstable_cell_count_mean",
+        "synthetic_summary_unstable_cell_count_max",
+        "synthetic_summary_unstable_cell_count_sum",
+        "synthetic_summary_safety_released_mass_mean",
+        "synthetic_summary_safety_released_mass_max",
+        "synthetic_summary_safety_released_mass_sum",
+        "synthetic_summary_target_fill_count_mean",
+        "synthetic_summary_target_fill_count_max",
+        "synthetic_summary_target_fill_count_sum",
+        "synthetic_summary_bottom_layer_removed_mass_mean",
+        "synthetic_summary_bottom_layer_removed_mass_max",
+        "synthetic_summary_bottom_layer_removed_mass_sum"
+      ],
+      "groups": [],
+      "intercept": -0.07440267,
+      "status": "evaluated",
+      "test_labels": [
+        1,
+        1
+      ],
+      "test_metrics": {
+        "accuracy": 1.0,
+        "balanced_accuracy": 0.5,
+        "confusion": {
+          "false_negative": 0,
+          "false_positive": 0,
+          "true_negative": 0,
+          "true_positive": 2
+        },
+        "negative_recall": 0.0,
+        "positive_precision": 1.0,
+        "positive_recall": 1.0
+      },
+      "test_predictions": [
+        1,
+        1
+      ],
+      "test_probabilities": [
+        0.999831,
+        0.999968
+      ],
+      "test_row_count": 2,
+      "train_metrics": {
+        "accuracy": 1.0,
+        "balanced_accuracy": 1.0,
+        "confusion": {
+          "false_negative": 0,
+          "false_positive": 0,
+          "true_negative": 2,
+          "true_positive": 2
+        },
+        "negative_recall": 1.0,
+        "positive_precision": 1.0,
+        "positive_recall": 1.0
+      },
+      "train_row_count": 4
+    },
+    "full_multimodal": {
+      "feature_count": 0,
+      "feature_names": [],
+      "groups": [
+        "seismic",
+        "astronomy",
+        "vlf_metadata",
+        "vlf_image"
+      ],
+      "status": "no_numeric_features",
+      "test_row_count": 2,
+      "train_row_count": 4
+    },
+    "seismic_astronomy": {
+      "feature_count": 0,
+      "feature_names": [],
+      "groups": [
+        "seismic",
+        "astronomy"
+      ],
+      "status": "no_numeric_features",
+      "test_row_count": 2,
+      "train_row_count": 4
+    },
+    "seismic_only": {
+      "feature_count": 0,
+      "feature_names": [],
+      "groups": [
+        "seismic"
+      ],
+      "status": "no_numeric_features",
+      "test_row_count": 2,
+      "train_row_count": 4
+    },
+    "seismic_vlf": {
+      "feature_count": 0,
+      "feature_names": [],
+      "groups": [
+        "seismic",
+        "vlf_metadata",
+        "vlf_image"
+      ],
+      "status": "no_numeric_features",
+      "test_row_count": 2,
+      "train_row_count": 4
+    },
+    "synthetic_full": {
+      "calibrated_test_metrics": {
+        "accuracy": 1.0,
+        "balanced_accuracy": 0.5,
+        "confusion": {
+          "false_negative": 0,
+          "false_positive": 0,
+          "true_negative": 0,
+          "true_positive": 2
+        },
+        "negative_recall": 0.0,
+        "positive_precision": 1.0,
+        "positive_recall": 1.0
+      },
+      "calibrated_threshold": 0.5,
+      "calibrated_train_metrics": {
+        "accuracy": 1.0,
+        "balanced_accuracy": 1.0,
+        "confusion": {
+          "false_negative": 0,
+          "false_positive": 0,
+          "true_negative": 2,
+          "true_positive": 2
+        },
+        "negative_recall": 1.0,
+        "positive_precision": 1.0,
+        "positive_recall": 1.0
+      },
+      "coefficients": {
+        "synthetic_direct_avalanche_active_topple_cell_count_max": {
+          "mean": 2494.25,
+          "scale": 551.11676394,
+          "weight": -0.10354239
+        },
+        "synthetic_direct_avalanche_active_topple_cell_count_mean": {
+          "mean": 1601.95954861,
+          "scale": 353.93050365,
+          "weight": 0.12883475
+        },
+        "synthetic_direct_avalanche_active_topple_cell_count_sum": {
+          "mean": 36909148.0,
+          "scale": 8154558.8041311,
+          "weight": 0.12883475
+        },
+        "synthetic_direct_avalanche_avalanche_release_total_max": {
+          "mean": 4368.18188154,
+          "scale": 838.74979796,
+          "weight": -0.15768559
+        },
+        "synthetic_direct_avalanche_avalanche_release_total_mean": {
+          "mean": 2854.19945847,
+          "scale": 308.40507284,
+          "weight": 0.08147517
+        },
+        "synthetic_direct_avalanche_avalanche_release_total_sum": {
+          "mean": 65760755.52309225,
+          "scale": 7105652.8781458,
+          "weight": 0.08147517
+        },
+        "synthetic_direct_avalanche_avalanche_signal_max": {
+          "mean": 815.25164952,
+          "scale": 142.21981954,
+          "weight": -0.01386732
+        },
+        "synthetic_direct_avalanche_avalanche_signal_mean": {
+          "mean": 270.57651827,
+          "scale": 28.78024353,
+          "weight": 0.07996669
+        },
+        "synthetic_direct_avalanche_avalanche_signal_sum": {
+          "mean": 6234082.98086709,
+          "scale": 663096.81094124,
+          "weight": 0.07996669
+        },
+        "synthetic_direct_avalanche_avalanche_total_source_max": {
+          "mean": 4368.18188154,
+          "scale": 838.74979796,
+          "weight": -0.15768559
+        },
+        "synthetic_direct_avalanche_avalanche_total_source_mean": {
+          "mean": 2854.19945847,
+          "scale": 308.40507284,
+          "weight": 0.08147517
+        },
+        "synthetic_direct_avalanche_avalanche_total_source_sum": {
+          "mean": 65760755.52309225,
+          "scale": 7105652.8781458,
+          "weight": 0.08147517
+        },
+        "synthetic_direct_avalanche_max_local_topple_max": {
+          "mean": 7.25,
+          "scale": 0.8291562,
+          "weight": -0.20372215
+        },
+        "synthetic_direct_avalanche_max_local_topple_mean": {
+          "mean": 4.34427083,
+          "scale": 0.34770916,
+          "weight": -0.12925246
+        },
+        "synthetic_direct_avalanche_max_local_topple_sum": {
+          "mean": 100092.0,
+          "scale": 8011.21913319,
+          "weight": -0.12925246
+        },
+        "synthetic_direct_avalanche_nearest_topple_distance_max": {
+          "mean": 58.5009765,
+          "scale": 50.28057056,
+          "weight": -0.02164608
+        },
+        "synthetic_direct_avalanche_nearest_topple_distance_mean": {
+          "mean": 6.06205453,
+          "scale": 0.28797201,
+          "weight": 0.16872922
+        },
+        "synthetic_direct_avalanche_nearest_topple_distance_sum": {
+          "mean": 139669.7363485,
+          "scale": 6634.87507745,
+          "weight": 0.16872922
+        },
+        "synthetic_direct_avalanche_sample_count": {
+          "mean": 23040.0,
+          "scale": 1.0,
+          "weight": 0.0
+        },
+        "synthetic_direct_avalanche_stress_drop_max_max": {
+          "mean": 6.0,
+          "scale": 2.0,
+          "weight": -0.22839084
+        },
+        "synthetic_direct_avalanche_stress_drop_max_mean": {
+          "mean": 4.31597222,
+          "scale": 0.35922115,
+          "weight": -0.1351373
+        },
+        "synthetic_direct_avalanche_stress_drop_max_sum": {
+          "mean": 99440.0,
+          "scale": 8276.45527989,
+          "weight": -0.1351373
+        },
+        "synthetic_direct_avalanche_stress_drop_total_max": {
+          "mean": 1849.25,
+          "scale": 451.39582131,
+          "weight": -0.26043115
+        },
+        "synthetic_direct_avalanche_stress_drop_total_mean": {
+          "mean": 1215.15486111,
+          "scale": 74.19913139,
+          "weight": -0.26401367
+        },
+        "synthetic_direct_avalanche_stress_drop_total_sum": {
+          "mean": 27997168.0,
+          "scale": 1709547.98734168,
+          "weight": -0.26401367
+        },
+        "synthetic_piezo_vlf_critical_cell_count_max": {
+          "mean": 757.5,
+          "scale": 397.76971981,
+          "weight": -0.26012629
+        },
+        "synthetic_piezo_vlf_critical_cell_count_mean": {
+          "mean": 473.1078125,
+          "scale": 144.18925558,
+          "weight": -0.19443909
+        },
+        "synthetic_piezo_vlf_critical_cell_count_sum": {
+          "mean": 10900404.0,
+          "scale": 3322120.44867491,
+          "weight": -0.19443909
+        },
+        "synthetic_piezo_vlf_max_stress_ratio_max": {
+          "mean": 1.125,
+          "scale": 0.0625,
+          "weight": -0.22839084
+        },
+        "synthetic_piezo_vlf_max_stress_ratio_mean": {
+          "mean": 1.06411675,
+          "scale": 0.01917785,
+          "weight": -0.14418418
+        },
+        "synthetic_piezo_vlf_max_stress_ratio_sum": {
+          "mean": 24517.25,
+          "scale": 441.85765525,
+          "weight": -0.14418417
+        },
+        "synthetic_piezo_vlf_near_critical_cell_count_max": {
+          "mean": 44096.75,
+          "scale": 7355.65613576,
+          "weight": 0.13131132
+        },
+        "synthetic_piezo_vlf_near_critical_cell_count_mean": {
+          "mean": 38948.46770833,
+          "scale": 11075.74082035,
+          "weight": 0.11799496
+        },
+        "synthetic_piezo_vlf_near_critical_cell_count_sum": {
+          "mean": 897372696.0,
+          "scale": 255185068.50086877,
+          "weight": 0.11799496
+        },
+        "synthetic_piezo_vlf_nearest_critical_distance_max": {
+          "mean": 37.6606635,
+          "scale": 62.30709789,
+          "weight": -0.02043243
+        },
+        "synthetic_piezo_vlf_nearest_critical_distance_mean": {
+          "mean": 0.64423454,
+          "scale": 0.47858115,
+          "weight": -0.05167135
+        },
+        "synthetic_piezo_vlf_nearest_critical_distance_sum": {
+          "mean": 14843.16384275,
+          "scale": 11026.50962947,
+          "weight": -0.05167135
+        },
+        "synthetic_piezo_vlf_piezo_charge_max_max": {
+          "mean": 43.99826883,
+          "scale": 2.31675496,
+          "weight": -0.08999474
+        },
+        "synthetic_piezo_vlf_piezo_charge_max_mean": {
+          "mean": 39.51149555,
+          "scale": 0.67253081,
+          "weight": -0.15976801
+        },
+        "synthetic_piezo_vlf_piezo_charge_max_sum": {
+          "mean": 910344.85741784,
+          "scale": 15495.10984341,
+          "weight": -0.15976801
+        },
+        "synthetic_piezo_vlf_piezo_charge_total_max": {
+          "mean": 132735.33894716,
+          "scale": 112179.53336968,
+          "weight": -0.24151688
+        },
+        "synthetic_piezo_vlf_piezo_charge_total_mean": {
+          "mean": 79515.96290444,
+          "scale": 59985.11136025,
+          "weight": -0.23386496
+        },
+        "synthetic_piezo_vlf_piezo_charge_total_sum": {
+          "mean": 1832047785.3184,
+          "scale": 1382056965.7401242,
+          "weight": -0.23386496
+        },
+        "synthetic_piezo_vlf_piezo_release_total_max": {
+          "mean": 810.33012366,
+          "scale": 233.0814843,
+          "weight": -0.2419261
+        },
+        "synthetic_piezo_vlf_piezo_release_total_mean": {
+          "mean": 611.47022729,
+          "scale": 100.95945814,
+          "weight": -0.20358472
+        },
+        "synthetic_piezo_vlf_piezo_release_total_sum": {
+          "mean": 14088274.03680594,
+          "scale": 2326105.91560935,
+          "weight": -0.20358472
+        },
+        "synthetic_piezo_vlf_piezo_signal_max": {
+          "mean": 139.58681814,
+          "scale": 36.40239697,
+          "weight": -0.23839456
+        },
+        "synthetic_piezo_vlf_piezo_signal_mean": {
+          "mean": 57.80844674,
+          "scale": 9.6103885,
+          "weight": -0.20260229
+        },
+        "synthetic_piezo_vlf_piezo_signal_sum": {
+          "mean": 1331906.61299364,
+          "scale": 221423.35097367,
+          "weight": -0.20260229
+        },
+        "synthetic_piezo_vlf_piezo_total_source_max": {
+          "mean": 810.33012366,
+          "scale": 233.0814843,
+          "weight": -0.2419261
+        },
+        "synthetic_piezo_vlf_piezo_total_source_mean": {
+          "mean": 611.47022729,
+          "scale": 100.95945814,
+          "weight": -0.20358472
+        },
+        "synthetic_piezo_vlf_piezo_total_source_sum": {
+          "mean": 14088274.03680594,
+          "scale": 2326105.91560935,
+          "weight": -0.20358472
+        },
+        "synthetic_piezo_vlf_sample_count": {
+          "mean": 23040.0,
+          "scale": 1.0,
+          "weight": 0.0
+        },
+        "synthetic_seismic_depth_km_mean": {
+          "mean": 8.41548077,
+          "scale": 4.85987933,
+          "weight": 0.01438921
+        },
+        "synthetic_seismic_energy_sum": {
+          "mean": 81154118.05665131,
+          "scale": 79538908.66636814,
+          "weight": 0.19297989
+        },
+        "synthetic_seismic_event_count": {
+          "mean": 10.25,
+          "scale": 10.35313962,
+          "weight": 0.19759771
+        },
+        "synthetic_seismic_latitude_mean": {
+          "mean": 30.96398712,
+          "scale": 17.87933883,
+          "weight": 0.02250524
+        },
+        "synthetic_seismic_longitude_mean": {
+          "mean": 10.18882135,
+          "scale": 5.8947907,
+          "weight": 0.00688786
+        },
+        "synthetic_seismic_magnitude_max": {
+          "mean": 3.5025,
+          "scale": 2.02276265,
+          "weight": 0.01254394
+        },
+        "synthetic_seismic_magnitude_mean": {
+          "mean": 3.46442308,
+          "scale": 2.0004272,
+          "weight": 0.01485798
+        },
+        "synthetic_summary_avalanche_count_max": {
+          "mean": 1.0,
+          "scale": 1.0,
+          "weight": 0.0
+        },
+        "synthetic_summary_avalanche_count_mean": {
+          "mean": 0.9984375,
+          "scale": 0.00270633,
+          "weight": 0.01899877
+        },
+        "synthetic_summary_avalanche_count_sum": {
+          "mean": 1437.75,
+          "scale": 3.89711432,
+          "weight": 0.01899877
+        },
+        "synthetic_summary_bottom_layer_removed_mass_max": {
+          "mean": 65536.0,
+          "scale": 1.0,
+          "weight": 0.0
+        },
+        "synthetic_summary_bottom_layer_removed_mass_mean": {
+          "mean": 648.51302083,
+          "scale": 19.71864451,
+          "weight": 0.12633375
+        },
+        "synthetic_summary_bottom_layer_removed_mass_sum": {
+          "mean": 933858.75,
+          "scale": 28394.84810115,
+          "weight": 0.12633375
+        },
+        "synthetic_summary_deposition_count_max": {
+          "mean": 765.0,
+          "scale": 3.0,
+          "weight": 0.05610232
+        },
+        "synthetic_summary_deposition_count_mean": {
+          "mean": 716.49270833,
+          "scale": 0.19174748,
+          "weight": -0.21342086
+        },
+        "synthetic_summary_deposition_count_sum": {
+          "mean": 1031749.5,
+          "scale": 276.11637039,
+          "weight": -0.21342086
+        },
+        "synthetic_summary_max_height_max": {
+          "mean": 263.5,
+          "scale": 44.29729111,
+          "weight": 0.10819205
+        },
+        "synthetic_summary_max_height_mean": {
+          "mean": 232.17795139,
+          "scale": 71.22929546,
+          "weight": 0.09387505
+        },
+        "synthetic_summary_max_height_sum": {
+          "mean": 334336.25,
+          "scale": 102570.18546433,
+          "weight": 0.09387505
+        },
+        "synthetic_summary_mean_height_max": {
+          "mean": 121.18611525,
+          "scale": 17.02240979,
+          "weight": 0.03222528
+        },
+        "synthetic_summary_mean_height_mean": {
+          "mean": 107.16006632,
+          "scale": 35.40345138,
+          "weight": 0.0472718
+        },
+        "synthetic_summary_mean_height_sum": {
+          "mean": 154310.49550175,
+          "scale": 50980.96998222,
+          "weight": 0.0472718
+        },
+        "synthetic_summary_relaxation_converged_max": {
+          "mean": 1.0,
+          "scale": 1.0,
+          "weight": 0.0
+        },
+        "synthetic_summary_relaxation_converged_mean": {
+          "mean": 1.0,
+          "scale": 1.0,
+          "weight": 0.0
+        },
+        "synthetic_summary_relaxation_converged_sum": {
+          "mean": 1440.0,
+          "scale": 1.0,
+          "weight": 0.0
+        },
+        "synthetic_summary_released_mass_max": {
+          "mean": 65536.0,
+          "scale": 1.0,
+          "weight": 0.0
+        },
+        "synthetic_summary_released_mass_mean": {
+          "mean": 648.51302083,
+          "scale": 19.71864451,
+          "weight": 0.12633375
+        },
+        "synthetic_summary_released_mass_sum": {
+          "mean": 933858.75,
+          "scale": 28394.84810115,
+          "weight": 0.12633375
+        },
+        "synthetic_summary_safety_released_mass_max": {
+          "mean": 0.0,
+          "scale": 1.0,
+          "weight": 0.0
+        },
+        "synthetic_summary_safety_released_mass_mean": {
+          "mean": 0.0,
+          "scale": 1.0,
+          "weight": 0.0
+        },
+        "synthetic_summary_safety_released_mass_sum": {
+          "mean": 0.0,
+          "scale": 1.0,
+          "weight": 0.0
+        },
+        "synthetic_summary_sample_count": {
+          "mean": 1440.0,
+          "scale": 1.0,
+          "weight": 0.0
+        },
+        "synthetic_summary_target_fill_count_max": {
+          "mean": 2048.0,
+          "scale": 2048.0,
+          "weight": -0.22839084
+        },
+        "synthetic_summary_target_fill_count_mean": {
+          "mean": 1433.86545139,
+          "scale": 1676.39274046,
+          "weight": -0.12373488
+        },
+        "synthetic_summary_target_fill_count_sum": {
+          "mean": 2064766.25,
+          "scale": 2414005.54626894,
+          "weight": -0.12373488
+        },
+        "synthetic_summary_topple_count_max": {
+          "mean": 3911.75,
+          "scale": 868.89682213,
+          "weight": -0.06311355
+        },
+        "synthetic_summary_topple_count_mean": {
+          "mean": 2519.48836806,
+          "scale": 551.09641487,
+          "weight": 0.12876611
+        },
+        "synthetic_summary_topple_count_sum": {
+          "mean": 3628063.25,
+          "scale": 793578.8374098,
+          "weight": 0.12876611
+        },
+        "synthetic_summary_unstable_cell_count_max": {
+          "mean": 0.0,
+          "scale": 1.0,
+          "weight": 0.0
+        },
+        "synthetic_summary_unstable_cell_count_mean": {
+          "mean": 0.0,
+          "scale": 1.0,
+          "weight": 0.0
+        },
+        "synthetic_summary_unstable_cell_count_sum": {
+          "mean": 0.0,
+          "scale": 1.0,
+          "weight": 0.0
+        }
+      },
+      "default_threshold": 0.5,
+      "feature_count": 94,
+      "feature_names": [
+        "synthetic_seismic_event_count",
+        "synthetic_seismic_magnitude_max",
+        "synthetic_seismic_magnitude_mean",
+        "synthetic_seismic_depth_km_mean",
+        "synthetic_seismic_latitude_mean",
+        "synthetic_seismic_longitude_mean",
+        "synthetic_seismic_energy_sum",
+        "synthetic_piezo_vlf_sample_count",
+        "synthetic_piezo_vlf_piezo_signal_mean",
+        "synthetic_piezo_vlf_piezo_signal_max",
+        "synthetic_piezo_vlf_piezo_signal_sum",
+        "synthetic_piezo_vlf_piezo_total_source_mean",
+        "synthetic_piezo_vlf_piezo_total_source_max",
+        "synthetic_piezo_vlf_piezo_total_source_sum",
+        "synthetic_piezo_vlf_near_critical_cell_count_mean",
+        "synthetic_piezo_vlf_near_critical_cell_count_max",
+        "synthetic_piezo_vlf_near_critical_cell_count_sum",
+        "synthetic_piezo_vlf_critical_cell_count_mean",
+        "synthetic_piezo_vlf_critical_cell_count_max",
+        "synthetic_piezo_vlf_critical_cell_count_sum",
+        "synthetic_piezo_vlf_nearest_critical_distance_mean",
+        "synthetic_piezo_vlf_nearest_critical_distance_max",
+        "synthetic_piezo_vlf_nearest_critical_distance_sum",
+        "synthetic_piezo_vlf_max_stress_ratio_mean",
+        "synthetic_piezo_vlf_max_stress_ratio_max",
+        "synthetic_piezo_vlf_max_stress_ratio_sum",
+        "synthetic_piezo_vlf_piezo_charge_total_mean",
+        "synthetic_piezo_vlf_piezo_charge_total_max",
+        "synthetic_piezo_vlf_piezo_charge_total_sum",
+        "synthetic_piezo_vlf_piezo_charge_max_mean",
+        "synthetic_piezo_vlf_piezo_charge_max_max",
+        "synthetic_piezo_vlf_piezo_charge_max_sum",
+        "synthetic_piezo_vlf_piezo_release_total_mean",
+        "synthetic_piezo_vlf_piezo_release_total_max",
+        "synthetic_piezo_vlf_piezo_release_total_sum",
+        "synthetic_direct_avalanche_sample_count",
+        "synthetic_direct_avalanche_avalanche_signal_mean",
+        "synthetic_direct_avalanche_avalanche_signal_max",
+        "synthetic_direct_avalanche_avalanche_signal_sum",
+        "synthetic_direct_avalanche_avalanche_total_source_mean",
+        "synthetic_direct_avalanche_avalanche_total_source_max",
+        "synthetic_direct_avalanche_avalanche_total_source_sum",
+        "synthetic_direct_avalanche_active_topple_cell_count_mean",
+        "synthetic_direct_avalanche_active_topple_cell_count_max",
+        "synthetic_direct_avalanche_active_topple_cell_count_sum",
+        "synthetic_direct_avalanche_max_local_topple_mean",
+        "synthetic_direct_avalanche_max_local_topple_max",
+        "synthetic_direct_avalanche_max_local_topple_sum",
+        "synthetic_direct_avalanche_nearest_topple_distance_mean",
+        "synthetic_direct_avalanche_nearest_topple_distance_max",
+        "synthetic_direct_avalanche_nearest_topple_distance_sum",
+        "synthetic_direct_avalanche_stress_drop_total_mean",
+        "synthetic_direct_avalanche_stress_drop_total_max",
+        "synthetic_direct_avalanche_stress_drop_total_sum",
+        "synthetic_direct_avalanche_stress_drop_max_mean",
+        "synthetic_direct_avalanche_stress_drop_max_max",
+        "synthetic_direct_avalanche_stress_drop_max_sum",
+        "synthetic_direct_avalanche_avalanche_release_total_mean",
+        "synthetic_direct_avalanche_avalanche_release_total_max",
+        "synthetic_direct_avalanche_avalanche_release_total_sum",
+        "synthetic_summary_sample_count",
+        "synthetic_summary_deposition_count_mean",
+        "synthetic_summary_deposition_count_max",
+        "synthetic_summary_deposition_count_sum",
+        "synthetic_summary_avalanche_count_mean",
+        "synthetic_summary_avalanche_count_max",
+        "synthetic_summary_avalanche_count_sum",
+        "synthetic_summary_topple_count_mean",
+        "synthetic_summary_topple_count_max",
+        "synthetic_summary_topple_count_sum",
+        "synthetic_summary_max_height_mean",
+        "synthetic_summary_max_height_max",
+        "synthetic_summary_max_height_sum",
+        "synthetic_summary_mean_height_mean",
+        "synthetic_summary_mean_height_max",
+        "synthetic_summary_mean_height_sum",
+        "synthetic_summary_released_mass_mean",
+        "synthetic_summary_released_mass_max",
+        "synthetic_summary_released_mass_sum",
+        "synthetic_summary_relaxation_converged_mean",
+        "synthetic_summary_relaxation_converged_max",
+        "synthetic_summary_relaxation_converged_sum",
+        "synthetic_summary_unstable_cell_count_mean",
+        "synthetic_summary_unstable_cell_count_max",
+        "synthetic_summary_unstable_cell_count_sum",
+        "synthetic_summary_safety_released_mass_mean",
+        "synthetic_summary_safety_released_mass_max",
+        "synthetic_summary_safety_released_mass_sum",
+        "synthetic_summary_target_fill_count_mean",
+        "synthetic_summary_target_fill_count_max",
+        "synthetic_summary_target_fill_count_sum",
+        "synthetic_summary_bottom_layer_removed_mass_mean",
+        "synthetic_summary_bottom_layer_removed_mass_max",
+        "synthetic_summary_bottom_layer_removed_mass_sum"
+      ],
+      "groups": [
+        "synthetic_seismic",
+        "synthetic_piezo_vlf",
+        "synthetic_direct_avalanche",
+        "synthetic_summary"
+      ],
+      "intercept": -0.07356889,
+      "status": "evaluated",
+      "test_labels": [
+        1,
+        1
+      ],
+      "test_metrics": {
+        "accuracy": 1.0,
+        "balanced_accuracy": 0.5,
+        "confusion": {
+          "false_negative": 0,
+          "false_positive": 0,
+          "true_negative": 0,
+          "true_positive": 2
+        },
+        "negative_recall": 0.0,
+        "positive_precision": 1.0,
+        "positive_recall": 1.0
+      },
+      "test_predictions": [
+        1,
+        1
+      ],
+      "test_probabilities": [
+        0.999832,
+        0.999968
+      ],
+      "test_row_count": 2,
+      "train_metrics": {
+        "accuracy": 1.0,
+        "balanced_accuracy": 1.0,
+        "confusion": {
+          "false_negative": 0,
+          "false_positive": 0,
+          "true_negative": 2,
+          "true_positive": 2
+        },
+        "negative_recall": 1.0,
+        "positive_precision": 1.0,
+        "positive_recall": 1.0
+      },
+      "train_row_count": 4
+    },
+    "synthetic_seismic_direct_avalanche": {
+      "calibrated_test_metrics": {
+        "accuracy": 1.0,
+        "balanced_accuracy": 0.5,
+        "confusion": {
+          "false_negative": 0,
+          "false_positive": 0,
+          "true_negative": 0,
+          "true_positive": 2
+        },
+        "negative_recall": 0.0,
+        "positive_precision": 1.0,
+        "positive_recall": 1.0
+      },
+      "calibrated_threshold": 0.5,
+      "calibrated_train_metrics": {
+        "accuracy": 1.0,
+        "balanced_accuracy": 1.0,
+        "confusion": {
+          "false_negative": 0,
+          "false_positive": 0,
+          "true_negative": 2,
+          "true_positive": 2
+        },
+        "negative_recall": 1.0,
+        "positive_precision": 1.0,
+        "positive_recall": 1.0
+      },
+      "coefficients": {
+        "synthetic_direct_avalanche_active_topple_cell_count_max": {
+          "mean": 2494.25,
+          "scale": 551.11676394,
+          "weight": -0.21664452
+        },
+        "synthetic_direct_avalanche_active_topple_cell_count_mean": {
+          "mean": 1601.95954861,
+          "scale": 353.93050365,
+          "weight": 0.34138675
+        },
+        "synthetic_direct_avalanche_active_topple_cell_count_sum": {
+          "mean": 36909148.0,
+          "scale": 8154558.8041311,
+          "weight": 0.34138675
+        },
+        "synthetic_direct_avalanche_avalanche_release_total_max": {
+          "mean": 4368.18188154,
+          "scale": 838.74979796,
+          "weight": -0.3497107
+        },
+        "synthetic_direct_avalanche_avalanche_release_total_mean": {
+          "mean": 2854.19945847,
+          "scale": 308.40507284,
+          "weight": 0.23308628
+        },
+        "synthetic_direct_avalanche_avalanche_release_total_sum": {
+          "mean": 65760755.52309225,
+          "scale": 7105652.8781458,
+          "weight": 0.23308628
+        },
+        "synthetic_direct_avalanche_avalanche_signal_max": {
+          "mean": 815.25164952,
+          "scale": 142.21981954,
+          "weight": -0.00219309
+        },
+        "synthetic_direct_avalanche_avalanche_signal_mean": {
+          "mean": 270.57651827,
+          "scale": 28.78024353,
+          "weight": 0.22975075
+        },
+        "synthetic_direct_avalanche_avalanche_signal_sum": {
+          "mean": 6234082.98086709,
+          "scale": 663096.81094124,
+          "weight": 0.22975075
+        },
+        "synthetic_direct_avalanche_avalanche_total_source_max": {
+          "mean": 4368.18188154,
+          "scale": 838.74979796,
+          "weight": -0.3497107
+        },
+        "synthetic_direct_avalanche_avalanche_total_source_mean": {
+          "mean": 2854.19945847,
+          "scale": 308.40507284,
+          "weight": 0.23308628
+        },
+        "synthetic_direct_avalanche_avalanche_total_source_sum": {
+          "mean": 65760755.52309225,
+          "scale": 7105652.8781458,
+          "weight": 0.23308628
+        },
+        "synthetic_direct_avalanche_max_local_topple_max": {
+          "mean": 7.25,
+          "scale": 0.8291562,
+          "weight": -0.53324066
+        },
+        "synthetic_direct_avalanche_max_local_topple_mean": {
+          "mean": 4.34427083,
+          "scale": 0.34770916,
+          "weight": -0.35437997
+        },
+        "synthetic_direct_avalanche_max_local_topple_sum": {
+          "mean": 100092.0,
+          "scale": 8011.21913319,
+          "weight": -0.35437997
+        },
+        "synthetic_direct_avalanche_nearest_topple_distance_max": {
+          "mean": 58.5009765,
+          "scale": 50.28057056,
+          "weight": -0.09518682
+        },
+        "synthetic_direct_avalanche_nearest_topple_distance_mean": {
+          "mean": 6.06205453,
+          "scale": 0.28797201,
+          "weight": 0.45477492
+        },
+        "synthetic_direct_avalanche_nearest_topple_distance_sum": {
+          "mean": 139669.7363485,
+          "scale": 6634.87507745,
+          "weight": 0.45477492
+        },
+        "synthetic_direct_avalanche_sample_count": {
+          "mean": 23040.0,
+          "scale": 1.0,
+          "weight": 0.0
+        },
+        "synthetic_direct_avalanche_stress_drop_max_max": {
+          "mean": 6.0,
+          "scale": 2.0,
+          "weight": -0.5788669
+        },
+        "synthetic_direct_avalanche_stress_drop_max_mean": {
+          "mean": 4.31597222,
+          "scale": 0.35922115,
+          "weight": -0.36646993
+        },
+        "synthetic_direct_avalanche_stress_drop_max_sum": {
+          "mean": 99440.0,
+          "scale": 8276.45527989,
+          "weight": -0.36646993
+        },
+        "synthetic_direct_avalanche_stress_drop_total_max": {
+          "mean": 1849.25,
+          "scale": 451.39582131,
+          "weight": -0.62397602
+        },
+        "synthetic_direct_avalanche_stress_drop_total_mean": {
+          "mean": 1215.15486111,
+          "scale": 74.19913139,
+          "weight": -0.65091139
+        },
+        "synthetic_direct_avalanche_stress_drop_total_sum": {
+          "mean": 27997168.0,
+          "scale": 1709547.98734168,
+          "weight": -0.65091139
+        },
+        "synthetic_seismic_depth_km_mean": {
+          "mean": 8.41548077,
+          "scale": 4.85987933,
+          "weight": 0.07864389
+        },
+        "synthetic_seismic_energy_sum": {
+          "mean": 81154118.05665131,
+          "scale": 79538908.66636814,
+          "weight": 0.47599511
+        },
+        "synthetic_seismic_event_count": {
+          "mean": 10.25,
+          "scale": 10.35313962,
+          "weight": 0.48666732
+        },
+        "synthetic_seismic_latitude_mean": {
+          "mean": 30.96398712,
+          "scale": 17.87933883,
+          "weight": 0.09741173
+        },
+        "synthetic_seismic_longitude_mean": {
+          "mean": 10.18882135,
+          "scale": 5.8947907,
+          "weight": 0.06164049
+        },
+        "synthetic_seismic_magnitude_max": {
+          "mean": 3.5025,
+          "scale": 2.02276265,
+          "weight": 0.07360705
+        },
+        "synthetic_seismic_magnitude_mean": {
+          "mean": 3.46442308,
+          "scale": 2.0004272,
+          "weight": 0.07922686
+        }
+      },
+      "default_threshold": 0.5,
+      "feature_count": 32,
+      "feature_names": [
+        "synthetic_seismic_event_count",
+        "synthetic_seismic_magnitude_max",
+        "synthetic_seismic_magnitude_mean",
+        "synthetic_seismic_depth_km_mean",
+        "synthetic_seismic_latitude_mean",
+        "synthetic_seismic_longitude_mean",
+        "synthetic_seismic_energy_sum",
+        "synthetic_direct_avalanche_sample_count",
+        "synthetic_direct_avalanche_avalanche_signal_mean",
+        "synthetic_direct_avalanche_avalanche_signal_max",
+        "synthetic_direct_avalanche_avalanche_signal_sum",
+        "synthetic_direct_avalanche_avalanche_total_source_mean",
+        "synthetic_direct_avalanche_avalanche_total_source_max",
+        "synthetic_direct_avalanche_avalanche_total_source_sum",
+        "synthetic_direct_avalanche_active_topple_cell_count_mean",
+        "synthetic_direct_avalanche_active_topple_cell_count_max",
+        "synthetic_direct_avalanche_active_topple_cell_count_sum",
+        "synthetic_direct_avalanche_max_local_topple_mean",
+        "synthetic_direct_avalanche_max_local_topple_max",
+        "synthetic_direct_avalanche_max_local_topple_sum",
+        "synthetic_direct_avalanche_nearest_topple_distance_mean",
+        "synthetic_direct_avalanche_nearest_topple_distance_max",
+        "synthetic_direct_avalanche_nearest_topple_distance_sum",
+        "synthetic_direct_avalanche_stress_drop_total_mean",
+        "synthetic_direct_avalanche_stress_drop_total_max",
+        "synthetic_direct_avalanche_stress_drop_total_sum",
+        "synthetic_direct_avalanche_stress_drop_max_mean",
+        "synthetic_direct_avalanche_stress_drop_max_max",
+        "synthetic_direct_avalanche_stress_drop_max_sum",
+        "synthetic_direct_avalanche_avalanche_release_total_mean",
+        "synthetic_direct_avalanche_avalanche_release_total_max",
+        "synthetic_direct_avalanche_avalanche_release_total_sum"
+      ],
+      "groups": [
+        "synthetic_seismic",
+        "synthetic_direct_avalanche"
+      ],
+      "intercept": -0.07866213,
+      "status": "evaluated",
+      "test_labels": [
+        1,
+        1
+      ],
+      "test_metrics": {
+        "accuracy": 1.0,
+        "balanced_accuracy": 0.5,
+        "confusion": {
+          "false_negative": 0,
+          "false_positive": 0,
+          "true_negative": 0,
+          "true_positive": 2
+        },
+        "negative_recall": 0.0,
+        "positive_precision": 1.0,
+        "positive_recall": 1.0
+      },
+      "test_predictions": [
+        1,
+        1
+      ],
+      "test_probabilities": [
+        0.999672,
+        0.999867
+      ],
+      "test_row_count": 2,
+      "train_metrics": {
+        "accuracy": 1.0,
+        "balanced_accuracy": 1.0,
+        "confusion": {
+          "false_negative": 0,
+          "false_positive": 0,
+          "true_negative": 2,
+          "true_positive": 2
+        },
+        "negative_recall": 1.0,
+        "positive_precision": 1.0,
+        "positive_recall": 1.0
+      },
+      "train_row_count": 4
+    },
+    "synthetic_seismic_only": {
+      "calibrated_test_metrics": {
+        "accuracy": 1.0,
+        "balanced_accuracy": 0.5,
+        "confusion": {
+          "false_negative": 0,
+          "false_positive": 0,
+          "true_negative": 0,
+          "true_positive": 2
+        },
+        "negative_recall": 0.0,
+        "positive_precision": 1.0,
+        "positive_recall": 1.0
+      },
+      "calibrated_threshold": 0.5,
+      "calibrated_train_metrics": {
+        "accuracy": 1.0,
+        "balanced_accuracy": 1.0,
+        "confusion": {
+          "false_negative": 0,
+          "false_positive": 0,
+          "true_negative": 2,
+          "true_positive": 2
+        },
+        "negative_recall": 1.0,
+        "positive_precision": 1.0,
+        "positive_recall": 1.0
+      },
+      "coefficients": {
+        "synthetic_seismic_depth_km_mean": {
+          "mean": 8.41548077,
+          "scale": 4.85987933,
+          "weight": 0.46801
+        },
+        "synthetic_seismic_energy_sum": {
+          "mean": 81154118.05665131,
+          "scale": 79538908.66636814,
+          "weight": 3.2401271
+        },
+        "synthetic_seismic_event_count": {
+          "mean": 10.25,
+          "scale": 10.35313962,
+          "weight": 3.38194163
+        },
+        "synthetic_seismic_latitude_mean": {
+          "mean": 30.96398712,
+          "scale": 17.87933883,
+          "weight": 0.58447042
+        },
+        "synthetic_seismic_longitude_mean": {
+          "mean": 10.18882135,
+          "scale": 5.8947907,
+          "weight": 0.40265362
+        },
+        "synthetic_seismic_magnitude_max": {
+          "mean": 3.5025,
+          "scale": 2.02276265,
+          "weight": 0.36354073
+        },
+        "synthetic_seismic_magnitude_mean": {
+          "mean": 3.46442308,
+          "scale": 2.0004272,
+          "weight": 0.42340152
+        }
+      },
+      "default_threshold": 0.5,
+      "feature_count": 7,
+      "feature_names": [
+        "synthetic_seismic_event_count",
+        "synthetic_seismic_magnitude_max",
+        "synthetic_seismic_magnitude_mean",
+        "synthetic_seismic_depth_km_mean",
+        "synthetic_seismic_latitude_mean",
+        "synthetic_seismic_longitude_mean",
+        "synthetic_seismic_energy_sum"
+      ],
+      "groups": [
+        "synthetic_seismic"
+      ],
+      "intercept": 0.28178564,
+      "status": "evaluated",
+      "test_labels": [
+        1,
+        1
+      ],
+      "test_metrics": {
+        "accuracy": 1.0,
+        "balanced_accuracy": 0.5,
+        "confusion": {
+          "false_negative": 0,
+          "false_positive": 0,
+          "true_negative": 0,
+          "true_positive": 2
+        },
+        "negative_recall": 0.0,
+        "positive_precision": 1.0,
+        "positive_recall": 1.0
+      },
+      "test_predictions": [
+        1,
+        1
+      ],
+      "test_probabilities": [
+        1.0,
+        1.0
+      ],
+      "test_row_count": 2,
+      "train_metrics": {
+        "accuracy": 1.0,
+        "balanced_accuracy": 1.0,
+        "confusion": {
+          "false_negative": 0,
+          "false_positive": 0,
+          "true_negative": 2,
+          "true_positive": 2
+        },
+        "negative_recall": 1.0,
+        "positive_precision": 1.0,
+        "positive_recall": 1.0
+      },
+      "train_row_count": 4
+    },
+    "synthetic_seismic_piezo_vlf": {
+      "calibrated_test_metrics": {
+        "accuracy": 1.0,
+        "balanced_accuracy": 0.5,
+        "confusion": {
+          "false_negative": 0,
+          "false_positive": 0,
+          "true_negative": 0,
+          "true_positive": 2
+        },
+        "negative_recall": 0.0,
+        "positive_precision": 1.0,
+        "positive_recall": 1.0
+      },
+      "calibrated_threshold": 0.5,
+      "calibrated_train_metrics": {
+        "accuracy": 1.0,
+        "balanced_accuracy": 1.0,
+        "confusion": {
+          "false_negative": 0,
+          "false_positive": 0,
+          "true_negative": 2,
+          "true_positive": 2
+        },
+        "negative_recall": 1.0,
+        "positive_precision": 1.0,
+        "positive_recall": 1.0
+      },
+      "coefficients": {
+        "synthetic_piezo_vlf_critical_cell_count_max": {
+          "mean": 757.5,
+          "scale": 397.76971981,
+          "weight": -0.44947738
+        },
+        "synthetic_piezo_vlf_critical_cell_count_mean": {
+          "mean": 473.1078125,
+          "scale": 144.18925558,
+          "weight": -0.33338173
+        },
+        "synthetic_piezo_vlf_critical_cell_count_sum": {
+          "mean": 10900404.0,
+          "scale": 3322120.44867491,
+          "weight": -0.33338173
+        },
+        "synthetic_piezo_vlf_max_stress_ratio_max": {
+          "mean": 1.125,
+          "scale": 0.0625,
+          "weight": -0.39212369
+        },
+        "synthetic_piezo_vlf_max_stress_ratio_mean": {
+          "mean": 1.06411675,
+          "scale": 0.01917785,
+          "weight": -0.24450698
+        },
+        "synthetic_piezo_vlf_max_stress_ratio_sum": {
+          "mean": 24517.25,
+          "scale": 441.85765525,
+          "weight": -0.24450698
+        },
+        "synthetic_piezo_vlf_near_critical_cell_count_max": {
+          "mean": 44096.75,
+          "scale": 7355.65613576,
+          "weight": 0.21685017
+        },
+        "synthetic_piezo_vlf_near_critical_cell_count_mean": {
+          "mean": 38948.46770833,
+          "scale": 11075.74082035,
+          "weight": 0.19430987
+        },
+        "synthetic_piezo_vlf_near_critical_cell_count_sum": {
+          "mean": 897372696.0,
+          "scale": 255185068.50086877,
+          "weight": 0.19430987
+        },
+        "synthetic_piezo_vlf_nearest_critical_distance_max": {
+          "mean": 37.6606635,
+          "scale": 62.30709789,
+          "weight": -0.02898958
+        },
+        "synthetic_piezo_vlf_nearest_critical_distance_mean": {
+          "mean": 0.64423454,
+          "scale": 0.47858115,
+          "weight": -0.08083589
+        },
+        "synthetic_piezo_vlf_nearest_critical_distance_sum": {
+          "mean": 14843.16384275,
+          "scale": 11026.50962947,
+          "weight": -0.08083589
+        },
+        "synthetic_piezo_vlf_piezo_charge_max_max": {
+          "mean": 43.99826883,
+          "scale": 2.31675496,
+          "weight": -0.16159615
+        },
+        "synthetic_piezo_vlf_piezo_charge_max_mean": {
+          "mean": 39.51149555,
+          "scale": 0.67253081,
+          "weight": -0.27407452
+        },
+        "synthetic_piezo_vlf_piezo_charge_max_sum": {
+          "mean": 910344.85741784,
+          "scale": 15495.10984341,
+          "weight": -0.27407452
+        },
+        "synthetic_piezo_vlf_piezo_charge_total_max": {
+          "mean": 132735.33894716,
+          "scale": 112179.53336968,
+          "weight": -0.4151147
+        },
+        "synthetic_piezo_vlf_piezo_charge_total_mean": {
+          "mean": 79515.96290444,
+          "scale": 59985.11136025,
+          "weight": -0.4016964
+        },
+        "synthetic_piezo_vlf_piezo_charge_total_sum": {
+          "mean": 1832047785.3184,
+          "scale": 1382056965.7401242,
+          "weight": -0.4016964
+        },
+        "synthetic_piezo_vlf_piezo_release_total_max": {
+          "mean": 810.33012366,
+          "scale": 233.0814843,
+          "weight": -0.41679754
+        },
+        "synthetic_piezo_vlf_piezo_release_total_mean": {
+          "mean": 611.47022729,
+          "scale": 100.95945814,
+          "weight": -0.3493597
+        },
+        "synthetic_piezo_vlf_piezo_release_total_sum": {
+          "mean": 14088274.03680594,
+          "scale": 2326105.91560935,
+          "weight": -0.3493597
+        },
+        "synthetic_piezo_vlf_piezo_signal_max": {
+          "mean": 139.58681814,
+          "scale": 36.40239697,
+          "weight": -0.41178311
+        },
+        "synthetic_piezo_vlf_piezo_signal_mean": {
+          "mean": 57.80844674,
+          "scale": 9.6103885,
+          "weight": -0.34755835
+        },
+        "synthetic_piezo_vlf_piezo_signal_sum": {
+          "mean": 1331906.61299364,
+          "scale": 221423.35097367,
+          "weight": -0.34755835
+        },
+        "synthetic_piezo_vlf_piezo_total_source_max": {
+          "mean": 810.33012366,
+          "scale": 233.0814843,
+          "weight": -0.41679754
+        },
+        "synthetic_piezo_vlf_piezo_total_source_mean": {
+          "mean": 611.47022729,
+          "scale": 100.95945814,
+          "weight": -0.3493597
+        },
+        "synthetic_piezo_vlf_piezo_total_source_sum": {
+          "mean": 14088274.03680594,
+          "scale": 2326105.91560935,
+          "weight": -0.3493597
+        },
+        "synthetic_piezo_vlf_sample_count": {
+          "mean": 23040.0,
+          "scale": 1.0,
+          "weight": 0.0
+        },
+        "synthetic_seismic_depth_km_mean": {
+          "mean": 8.41548077,
+          "scale": 4.85987933,
+          "weight": 0.01893234
+        },
+        "synthetic_seismic_energy_sum": {
+          "mean": 81154118.05665131,
+          "scale": 79538908.66636814,
+          "weight": 0.31769878
+        },
+        "synthetic_seismic_event_count": {
+          "mean": 10.25,
+          "scale": 10.35313962,
+          "weight": 0.32598293
+        },
+        "synthetic_seismic_latitude_mean": {
+          "mean": 30.96398712,
+          "scale": 17.87933883,
+          "weight": 0.03231412
+        },
+        "synthetic_seismic_longitude_mean": {
+          "mean": 10.18882135,
+          "scale": 5.8947907,
+          "weight": 0.00688485
+        },
+        "synthetic_seismic_magnitude_max": {
+          "mean": 3.5025,
+          "scale": 2.02276265,
+          "weight": 0.01531956
+        },
+        "synthetic_seismic_magnitude_mean": {
+          "mean": 3.46442308,
+          "scale": 2.0004272,
+          "weight": 0.01932899
+        }
+      },
+      "default_threshold": 0.5,
+      "feature_count": 35,
+      "feature_names": [
+        "synthetic_seismic_event_count",
+        "synthetic_seismic_magnitude_max",
+        "synthetic_seismic_magnitude_mean",
+        "synthetic_seismic_depth_km_mean",
+        "synthetic_seismic_latitude_mean",
+        "synthetic_seismic_longitude_mean",
+        "synthetic_seismic_energy_sum",
+        "synthetic_piezo_vlf_sample_count",
+        "synthetic_piezo_vlf_piezo_signal_mean",
+        "synthetic_piezo_vlf_piezo_signal_max",
+        "synthetic_piezo_vlf_piezo_signal_sum",
+        "synthetic_piezo_vlf_piezo_total_source_mean",
+        "synthetic_piezo_vlf_piezo_total_source_max",
+        "synthetic_piezo_vlf_piezo_total_source_sum",
+        "synthetic_piezo_vlf_near_critical_cell_count_mean",
+        "synthetic_piezo_vlf_near_critical_cell_count_max",
+        "synthetic_piezo_vlf_near_critical_cell_count_sum",
+        "synthetic_piezo_vlf_critical_cell_count_mean",
+        "synthetic_piezo_vlf_critical_cell_count_max",
+        "synthetic_piezo_vlf_critical_cell_count_sum",
+        "synthetic_piezo_vlf_nearest_critical_distance_mean",
+        "synthetic_piezo_vlf_nearest_critical_distance_max",
+        "synthetic_piezo_vlf_nearest_critical_distance_sum",
+        "synthetic_piezo_vlf_max_stress_ratio_mean",
+        "synthetic_piezo_vlf_max_stress_ratio_max",
+        "synthetic_piezo_vlf_max_stress_ratio_sum",
+        "synthetic_piezo_vlf_piezo_charge_total_mean",
+        "synthetic_piezo_vlf_piezo_charge_total_max",
+        "synthetic_piezo_vlf_piezo_charge_total_sum",
+        "synthetic_piezo_vlf_piezo_charge_max_mean",
+        "synthetic_piezo_vlf_piezo_charge_max_max",
+        "synthetic_piezo_vlf_piezo_charge_max_sum",
+        "synthetic_piezo_vlf_piezo_release_total_mean",
+        "synthetic_piezo_vlf_piezo_release_total_max",
+        "synthetic_piezo_vlf_piezo_release_total_sum"
+      ],
+      "groups": [
+        "synthetic_seismic",
+        "synthetic_piezo_vlf"
+      ],
+      "intercept": -0.09785855,
+      "status": "evaluated",
+      "test_labels": [
+        1,
+        1
+      ],
+      "test_metrics": {
+        "accuracy": 1.0,
+        "balanced_accuracy": 0.5,
+        "confusion": {
+          "false_negative": 0,
+          "false_positive": 0,
+          "true_negative": 0,
+          "true_positive": 2
+        },
+        "negative_recall": 0.0,
+        "positive_precision": 1.0,
+        "positive_recall": 1.0
+      },
+      "test_predictions": [
+        1,
+        1
+      ],
+      "test_probabilities": [
+        0.99996,
+        0.999976
+      ],
+      "test_row_count": 2,
+      "train_metrics": {
+        "accuracy": 1.0,
+        "balanced_accuracy": 1.0,
+        "confusion": {
+          "false_negative": 0,
+          "false_positive": 0,
+          "true_negative": 2,
+          "true_positive": 2
+        },
+        "negative_recall": 1.0,
+        "positive_precision": 1.0,
+        "positive_recall": 1.0
+      },
+      "train_row_count": 4
+    }
+  },
+  "input": "data/derived/models/mountain_256x256_seed42_10000.aligned_synthetic_windows.csv",
+  "labeled_row_count": 6,
+  "learning_rate": 0.2,
+  "row_count": 6,
+  "schema": "elfquake.temporal_holdout.v1",
+  "status": "evaluated",
+  "test_negative_count": 0,
+  "test_positive_count": 2,
+  "test_row_count": 2,
+  "test_time_end": "2026-01-06T00:00:00Z",
+  "test_time_start": "2026-01-05T00:00:00Z",
+  "time_field": "window_start_utc",
+  "train_fraction": 0.67,
+  "train_negative_count": 2,
+  "train_positive_count": 2,
+  "train_row_count": 4,
+  "train_time_end": "2026-01-04T00:00:00Z",
+  "train_time_start": "2026-01-01T00:00:00Z"
+}

@@ -3,14 +3,20 @@
 from __future__ import annotations
 
 import csv
+import json
 import math
+import re
 from pathlib import Path
 
 
 BAND_COUNT = 6
+CAPTURE_TIMESTAMP_PATTERN = re.compile(
+    r"(?P<date>\d{4}-\d{2}-\d{2})T(?P<hour>\d{2})[-:](?P<minute>\d{2})[-:](?P<second>\d{2})Z"
+)
 
 FIELDNAMES = [
     "vlf_image_source_file",
+    "vlf_image_captured_at_utc",
     "vlf_image_width_px",
     "vlf_image_height_px",
     "vlf_crop_left_px",
@@ -89,6 +95,7 @@ def extract_vlf_image_features(
 
     row = {
         "vlf_image_source_file": str(image_path),
+        "vlf_image_captured_at_utc": _captured_at_utc(image_path),
         "vlf_image_width_px": str(width),
         "vlf_image_height_px": str(height),
         "vlf_crop_left_px": str(left),
@@ -197,3 +204,16 @@ def _count_runs(flags: list[bool]) -> int:
 
 def _fmt(value: float) -> str:
     return f"{value:.6f}"
+
+
+def _captured_at_utc(image_path: Path) -> str:
+    metadata_path = image_path.with_suffix(image_path.suffix + ".metadata.json")
+    if metadata_path.exists():
+        metadata = json.loads(metadata_path.read_text(encoding="utf-8"))
+        captured_at = metadata.get("captured_at_utc", "")
+        if captured_at:
+            return str(captured_at)
+    match = CAPTURE_TIMESTAMP_PATTERN.search(str(image_path))
+    if not match:
+        return ""
+    return f"{match.group('date')}T{match.group('hour')}:{match.group('minute')}:{match.group('second')}Z"

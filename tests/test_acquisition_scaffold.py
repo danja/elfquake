@@ -38,14 +38,17 @@ from elfquake.features.vlf_image import build_vlf_image_features, extract_vlf_im
 from elfquake.features.vlf_image_windows import join_vlf_image_features_to_windows
 from elfquake.features.vlf_windows import build_vlf_window_features
 from elfquake.models.ablation_smoke import train_ablation_smoke
+from elfquake.models.aligned_windows import build_aligned_window_dataset
 from elfquake.models.alignment_manifest import build_alignment_manifest
 from elfquake.models.candidates import list_model_candidates, write_model_candidates
+from elfquake.models.dataset_combine import combine_aligned_datasets
 from elfquake.models.interface_shape import audit_model_interfaces
 from elfquake.models.logistic_smoke import train_logistic_smoke
 from elfquake.models.readiness import summarize_model_readiness
 from elfquake.models.sequence_materializer import materialize_sequence_dataset
 from elfquake.models.tensor_materializer import materialize_tensor_dataset
 from elfquake.models.tensor_spec import build_tensor_spec
+from elfquake.models.temporal_holdout import evaluate_temporal_holdout
 from elfquake.models.window_adapter import build_event_window_features
 from elfquake.normalize.events import combine_normalized_events
 from elfquake.http import HttpCapture
@@ -505,7 +508,7 @@ class AcquisitionScaffoldTests(unittest.TestCase):
 
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
-            image_path = root / "vlf.jpg"
+            image_path = root / "last_E_VLF_2026-06-29T09-45-00Z.jpg"
             image = Image.new("RGB", (20, 10), (0, 0, 20))
             pixels = image.load()
             for y in range(10):
@@ -530,6 +533,7 @@ class AcquisitionScaffoldTests(unittest.TestCase):
             )
 
             self.assertEqual(row["vlf_image_width_px"], "20")
+            self.assertEqual(row["vlf_image_captured_at_utc"], "2026-06-29T09:45:00Z")
             self.assertEqual(row["vlf_crop_width_px"], "20")
             self.assertGreater(float(row["vlf_high_intensity_ratio"]), 0.1)
             self.assertGreaterEqual(int(row["vlf_vertical_streak_count"]), 2)
@@ -1218,6 +1222,38 @@ class AcquisitionScaffoldTests(unittest.TestCase):
             self.assertEqual(report["status"], "insufficient_class_variation")
             self.assertEqual(report["ablations"]["seismic_only"]["status"], "insufficient_class_variation")
 
+    def test_temporal_holdout_uses_later_rows_for_test(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            table = root / "aligned.csv"
+            table.write_text(
+                "window_id,region_id,window_start_utc,synthetic_seismic_event_count,"
+                "synthetic_piezo_vlf_signal_mean,target_occurred,target_status\n"
+                "w1,r,2026-01-01T00:00:00Z,0,0.1,0,labeled\n"
+                "w2,r,2026-01-02T00:00:00Z,1,0.2,0,labeled\n"
+                "w3,r,2026-01-03T00:00:00Z,8,0.8,1,labeled\n"
+                "w4,r,2026-01-04T00:00:00Z,9,0.9,1,labeled\n"
+                "w5,r,2026-01-05T00:00:00Z,10,1.0,1,labeled\n"
+                "w6,r,2026-01-06T00:00:00Z,11,1.1,1,labeled\n",
+                encoding="utf-8",
+            )
+
+            report = evaluate_temporal_holdout(
+                input_csv=table,
+                out_path=root / "holdout.json",
+                train_fraction=0.67,
+                epochs=100,
+                learning_rate=0.1,
+            )
+
+            self.assertEqual(report["status"], "evaluated")
+            self.assertEqual(report["train_row_count"], 4)
+            self.assertEqual(report["test_time_start"], "2026-01-05T00:00:00Z")
+            self.assertEqual(report["evaluations"]["all_features"]["status"], "evaluated")
+            self.assertEqual(report["evaluations"]["synthetic_seismic_only"]["status"], "evaluated")
+            self.assertEqual(report["evaluations"]["synthetic_seismic_piezo_vlf"]["status"], "evaluated")
+            self.assertEqual(report["evaluations"]["all_features"]["test_labels"], [1, 1])
+
     def test_model_candidate_registry_can_be_filtered_and_written(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
@@ -1356,7 +1392,12 @@ class AcquisitionScaffoldTests(unittest.TestCase):
                 encoding="utf-8",
             )
 
-            manifest = materialize_sequence_dataset(input_csv=series, out_dir=root / "seq")
+            manifest = materialize_sequence_dataset(
+                input_csv=series,
+                out_dir=root / "seq",
+                time_start_utc="2026-01-01T00:00:00Z",
+                time_step_seconds=60,
+            )
 
             self.assertEqual(manifest["schema"], "elfquake.sequence_dataset.v1")
             self.assertEqual(manifest["time_count"], 2)
@@ -1371,7 +1412,9 @@ class AcquisitionScaffoldTests(unittest.TestCase):
             self.assertIn("piezo_signal__present", masks[0])
             self.assertTrue(masks[1].endswith("0,1"))
             self.assertIn("sensor_id", index[0])
-            self.assertEqual(time_axis[0], "time_index,step")
+            self.assertEqual(time_axis[0], "time_index,step,time_utc")
+            self.assertEqual(time_axis[2], "1,1,2026-01-01T00:01:00Z")
+            self.assertEqual(manifest["time_mapping"]["utc_axis_field"], "time_utc")
             self.assertNotIn("time_values", manifest)
 
     def test_alignment_manifest_links_window_and_sequence_manifests(self) -> None:
@@ -1380,8 +1423,8 @@ class AcquisitionScaffoldTests(unittest.TestCase):
             tensor_dir = root / "vlf_tensor"
             tensor_dir.mkdir()
             (tensor_dir / "index.csv").write_text(
-                "row_index,vlf_image_source_file\n"
-                "0,data/raw/vlf/cumiana/last_E_VLF_2026-06-29T09-45-00Z.jpg\n",
+                "row_index,vlf_image_captured_at_utc,vlf_image_source_file\n"
+                "0,2026-06-29T09:45:00Z,data/raw/vlf/cumiana/last_E_VLF_2026-06-29T09-45-00Z.jpg\n",
                 encoding="utf-8",
             )
             tensor_manifest = tensor_dir / "manifest.json"
@@ -1396,7 +1439,7 @@ class AcquisitionScaffoldTests(unittest.TestCase):
                         "masks_csv": str(tensor_dir / "masks.csv"),
                         "index_csv": str(tensor_dir / "index.csv"),
                         "mask_fields": ["vlf_intensity_mean__present"],
-                        "time_field": "vlf_image_source_file",
+                        "time_field": "vlf_image_captured_at_utc",
                         "modalities": {
                             "vlf_image": {
                                 "feature_count": 2,
@@ -1409,7 +1452,12 @@ class AcquisitionScaffoldTests(unittest.TestCase):
             )
             sequence_dir = root / "piezo_sequence"
             sequence_dir.mkdir()
-            (sequence_dir / "time_axis.csv").write_text("time_index,step\n0,0\n1,1\n", encoding="utf-8")
+            (sequence_dir / "time_axis.csv").write_text(
+                "time_index,step,time_utc\n"
+                "0,0,2026-01-01T00:00:00Z\n"
+                "1,1,2026-01-01T00:01:00Z\n",
+                encoding="utf-8",
+            )
             (sequence_dir / "entity_axis.csv").write_text("entity_index,sensor_id\n0,0\n", encoding="utf-8")
             sequence_manifest = sequence_dir / "manifest.json"
             sequence_manifest.write_text(
@@ -1430,6 +1478,12 @@ class AcquisitionScaffoldTests(unittest.TestCase):
                         "time_field": "step",
                         "entity_field": "sensor_id",
                         "mask_fields": ["piezo_signal__present"],
+                        "time_mapping": {
+                            "time_start_utc": "2026-01-01T00:00:00Z",
+                            "time_step_seconds": 60,
+                            "utc_axis_field": "time_utc",
+                            "assumption": "synthetic simulation time mapping",
+                        },
                     }
                 ),
                 encoding="utf-8",
@@ -1445,8 +1499,137 @@ class AcquisitionScaffoldTests(unittest.TestCase):
             self.assertEqual(report["dataset_count"], 2)
             self.assertEqual(report["ablation_groups"]["vlf_image"], ["vlf_tensor"])
             self.assertEqual(report["ablation_groups"]["synthetic_piezo_vlf"], ["piezo_sequence"])
+            self.assertEqual(report["datasets"][0]["time_field"], "vlf_image_captured_at_utc")
             self.assertEqual(report["datasets"][0]["time_coverage"]["start"], "2026-06-29T09:45:00Z")
-            self.assertEqual(report["datasets"][1]["time_coverage"]["end"], "1")
+            self.assertEqual(report["datasets"][1]["time_coverage"]["end"], "2026-01-01T00:01:00Z")
+
+    def test_aligned_window_dataset_aggregates_sequence_and_tensor_inputs(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            base_dir = root / "base"
+            base_dir.mkdir()
+            (base_dir / "index.csv").write_text(
+                "row_index,window_id,region_id,window_start_utc,window_end_utc\n"
+                "0,w0,r,2026-01-01T00:00:00Z,2026-01-01T01:00:00Z\n"
+                "1,w1,r,2026-01-01T01:00:00Z,2026-01-01T02:00:00Z\n",
+                encoding="utf-8",
+            )
+            (base_dir / "values.csv").write_text(
+                "row_index,synthetic_seismic_event_count\n"
+                "0,0\n"
+                "1,3\n",
+                encoding="utf-8",
+            )
+            base_manifest = base_dir / "manifest.json"
+            base_manifest.write_text(
+                json.dumps(
+                    {
+                        "schema": "elfquake.tensor_dataset.v1",
+                        "row_count": 2,
+                        "feature_count": 1,
+                        "values_csv": str(base_dir / "values.csv"),
+                        "index_csv": str(base_dir / "index.csv"),
+                        "feature_fields": ["synthetic_seismic_event_count"],
+                    }
+                ),
+                encoding="utf-8",
+            )
+            seq_dir = root / "seq"
+            seq_dir.mkdir()
+            (seq_dir / "time_axis.csv").write_text(
+                "time_index,step,time_utc\n"
+                "0,0,2026-01-01T00:10:00Z\n"
+                "1,1,2026-01-01T01:10:00Z\n",
+                encoding="utf-8",
+            )
+            (seq_dir / "values.csv").write_text(
+                "row_index,time_index,entity_index,piezo_signal\n"
+                "0,0,0,2\n"
+                "1,1,0,4\n",
+                encoding="utf-8",
+            )
+            sequence_manifest = seq_dir / "manifest.json"
+            sequence_manifest.write_text(
+                json.dumps(
+                    {
+                        "schema": "elfquake.sequence_dataset.v1",
+                        "values_csv": str(seq_dir / "values.csv"),
+                        "time_axis_csv": str(seq_dir / "time_axis.csv"),
+                        "channel_fields": ["piezo_signal"],
+                        "modality": "synthetic_piezo_vlf",
+                    }
+                ),
+                encoding="utf-8",
+            )
+            timed_dir = root / "timed"
+            timed_dir.mkdir()
+            (timed_dir / "index.csv").write_text(
+                "row_index,vlf_image_captured_at_utc\n"
+                "0,2026-01-01T00:20:00Z\n",
+                encoding="utf-8",
+            )
+            (timed_dir / "values.csv").write_text(
+                "row_index,vlf_intensity_mean\n"
+                "0,0.5\n",
+                encoding="utf-8",
+            )
+            timed_manifest = timed_dir / "manifest.json"
+            timed_manifest.write_text(
+                json.dumps(
+                    {
+                        "schema": "elfquake.tensor_dataset.v1",
+                        "values_csv": str(timed_dir / "values.csv"),
+                        "index_csv": str(timed_dir / "index.csv"),
+                        "time_field": "vlf_image_captured_at_utc",
+                        "feature_fields": ["vlf_intensity_mean"],
+                        "modalities": {"vlf_image": {"feature_count": 1}},
+                    }
+                ),
+                encoding="utf-8",
+            )
+
+            rows = build_aligned_window_dataset(
+                base_manifest_path=base_manifest,
+                sequence_manifest_paths=[sequence_manifest],
+                tensor_manifest_paths=[timed_manifest],
+                out_path=root / "aligned.csv",
+                target_source_feature="synthetic_seismic_event_count",
+            )
+
+            self.assertEqual(len(rows), 2)
+            self.assertEqual(rows[0]["synthetic_piezo_vlf_sample_count"], "1")
+            self.assertEqual(rows[0]["synthetic_piezo_vlf_piezo_signal_mean"], "2.000000000")
+            self.assertEqual(rows[0]["vlf_image_sample_count"], "1")
+            self.assertEqual(rows[1]["quality_missing_vlf_image"], "1")
+            self.assertEqual(rows[0]["target_occurred"], "1")
+            self.assertEqual(rows[1]["target_status"], "unlabeled_no_future_window")
+
+    def test_combine_aligned_datasets_adds_dataset_id(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            first = root / "seed40.csv"
+            second = root / "seed41.csv"
+            first.write_text(
+                "window_id,target_occurred,synthetic_seismic_event_count\n"
+                "w1,0,1\n",
+                encoding="utf-8",
+            )
+            second.write_text(
+                "window_id,target_occurred,synthetic_seismic_event_count\n"
+                "w2,1,2\n",
+                encoding="utf-8",
+            )
+
+            rows = combine_aligned_datasets(
+                input_csvs=[first, second],
+                dataset_ids=["seed40", "seed41"],
+                out_path=root / "combined.csv",
+            )
+
+            self.assertEqual(len(rows), 2)
+            self.assertEqual(rows[0]["dataset_id"], "seed40")
+            self.assertEqual(rows[1]["dataset_id"], "seed41")
+            self.assertTrue((root / "combined.csv").exists())
 
     @unittest.skipIf(importlib.util.find_spec("numba") is None, "numba not installed")
     def test_sandpile_simulation_is_deterministic_and_writes_expected_rows(self) -> None:

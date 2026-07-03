@@ -1,0 +1,50 @@
+{
+  "channel_count": 11,
+  "channel_fields": [
+    "deposition_count",
+    "avalanche_count",
+    "topple_count",
+    "max_height",
+    "mean_height",
+    "released_mass",
+    "relaxation_converged",
+    "unstable_cell_count",
+    "safety_released_mass",
+    "target_fill_count",
+    "bottom_layer_removed_mass"
+  ],
+  "entity_axis_csv": "data/derived/models/mountain_256x256_seed41_10000_summary_sequence/entity_axis.csv",
+  "entity_count": 1,
+  "entity_field": "",
+  "fill_value": 0.0,
+  "index_csv": "data/derived/models/mountain_256x256_seed41_10000_summary_sequence/index.csv",
+  "input_csv": "data/derived/sim/mountain_256x256_seed41_10000.summary.csv",
+  "layout": "row,time,entity,channel",
+  "mask_fields": [
+    "deposition_count__present",
+    "avalanche_count__present",
+    "topple_count__present",
+    "max_height__present",
+    "mean_height__present",
+    "released_mass__present",
+    "relaxation_converged__present",
+    "unstable_cell_count__present",
+    "safety_released_mass__present",
+    "target_fill_count__present",
+    "bottom_layer_removed_mass__present"
+  ],
+  "masks_csv": "data/derived/models/mountain_256x256_seed41_10000_summary_sequence/masks.csv",
+  "modality": "synthetic_summary",
+  "row_count": 10000,
+  "schema": "elfquake.sequence_dataset.v1",
+  "time_axis_csv": "data/derived/models/mountain_256x256_seed41_10000_summary_sequence/time_axis.csv",
+  "time_count": 10000,
+  "time_field": "step",
+  "time_mapping": {
+    "assumption": "synthetic simulation time mapping",
+    "time_start_utc": "2026-01-01T00:00:00Z",
+    "time_step_seconds": 60,
+    "utc_axis_field": "time_utc"
+  },
+  "values_csv": "data/derived/models/mountain_256x256_seed41_10000_summary_sequence/values.csv"
+}

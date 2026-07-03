@@ -1,0 +1,261 @@
+{
+  "ablation_plan": {
+    "full_multimodal": {
+      "groups": [
+        "seismic",
+        "astronomy",
+        "vlf_metadata",
+        "vlf_image"
+      ],
+      "has_required_features": false,
+      "missing_groups": [
+        "seismic",
+        "astronomy",
+        "vlf_metadata",
+        "vlf_image"
+      ]
+    },
+    "seismic_astronomy": {
+      "groups": [
+        "seismic",
+        "astronomy"
+      ],
+      "has_required_features": false,
+      "missing_groups": [
+        "seismic",
+        "astronomy"
+      ]
+    },
+    "seismic_only": {
+      "groups": [
+        "seismic"
+      ],
+      "has_required_features": false,
+      "missing_groups": [
+        "seismic"
+      ]
+    },
+    "seismic_vlf": {
+      "groups": [
+        "seismic",
+        "vlf_metadata",
+        "vlf_image"
+      ],
+      "has_required_features": false,
+      "missing_groups": [
+        "seismic",
+        "vlf_metadata",
+        "vlf_image"
+      ]
+    },
+    "synthetic_full": {
+      "groups": [
+        "synthetic_seismic",
+        "synthetic_piezo_vlf",
+        "synthetic_direct_avalanche",
+        "synthetic_summary"
+      ],
+      "has_required_features": true,
+      "missing_groups": []
+    },
+    "synthetic_seismic_direct_avalanche": {
+      "groups": [
+        "synthetic_seismic",
+        "synthetic_direct_avalanche"
+      ],
+      "has_required_features": true,
+      "missing_groups": []
+    },
+    "synthetic_seismic_only": {
+      "groups": [
+        "synthetic_seismic"
+      ],
+      "has_required_features": true,
+      "missing_groups": []
+    },
+    "synthetic_seismic_piezo_vlf": {
+      "groups": [
+        "synthetic_seismic",
+        "synthetic_piezo_vlf"
+      ],
+      "has_required_features": true,
+      "missing_groups": []
+    }
+  },
+  "available_feature_groups": [
+    "synthetic_seismic",
+    "synthetic_piezo_vlf",
+    "synthetic_direct_avalanche",
+    "synthetic_summary",
+    "quality"
+  ],
+  "feature_groups": {
+    "astronomy": {
+      "field_count": 0,
+      "missing_cell_count": 0,
+      "numeric_feature_count": 0,
+      "numeric_features": []
+    },
+    "quality": {
+      "field_count": 4,
+      "missing_cell_count": 0,
+      "numeric_feature_count": 4,
+      "numeric_features": [
+        "quality_missing_synthetic_seismic_event_aggregates",
+        "quality_missing_synthetic_piezo_vlf",
+        "quality_missing_synthetic_direct_avalanche",
+        "quality_missing_synthetic_summary"
+      ]
+    },
+    "seismic": {
+      "field_count": 0,
+      "missing_cell_count": 0,
+      "numeric_feature_count": 0,
+      "numeric_features": []
+    },
+    "synthetic_direct_avalanche": {
+      "field_count": 25,
+      "missing_cell_count": 0,
+      "numeric_feature_count": 25,
+      "numeric_features": [
+        "synthetic_direct_avalanche_sample_count",
+        "synthetic_direct_avalanche_avalanche_signal_mean",
+        "synthetic_direct_avalanche_avalanche_signal_max",
+        "synthetic_direct_avalanche_avalanche_signal_sum",
+        "synthetic_direct_avalanche_avalanche_total_source_mean",
+        "synthetic_direct_avalanche_avalanche_total_source_max",
+        "synthetic_direct_avalanche_avalanche_total_source_sum",
+        "synthetic_direct_avalanche_active_topple_cell_count_mean",
+        "synthetic_direct_avalanche_active_topple_cell_count_max",
+        "synthetic_direct_avalanche_active_topple_cell_count_sum",
+        "synthetic_direct_avalanche_max_local_topple_mean",
+        "synthetic_direct_avalanche_max_local_topple_max",
+        "synthetic_direct_avalanche_max_local_topple_sum",
+        "synthetic_direct_avalanche_nearest_topple_distance_mean",
+        "synthetic_direct_avalanche_nearest_topple_distance_max",
+        "synthetic_direct_avalanche_nearest_topple_distance_sum",
+        "synthetic_direct_avalanche_stress_drop_total_mean",
+        "synthetic_direct_avalanche_stress_drop_total_max",
+        "synthetic_direct_avalanche_stress_drop_total_sum",
+        "synthetic_direct_avalanche_stress_drop_max_mean",
+        "synthetic_direct_avalanche_stress_drop_max_max",
+        "synthetic_direct_avalanche_stress_drop_max_sum",
+        "synthetic_direct_avalanche_avalanche_release_total_mean",
+        "synthetic_direct_avalanche_avalanche_release_total_max",
+        "synthetic_direct_avalanche_avalanche_release_total_sum"
+      ]
+    },
+    "synthetic_piezo_vlf": {
+      "field_count": 28,
+      "missing_cell_count": 0,
+      "numeric_feature_count": 28,
+      "numeric_features": [
+        "synthetic_piezo_vlf_sample_count",
+        "synthetic_piezo_vlf_piezo_signal_mean",
+        "synthetic_piezo_vlf_piezo_signal_max",
+        "synthetic_piezo_vlf_piezo_signal_sum",
+        "synthetic_piezo_vlf_piezo_total_source_mean",
+        "synthetic_piezo_vlf_piezo_total_source_max",
+        "synthetic_piezo_vlf_piezo_total_source_sum",
+        "synthetic_piezo_vlf_near_critical_cell_count_mean",
+        "synthetic_piezo_vlf_near_critical_cell_count_max",
+        "synthetic_piezo_vlf_near_critical_cell_count_sum",
+        "synthetic_piezo_vlf_critical_cell_count_mean",
+        "synthetic_piezo_vlf_critical_cell_count_max",
+        "synthetic_piezo_vlf_critical_cell_count_sum",
+        "synthetic_piezo_vlf_nearest_critical_distance_mean",
+        "synthetic_piezo_vlf_nearest_critical_distance_max",
+        "synthetic_piezo_vlf_nearest_critical_distance_sum",
+        "synthetic_piezo_vlf_max_stress_ratio_mean",
+        "synthetic_piezo_vlf_max_stress_ratio_max",
+        "synthetic_piezo_vlf_max_stress_ratio_sum",
+        "synthetic_piezo_vlf_piezo_charge_total_mean",
+        "synthetic_piezo_vlf_piezo_charge_total_max",
+        "synthetic_piezo_vlf_piezo_charge_total_sum",
+        "synthetic_piezo_vlf_piezo_charge_max_mean",
+        "synthetic_piezo_vlf_piezo_charge_max_max",
+        "synthetic_piezo_vlf_piezo_charge_max_sum",
+        "synthetic_piezo_vlf_piezo_release_total_mean",
+        "synthetic_piezo_vlf_piezo_release_total_max",
+        "synthetic_piezo_vlf_piezo_release_total_sum"
+      ]
+    },
+    "synthetic_seismic": {
+      "field_count": 7,
+      "missing_cell_count": 0,
+      "numeric_feature_count": 7,
+      "numeric_features": [
+        "synthetic_seismic_event_count",
+        "synthetic_seismic_magnitude_max",
+        "synthetic_seismic_magnitude_mean",
+        "synthetic_seismic_depth_km_mean",
+        "synthetic_seismic_latitude_mean",
+        "synthetic_seismic_longitude_mean",
+        "synthetic_seismic_energy_sum"
+      ]
+    },
+    "synthetic_summary": {
+      "field_count": 34,
+      "missing_cell_count": 0,
+      "numeric_feature_count": 34,
+      "numeric_features": [
+        "synthetic_summary_sample_count",
+        "synthetic_summary_deposition_count_mean",
+        "synthetic_summary_deposition_count_max",
+        "synthetic_summary_deposition_count_sum",
+        "synthetic_summary_avalanche_count_mean",
+        "synthetic_summary_avalanche_count_max",
+        "synthetic_summary_avalanche_count_sum",
+        "synthetic_summary_topple_count_mean",
+        "synthetic_summary_topple_count_max",
+        "synthetic_summary_topple_count_sum",
+        "synthetic_summary_max_height_mean",
+        "synthetic_summary_max_height_max",
+        "synthetic_summary_max_height_sum",
+        "synthetic_summary_mean_height_mean",
+        "synthetic_summary_mean_height_max",
+        "synthetic_summary_mean_height_sum",
+        "synthetic_summary_released_mass_mean",
+        "synthetic_summary_released_mass_max",
+        "synthetic_summary_released_mass_sum",
+        "synthetic_summary_relaxation_converged_mean",
+        "synthetic_summary_relaxation_converged_max",
+        "synthetic_summary_relaxation_converged_sum",
+        "synthetic_summary_unstable_cell_count_mean",
+        "synthetic_summary_unstable_cell_count_max",
+        "synthetic_summary_unstable_cell_count_sum",
+        "synthetic_summary_safety_released_mass_mean",
+        "synthetic_summary_safety_released_mass_max",
+        "synthetic_summary_safety_released_mass_sum",
+        "synthetic_summary_target_fill_count_mean",
+        "synthetic_summary_target_fill_count_max",
+        "synthetic_summary_target_fill_count_sum",
+        "synthetic_summary_bottom_layer_removed_mass_mean",
+        "synthetic_summary_bottom_layer_removed_mass_max",
+        "synthetic_summary_bottom_layer_removed_mass_sum"
+      ]
+    },
+    "vlf_image": {
+      "field_count": 0,
+      "missing_cell_count": 0,
+      "numeric_feature_count": 0,
+      "numeric_features": []
+    },
+    "vlf_metadata": {
+      "field_count": 0,
+      "missing_cell_count": 0,
+      "numeric_feature_count": 0,
+      "numeric_features": []
+    }
+  },
+  "input": "data/derived/models/mountain_256x256_seeds40-42_10000.aligned_hourly_synthetic_windows_gt1.csv",
+  "labeled_row_count": 501,
+  "negative_count": 309,
+  "positive_count": 192,
+  "row_count": 501,
+  "status": "ready_for_smoke_training",
+  "target_status_counts": {
+    "labeled": 501
+  },
+  "unlabeled_row_count": 0
+}

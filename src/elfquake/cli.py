@@ -39,14 +39,17 @@ from elfquake.features.vlf_image import build_vlf_image_features
 from elfquake.features.vlf_image_windows import join_vlf_image_features_to_windows
 from elfquake.features.vlf_windows import build_vlf_window_features
 from elfquake.models.ablation_smoke import train_ablation_smoke
+from elfquake.models.aligned_windows import build_aligned_window_dataset
 from elfquake.models.alignment_manifest import build_alignment_manifest
 from elfquake.models.candidates import write_model_candidates
+from elfquake.models.dataset_combine import combine_aligned_datasets
 from elfquake.models.interface_shape import audit_model_interfaces
 from elfquake.models.logistic_smoke import train_logistic_smoke
 from elfquake.models.readiness import summarize_model_readiness
 from elfquake.models.sequence_materializer import materialize_sequence_dataset
 from elfquake.models.tensor_materializer import materialize_tensor_dataset
 from elfquake.models.tensor_spec import build_tensor_spec
+from elfquake.models.temporal_holdout import evaluate_temporal_holdout
 from elfquake.models.window_adapter import build_event_window_features
 from elfquake.normalize.events import combine_normalized_events
 from elfquake.normalize.ingv import normalize_ingv_event_text
@@ -277,6 +280,14 @@ def main() -> int:
     ablation.add_argument("--epochs", type=int, default=600)
     ablation.add_argument("--learning-rate", type=float, default=0.2)
 
+    temporal_holdout = subparsers.add_parser("evaluate-temporal-holdout")
+    temporal_holdout.add_argument("--input", type=Path, required=True)
+    temporal_holdout.add_argument("--out", type=Path, required=True)
+    temporal_holdout.add_argument("--time-field", default="window_start_utc")
+    temporal_holdout.add_argument("--train-fraction", type=float, default=0.67)
+    temporal_holdout.add_argument("--epochs", type=int, default=600)
+    temporal_holdout.add_argument("--learning-rate", type=float, default=0.2)
+
     model_candidates = subparsers.add_parser("list-model-candidates")
     model_candidates.add_argument("--out", type=Path, required=True)
     model_candidates.add_argument("--stage", choices=["baseline", "transformer", "research"])
@@ -315,11 +326,28 @@ def main() -> int:
     sequence_materialize.add_argument("--no-entity-field", action="store_true")
     sequence_materialize.add_argument("--fill-value", type=float, default=0.0)
     sequence_materialize.add_argument("--modality", default="simulation")
+    sequence_materialize.add_argument("--time-start-utc")
+    sequence_materialize.add_argument("--time-step-seconds", type=int)
 
     alignment_manifest = subparsers.add_parser("build-alignment-manifest")
     alignment_manifest.add_argument("--manifest", type=Path, action="append", required=True)
     alignment_manifest.add_argument("--run-id", required=True)
     alignment_manifest.add_argument("--out", type=Path, required=True)
+
+    aligned_windows = subparsers.add_parser("build-aligned-window-dataset")
+    aligned_windows.add_argument("--base-manifest", type=Path, required=True)
+    aligned_windows.add_argument("--sequence-manifest", type=Path, action="append", default=[])
+    aligned_windows.add_argument("--tensor-manifest", type=Path, action="append", default=[])
+    aligned_windows.add_argument("--out", type=Path, required=True)
+    aligned_windows.add_argument("--target-source-feature", default="")
+    aligned_windows.add_argument("--target-horizon-rows", type=int, default=1)
+    aligned_windows.add_argument("--target-threshold", type=float, default=0.0)
+    aligned_windows.add_argument("--drop-unlabeled-targets", action="store_true")
+
+    combine_aligned = subparsers.add_parser("combine-aligned-datasets")
+    combine_aligned.add_argument("--input", type=Path, action="append", required=True)
+    combine_aligned.add_argument("--dataset-id", action="append")
+    combine_aligned.add_argument("--out", type=Path, required=True)
 
     sandpile = subparsers.add_parser("run-sandpile-sim")
     sandpile.add_argument("--width", type=int, default=128)
@@ -844,6 +872,23 @@ def main() -> int:
             print(f"labeled rows: {report['labeled_row_count']}")
             print(f"output: {args.out}")
             return 0
+        elif args.command == "evaluate-temporal-holdout":
+            report = evaluate_temporal_holdout(
+                input_csv=args.input,
+                out_path=args.out,
+                time_field=args.time_field,
+                train_fraction=args.train_fraction,
+                epochs=args.epochs,
+                learning_rate=args.learning_rate,
+            )
+            print(f"status: {report['status']}")
+            print(f"rows: {report['row_count']}")
+            print(f"labeled rows: {report['labeled_row_count']}")
+            if "train_row_count" in report:
+                print(f"train rows: {report['train_row_count']}")
+                print(f"test rows: {report['test_row_count']}")
+            print(f"output: {args.out}")
+            return 0
         elif args.command == "list-model-candidates":
             rows = write_model_candidates(out_path=args.out, stage=args.stage)
             print(f"candidates: {len(rows)}")
@@ -898,6 +943,8 @@ def main() -> int:
                 entity_field=None if args.no_entity_field else args.entity_field,
                 fill_value=args.fill_value,
                 modality=args.modality,
+                time_start_utc=args.time_start_utc,
+                time_step_seconds=args.time_step_seconds,
             )
             print(f"rows: {manifest['row_count']}")
             print(f"times: {manifest['time_count']}")
@@ -912,6 +959,32 @@ def main() -> int:
                 run_id=args.run_id,
             )
             print(f"datasets: {report['dataset_count']}")
+            print(f"output: {args.out}")
+            return 0
+        elif args.command == "build-aligned-window-dataset":
+            rows = build_aligned_window_dataset(
+                base_manifest_path=args.base_manifest,
+                sequence_manifest_paths=args.sequence_manifest,
+                tensor_manifest_paths=args.tensor_manifest,
+                out_path=args.out,
+                target_source_feature=args.target_source_feature,
+                target_horizon_rows=args.target_horizon_rows,
+                target_threshold=args.target_threshold,
+                drop_unlabeled_targets=args.drop_unlabeled_targets,
+            )
+            labeled = sum(1 for row in rows if row.get("target_occurred") in {"0", "1"})
+            print(f"rows: {len(rows)}")
+            print(f"labeled rows: {labeled}")
+            print(f"output: {args.out}")
+            return 0
+        elif args.command == "combine-aligned-datasets":
+            rows = combine_aligned_datasets(
+                input_csvs=args.input,
+                dataset_ids=args.dataset_id,
+                out_path=args.out,
+            )
+            print(f"rows: {len(rows)}")
+            print(f"datasets: {len(args.input)}")
             print(f"output: {args.out}")
             return 0
         elif args.command == "run-sandpile-sim":

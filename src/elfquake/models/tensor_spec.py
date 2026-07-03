@@ -25,6 +25,9 @@ MODALITY_PREFIXES: dict[str, tuple[str, ...]] = {
     ),
     "astronomy": ("astro_", "astronomy_", "moon_", "solar_", "kp_", "ap_", "f107_"),
     "synthetic_seismic": ("synthetic_seismic_",),
+    "synthetic_piezo_vlf": ("synthetic_piezo_vlf_",),
+    "synthetic_direct_avalanche": ("synthetic_direct_avalanche_",),
+    "synthetic_summary": ("synthetic_summary_",),
     "simulation": ("piezo_", "avalanche_", "sim_"),
     "quality": ("quality_", "coverage_", "missing_"),
 }

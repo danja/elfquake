@@ -1,0 +1,46 @@
+{
+  "channel_count": 9,
+  "channel_fields": [
+    "piezo_signal",
+    "piezo_total_source",
+    "near_critical_cell_count",
+    "critical_cell_count",
+    "nearest_critical_distance",
+    "max_stress_ratio",
+    "piezo_charge_total",
+    "piezo_charge_max",
+    "piezo_release_total"
+  ],
+  "entity_axis_csv": "data/derived/models/mountain_256x256_seed41_10000_piezo_sequence/entity_axis.csv",
+  "entity_count": 16,
+  "entity_field": "sensor_id",
+  "fill_value": 0.0,
+  "index_csv": "data/derived/models/mountain_256x256_seed41_10000_piezo_sequence/index.csv",
+  "input_csv": "data/derived/sim/mountain_256x256_seed41_10000.piezo.csv",
+  "layout": "row,time,entity,channel",
+  "mask_fields": [
+    "piezo_signal__present",
+    "piezo_total_source__present",
+    "near_critical_cell_count__present",
+    "critical_cell_count__present",
+    "nearest_critical_distance__present",
+    "max_stress_ratio__present",
+    "piezo_charge_total__present",
+    "piezo_charge_max__present",
+    "piezo_release_total__present"
+  ],
+  "masks_csv": "data/derived/models/mountain_256x256_seed41_10000_piezo_sequence/masks.csv",
+  "modality": "synthetic_piezo_vlf",
+  "row_count": 160000,
+  "schema": "elfquake.sequence_dataset.v1",
+  "time_axis_csv": "data/derived/models/mountain_256x256_seed41_10000_piezo_sequence/time_axis.csv",
+  "time_count": 10000,
+  "time_field": "step",
+  "time_mapping": {
+    "assumption": "synthetic simulation time mapping",
+    "time_start_utc": "2026-01-01T00:00:00Z",
+    "time_step_seconds": 60,
+    "utc_axis_field": "time_utc"
+  },
+  "values_csv": "data/derived/models/mountain_256x256_seed41_10000_piezo_sequence/values.csv"
+}
