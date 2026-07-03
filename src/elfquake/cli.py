@@ -39,10 +39,15 @@ from elfquake.features.vlf_image import build_vlf_image_features
 from elfquake.features.vlf_image_windows import join_vlf_image_features_to_windows
 from elfquake.features.vlf_windows import build_vlf_window_features
 from elfquake.models.ablation_smoke import train_ablation_smoke
+from elfquake.models.alignment_manifest import build_alignment_manifest
 from elfquake.models.candidates import write_model_candidates
+from elfquake.models.interface_shape import audit_model_interfaces
 from elfquake.models.logistic_smoke import train_logistic_smoke
 from elfquake.models.readiness import summarize_model_readiness
+from elfquake.models.sequence_materializer import materialize_sequence_dataset
+from elfquake.models.tensor_materializer import materialize_tensor_dataset
 from elfquake.models.tensor_spec import build_tensor_spec
+from elfquake.models.window_adapter import build_event_window_features
 from elfquake.normalize.events import combine_normalized_events
 from elfquake.normalize.ingv import normalize_ingv_event_text
 from elfquake.normalize.space_weather import (
@@ -282,6 +287,39 @@ def main() -> int:
     tensor_spec.add_argument("--time-field", default="window_start_utc")
     tensor_spec.add_argument("--region-field", default="region_id")
     tensor_spec.add_argument("--target-field", default="target_occurred")
+
+    tensor_materialize = subparsers.add_parser("materialize-tensor-dataset")
+    tensor_materialize.add_argument("--spec", type=Path, required=True)
+    tensor_materialize.add_argument("--out-dir", type=Path, required=True)
+    tensor_materialize.add_argument("--fill-value", type=float, default=0.0)
+
+    interface_audit = subparsers.add_parser("audit-model-interfaces")
+    interface_audit.add_argument("--input", type=Path, action="append", required=True)
+    interface_audit.add_argument("--out", type=Path, required=True)
+
+    event_windows = subparsers.add_parser("build-event-window-features")
+    event_windows.add_argument("--events", type=Path, required=True)
+    event_windows.add_argument("--out", type=Path, required=True)
+    event_windows.add_argument("--region-id", required=True)
+    event_windows.add_argument("--start-utc", required=True)
+    event_windows.add_argument("--end-utc", required=True)
+    event_windows.add_argument("--window-seconds", type=int, required=True)
+    event_windows.add_argument("--feature-prefix", default="seismic")
+    event_windows.add_argument("--min-magnitude", type=float)
+
+    sequence_materialize = subparsers.add_parser("materialize-sequence-dataset")
+    sequence_materialize.add_argument("--input", type=Path, required=True)
+    sequence_materialize.add_argument("--out-dir", type=Path, required=True)
+    sequence_materialize.add_argument("--time-field", default="step")
+    sequence_materialize.add_argument("--entity-field", default="sensor_id")
+    sequence_materialize.add_argument("--no-entity-field", action="store_true")
+    sequence_materialize.add_argument("--fill-value", type=float, default=0.0)
+    sequence_materialize.add_argument("--modality", default="simulation")
+
+    alignment_manifest = subparsers.add_parser("build-alignment-manifest")
+    alignment_manifest.add_argument("--manifest", type=Path, action="append", required=True)
+    alignment_manifest.add_argument("--run-id", required=True)
+    alignment_manifest.add_argument("--out", type=Path, required=True)
 
     sandpile = subparsers.add_parser("run-sandpile-sim")
     sandpile.add_argument("--width", type=int, default=128)
@@ -821,6 +859,59 @@ def main() -> int:
             )
             print(f"rows: {spec['row_count']}")
             print(f"numeric features: {spec['numeric_feature_count']}")
+            print(f"output: {args.out}")
+            return 0
+        elif args.command == "materialize-tensor-dataset":
+            manifest = materialize_tensor_dataset(
+                spec_path=args.spec,
+                out_dir=args.out_dir,
+                fill_value=args.fill_value,
+            )
+            print(f"rows: {manifest['row_count']}")
+            print(f"features: {manifest['feature_count']}")
+            print(f"manifest: {Path(args.out_dir) / 'manifest.json'}")
+            return 0
+        elif args.command == "audit-model-interfaces":
+            report = audit_model_interfaces(input_paths=args.input, out_path=args.out)
+            print(f"tables: {report['table_count']}")
+            print(f"output: {args.out}")
+            return 0
+        elif args.command == "build-event-window-features":
+            rows = build_event_window_features(
+                events_csv=args.events,
+                out_path=args.out,
+                region_id=args.region_id,
+                start_utc=args.start_utc,
+                end_utc=args.end_utc,
+                window_seconds=args.window_seconds,
+                feature_prefix=args.feature_prefix,
+                min_magnitude=args.min_magnitude,
+            )
+            print(f"window rows: {len(rows)}")
+            print(f"output: {args.out}")
+            return 0
+        elif args.command == "materialize-sequence-dataset":
+            manifest = materialize_sequence_dataset(
+                input_csv=args.input,
+                out_dir=args.out_dir,
+                time_field=args.time_field,
+                entity_field=None if args.no_entity_field else args.entity_field,
+                fill_value=args.fill_value,
+                modality=args.modality,
+            )
+            print(f"rows: {manifest['row_count']}")
+            print(f"times: {manifest['time_count']}")
+            print(f"entities: {manifest['entity_count']}")
+            print(f"channels: {manifest['channel_count']}")
+            print(f"manifest: {Path(args.out_dir) / 'manifest.json'}")
+            return 0
+        elif args.command == "build-alignment-manifest":
+            report = build_alignment_manifest(
+                manifest_paths=args.manifest,
+                out_path=args.out,
+                run_id=args.run_id,
+            )
+            print(f"datasets: {report['dataset_count']}")
             print(f"output: {args.out}")
             return 0
         elif args.command == "run-sandpile-sim":

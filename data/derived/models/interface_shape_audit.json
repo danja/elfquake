@@ -1,0 +1,202 @@
+{
+  "interface_summary": {
+    "logical_modality_counts": {
+      "seismic": 1,
+      "simulation": 3,
+      "synthetic_seismic": 1,
+      "vlf_image": 1
+    },
+    "needs_sequence_materializer": [
+      "data/derived/sim/mountain_256x256_seed42_10000.piezo.csv",
+      "data/derived/sim/mountain_256x256_seed42_10000.avalanche_signal.csv",
+      "data/derived/sim/mountain_256x256_seed42_10000.summary.csv"
+    ],
+    "needs_window_aggregation": [
+      "data/derived/ingv/events_italy_2026-06-01_2026-06-29.normalized.csv",
+      "data/derived/sim/mountain_256x256_seed42_10000.avalanche_events.csv"
+    ],
+    "shape_counts": {
+      "event_list": 2,
+      "image_feature_table": 1,
+      "sensor_time_series": 2,
+      "summary_time_series": 1
+    }
+  },
+  "schema": "elfquake.model_interface_shape.v1",
+  "table_count": 6,
+  "tables": [
+    {
+      "ablation_note": "ablate after conversion to seismic window features or event-process context",
+      "axis_roles": {
+        "mark": "magnitude and event metadata",
+        "space": "latitude,longitude,depth_km",
+        "time": "event_time_utc"
+      },
+      "field_count": 14,
+      "interface_fit": "aggregate_to_regular_windows_or_use_event_process_adapter",
+      "logical_modality": "seismic",
+      "missing_cell_count": 0,
+      "modality_numeric_feature_counts": {},
+      "modality_numeric_features": {},
+      "numeric_field_count": 5,
+      "path": "data/derived/ingv/events_italy_2026-06-01_2026-06-29.normalized.csv",
+      "row_count": 151,
+      "shape_kind": "event_list",
+      "supports_missing_masks": true
+    },
+    {
+      "ablation_note": "ablate by modality prefix groups and matching present-mask channels",
+      "axis_roles": {
+        "channel": "numeric image feature fields",
+        "sample": "vlf_image_source_file"
+      },
+      "field_count": 26,
+      "interface_fit": "compatible_with_current_values_masks_index_materializer",
+      "logical_modality": "vlf_image",
+      "missing_cell_count": 0,
+      "modality_numeric_feature_counts": {
+        "vlf_image": 25
+      },
+      "modality_numeric_features": {
+        "vlf_image": [
+          "vlf_image_width_px",
+          "vlf_image_height_px",
+          "vlf_crop_left_px",
+          "vlf_crop_top_px",
+          "vlf_crop_right_px",
+          "vlf_crop_bottom_px",
+          "vlf_crop_width_px",
+          "vlf_crop_height_px",
+          "vlf_pixel_count",
+          "vlf_intensity_mean",
+          "vlf_intensity_std",
+          "vlf_intensity_p50",
+          "vlf_intensity_p90",
+          "vlf_intensity_p99",
+          "vlf_high_intensity_ratio",
+          "vlf_hot_color_ratio",
+          "vlf_column_mean_max",
+          "vlf_column_mean_std",
+          "vlf_vertical_streak_count",
+          "vlf_band_0_mean",
+          "vlf_band_1_mean",
+          "vlf_band_2_mean",
+          "vlf_band_3_mean",
+          "vlf_band_4_mean",
+          "vlf_band_5_mean"
+        ]
+      },
+      "numeric_field_count": 25,
+      "path": "data/derived/multimodal/cumiana_last_E_VLF.image_features.csv",
+      "row_count": 116,
+      "shape_kind": "image_feature_table",
+      "supports_missing_masks": true
+    },
+    {
+      "ablation_note": "ablate by simulated signal family after sequence materialization",
+      "axis_roles": {
+        "channel": "numeric fields excluding ids",
+        "entity": "sensor_id",
+        "time": "step"
+      },
+      "field_count": 13,
+      "interface_fit": "needs_sequence_materializer_with_time_entity_channel_axes",
+      "logical_modality": "simulation",
+      "missing_cell_count": 80,
+      "modality_numeric_feature_counts": {
+        "simulation": 5
+      },
+      "modality_numeric_features": {
+        "simulation": [
+          "piezo_signal",
+          "piezo_total_source",
+          "piezo_charge_total",
+          "piezo_charge_max",
+          "piezo_release_total"
+        ]
+      },
+      "numeric_field_count": 13,
+      "path": "data/derived/sim/mountain_256x256_seed42_10000.piezo.csv",
+      "row_count": 160000,
+      "shape_kind": "sensor_time_series",
+      "supports_missing_masks": true
+    },
+    {
+      "ablation_note": "ablate by simulated signal family after sequence materialization",
+      "axis_roles": {
+        "channel": "numeric fields excluding ids",
+        "entity": "sensor_id",
+        "time": "step"
+      },
+      "field_count": 12,
+      "interface_fit": "needs_sequence_materializer_with_time_entity_channel_axes",
+      "logical_modality": "simulation",
+      "missing_cell_count": 144,
+      "modality_numeric_feature_counts": {
+        "simulation": 3
+      },
+      "modality_numeric_features": {
+        "simulation": [
+          "avalanche_signal",
+          "avalanche_total_source",
+          "avalanche_release_total"
+        ]
+      },
+      "numeric_field_count": 12,
+      "path": "data/derived/sim/mountain_256x256_seed42_10000.avalanche_signal.csv",
+      "row_count": 160000,
+      "shape_kind": "sensor_time_series",
+      "supports_missing_masks": true
+    },
+    {
+      "ablation_note": "ablate after conversion to seismic window features or event-process context",
+      "axis_roles": {
+        "mark": "magnitude and event metadata",
+        "space": "latitude,longitude,depth_km",
+        "time": "event_time_utc"
+      },
+      "field_count": 25,
+      "interface_fit": "aggregate_to_regular_windows_or_use_event_process_adapter",
+      "logical_modality": "synthetic_seismic",
+      "missing_cell_count": 0,
+      "modality_numeric_feature_counts": {
+        "simulation": 2
+      },
+      "modality_numeric_features": {
+        "simulation": [
+          "avalanche_signal",
+          "avalanche_total_source"
+        ]
+      },
+      "numeric_field_count": 14,
+      "path": "data/derived/sim/mountain_256x256_seed42_10000.avalanche_events.csv",
+      "row_count": 172,
+      "shape_kind": "event_list",
+      "supports_missing_masks": true
+    },
+    {
+      "ablation_note": "ablate by simulated signal family after sequence materialization",
+      "axis_roles": {
+        "channel": "numeric fields excluding step",
+        "time": "step"
+      },
+      "field_count": 12,
+      "interface_fit": "needs_sequence_materializer_with_time_entity_channel_axes",
+      "logical_modality": "simulation",
+      "missing_cell_count": 0,
+      "modality_numeric_feature_counts": {
+        "simulation": 1
+      },
+      "modality_numeric_features": {
+        "simulation": [
+          "avalanche_count"
+        ]
+      },
+      "numeric_field_count": 12,
+      "path": "data/derived/sim/mountain_256x256_seed42_10000.summary.csv",
+      "row_count": 10000,
+      "shape_kind": "summary_time_series",
+      "supports_missing_masks": true
+    }
+  ]
+}

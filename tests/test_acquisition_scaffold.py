@@ -38,10 +38,15 @@ from elfquake.features.vlf_image import build_vlf_image_features, extract_vlf_im
 from elfquake.features.vlf_image_windows import join_vlf_image_features_to_windows
 from elfquake.features.vlf_windows import build_vlf_window_features
 from elfquake.models.ablation_smoke import train_ablation_smoke
+from elfquake.models.alignment_manifest import build_alignment_manifest
 from elfquake.models.candidates import list_model_candidates, write_model_candidates
+from elfquake.models.interface_shape import audit_model_interfaces
 from elfquake.models.logistic_smoke import train_logistic_smoke
 from elfquake.models.readiness import summarize_model_readiness
+from elfquake.models.sequence_materializer import materialize_sequence_dataset
+from elfquake.models.tensor_materializer import materialize_tensor_dataset
 from elfquake.models.tensor_spec import build_tensor_spec
+from elfquake.models.window_adapter import build_event_window_features
 from elfquake.normalize.events import combine_normalized_events
 from elfquake.http import HttpCapture
 from elfquake.normalize.ingv import normalize_ingv_event_text, normalize_row
@@ -1244,6 +1249,204 @@ class AcquisitionScaffoldTests(unittest.TestCase):
             self.assertIn("vlf_image_intensity_mean_latest__present", spec["modalities"]["vlf_image"]["mask_fields"])
             self.assertEqual(spec["modalities"]["vlf_image"]["missing_cell_count"], 1)
             self.assertIn("target_occurred", spec["target_fields"])
+
+    def test_tensor_materializer_writes_values_masks_and_index(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            table = root / "design.csv"
+            table.write_text(
+                "window_id,region_id,window_start_utc,seismic_event_count,"
+                "vlf_image_intensity_mean_latest,target_occurred,target_status\n"
+                "w1,central_italy,2026-01-01T00:00:00Z,1,0.1,0,labeled\n"
+                "w2,central_italy,2026-01-02T00:00:00Z,2,,1,labeled\n",
+                encoding="utf-8",
+            )
+            spec_path = root / "tensor_spec.json"
+            build_tensor_spec(input_csv=table, out_path=spec_path)
+
+            manifest = materialize_tensor_dataset(spec_path=spec_path, out_dir=root / "tensor")
+
+            self.assertEqual(manifest["schema"], "elfquake.tensor_dataset.v1")
+            self.assertEqual(manifest["row_count"], 2)
+            values = (root / "tensor" / "values.csv").read_text(encoding="utf-8").splitlines()
+            masks = (root / "tensor" / "masks.csv").read_text(encoding="utf-8").splitlines()
+            index = (root / "tensor" / "index.csv").read_text(encoding="utf-8").splitlines()
+            self.assertIn("seismic_event_count", values[0])
+            self.assertIn("0.000000000", values[2])
+            self.assertIn("vlf_image_intensity_mean_latest__present", masks[0])
+            self.assertTrue(masks[2].endswith(",0"))
+            self.assertIn("window_start_utc", index[0])
+            self.assertIn("2026-01-02T00:00:00Z", index[2])
+
+    def test_model_interface_audit_classifies_table_shapes(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            events = root / "events.csv"
+            events.write_text(
+                "event_id,source,event_time_utc,latitude,longitude,depth_km,magnitude,step\n"
+                "e1,ingv,2026-01-01T00:00:00Z,42.0,13.0,8.0,2.5,10\n",
+                encoding="utf-8",
+            )
+            piezo = root / "piezo.csv"
+            piezo.write_text(
+                "step,sensor_id,x,y,piezo_signal,avalanche_signal\n"
+                "0,0,1,2,0.1,\n"
+                "1,0,1,2,0.2,0.4\n",
+                encoding="utf-8",
+            )
+            vlf = root / "vlf.csv"
+            vlf.write_text(
+                "vlf_image_source_file,vlf_image_width_px,vlf_intensity_mean\n"
+                "capture.jpg,842,0.2\n",
+                encoding="utf-8",
+            )
+
+            report = audit_model_interfaces(
+                input_paths=[events, piezo, vlf],
+                out_path=root / "interface_shape.json",
+            )
+
+            kinds = {table["path"]: table["shape_kind"] for table in report["tables"]}
+            self.assertEqual(kinds[str(events)], "event_list")
+            self.assertEqual(kinds[str(piezo)], "sensor_time_series")
+            self.assertEqual(kinds[str(vlf)], "image_feature_table")
+            self.assertIn(str(events), report["interface_summary"]["needs_window_aggregation"])
+            self.assertIn(str(piezo), report["interface_summary"]["needs_sequence_materializer"])
+            self.assertEqual(report["tables"][2]["modality_numeric_feature_counts"]["vlf_image"], 2)
+
+    def test_event_window_adapter_aggregates_irregular_events(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            events = root / "events.csv"
+            events.write_text(
+                "event_id,source,event_time_utc,latitude,longitude,depth_km,magnitude,italy_region\n"
+                "e1,ingv,2026-01-01T00:10:00Z,42.0,13.0,8.0,2.0,central_italy\n"
+                "e2,ingv,2026-01-01T00:40:00Z,43.0,14.0,10.0,3.0,central_italy\n"
+                "e3,ingv,2026-01-01T01:20:00Z,40.0,12.0,5.0,4.0,south_italy\n",
+                encoding="utf-8",
+            )
+
+            rows = build_event_window_features(
+                events_csv=events,
+                out_path=root / "windows.csv",
+                region_id="central_italy",
+                start_utc="2026-01-01T00:00:00Z",
+                end_utc="2026-01-01T02:00:00Z",
+                window_seconds=3600,
+                feature_prefix="seismic",
+            )
+
+            self.assertEqual(len(rows), 2)
+            self.assertEqual(rows[0]["seismic_event_count"], "2")
+            self.assertEqual(rows[0]["seismic_magnitude_max"], "3")
+            self.assertEqual(rows[0]["quality_missing_seismic_event_aggregates"], "0")
+            self.assertEqual(rows[1]["seismic_event_count"], "0")
+            self.assertEqual(rows[1]["seismic_magnitude_max"], "")
+            self.assertEqual(rows[1]["quality_missing_seismic_event_aggregates"], "1")
+
+    def test_sequence_materializer_writes_time_entity_channels_and_masks(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            series = root / "piezo.csv"
+            series.write_text(
+                "step,sensor_id,x,y,piezo_signal,avalanche_signal\n"
+                "1,2,1,1,0.2,0.3\n"
+                "0,2,1,1,,0.1\n"
+                "0,10,2,1,0.4,\n",
+                encoding="utf-8",
+            )
+
+            manifest = materialize_sequence_dataset(input_csv=series, out_dir=root / "seq")
+
+            self.assertEqual(manifest["schema"], "elfquake.sequence_dataset.v1")
+            self.assertEqual(manifest["time_count"], 2)
+            self.assertEqual(manifest["entity_count"], 2)
+            self.assertIn("piezo_signal", manifest["channel_fields"])
+            values = (root / "seq" / "values.csv").read_text(encoding="utf-8").splitlines()
+            masks = (root / "seq" / "masks.csv").read_text(encoding="utf-8").splitlines()
+            index = (root / "seq" / "index.csv").read_text(encoding="utf-8").splitlines()
+            time_axis = (root / "seq" / "time_axis.csv").read_text(encoding="utf-8").splitlines()
+            self.assertIn("time_index,entity_index,piezo_signal,avalanche_signal", values[0])
+            self.assertIn("0.000000000", values[1])
+            self.assertIn("piezo_signal__present", masks[0])
+            self.assertTrue(masks[1].endswith("0,1"))
+            self.assertIn("sensor_id", index[0])
+            self.assertEqual(time_axis[0], "time_index,step")
+            self.assertNotIn("time_values", manifest)
+
+    def test_alignment_manifest_links_window_and_sequence_manifests(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            tensor_dir = root / "vlf_tensor"
+            tensor_dir.mkdir()
+            (tensor_dir / "index.csv").write_text(
+                "row_index,vlf_image_source_file\n"
+                "0,data/raw/vlf/cumiana/last_E_VLF_2026-06-29T09-45-00Z.jpg\n",
+                encoding="utf-8",
+            )
+            tensor_manifest = tensor_dir / "manifest.json"
+            tensor_manifest.write_text(
+                json.dumps(
+                    {
+                        "schema": "elfquake.tensor_dataset.v1",
+                        "layout": "batch,time,channel",
+                        "row_count": 1,
+                        "feature_count": 2,
+                        "values_csv": str(tensor_dir / "values.csv"),
+                        "masks_csv": str(tensor_dir / "masks.csv"),
+                        "index_csv": str(tensor_dir / "index.csv"),
+                        "mask_fields": ["vlf_intensity_mean__present"],
+                        "time_field": "vlf_image_source_file",
+                        "modalities": {
+                            "vlf_image": {
+                                "feature_count": 2,
+                                "feature_fields": ["vlf_intensity_mean"],
+                            }
+                        },
+                    }
+                ),
+                encoding="utf-8",
+            )
+            sequence_dir = root / "piezo_sequence"
+            sequence_dir.mkdir()
+            (sequence_dir / "time_axis.csv").write_text("time_index,step\n0,0\n1,1\n", encoding="utf-8")
+            (sequence_dir / "entity_axis.csv").write_text("entity_index,sensor_id\n0,0\n", encoding="utf-8")
+            sequence_manifest = sequence_dir / "manifest.json"
+            sequence_manifest.write_text(
+                json.dumps(
+                    {
+                        "schema": "elfquake.sequence_dataset.v1",
+                        "layout": "row,time,entity,channel",
+                        "row_count": 2,
+                        "time_count": 2,
+                        "entity_count": 1,
+                        "channel_count": 1,
+                        "modality": "synthetic_piezo_vlf",
+                        "values_csv": str(sequence_dir / "values.csv"),
+                        "masks_csv": str(sequence_dir / "masks.csv"),
+                        "index_csv": str(sequence_dir / "index.csv"),
+                        "time_axis_csv": str(sequence_dir / "time_axis.csv"),
+                        "entity_axis_csv": str(sequence_dir / "entity_axis.csv"),
+                        "time_field": "step",
+                        "entity_field": "sensor_id",
+                        "mask_fields": ["piezo_signal__present"],
+                    }
+                ),
+                encoding="utf-8",
+            )
+
+            report = build_alignment_manifest(
+                manifest_paths=[tensor_manifest, sequence_manifest],
+                out_path=root / "alignment.json",
+                run_id="smoke",
+            )
+
+            self.assertEqual(report["schema"], "elfquake.alignment_manifest.v1")
+            self.assertEqual(report["dataset_count"], 2)
+            self.assertEqual(report["ablation_groups"]["vlf_image"], ["vlf_tensor"])
+            self.assertEqual(report["ablation_groups"]["synthetic_piezo_vlf"], ["piezo_sequence"])
+            self.assertEqual(report["datasets"][0]["time_coverage"]["start"], "2026-06-29T09:45:00Z")
+            self.assertEqual(report["datasets"][1]["time_coverage"]["end"], "1")
 
     @unittest.skipIf(importlib.util.find_spec("numba") is None, "numba not installed")
     def test_sandpile_simulation_is_deterministic_and_writes_expected_rows(self) -> None:

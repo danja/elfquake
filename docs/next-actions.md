@@ -16,14 +16,21 @@
 6. Backfill enough historical INGV windows to get both positive and negative target classes by region.
 7. Continue with prospective-only VLF evaluation unless a separate historical Cumiana archive is obtained.
 8. Add full rupture-mask outputs if synthetic event maps need spatial extent rather than centroid locations.
-9. Build a regular-cadence tensor materializer from tensor specs before implementing Transformer candidates.
-10. Use the piezo/Cumiana comparison report to tune only the piezo VLF mapping derived from `*.piezo.csv`.
-11. Shape direct avalanche signal events for INGV-like seismic event experiments without using the piezo/VLF path.
-12. Use the signal-shape comparison report to tune simulation parameters separately for VLF-like and seismic-like outputs.
+9. Add explicit VLF capture timestamps to VLF tensor indexes instead of relying on filename inference.
+10. Add simulation time-scale metadata so step-indexed sequence tensors can be aligned to UTC windows.
+11. Align seismic, VLF, astronomy, and simulation features onto regular-cadence multimodal tensor rows.
+12. Use the piezo/Cumiana comparison report to tune only the piezo VLF mapping derived from `*.piezo.csv`.
+13. Shape direct avalanche signal events for INGV-like seismic event experiments without using the piezo/VLF path.
+14. Use the signal-shape comparison report to tune simulation parameters separately for VLF-like and seismic-like outputs.
 
 ## Completed
 
+* Add an alignment manifest that links window tensors, sequence tensors, source time ranges, and ablation groups for one model run.
+* Add event-window adapter for real and synthetic seismic event lists.
+* Add sequence materializer for `time x sensor x channel` simulation and VLF-like signals.
+* Add model-interface shape audit for event lists, image feature tables, sensor time series, and summary series.
 * Add sparse local-peak extraction for direct avalanche-derived seismic events.
+* Add backend-neutral tensor materialization from tensor specs with values, masks, and row index files.
 * Add modular model-candidate registry and tensor-spec scaffold for future Transformer work.
 * Compare full-size `256 x 256`, `10000` step seeds `40`, `41`, and `42` without heatmap/video overhead.
 * Add a Natural Earth Italy line basemap for avalanche-derived event-map demos.

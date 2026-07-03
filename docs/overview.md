@@ -47,6 +47,7 @@ The project should proceed cautiously: no prediction capability is assumed until
 * [Pre-Real-Data Checklist](pre-real-data-checklist.md)
 * [Modeling Strategy](modeling-strategy.md)
 * [Model Candidates](model-candidates.md)
+* [Model Interface Shape](model-interface-shape.md)
 * [Model Readiness](model-readiness.md)
 * [Initial Model Trials](initial-model-trials.md)
 * [Evaluation](evaluation.md)

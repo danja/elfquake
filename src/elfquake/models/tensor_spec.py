@@ -24,7 +24,8 @@ MODALITY_PREFIXES: dict[str, tuple[str, ...]] = {
         "vlf_crop_",
     ),
     "astronomy": ("astro_", "astronomy_", "moon_", "solar_", "kp_", "ap_", "f107_"),
-    "simulation": ("piezo_", "avalanche_", "synthetic_", "sim_"),
+    "synthetic_seismic": ("synthetic_seismic_",),
+    "simulation": ("piezo_", "avalanche_", "sim_"),
     "quality": ("quality_", "coverage_", "missing_"),
 }
 

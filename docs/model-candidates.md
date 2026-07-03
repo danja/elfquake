@@ -124,13 +124,30 @@ Current smoke trainers avoid external ML dependencies. A real Transformer implem
 Current scaffold:
 
 * `elfquake.models.candidates` - replaceable model-family registry.
+* `elfquake.models.alignment_manifest` - links materialized datasets, time coverage, and ablation groups for one model run.
+* `elfquake.models.interface_shape` - audits derived table shapes before choosing adapters or model backends.
+* `elfquake.models.window_adapter` - aggregates irregular real or synthetic event lists into regular window features.
+* `elfquake.models.sequence_materializer` - materializes `time x entity x channel` sequence tables with present masks.
 * `elfquake.models.tensor_spec` - CSV-to-tensor metadata spec with modality groups and generated present-mask channel names.
+* `elfquake.models.tensor_materializer` - backend-neutral values, mask, and index CSV materialization from a tensor spec.
 * `list-model-candidates` - writes the candidate registry JSON.
+* `build-alignment-manifest` - writes a model-run manifest across tensor and sequence datasets.
+* `audit-model-interfaces` - classifies event lists, image feature tables, sensor series, and summary series.
+* `build-event-window-features` - writes regular event-window features from INGV-like event lists.
+* `materialize-sequence-dataset` - writes sequence `values.csv`, `masks.csv`, axis files, and a manifest.
 * `build-tensor-spec` - writes a tensor-spec JSON for a feature table.
+* `materialize-tensor-dataset` - writes `values.csv`, `masks.csv`, `index.csv`, and `manifest.json`.
 
 Initial artifacts:
 
 * `data/derived/models/model_candidates.json`
+* `data/derived/models/interface_shape_audit.json`
+* `data/derived/models/current_interface_alignment_manifest.json`
 * `data/derived/models/cumiana_vlf_image_tensor_spec.json`
+* `data/derived/models/cumiana_vlf_image_tensor/manifest.json`
+* `data/derived/models/ingv_italy_2026-06-01_2026-06-30_daily_event_windows_tensor/manifest.json`
+* `data/derived/models/mountain_256x256_seed42_10000_piezo_sequence/manifest.json`
 
 Keep model adapters behind small interfaces. Candidate selection, tensor specs, tensor materialization, training backends, and evaluation should remain separate modules so PyTorch, tree models, or event-process models can be swapped without rewriting feature generation.
+
+See [Model Interface Shape](model-interface-shape.md) for the current adapter gaps.
