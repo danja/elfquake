@@ -76,7 +76,8 @@ def render_event_map(
         ordered = sorted(events, key=lambda item: item.magnitude)
         magnitudes = [event.magnitude for event in ordered]
         min_mag = min(magnitudes)
-        sizes = [28.0 + max(0.0, event.magnitude - min_mag + 0.35) ** 2 * 34.0 for event in ordered]
+        max_mag = max(magnitudes)
+        sizes = [_magnitude_marker_size(event.magnitude, min_magnitude=min_mag, max_magnitude=max_mag) for event in ordered]
         ax.scatter(
             [event.longitude for event in ordered],
             [event.latitude for event in ordered],
@@ -97,6 +98,7 @@ def render_event_map(
             alpha=0.75,
             zorder=9,
         )
+        _draw_magnitude_legend(ax, min_magnitude=min_mag, max_magnitude=max_mag)
 
     _draw_labels(ax)
     ax.set_xlim(lon_min, lon_max)
@@ -173,6 +175,50 @@ def _event_point(row: dict[str, str]) -> EventPoint | None:
     if not (math.isfinite(latitude) and math.isfinite(longitude) and math.isfinite(magnitude)):
         return None
     return EventPoint(latitude=latitude, longitude=longitude, magnitude=magnitude)
+
+
+def _magnitude_marker_size(magnitude: float, *, min_magnitude: float, max_magnitude: float) -> float:
+    if max_magnitude > min_magnitude:
+        ratio = (magnitude - min_magnitude) / (max_magnitude - min_magnitude)
+    else:
+        ratio = 0.5
+    ratio = min(1.0, max(0.0, ratio))
+    return 32.0 + ratio * ratio * 260.0
+
+
+def _draw_magnitude_legend(ax, *, min_magnitude: float, max_magnitude: float) -> None:
+    if max_magnitude > min_magnitude:
+        legend_magnitudes = [min_magnitude, (min_magnitude + max_magnitude) / 2.0, max_magnitude]
+    else:
+        legend_magnitudes = [min_magnitude]
+    handles = [
+        ax.scatter(
+            [],
+            [],
+            s=_magnitude_marker_size(magnitude, min_magnitude=min_magnitude, max_magnitude=max_magnitude),
+            c="#2727ff",
+            edgecolors="white",
+            linewidths=0.85,
+            alpha=0.92,
+        )
+        for magnitude in legend_magnitudes
+    ]
+    labels = [f"M {magnitude:.2f}" for magnitude in legend_magnitudes]
+    legend = ax.legend(
+        handles,
+        labels,
+        title="Magnitude",
+        loc="lower left",
+        frameon=True,
+        fontsize=7,
+        title_fontsize=8,
+        borderpad=0.6,
+        labelspacing=0.8,
+        handletextpad=1.2,
+    )
+    legend.get_frame().set_facecolor("#edf5f8")
+    legend.get_frame().set_edgecolor("#8aa4af")
+    legend.get_frame().set_alpha(0.92)
 
 
 def _draw_base_map(

@@ -206,6 +206,8 @@ PYTHONDONTWRITEBYTECODE=1 PYTHONPATH=src .venv/bin/python -m elfquake.cli build-
 
 `run-all.sh` applies this peak extraction by default with `AVALANCHE_EVENT_QUANTILE=0.95` and `AVALANCHE_EVENT_WINDOW=15`.
 
+By default, direct avalanche events use `--spatial-profile italy_apennines`. This keeps raw avalanche `x,y` coordinates in the CSV, but scales the selected event distribution onto an Apennine-style Italy belt for demo latitude/longitude fields. Use `--spatial-profile central_italy --no-fit-spatial-extent` for the older rectangular Central Italy projection.
+
 Render a VLF-style spectrogram from the piezo sensor CSV:
 
 ```sh
@@ -261,7 +263,7 @@ Render avalanche-derived seismic-like events over an offline Italy map:
 
 The helper prefers the newest `*.avalanche_events.csv`, then falls back to `*.synthetic_events.csv` and normalized INGV CSVs. By default it uses a packaged Natural Earth 1:10m Italy GeoJSON as a realistic offline line basemap and still works without `geopandas`, `shapely`, or web tiles. Use `BASEMAP_GEOJSON=/path/to/map.geojson ./event-map.sh` to override the outline.
 
-Current synthetic event locations use the weighted centroid from direct avalanche toppling activity when `*.avalanche_activity.csv` is available, falling back to direct avalanche-signal sensor locations for older runs. They are suitable for a demo overlay, but not yet for evaluating spatial realism. Add full rupture-mask output before using synthetic maps as spatial training data.
+Current synthetic event locations use the weighted centroid from direct avalanche toppling activity when `*.avalanche_activity.csv` is available, falling back to direct avalanche-signal sensor locations for older runs. The default event-map projection scales those synthetic centroids over an Apennine-like belt and uses point size for synthetic magnitude. This is suitable for a demo overlay, but not yet for evaluating spatial realism. Add full rupture-mask output before using synthetic maps as spatial training data.
 
 ## Mountain Mode
 

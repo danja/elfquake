@@ -51,6 +51,8 @@ Run the local simulation demo pipeline with:
 
 Default outputs use `data/derived/sim/mountain_256x256_seed42_10000` as the prefix. The normal piezo image is `*.piezo_vlf_summary.png` from `*.piezo.csv`; the direct seismic event analogue is `*.avalanche_events.csv`. The older FFT diagnostic is opt-in with `RUN_FFT=1`.
 
+The event-map demo projects avalanche-derived locations over an Apennine-style Italy belt and uses point size for synthetic magnitude.
+
 Compare the simulated VLF analogue image against captured Cumiana VLF spectrograms with:
 
 ```sh

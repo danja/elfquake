@@ -25,6 +25,7 @@ Environment:
   AVALANCHE_EVENT_QUANTILE default 0.95
   AVALANCHE_EVENT_WINDOW   default 15
   AVALANCHE_EVENT_MAX      default 0, no cap
+  AVALANCHE_SPATIAL_PROFILE default italy_apennines
   FPS=20           video frame rate
 USAGE
 }
@@ -47,6 +48,7 @@ fps="${FPS:-20}"
 avalanche_event_quantile="${AVALANCHE_EVENT_QUANTILE:-0.95}"
 avalanche_event_window="${AVALANCHE_EVENT_WINDOW:-15}"
 avalanche_event_max="${AVALANCHE_EVENT_MAX:-0}"
+avalanche_spatial_profile="${AVALANCHE_SPATIAL_PROFILE:-italy_apennines}"
 
 echo "prefix: $prefix"
 
@@ -73,6 +75,7 @@ if [[ "$run_event_map" != "0" ]]; then
     --min-signal-quantile "$avalanche_event_quantile" \
     --local-max-window "$avalanche_event_window" \
     --max-events "$avalanche_event_max" \
+    --spatial-profile "$avalanche_spatial_profile" \
     --out "${prefix}.avalanche_events.csv"
 else
   echo "step 2/6: direct seismic synthetic event list skipped"

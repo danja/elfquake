@@ -27,6 +27,7 @@
 * Add sparse local-peak extraction for direct avalanche-derived seismic events.
 * Add a Natural Earth Italy line basemap for avalanche-derived event-map demos.
 * Add direct avalanche activity centroids for synthetic seismic event locations.
+* Scale avalanche-derived demo event locations over an Apennine-style Italy profile with magnitude-sized map markers.
 * Add VLF display scaling controls derived from the piezo signal.
 * Add `compare-simulation-grid.sh` for multi-seed simulation comparison.
 * Add a declared simulation-to-real time-scale note before PSD interpretation.

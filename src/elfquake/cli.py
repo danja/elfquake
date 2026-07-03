@@ -373,6 +373,8 @@ def main() -> int:
     avalanche_events.add_argument("--lat-max", type=float, default=43.5)
     avalanche_events.add_argument("--lon-min", type=float, default=12.0)
     avalanche_events.add_argument("--lon-max", type=float, default=14.5)
+    avalanche_events.add_argument("--spatial-profile", choices=["central_italy", "italy_apennines"], default="italy_apennines")
+    avalanche_events.add_argument("--no-fit-spatial-extent", action="store_false", dest="fit_spatial_extent")
     avalanche_events.add_argument("--magnitude-type", default="MLs")
     avalanche_events.add_argument("--source", default="elfquake_avalanche_signal_synthetic")
     avalanche_events.add_argument("--ingested-at-utc")
@@ -996,6 +998,8 @@ def main() -> int:
                 lat_max=args.lat_max,
                 lon_min=args.lon_min,
                 lon_max=args.lon_max,
+                spatial_profile=args.spatial_profile,
+                fit_spatial_extent=args.fit_spatial_extent,
                 magnitude_type=args.magnitude_type,
                 source=args.source,
                 ingested_at_utc=args.ingested_at_utc,

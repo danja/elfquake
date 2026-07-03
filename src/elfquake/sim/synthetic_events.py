@@ -132,6 +132,8 @@ def build_avalanche_signal_event_list(
     lat_max: float = 43.5,
     lon_min: float = 12.0,
     lon_max: float = 14.5,
+    spatial_profile: str = "italy_apennines",
+    fit_spatial_extent: bool = True,
     magnitude_type: str = "MLs",
     source: str = "elfquake_avalanche_signal_synthetic",
     ingested_at_utc: str | None = None,
@@ -150,6 +152,8 @@ def build_avalanche_signal_event_list(
         raise ValueError("max_events must be non-negative")
     if not (lat_min < lat_max and lon_min < lon_max):
         raise ValueError("latitude and longitude bounds must be increasing")
+    if spatial_profile not in {"central_italy", "italy_apennines"}:
+        raise ValueError("spatial_profile must be 'central_italy' or 'italy_apennines'")
 
     start = _parse_utc(start_time_utc)
     ingested = ingested_at_utc or start_time_utc
@@ -173,10 +177,15 @@ def build_avalanche_signal_event_list(
         strongest_candidates = sorted(candidates, key=lambda item: (item[4], item[0]), reverse=True)[:max_events]
         candidates = sorted(strongest_candidates, key=lambda item: item[0])
 
+    event_locations = [
+        (step, strongest, signal, total_source, _score, *_avalanche_event_location(strongest, activity_by_step.get(step)))
+        for step, strongest, signal, total_source, _score in candidates
+    ]
+    location_bounds = _location_bounds([(x, y) for *_prefix, x, y, _quality in event_locations])
+
     rows = []
-    for step, strongest, signal, total_source, _score in candidates:
-        x, y, location_quality = _avalanche_event_location(strongest, activity_by_step.get(step))
-        latitude, longitude = _grid_to_central_italy(
+    for step, strongest, signal, total_source, _score, x, y, location_quality in event_locations:
+        latitude, longitude = _grid_to_event_map(
             x=x,
             y=y,
             grid_width=grid_width,
@@ -185,6 +194,8 @@ def build_avalanche_signal_event_list(
             lat_max=lat_max,
             lon_min=lon_min,
             lon_max=lon_max,
+            spatial_profile=spatial_profile,
+            fit_bounds=location_bounds if fit_spatial_extent else None,
         )
         event_time = start + timedelta(seconds=step * step_seconds)
         active_topple_cell_count = _int_value(
@@ -305,7 +316,7 @@ def _event_sensor(rows: list[dict[str, str]]) -> tuple[dict[str, str], str]:
     return max(rows, key=lambda row: int(row.get("height", "0"))), "height_proxy"
 
 
-def _grid_to_central_italy(
+def _grid_to_event_map(
     *,
     x: float,
     y: float,
@@ -315,12 +326,70 @@ def _grid_to_central_italy(
     lat_max: float,
     lon_min: float,
     lon_max: float,
+    spatial_profile: str = "central_italy",
+    fit_bounds: tuple[float, float, float, float] | None = None,
 ) -> tuple[float, float]:
-    x_ratio = min(1.0, max(0.0, x / (grid_width - 1)))
-    y_ratio = min(1.0, max(0.0, y / (grid_height - 1)))
+    if fit_bounds is None:
+        x_ratio = min(1.0, max(0.0, x / (grid_width - 1)))
+        y_ratio = min(1.0, max(0.0, y / (grid_height - 1)))
+    else:
+        x_ratio = _fit_ratio(x, fit_bounds[0], fit_bounds[1], grid_width)
+        y_ratio = _fit_ratio(y, fit_bounds[2], fit_bounds[3], grid_height)
+    if spatial_profile == "italy_apennines":
+        return _grid_ratios_to_italy_apennines(x_ratio=x_ratio, y_ratio=y_ratio)
     longitude = lon_min + x_ratio * (lon_max - lon_min)
     latitude = lat_max - y_ratio * (lat_max - lat_min)
     return latitude, longitude
+
+
+def _grid_to_central_italy(**kwargs) -> tuple[float, float]:
+    return _grid_to_event_map(**kwargs)
+
+
+def _location_bounds(locations: list[tuple[float, float]]) -> tuple[float, float, float, float] | None:
+    if len(locations) < 2:
+        return None
+    xs = [location[0] for location in locations]
+    ys = [location[1] for location in locations]
+    return min(xs), max(xs), min(ys), max(ys)
+
+
+def _fit_ratio(value: float, min_value: float, max_value: float, grid_size: int) -> float:
+    if max_value > min_value:
+        return min(1.0, max(0.0, (value - min_value) / (max_value - min_value)))
+    return min(1.0, max(0.0, value / (grid_size - 1)))
+
+
+def _grid_ratios_to_italy_apennines(*, x_ratio: float, y_ratio: float) -> tuple[float, float]:
+    lon, lat, dx, dy = _interpolate_spine(_ITALY_APPENNINE_SPINE, y_ratio)
+    length = math.hypot(dx, dy) or 1.0
+    normal_lon = -dy / length
+    normal_lat = dx / length
+    cross_track_degrees = (x_ratio - 0.5) * 1.25
+    return lat + normal_lat * cross_track_degrees, lon + normal_lon * cross_track_degrees
+
+
+def _interpolate_spine(points: list[tuple[float, float]], ratio: float) -> tuple[float, float, float, float]:
+    if len(points) < 2:
+        lon, lat = points[0]
+        return lon, lat, 1.0, 0.0
+    segments = []
+    total = 0.0
+    for start, end in zip(points, points[1:]):
+        dx = end[0] - start[0]
+        dy = end[1] - start[1]
+        length = math.hypot(dx, dy)
+        segments.append((start, end, dx, dy, length))
+        total += length
+    target = min(1.0, max(0.0, ratio)) * total
+    travelled = 0.0
+    for start, end, dx, dy, length in segments:
+        if travelled + length >= target:
+            local = 0.0 if length == 0 else (target - travelled) / length
+            return start[0] + dx * local, start[1] + dy * local, dx, dy
+        travelled += length
+    start, end, dx, dy, _length = segments[-1]
+    return end[0], end[1], dx, dy
 
 
 def _magnitude(*, topple_count: int, released_mass: int) -> str:
@@ -358,3 +427,16 @@ def _parse_utc(value: str) -> datetime:
 
 def _format_utc(value: datetime) -> str:
     return value.astimezone(timezone.utc).replace(microsecond=0).isoformat().replace("+00:00", "Z")
+
+
+_ITALY_APPENNINE_SPINE = [
+    (8.0, 44.8),
+    (10.2, 44.1),
+    (11.6, 43.1),
+    (12.7, 42.2),
+    (13.7, 41.3),
+    (14.8, 40.3),
+    (15.8, 39.2),
+    (16.1, 38.2),
+    (14.2, 37.4),
+]
