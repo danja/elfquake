@@ -17,7 +17,7 @@ Right now, while awaiting further data from INGV, the focus is on the simulation
 
 ### Simulated Earthquakes
 
-![simulated earthquake map](docs/images/map-v1.0.png)
+![simulated earthquake map](docs/images/map_v1.0.0.png)
 
 ### Simulated VLF Signal
 
