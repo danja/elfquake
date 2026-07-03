@@ -278,6 +278,7 @@ def render_piezo_strain_vlf_summary(
     output_width: int = 1600,
     sensor_id: int | None = None,
     dc_block: float = 0.995,
+    display_color_quantile: float = 0.82,
 ) -> dict[str, str]:
     """Render a VLF-shaped analogue display from the simulated piezo strain envelope.
 
@@ -300,6 +301,8 @@ def render_piezo_strain_vlf_summary(
         raise ValueError("timeseries_height must be at least 16")
     if output_width < 1:
         raise ValueError("output_width must be at least 1")
+    if not 0 < display_color_quantile <= 1:
+        raise ValueError("display_color_quantile must be greater than 0 and at most 1")
     try:
         from PIL import Image, ImageDraw
     except ImportError as error:  # pragma: no cover - depends on optional environment.
@@ -339,7 +342,13 @@ def render_piezo_strain_vlf_summary(
         draw.line([(0, mid), (width - 1, mid)], fill=(32, 92, 122))
 
     display = np.log1p(display_power)
-    spectrogram_rgb = _grid_to_rgb(display[::-1, :], color_min=0.0, gamma=gamma)
+    display_color_max = _positive_quantile(display, display_color_quantile)
+    spectrogram_rgb = _grid_to_rgb(
+        display[::-1, :],
+        color_min=0.0,
+        color_max=display_color_max,
+        gamma=gamma,
+    )
     spectrogram = Image.fromarray(spectrogram_rgb, mode="RGB")
     spacer = Image.new("RGB", (width, 2), (0, 0, 0))
     combined = Image.new("RGB", (width, timeseries_height + 2 + spectrogram.height), (0, 0, 0))
@@ -372,6 +381,8 @@ def render_piezo_strain_vlf_summary(
         "timeseries_height_px": str(timeseries_height * scale),
         "display_sample_count": str(display_signal.size),
         "display_decimation": str(max(1, int(np.ceil(signal.size / max(display_signal.size, 1))))),
+        "display_color_quantile": f"{display_color_quantile:.6f}",
+        "display_color_max": f"{display_color_max:.9f}",
         "max_power": f"{float(power.max()) if power.size else 0.0:.9f}",
     }
     if metadata_out is not None:
@@ -520,7 +531,7 @@ def _strain_vlf_power(
     freqs = np.linspace(carrier_freq_min_hz, carrier_freq_max_hz, freq_bins)
     span = max(carrier_freq_max_hz - carrier_freq_min_hz, 1.0)
     centers = carrier_freq_min_hz + span * np.array([0.05, 0.09, 0.14, 0.22, 0.34, 0.48, 0.65, 0.82])
-    widths = span * np.array([0.010, 0.008, 0.012, 0.015, 0.018, 0.020, 0.018, 0.014])
+    widths = span * np.array([0.016, 0.012, 0.018, 0.024, 0.026, 0.030, 0.026, 0.020])
     power = np.zeros((freq_bins, signal.size), dtype=np.float64)
     previous = np.zeros(freq_bins, dtype=np.float64)
     freq_tilt = 1.0 / (1.0 + 4.0 * ((freqs - carrier_freq_min_hz) / span))
@@ -528,23 +539,32 @@ def _strain_vlf_power(
     previous_amplitude = 0.0
     for index, amplitude in enumerate(normalized):
         onset = max(0.0, amplitude - previous_amplitude)
-        column = 0.020 * freq_tilt
+        column = 0.070 * (0.60 + 0.40 * freq_tilt)
         burst = amplitude ** 1.15
-        column += 0.24 * burst * freq_tilt
+        column += 0.55 * burst * (0.45 + 0.55 * freq_tilt)
         for band_index, center in enumerate(centers):
             shimmer = 0.72 + 0.28 * np.sin(index * (0.019 + band_index * 0.004) + band_index * 1.7)
             band = np.exp(-0.5 * ((freqs - center) / max(widths[band_index], 1.0)) ** 2)
-            column += burst * shimmer * (0.75 + 0.08 * band_index) * band
-        if amplitude > 0.45:
+            column += burst * shimmer * (1.00 + 0.10 * band_index) * band
+        if amplitude > 0.30:
             wide_center = carrier_freq_min_hz + span * (0.35 + 0.25 * np.sin(index * 0.037))
             wide = np.exp(-0.5 * ((freqs - wide_center) / (span * 0.18)) ** 2)
-            column += (amplitude - 0.45) * 1.10 * wide
-        if amplitude > 0.70 or onset > 0.10:
-            column += (0.45 * amplitude + 1.25 * onset) * (0.55 + 0.45 * freq_tilt)
-        previous = np.maximum(column, previous * 0.80)
+            column += (amplitude - 0.30) * 1.40 * wide
+        if amplitude > 0.28 or onset > 0.04:
+            column += (0.85 * burst + 2.20 * onset) * (0.45 + 0.55 * freq_tilt)
+        previous = np.maximum(column, previous * 0.70)
         power[:, index] = previous
         previous_amplitude = amplitude
     return power
+
+
+def _positive_quantile(values: np.ndarray, quantile: float) -> float:
+    if values.size == 0:
+        return 1.0
+    positive = values[values > 0]
+    if positive.size == 0:
+        return 1.0
+    return max(float(np.quantile(positive, quantile)), 1e-12)
 
 
 def _read_rows(path: Path) -> list[dict[str, str]]:

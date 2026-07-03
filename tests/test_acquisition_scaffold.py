@@ -1504,6 +1504,34 @@ class AcquisitionScaffoldTests(unittest.TestCase):
             self.assertEqual(rows[0]["avalanche_signal"], "8.000000000")
             self.assertEqual((root / "events.csv").read_text(encoding="utf-8").splitlines()[0], ",".join(AVALANCHE_SIGNAL_EVENT_FIELDS))
 
+    def test_build_avalanche_signal_event_list_can_select_sparse_local_peaks(self) -> None:
+        from elfquake.sim.synthetic_events import build_avalanche_signal_event_list
+
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            avalanche = root / "avalanche.csv"
+            avalanche.write_text(
+                "step,sensor_id,x,y,avalanche_signal,avalanche_total_source,active_topple_cell_count,"
+                "max_local_topple,nearest_topple_distance,stress_drop_total,stress_drop_max,avalanche_release_total\n"
+                "0,0,1,1,1.0,1.0,1,1,1.0,1.0,1.0,1.0\n"
+                "1,0,2,1,5.0,5.0,2,1,1.0,1.0,1.0,5.0\n"
+                "2,0,3,1,4.0,4.0,2,1,1.0,1.0,1.0,4.0\n"
+                "3,0,4,1,9.0,9.0,3,2,1.0,2.0,2.0,9.0\n"
+                "4,0,5,1,2.0,2.0,1,1,1.0,1.0,1.0,2.0\n",
+                encoding="utf-8",
+            )
+
+            rows = build_avalanche_signal_event_list(
+                avalanche_csv=avalanche,
+                out_path=root / "events.csv",
+                grid_width=10,
+                grid_height=10,
+                min_signal_quantile=0.50,
+                local_max_window=1,
+            )
+
+            self.assertEqual([row["step"] for row in rows], ["1", "3"])
+
     def test_render_piezo_spectrogram_writes_png_and_metadata(self) -> None:
         from elfquake.sim.piezo_spectrogram import render_piezo_spectrogram
 
@@ -1669,6 +1697,7 @@ class AcquisitionScaffoldTests(unittest.TestCase):
             self.assertEqual(metadata["plot_type"], "strain_envelope_vlf_analogue")
             self.assertEqual(metadata["frequency_axis"], "analogue_vlf_carrier_hz")
             self.assertEqual(metadata["selected_sensor_id"], "0")
+            self.assertEqual(metadata["display_color_quantile"], "0.820000")
             self.assertEqual(report["width_px"], "6")
 
     @unittest.skipIf(importlib.util.find_spec("matplotlib") is None, "matplotlib not installed")

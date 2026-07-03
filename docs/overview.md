@@ -26,6 +26,7 @@ The project should proceed cautiously: no prediction capability is assumed until
 * [Backfill Planning](backfill-planning.md)
 * [Feature Extraction](feature-extraction.md)
 * [Signal Shape Comparison](signal-shape-comparison.md)
+* [Simulation Time Scale](simulation-time-scale.md)
 * [Target Labeling](target-labeling.md)
 * [Training Windows](training-windows.md)
 * [Design Matrix](design-matrix.md)

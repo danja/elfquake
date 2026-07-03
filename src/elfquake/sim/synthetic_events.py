@@ -124,6 +124,9 @@ def build_avalanche_signal_event_list(
     start_time_utc: str = "2026-01-01T00:00:00Z",
     step_seconds: int = 60,
     min_signal: float = 0.0,
+    min_signal_quantile: float = 0.0,
+    local_max_window: int = 0,
+    max_events: int = 0,
     lat_min: float = 41.5,
     lat_max: float = 43.5,
     lon_min: float = 12.0,
@@ -138,20 +141,38 @@ def build_avalanche_signal_event_list(
         raise ValueError("step_seconds must be at least 1")
     if min_signal < 0:
         raise ValueError("min_signal must be non-negative")
+    if not 0 <= min_signal_quantile < 1:
+        raise ValueError("min_signal_quantile must be at least 0 and below 1")
+    if local_max_window < 0:
+        raise ValueError("local_max_window must be non-negative")
+    if max_events < 0:
+        raise ValueError("max_events must be non-negative")
     if not (lat_min < lat_max and lon_min < lon_max):
         raise ValueError("latitude and longitude bounds must be increasing")
 
     start = _parse_utc(start_time_utc)
     ingested = ingested_at_utc or start_time_utc
     grouped = _read_avalanche_signal_by_step(avalanche_csv)
-    rows = []
+    candidates = []
     for step in sorted(grouped):
         step_rows = grouped[step]
         strongest = max(step_rows, key=_avalanche_signal_value)
         signal = _avalanche_signal_value(strongest)
         total_source = _avalanche_total_source_value(strongest)
-        if max(signal, total_source) <= min_signal:
-            continue
+        score = max(signal, total_source)
+        candidates.append((step, strongest, signal, total_source, score))
+
+    threshold = max(min_signal, _quantile([item[4] for item in candidates], min_signal_quantile))
+    candidates = [
+        item for item in candidates
+        if item[4] > threshold and _is_local_maximum(item[0], item[4], candidates, local_max_window)
+    ]
+    if max_events > 0 and len(candidates) > max_events:
+        strongest_candidates = sorted(candidates, key=lambda item: (item[4], item[0]), reverse=True)[:max_events]
+        candidates = sorted(strongest_candidates, key=lambda item: item[0])
+
+    rows = []
+    for step, strongest, signal, total_source, _score in candidates:
         x = int(strongest.get("x", "0") or "0")
         y = int(strongest.get("y", "0") or "0")
         latitude, longitude = _grid_to_central_italy(
@@ -227,6 +248,25 @@ def _avalanche_signal_value(row: dict[str, str]) -> float:
 
 def _avalanche_total_source_value(row: dict[str, str]) -> float:
     return float((row.get("avalanche_total_source") or row.get("piezo_total_source") or "0") or "0")
+
+
+def _quantile(values: list[float], quantile: float) -> float:
+    if not values or quantile <= 0:
+        return 0.0
+    ordered = sorted(values)
+    index = min(len(ordered) - 1, max(0, int(round((len(ordered) - 1) * quantile))))
+    return ordered[index]
+
+
+def _is_local_maximum(step: int, score: float, candidates: list[tuple[int, dict[str, str], float, float, float]], window: int) -> bool:
+    if window <= 0:
+        return True
+    for other_step, _row, _signal, _total_source, other_score in candidates:
+        if other_step == step or abs(other_step - step) > window:
+            continue
+        if other_score > score or (other_score == score and other_step < step):
+            return False
+    return True
 
 
 def _event_sensor(rows: list[dict[str, str]]) -> tuple[dict[str, str], str]:

@@ -17,7 +17,7 @@ Real seismic:
 
 Real VLF:
 
-* 103 Cumiana `last_E_VLF` spectrogram captures
+* 112 Cumiana `last_E_VLF` spectrogram captures
 * capture range represented in the current data: 2026-06-29 to 2026-07-03
 
 Synthetic:
@@ -46,36 +46,42 @@ Output files:
 
 Real seismic vs synthetic seismic event traces:
 
-* shape distance: `2.1199`
+* shape distance after sparse direct avalanche peak extraction: `1.5256`
 * real seismic is sparse: nonzero ratio `0.1583`
-* synthetic event trace is dense: nonzero ratio `1.0000`
+* synthetic event trace is less dense than before: nonzero ratio `0.7652`
 * real seismic PSD slope: `-0.0670`
-* synthetic event PSD slope: `-1.1973`
+* synthetic event PSD slope: `-0.1678`
 
 Real VLF image columns vs synthetic piezo/VLF signal:
 
-* shape distance: `1.3937`
-* real VLF PSD slope: `-0.3487`
+* shape distance: `1.4674`
+* real VLF PSD slope: `-0.3556`
 * synthetic piezo PSD slope: `-0.2705`
-* real VLF lag-1 autocorrelation: `0.5033`
+* real VLF lag-1 autocorrelation: `0.5271`
 * synthetic piezo lag-1 autocorrelation: `0.9658`
 
 VLF image-level comparison:
 
-* nearest Cumiana image: `data/raw/vlf/cumiana/captures/2026-07-02/last_E_VLF_2026-07-02T18-00-00Z.jpg`
-* nearest normalized distance: `65.4859`
-* simulated intensity mean: `0.1231`
-* real mean intensity: `0.4858`
-* simulated high-intensity ratio: `0.0002`
-* real high-intensity ratio: `0.1833`
-* simulated vertical streak count: `0`
-* real mean vertical streak count: `122.1262`
+* nearest Cumiana image: `data/raw/vlf/cumiana/captures/2026-06-30/last_E_VLF_2026-06-30T23-15-00Z.jpg`
+* nearest normalized distance after render tuning: `13.6424`
+* simulated intensity mean: `0.5987`
+* real mean intensity: `0.4736`
+* simulated high-intensity ratio: `0.1695`
+* real high-intensity ratio: `0.1745`
+* simulated vertical streak count: `115`
+* real mean vertical streak count: `119.3750`
+
+Multi-seed smoke check:
+
+* `compare-simulation-grid.sh` ran for seeds `40` and `41` on `32 x 32`, `200` step runs
+* sparse direct avalanche event extraction produced `7` and `4` event rows
+* the smoke reports confirm the comparison machinery can be reused across seeds, but the small runs should not be used for tuning conclusions
 
 ## Interpretation
 
-The direct synthetic seismic event output is not yet event-shaped enough. It produces activity in every hourly bin, while the real INGV event trace is mostly empty with occasional bursts. The synthetic event pipeline should therefore raise event thresholds or build events from stronger avalanche clusters rather than treating nearly every simulated interval as event-like.
+Sparse local-peak extraction improved the direct synthetic seismic event trace. It is still denser than the real INGV trace, but the PSD slope and overall distance are much closer than the previous all-nonzero event extraction.
 
-The piezo/VLF time-series PSD slope is closer to the real VLF column-intensity slope than the image-level visual comparison suggests. However, the synthetic piezo trace is much too smooth in time, with very high autocorrelation, and the rendered VLF image remains too dim and lacks vertical streaks. The issue is therefore partly signal dynamics and partly image mapping.
+The piezo/VLF image rendering is now much closer to Cumiana image statistics for brightness, high-intensity coverage, and vertical streaks. The underlying piezo time series is still too smooth in time, with very high autocorrelation, so later tuning should focus on signal dynamics rather than adding display artifacts.
 
 The direct avalanche signal should remain separate from the piezo/VLF channel. Cross-modality distances can be useful sanity checks, but tuning should compare real seismic primarily with direct avalanche outputs, and real VLF primarily with piezo-derived outputs.
 
@@ -87,6 +93,12 @@ The current real seismic sample covers only June 2026 and is too short for robus
 
 Simulation step time is an assumed mapping. Frequency-domain comparisons are therefore shape diagnostics, not physical frequency validation.
 
-The current direct avalanche signal input uses a legacy filename, `*.piezo_avalanche.csv`; future simulation runs should use `*.avalanche_signal.csv`.
+The current 10000-step direct avalanche signal input still uses a legacy filename, `*.piezo_avalanche.csv`; the next default simulation run should regenerate `*.avalanche_signal.csv`.
 
+## Next Actions
 
+1. Re-run the 10000-step default simulation so the direct signal file is produced as `*.avalanche_signal.csv`.
+2. Compare multiple full-size simulation seeds and parameter sets before accepting tuning changes.
+3. Tune direct avalanche peak thresholds against real INGV sparsity and burst metrics.
+4. Tune piezo signal dynamics so lag-1 autocorrelation moves closer to real VLF image-column traces.
+5. Backfill more INGV event windows and keep accumulating Cumiana VLF captures before model training claims.

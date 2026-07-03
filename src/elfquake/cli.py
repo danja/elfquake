@@ -364,6 +364,9 @@ def main() -> int:
     avalanche_events.add_argument("--start-time-utc", default="2026-01-01T00:00:00Z")
     avalanche_events.add_argument("--step-seconds", type=int, default=60)
     avalanche_events.add_argument("--min-signal", type=float, default=0.0)
+    avalanche_events.add_argument("--min-signal-quantile", type=float, default=0.0)
+    avalanche_events.add_argument("--local-max-window", type=int, default=0)
+    avalanche_events.add_argument("--max-events", type=int, default=0)
     avalanche_events.add_argument("--lat-min", type=float, default=41.5)
     avalanche_events.add_argument("--lat-max", type=float, default=43.5)
     avalanche_events.add_argument("--lon-min", type=float, default=12.0)
@@ -428,6 +431,7 @@ def main() -> int:
     piezo_vlf_summary.add_argument("--output-width", type=int, default=1600)
     piezo_vlf_summary.add_argument("--sensor-id", type=int)
     piezo_vlf_summary.add_argument("--dc-block", type=float, default=0.995)
+    piezo_vlf_summary.add_argument("--display-color-quantile", type=float, default=0.82)
 
     shape_compare = subparsers.add_parser("compare-signal-shapes")
     shape_compare.add_argument("--real-events", type=Path)
@@ -1004,6 +1008,9 @@ def main() -> int:
                 start_time_utc=args.start_time_utc,
                 step_seconds=args.step_seconds,
                 min_signal=args.min_signal,
+                min_signal_quantile=args.min_signal_quantile,
+                local_max_window=args.local_max_window,
+                max_events=args.max_events,
                 lat_min=args.lat_min,
                 lat_max=args.lat_max,
                 lon_min=args.lon_min,
@@ -1062,6 +1069,7 @@ def main() -> int:
                 output_width=args.output_width,
                 sensor_id=args.sensor_id,
                 dc_block=args.dc_block,
+                display_color_quantile=args.display_color_quantile,
             )
             print(f"image: {report['image_file']}")
             print(f"steps: {report['step_count']}")

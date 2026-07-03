@@ -24,6 +24,8 @@ Metrics include distribution shape, burstiness, lag-1 autocorrelation, PSD slope
 
 Pairwise `normalized_distance` uses dimensionless shape and PSD-ratio metrics. Absolute amplitude, sample count, and duration are still reported as deltas but are not included in that distance.
 
+See [Simulation Time Scale](simulation-time-scale.md) before interpreting PSD metrics.
+
 Interpretation rules:
 
 * compare seismic event traces against direct avalanche traces

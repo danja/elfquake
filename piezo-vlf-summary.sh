@@ -24,6 +24,7 @@ Environment:
   OUTPUT_WIDTH         default 1600
   SENSOR_ID            default 0
   DC_BLOCK             default 0.995
+  DISPLAY_COLOR_QUANTILE default 0.82
 USAGE
 }
 
@@ -62,6 +63,7 @@ timeseries_height="${TIMESERIES_HEIGHT:-48}"
 output_width="${OUTPUT_WIDTH:-1600}"
 sensor_id="${SENSOR_ID:-0}"
 dc_block="${DC_BLOCK:-0.995}"
+display_color_quantile="${DISPLAY_COLOR_QUANTILE:-0.82}"
 
 PYTHONDONTWRITEBYTECODE=1 PYTHONPATH=src .venv/bin/python -m elfquake.cli render-piezo-vlf-summary \
   --piezo "$input" \
@@ -74,4 +76,5 @@ PYTHONDONTWRITEBYTECODE=1 PYTHONPATH=src .venv/bin/python -m elfquake.cli render
   --timeseries-height "$timeseries_height" \
   --output-width "$output_width" \
   --sensor-id "$sensor_id" \
-  --dc-block "$dc_block"
+  --dc-block "$dc_block" \
+  --display-color-quantile "$display_color_quantile"

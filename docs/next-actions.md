@@ -2,10 +2,10 @@
 
 ## Simulation
 
-1. Tune direct avalanche event extraction so synthetic seismic traces are sparse and bursty like INGV event lists.
-2. Tune piezo/VLF rendering so intensity, high-intensity ratio, and vertical streak count approach Cumiana image statistics.
-3. Compare multiple simulation seeds and parameter sets with the same report to avoid overfitting one run.
-4. Add a declared simulation-to-real time-scale mapping before treating PSD differences as physically meaningful.
+1. Re-run the 10000-step default simulation so `*.avalanche_signal.csv` replaces the legacy `*.piezo_avalanche.csv` input.
+2. Compare multiple simulation seeds and parameter sets with `compare-simulation-grid.sh` before accepting tuning changes.
+3. Tune direct avalanche peak thresholds against real INGV sparsity and burst metrics.
+4. Tune piezo/VLF display scaling against Cumiana intensity and vertical-streak metrics.
 5. Backfill more INGV event windows and keep accumulating Cumiana VLF captures before model training claims.
 
 ## General
@@ -23,3 +23,10 @@
 11. Use the piezo/Cumiana comparison report to tune only the piezo VLF mapping derived from `*.piezo.csv`.
 12. Shape direct avalanche signal events for INGV-like seismic event experiments without using the piezo/VLF path.
 13. Use the signal-shape comparison report to tune simulation parameters separately for VLF-like and seismic-like outputs.
+
+## Completed
+
+* Add sparse local-peak extraction for direct avalanche-derived seismic events.
+* Add VLF display scaling controls derived from the piezo signal.
+* Add `compare-simulation-grid.sh` for multi-seed simulation comparison.
+* Add a declared simulation-to-real time-scale note before PSD interpretation.

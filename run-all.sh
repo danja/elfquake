@@ -22,6 +22,9 @@ Environment:
   RUN_VIDEO=0      skip make-video.sh
   RUN_EVENT_MAP=0  skip direct seismic event list and event-map.sh
   RUN_FFT=1        also render the FFT diagnostic PNG
+  AVALANCHE_EVENT_QUANTILE default 0.95
+  AVALANCHE_EVENT_WINDOW   default 15
+  AVALANCHE_EVENT_MAX      default 0, no cap
   FPS=20           video frame rate
 USAGE
 }
@@ -41,6 +44,9 @@ run_video="${RUN_VIDEO:-1}"
 run_event_map="${RUN_EVENT_MAP:-1}"
 run_fft="${RUN_FFT:-0}"
 fps="${FPS:-20}"
+avalanche_event_quantile="${AVALANCHE_EVENT_QUANTILE:-0.95}"
+avalanche_event_window="${AVALANCHE_EVENT_WINDOW:-15}"
+avalanche_event_max="${AVALANCHE_EVENT_MAX:-0}"
 
 echo "prefix: $prefix"
 
@@ -63,6 +69,9 @@ if [[ "$run_event_map" != "0" ]]; then
     --avalanche "${prefix}.avalanche_signal.csv" \
     --grid-width "$width" \
     --grid-height "$height" \
+    --min-signal-quantile "$avalanche_event_quantile" \
+    --local-max-window "$avalanche_event_window" \
+    --max-events "$avalanche_event_max" \
     --out "${prefix}.avalanche_events.csv"
 else
   echo "step 2/6: direct seismic synthetic event list skipped"

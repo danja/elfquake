@@ -179,6 +179,20 @@ PYTHONDONTWRITEBYTECODE=1 PYTHONPATH=src .venv/bin/python -m elfquake.cli build-
 
 The event list uses the normalized INGV-compatible fields first, then appends synthetic traceability fields such as `step`, `x`, `y`, `topple_count`, and `location_quality`. Grid coordinates are mapped to Central Italy by default.
 
+For direct avalanche-signal events, use sparse peak extraction so small continuous relaxations do not become event-like rows:
+
+```sh
+PYTHONDONTWRITEBYTECODE=1 PYTHONPATH=src .venv/bin/python -m elfquake.cli build-avalanche-signal-event-list \
+  --avalanche data/derived/sim/mountain_128x128_seed42_1000.avalanche_signal.csv \
+  --grid-width 128 \
+  --grid-height 128 \
+  --min-signal-quantile 0.95 \
+  --local-max-window 15 \
+  --out data/derived/sim/mountain_128x128_seed42_1000.avalanche_events.csv
+```
+
+`run-all.sh` applies this peak extraction by default with `AVALANCHE_EVENT_QUANTILE=0.95` and `AVALANCHE_EVENT_WINDOW=15`.
+
 Render a VLF-style spectrogram from the piezo sensor CSV:
 
 ```sh
@@ -207,6 +221,16 @@ Render a VLF-shaped analogue summary:
 ```
 
 This maps the piezo strain envelope onto carrier-like bands from `0` to `24000` Hz. It is a display analogue for sanity checking the piezo-strain hypothesis, not a physical RF waveform or FFT of the simulation timestep.
+
+Use `DISPLAY_COLOR_QUANTILE` to adjust display scaling when comparing against Cumiana images. This changes rendering only; it does not add signal.
+
+Compare multiple seeds with:
+
+```sh
+REAL_EVENTS=data/derived/ingv/events_italy_2026-06-01_2026-06-29.normalized.csv ./compare-simulation-grid.sh
+```
+
+See [Simulation Time Scale](simulation-time-scale.md) before interpreting PSD metrics from simulated traces.
 
 Render a WAV sonification of the summed piezo signal:
 
