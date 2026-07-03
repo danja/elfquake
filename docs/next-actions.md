@@ -2,10 +2,9 @@
 
 ## Simulation
 
-1. Compare multiple full-size simulation seeds and parameter sets before accepting tuning changes.
-2. Tune direct avalanche peak thresholds against real INGV sparsity and burst metrics.
-3. Tune piezo signal dynamics so lag-1 autocorrelation moves closer to real VLF image-column traces.
-4. Backfill more INGV event windows and keep accumulating Cumiana VLF captures before model training claims.
+1. Tune direct avalanche peak thresholds against real INGV sparsity and burst metrics.
+2. Tune piezo signal dynamics so lag-1 autocorrelation moves closer to real VLF image-column traces.
+3. Backfill more INGV event windows and keep accumulating Cumiana VLF captures before model training claims.
 
 ## General
 
@@ -25,6 +24,7 @@
 ## Completed
 
 * Add sparse local-peak extraction for direct avalanche-derived seismic events.
+* Compare full-size `256 x 256`, `10000` step seeds `40`, `41`, and `42` without heatmap/video overhead.
 * Add a Natural Earth Italy line basemap for avalanche-derived event-map demos.
 * Add direct avalanche activity centroids for synthetic seismic event locations.
 * Scale avalanche-derived demo event locations over an Apennine-style Italy profile with magnitude-sized map markers.

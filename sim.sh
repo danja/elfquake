@@ -23,6 +23,7 @@ heatmap_color_max="${HEATMAP_COLOR_MAX:-$width}"
 heatmap_gamma="${HEATMAP_GAMMA:-0.85}"
 heatmap_workers="${HEATMAP_WORKERS:-4}"
 heatmap_progress_interval="${HEATMAP_PROGRESS_INTERVAL:-50}"
+run_heatmaps="${RUN_HEATMAPS:-1}"
 piezo_sensor_count="${PIEZO_SENSOR_COUNT:-16}"
 piezo_cluster_count="${PIEZO_CLUSTER_COUNT:-8}"
 piezo_activation_ratio="${PIEZO_ACTIVATION_RATIO:-0.75}"
@@ -40,7 +41,8 @@ if [[ "$slope_threshold" -lt 4 ]]; then
 fi
 prefix="data/derived/sim/mountain_${width}x${height}_seed${seed}_${steps}"
 
-PYTHONDONTWRITEBYTECODE=1 PYTHONPATH=src .venv/bin/python -m elfquake.cli run-sandpile-sim \
+args=(
+  -m elfquake.cli run-sandpile-sim
   --mountain-mode \
   --width "$width" --height "$height" --steps "$steps" \
   --threshold "$slope_threshold" \
@@ -64,7 +66,11 @@ PYTHONDONTWRITEBYTECODE=1 PYTHONPATH=src .venv/bin/python -m elfquake.cli run-sa
   --piezo-charge-coupling "$piezo_charge_coupling" \
   --piezo-release-ratio "$piezo_release_ratio" \
   --piezo-critical-release-ratio "$piezo_critical_release_ratio" \
-  --piezo-saturation "$piezo_saturation" \
+  --piezo-saturation "$piezo_saturation"
+)
+
+if [[ "$run_heatmaps" != "0" ]]; then
+  args+=(
   --snapshot-dir "${prefix}.snapshots" \
   --snapshot-interval "$snapshot_interval" \
   --heatmap-dir "${prefix}.heatmaps" \
@@ -73,5 +79,10 @@ PYTHONDONTWRITEBYTECODE=1 PYTHONPATH=src .venv/bin/python -m elfquake.cli run-sa
   --heatmap-color-max "$heatmap_color_max" \
   --heatmap-gamma "$heatmap_gamma" \
   --heatmap-workers "$heatmap_workers" \
-  --heatmap-progress-interval "$heatmap_progress_interval" \
-  --progress-interval "$progress_interval"
+  --heatmap-progress-interval "$heatmap_progress_interval"
+  )
+fi
+
+args+=(--progress-interval "$progress_interval")
+
+PYTHONDONTWRITEBYTECODE=1 PYTHONPATH=src .venv/bin/python "${args[@]}"

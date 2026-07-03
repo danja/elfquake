@@ -19,7 +19,9 @@ Defaults match sim.sh:
 
 Environment:
   RUN_SIM=0        skip sim.sh and reuse existing outputs
+  RUN_HEATMAPS=0   skip snapshot and heatmap PNG generation inside sim.sh
   RUN_VIDEO=0      skip make-video.sh
+  RUN_AUDIO=0      skip piezo WAV sonification
   RUN_EVENT_MAP=0  skip direct seismic event list and event-map.sh
   RUN_FFT=1        also render the FFT diagnostic PNG
   AVALANCHE_EVENT_QUANTILE default 0.95
@@ -41,7 +43,9 @@ steps="${STEPS:-10000}"
 seed="${SEED:-42}"
 prefix="data/derived/sim/mountain_${width}x${height}_seed${seed}_${steps}"
 run_sim="${RUN_SIM:-1}"
+run_heatmaps="${RUN_HEATMAPS:-1}"
 run_video="${RUN_VIDEO:-1}"
+run_audio="${RUN_AUDIO:-1}"
 run_event_map="${RUN_EVENT_MAP:-1}"
 run_fft="${RUN_FFT:-0}"
 fps="${FPS:-20}"
@@ -54,7 +58,7 @@ echo "prefix: $prefix"
 
 if [[ "$run_sim" != "0" ]]; then
   echo "step 1/6: simulation"
-  WIDTH="$width" HEIGHT="$height" STEPS="$steps" SEED="$seed" ./sim.sh
+  WIDTH="$width" HEIGHT="$height" STEPS="$steps" SEED="$seed" RUN_HEATMAPS="$run_heatmaps" ./sim.sh
 else
   echo "step 1/6: simulation skipped"
 fi
@@ -89,8 +93,17 @@ fi
 echo "step 3/6: piezo VLF summary"
 WIDTH="$width" HEIGHT="$height" STEPS="$steps" SEED="$seed" ./piezo-vlf-summary.sh "${prefix}.piezo.csv"
 
-echo "step 4/6: piezo WAV sonification"
-WIDTH="$width" HEIGHT="$height" STEPS="$steps" SEED="$seed" ./piezo-audio.sh "${prefix}.piezo.csv"
+if [[ "$run_audio" != "0" ]]; then
+  echo "step 4/6: piezo WAV sonification"
+  WIDTH="$width" HEIGHT="$height" STEPS="$steps" SEED="$seed" ./piezo-audio.sh "${prefix}.piezo.csv"
+else
+  echo "step 4/6: piezo WAV sonification skipped"
+fi
+
+if [[ "$run_video" != "0" && "$run_heatmaps" == "0" ]]; then
+  echo "error: RUN_VIDEO=1 requires RUN_HEATMAPS=1 so heatmap frames exist" >&2
+  exit 2
+fi
 
 if [[ "$run_video" != "0" ]]; then
   echo "step 5/6: heatmap video"

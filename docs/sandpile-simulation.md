@@ -245,6 +245,8 @@ Compare multiple seeds with:
 REAL_EVENTS=data/derived/ingv/events_italy_2026-06-01_2026-06-29.normalized.csv ./compare-simulation-grid.sh
 ```
 
+`compare-simulation-grid.sh` defaults to metrics-only runs with `RUN_HEATMAPS=0`, `RUN_VIDEO=0`, and `RUN_AUDIO=0`.
+
 See [Simulation Time Scale](simulation-time-scale.md) before interpreting PSD metrics from simulated traces.
 
 Render a WAV sonification of the summed piezo signal:
@@ -325,7 +327,7 @@ Run the full local demo pipeline:
 ./run-all.sh
 ```
 
-This runs `sim.sh`, builds direct seismic synthetic events, renders the VLF-shaped piezo analogue, writes the piezo WAV sonification, builds the heatmap video, and renders the synthetic event map. It defaults to `mountain_256x256_seed42_10000`. Set `RUN_SIM=0` to reuse existing simulation files, `RUN_VIDEO=0` to skip MP4 generation, or `RUN_FFT=1` to also render the older FFT diagnostic PNG.
+This runs `sim.sh`, builds direct seismic synthetic events, renders the VLF-shaped piezo analogue, writes the piezo WAV sonification, builds the heatmap video, and renders the synthetic event map. It defaults to `mountain_256x256_seed42_10000`. Set `RUN_SIM=0` to reuse existing simulation files, `RUN_HEATMAPS=0` to skip snapshot and heatmap PNG generation, `RUN_VIDEO=0` to skip MP4 generation, `RUN_AUDIO=0` to skip WAV output, or `RUN_FFT=1` to also render the older FFT diagnostic PNG.
 
 Create a video from generated PNG heatmaps:
 

@@ -13,7 +13,7 @@ We wish to exploit more modern machine learning/AI techniques to create a predic
 
 Data acquisition, feature extraction, prospective rows, smoke models, CPU-only sandpile simulation, and first synthetic VLF comparison tooling are implemented; **no earthquake prediction capability is claimed**.
 
-Right now, while awaiting further data from INGV, the focus is on the simulation. (The first prospective VLF rows become labelable after `2026-07-06T09:57:24Z`).
+Right now, while awaiting further data from INGV, the focus is on the simulation. (The first prospective VLF rows become labelable after `2026-07-06T09:57:24Z`). Evaluation of the current model can be found in [report.md](docs/report.md).
 
 ### Simulated Earthquakes
 
