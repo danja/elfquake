@@ -7,7 +7,7 @@ The core hypothesis is that natural ELF/VLF radio anomalies may contain signal t
 
 We wish to exploit more modern machine learning/AI techniques to create a predictive model based on the transformer architecture. A key consideration is the availability of real-world data for training. The plan is to build a system (based around an avalanche model) with similar chacteristics to the geological system and use this to generate synthetic data for pre-training. Once pre-trained, real-world data will be used for fine-tuning.
 
-*To be useful this claim must be demonstrated against reproducible seismic-only baselines, held-out time periods, and multimodal ablations.*
+*To be useful any claims must be demonstrated against reproducible seismic-only baselines, held-out time periods, and multimodal ablations.*
 
 ## Status
 
