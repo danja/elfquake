@@ -24,20 +24,24 @@ PIEZO_SENSOR_FIELDS = [
     "piezo_release_total",
 ]
 
-AVALANCHE_PIEZO_SENSOR_FIELDS = [
+AVALANCHE_SIGNAL_SENSOR_FIELDS = [
     "step",
     "sensor_id",
     "x",
     "y",
-    "piezo_signal",
-    "piezo_total_source",
+    "avalanche_signal",
+    "avalanche_total_source",
     "active_topple_cell_count",
     "max_local_topple",
     "nearest_topple_distance",
     "stress_drop_total",
     "stress_drop_max",
-    "piezo_release_total",
+    "avalanche_release_total",
 ]
+
+# Backward-compatible name for older callers. The direct avalanche channel is
+# seismic-like, not piezo-like; new code should use AVALANCHE_SIGNAL_SENSOR_FIELDS.
+AVALANCHE_PIEZO_SENSOR_FIELDS = AVALANCHE_SIGNAL_SENSOR_FIELDS
 
 
 @dataclass(frozen=True)
@@ -175,7 +179,7 @@ def build_piezo_sensor_rows(
     return rows
 
 
-def build_avalanche_piezo_sensor_rows(
+def build_avalanche_signal_sensor_rows(
     *,
     step: int,
     sensors: np.ndarray,
@@ -214,17 +218,22 @@ def build_avalanche_piezo_sensor_rows(
                 "sensor_id": str(sensor_id),
                 "x": str(int(point[1])),
                 "y": str(int(point[0])),
-                "piezo_signal": f"{float(signals[sensor_id]):.9f}",
-                "piezo_total_source": f"{float(total_source):.9f}",
+                "avalanche_signal": f"{float(signals[sensor_id]):.9f}",
+                "avalanche_total_source": f"{float(total_source):.9f}",
                 "active_topple_cell_count": str(int(active_count)),
                 "max_local_topple": str(int(max_local_topple)),
                 "nearest_topple_distance": "" if nearest < 0 else f"{float(nearest):.6f}",
                 "stress_drop_total": f"{float(stress_drop_total):.9f}",
                 "stress_drop_max": f"{float(stress_drop_max):.9f}",
-                "piezo_release_total": f"{float(total_source):.9f}",
+                "avalanche_release_total": f"{float(total_source):.9f}",
             }
         )
     return rows
+
+
+def build_avalanche_piezo_sensor_rows(**kwargs) -> list[dict[str, str]]:
+    """Compatibility wrapper for the renamed direct avalanche signal builder."""
+    return build_avalanche_signal_sensor_rows(**kwargs)
 
 
 @njit(cache=True)

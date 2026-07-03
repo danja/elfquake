@@ -19,6 +19,14 @@ SYNTHETIC_EVENT_FIELDS = NORMALIZED_FIELDS + [
     "location_quality",
 ]
 
+AVALANCHE_SIGNAL_EVENT_FIELDS = SYNTHETIC_EVENT_FIELDS + [
+    "avalanche_signal",
+    "avalanche_total_source",
+    "active_topple_cell_count",
+    "max_local_topple",
+    "stress_drop_total",
+]
+
 
 def build_synthetic_event_list(
     *,
@@ -107,12 +115,118 @@ def build_synthetic_event_list(
     return rows
 
 
+def build_avalanche_signal_event_list(
+    *,
+    avalanche_csv: Path,
+    out_path: Path,
+    grid_width: int,
+    grid_height: int,
+    start_time_utc: str = "2026-01-01T00:00:00Z",
+    step_seconds: int = 60,
+    min_signal: float = 0.0,
+    lat_min: float = 41.5,
+    lat_max: float = 43.5,
+    lon_min: float = 12.0,
+    lon_max: float = 14.5,
+    magnitude_type: str = "MLs",
+    source: str = "elfquake_avalanche_signal_synthetic",
+    ingested_at_utc: str | None = None,
+) -> list[dict[str, str]]:
+    if grid_width < 2 or grid_height < 2:
+        raise ValueError("grid_width and grid_height must be at least 2")
+    if step_seconds < 1:
+        raise ValueError("step_seconds must be at least 1")
+    if min_signal < 0:
+        raise ValueError("min_signal must be non-negative")
+    if not (lat_min < lat_max and lon_min < lon_max):
+        raise ValueError("latitude and longitude bounds must be increasing")
+
+    start = _parse_utc(start_time_utc)
+    ingested = ingested_at_utc or start_time_utc
+    grouped = _read_avalanche_signal_by_step(avalanche_csv)
+    rows = []
+    for step in sorted(grouped):
+        step_rows = grouped[step]
+        strongest = max(step_rows, key=_avalanche_signal_value)
+        signal = _avalanche_signal_value(strongest)
+        total_source = _avalanche_total_source_value(strongest)
+        if max(signal, total_source) <= min_signal:
+            continue
+        x = int(strongest.get("x", "0") or "0")
+        y = int(strongest.get("y", "0") or "0")
+        latitude, longitude = _grid_to_central_italy(
+            x=x,
+            y=y,
+            grid_width=grid_width,
+            grid_height=grid_height,
+            lat_min=lat_min,
+            lat_max=lat_max,
+            lon_min=lon_min,
+            lon_max=lon_max,
+        )
+        event_time = start + timedelta(seconds=step * step_seconds)
+        active_topple_cell_count = int(strongest.get("active_topple_cell_count", "0") or "0")
+        max_local_topple = int(strongest.get("max_local_topple", "0") or "0")
+        stress_drop_total = float(strongest.get("stress_drop_total", "0") or "0")
+        row = {
+            "event_id": f"synthetic_avalanche_signal_step_{step:06d}",
+            "source": source,
+            "event_time_utc": _format_utc(event_time),
+            "latitude": f"{latitude:.5f}",
+            "longitude": f"{longitude:.5f}",
+            "depth_km": _depth_km(y=y, grid_height=grid_height),
+            "magnitude": _signal_magnitude(total_source=total_source, signal=signal),
+            "magnitude_type": magnitude_type,
+            "italy_region": "central_italy",
+            "event_location_name": f"Synthetic avalanche signal cell x={x} y={y}",
+            "event_type": "earthquake",
+            "raw_file": str(avalanche_csv),
+            "ingested_at_utc": ingested,
+            "raw_uri": str(avalanche_csv),
+            "step": str(step),
+            "x": str(x),
+            "y": str(y),
+            "topple_count": str(active_topple_cell_count),
+            "released_mass": str(int(round(total_source))),
+            "location_quality": "avalanche_signal_sensor",
+            "avalanche_signal": f"{signal:.9f}",
+            "avalanche_total_source": f"{total_source:.9f}",
+            "active_topple_cell_count": str(active_topple_cell_count),
+            "max_local_topple": str(max_local_topple),
+            "stress_drop_total": f"{stress_drop_total:.9f}",
+        }
+        rows.append({field: row.get(field, "") for field in AVALANCHE_SIGNAL_EVENT_FIELDS})
+
+    out_path.parent.mkdir(parents=True, exist_ok=True)
+    with out_path.open("w", newline="", encoding="utf-8") as handle:
+        writer = csv.DictWriter(handle, fieldnames=AVALANCHE_SIGNAL_EVENT_FIELDS, lineterminator="\n")
+        writer.writeheader()
+        writer.writerows(rows)
+    return rows
+
+
 def _read_sensors_by_step(sensors_csv: Path) -> dict[int, list[dict[str, str]]]:
     grouped: dict[int, list[dict[str, str]]] = {}
     with sensors_csv.open(newline="", encoding="utf-8") as handle:
         for row in csv.DictReader(handle):
             grouped.setdefault(int(row["step"]), []).append(row)
     return grouped
+
+
+def _read_avalanche_signal_by_step(avalanche_csv: Path) -> dict[int, list[dict[str, str]]]:
+    grouped: dict[int, list[dict[str, str]]] = {}
+    with avalanche_csv.open(newline="", encoding="utf-8") as handle:
+        for row in csv.DictReader(handle):
+            grouped.setdefault(int(row["step"]), []).append(row)
+    return grouped
+
+
+def _avalanche_signal_value(row: dict[str, str]) -> float:
+    return float((row.get("avalanche_signal") or row.get("piezo_signal") or "0") or "0")
+
+
+def _avalanche_total_source_value(row: dict[str, str]) -> float:
+    return float((row.get("avalanche_total_source") or row.get("piezo_total_source") or "0") or "0")
 
 
 def _event_sensor(rows: list[dict[str, str]]) -> tuple[dict[str, str], str]:
@@ -144,6 +258,11 @@ def _grid_to_central_italy(
 
 def _magnitude(*, topple_count: int, released_mass: int) -> str:
     energy_proxy = max(1, topple_count + released_mass)
+    return f"{1.0 + math.log10(energy_proxy):.2f}"
+
+
+def _signal_magnitude(*, total_source: float, signal: float) -> str:
+    energy_proxy = max(1.0, total_source, signal)
     return f"{1.0 + math.log10(energy_proxy):.2f}"
 
 

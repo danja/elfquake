@@ -24,6 +24,12 @@ from elfquake.features.multimodal_design import join_vlf_design_matrix
 from elfquake.features.multimodal_smoke import build_multimodal_smoke_row
 from elfquake.features.prospective import build_prospective_vlf_windows, update_prospective_vlf_table
 from elfquake.features.prospective_report import summarize_prospective_table
+from elfquake.features.signal_shape_compare import (
+    compare_signal_shapes,
+    event_energy_series,
+    sensor_signal_series,
+    vlf_image_column_series,
+)
 from elfquake.features.table import build_multimodal_table_from_manifest, write_multimodal_manifest_template
 from elfquake.features.targets import label_multimodal_targets
 from elfquake.features.training_windows import build_seismic_training_windows
@@ -282,6 +288,7 @@ def main() -> int:
     sandpile.add_argument("--summary-out", type=Path, required=True)
     sandpile.add_argument("--sensors-out", type=Path, required=True)
     sandpile.add_argument("--piezo-out", type=Path)
+    sandpile.add_argument("--avalanche-signal-out", type=Path)
     sandpile.add_argument("--piezo-avalanche-out", type=Path)
     sandpile.add_argument("--piezo-sensor-count", type=int, default=16)
     sandpile.add_argument("--piezo-susceptibility-base", type=float, default=0.15)
@@ -349,6 +356,22 @@ def main() -> int:
     synthetic_events.add_argument("--source", default="elfquake_sandpile_synthetic")
     synthetic_events.add_argument("--ingested-at-utc")
 
+    avalanche_events = subparsers.add_parser("build-avalanche-signal-event-list")
+    avalanche_events.add_argument("--avalanche", type=Path, required=True)
+    avalanche_events.add_argument("--out", type=Path, required=True)
+    avalanche_events.add_argument("--grid-width", type=int, required=True)
+    avalanche_events.add_argument("--grid-height", type=int, required=True)
+    avalanche_events.add_argument("--start-time-utc", default="2026-01-01T00:00:00Z")
+    avalanche_events.add_argument("--step-seconds", type=int, default=60)
+    avalanche_events.add_argument("--min-signal", type=float, default=0.0)
+    avalanche_events.add_argument("--lat-min", type=float, default=41.5)
+    avalanche_events.add_argument("--lat-max", type=float, default=43.5)
+    avalanche_events.add_argument("--lon-min", type=float, default=12.0)
+    avalanche_events.add_argument("--lon-max", type=float, default=14.5)
+    avalanche_events.add_argument("--magnitude-type", default="MLs")
+    avalanche_events.add_argument("--source", default="elfquake_avalanche_signal_synthetic")
+    avalanche_events.add_argument("--ingested-at-utc")
+
     piezo_spectrogram = subparsers.add_parser("render-piezo-spectrogram")
     piezo_spectrogram.add_argument("--piezo", type=Path, required=True)
     piezo_spectrogram.add_argument("--out", type=Path, required=True)
@@ -405,6 +428,24 @@ def main() -> int:
     piezo_vlf_summary.add_argument("--output-width", type=int, default=1600)
     piezo_vlf_summary.add_argument("--sensor-id", type=int)
     piezo_vlf_summary.add_argument("--dc-block", type=float, default=0.995)
+
+    shape_compare = subparsers.add_parser("compare-signal-shapes")
+    shape_compare.add_argument("--real-events", type=Path)
+    shape_compare.add_argument("--synthetic-events", type=Path)
+    shape_compare.add_argument("--real-vlf-image", type=Path, action="append", default=[])
+    shape_compare.add_argument("--real-vlf-image-root", type=Path, action="append", default=[])
+    shape_compare.add_argument("--real-vlf-filename-prefix", action="append", default=["last_E_VLF"])
+    shape_compare.add_argument("--sim-piezo", type=Path)
+    shape_compare.add_argument("--sim-avalanche", type=Path)
+    shape_compare.add_argument("--event-bin-seconds", type=int, default=3600)
+    shape_compare.add_argument("--sim-step-seconds", type=float, default=60.0)
+    shape_compare.add_argument("--vlf-column-seconds", type=float, default=1.0)
+    shape_compare.add_argument("--vlf-crop-left", type=float, default=0.0)
+    shape_compare.add_argument("--vlf-crop-top", type=float, default=0.13)
+    shape_compare.add_argument("--vlf-crop-right", type=float, default=0.83)
+    shape_compare.add_argument("--vlf-crop-bottom", type=float, default=0.95)
+    shape_compare.add_argument("--series-out", type=Path, required=True)
+    shape_compare.add_argument("--pairs-out", type=Path, required=True)
 
     event_map = subparsers.add_parser("render-event-map")
     event_map.add_argument("--events", type=Path, required=True)
@@ -796,6 +837,7 @@ def main() -> int:
                 summary_out=args.summary_out,
                 sensors_out=args.sensors_out,
                 piezo_out=args.piezo_out,
+                avalanche_signal_out=args.avalanche_signal_out,
                 piezo_avalanche_out=args.piezo_avalanche_out,
                 piezo_config=PiezoConfig(
                     sensor_count=args.piezo_sensor_count,
@@ -865,8 +907,9 @@ def main() -> int:
             print(f"sensors output: {args.sensors_out}")
             if args.piezo_out:
                 print(f"piezo output: {args.piezo_out}")
-            if args.piezo_avalanche_out:
-                print(f"piezo avalanche output: {args.piezo_avalanche_out}")
+            direct_avalanche_out = args.avalanche_signal_out or args.piezo_avalanche_out
+            if direct_avalanche_out:
+                print(f"avalanche signal output: {direct_avalanche_out}")
             if args.snapshot_dir:
                 print(f"snapshot dir: {args.snapshot_dir}")
             if args.heatmap_dir:
@@ -948,6 +991,28 @@ def main() -> int:
                 ingested_at_utc=args.ingested_at_utc,
             )
             print(f"synthetic events: {len(rows)}")
+            print(f"output: {args.out}")
+            return 0
+        elif args.command == "build-avalanche-signal-event-list":
+            from elfquake.sim.synthetic_events import build_avalanche_signal_event_list
+
+            rows = build_avalanche_signal_event_list(
+                avalanche_csv=args.avalanche,
+                out_path=args.out,
+                grid_width=args.grid_width,
+                grid_height=args.grid_height,
+                start_time_utc=args.start_time_utc,
+                step_seconds=args.step_seconds,
+                min_signal=args.min_signal,
+                lat_min=args.lat_min,
+                lat_max=args.lat_max,
+                lon_min=args.lon_min,
+                lon_max=args.lon_max,
+                magnitude_type=args.magnitude_type,
+                source=args.source,
+                ingested_at_utc=args.ingested_at_utc,
+            )
+            print(f"avalanche signal events: {len(rows)}")
             print(f"output: {args.out}")
             return 0
         elif args.command == "render-piezo-spectrogram":
@@ -1055,6 +1120,69 @@ def main() -> int:
             print(f"type: {report['plot_type']}")
             if args.metadata_out:
                 print(f"metadata: {args.metadata_out}")
+            return 0
+        elif args.command == "compare-signal-shapes":
+            series = []
+            if args.real_events:
+                series.append(
+                    event_energy_series(
+                        series_id="real_seismic_events",
+                        events_csv=args.real_events,
+                        bin_seconds=args.event_bin_seconds,
+                    )
+                )
+            if args.synthetic_events:
+                series.append(
+                    event_energy_series(
+                        series_id="synthetic_seismic_events",
+                        events_csv=args.synthetic_events,
+                        bin_seconds=args.event_bin_seconds,
+                    )
+                )
+            if args.real_vlf_image or args.real_vlf_image_root:
+                real_vlf_images = _resolve_image_paths(
+                    image_paths=args.real_vlf_image,
+                    image_roots=args.real_vlf_image_root,
+                    filename_prefixes=args.real_vlf_filename_prefix,
+                )
+                series.append(
+                    vlf_image_column_series(
+                        series_id="real_vlf_image_columns",
+                        image_paths=real_vlf_images,
+                        sample_seconds=args.vlf_column_seconds,
+                        crop_left=args.vlf_crop_left,
+                        crop_top=args.vlf_crop_top,
+                        crop_right=args.vlf_crop_right,
+                        crop_bottom=args.vlf_crop_bottom,
+                    )
+                )
+            if args.sim_piezo:
+                series.append(
+                    sensor_signal_series(
+                        series_id="synthetic_piezo_vlf_signal",
+                        signal_csv=args.sim_piezo,
+                        signal_field="piezo_signal",
+                        sample_seconds=args.sim_step_seconds,
+                    )
+                )
+            if args.sim_avalanche:
+                series.append(
+                    sensor_signal_series(
+                        series_id="synthetic_avalanche_signal",
+                        signal_csv=args.sim_avalanche,
+                        signal_field="avalanche_signal",
+                        sample_seconds=args.sim_step_seconds,
+                    )
+                )
+            series_rows, pair_rows = compare_signal_shapes(
+                series=series,
+                series_out=args.series_out,
+                pairs_out=args.pairs_out,
+            )
+            print(f"series: {len(series_rows)}")
+            print(f"pairs: {len(pair_rows)}")
+            print(f"series output: {args.series_out}")
+            print(f"pairs output: {args.pairs_out}")
             return 0
         elif args.command == "render-event-map":
             from elfquake.visualization.event_map import render_event_map

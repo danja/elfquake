@@ -25,6 +25,7 @@ The project should proceed cautiously: no prediction capability is assumed until
 * [NOAA Archive Feasibility](noaa-archive-feasibility.md)
 * [Backfill Planning](backfill-planning.md)
 * [Feature Extraction](feature-extraction.md)
+* [Signal Shape Comparison](signal-shape-comparison.md)
 * [Target Labeling](target-labeling.md)
 * [Training Windows](training-windows.md)
 * [Design Matrix](design-matrix.md)

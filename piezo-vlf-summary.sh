@@ -7,7 +7,7 @@ Usage:
   ./piezo-vlf-summary.sh [piezo_csv] [output_png] [metadata_json]
 
 Defaults:
-  piezo_csv     data/derived/sim/mountain_${WIDTH}x${HEIGHT}_seed${SEED}_${STEPS}.piezo_avalanche.csv
+  piezo_csv     data/derived/sim/mountain_${WIDTH}x${HEIGHT}_seed${SEED}_${STEPS}.piezo.csv
   output_png    same prefix with .piezo_vlf_summary.png
   metadata_json same prefix with .piezo_vlf_summary.json
 
@@ -39,7 +39,7 @@ else
   height="${HEIGHT:-256}"
   steps="${STEPS:-10000}"
   seed="${SEED:-42}"
-  input="data/derived/sim/mountain_${width}x${height}_seed${seed}_${steps}.piezo_avalanche.csv"
+  input="data/derived/sim/mountain_${width}x${height}_seed${seed}_${steps}.piezo.csv"
 fi
 
 if [[ -z "$input" || ! -f "$input" ]]; then
@@ -48,9 +48,9 @@ if [[ -z "$input" || ! -f "$input" ]]; then
   exit 2
 fi
 
-prefix="${input%.piezo_avalanche.csv}"
+prefix="${input%.piezo.csv}"
 if [[ "$prefix" == "$input" ]]; then
-  prefix="${input%.piezo.csv}"
+  prefix="${input%.avalanche_signal.csv}"
 fi
 output="${2:-${prefix}.piezo_vlf_summary.png}"
 metadata="${3:-${prefix}.piezo_vlf_summary.json}"

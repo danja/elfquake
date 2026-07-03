@@ -560,6 +560,81 @@ class AcquisitionScaffoldTests(unittest.TestCase):
             self.assertTrue(row["nearest_real_distance"])
             self.assertTrue((root / "comparison.csv").exists())
 
+    def test_compare_signal_shapes_writes_time_and_frequency_metrics(self) -> None:
+        from PIL import Image
+        from elfquake.features.signal_shape_compare import (
+            compare_signal_shapes,
+            event_energy_series,
+            sensor_signal_series,
+            vlf_image_column_series,
+        )
+
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            real_events = root / "real_events.csv"
+            synthetic_events = root / "synthetic_events.csv"
+            real_events.write_text(
+                "event_id,event_time_utc,magnitude\n"
+                "r1,2026-01-01T00:10:00Z,2.0\n"
+                "r2,2026-01-01T01:20:00Z,3.0\n",
+                encoding="utf-8",
+            )
+            synthetic_events.write_text(
+                "event_id,event_time_utc,magnitude\n"
+                "s1,2026-01-01T00:00:00Z,2.5\n"
+                "s2,2026-01-01T02:00:00Z,2.8\n",
+                encoding="utf-8",
+            )
+            piezo = root / "piezo.csv"
+            piezo.write_text(
+                "step,sensor_id,x,y,piezo_signal\n"
+                "0,0,0,0,0.0\n"
+                "1,0,0,0,2.0\n"
+                "2,0,0,0,0.5\n",
+                encoding="utf-8",
+            )
+            avalanche = root / "avalanche.csv"
+            avalanche.write_text(
+                "step,sensor_id,x,y,avalanche_signal\n"
+                "0,0,0,0,0.0\n"
+                "1,0,0,0,4.0\n"
+                "2,0,0,0,1.0\n",
+                encoding="utf-8",
+            )
+            image_path = root / "last_E_VLF_one.jpg"
+            image = Image.new("RGB", (12, 6), (0, 0, 20))
+            pixels = image.load()
+            for y in range(6):
+                pixels[3, y] = (255, 220, 20)
+                pixels[8, y] = (120, 180, 255)
+            image.save(image_path)
+
+            series_rows, pair_rows = compare_signal_shapes(
+                series=[
+                    event_energy_series(series_id="real_events", events_csv=real_events, bin_seconds=3600),
+                    event_energy_series(series_id="synthetic_events", events_csv=synthetic_events, bin_seconds=3600),
+                    sensor_signal_series(series_id="piezo", signal_csv=piezo, signal_field="piezo_signal"),
+                    sensor_signal_series(series_id="avalanche", signal_csv=avalanche, signal_field="avalanche_signal"),
+                    vlf_image_column_series(
+                        series_id="real_vlf",
+                        image_paths=[image_path],
+                        crop_left=0.0,
+                        crop_top=0.0,
+                        crop_right=1.0,
+                        crop_bottom=1.0,
+                    ),
+                ],
+                series_out=root / "series.csv",
+                pairs_out=root / "pairs.csv",
+            )
+
+            self.assertEqual(len(series_rows), 5)
+            self.assertEqual(len(pair_rows), 10)
+            self.assertIn("psd_slope", series_rows[0])
+            self.assertIn("normalized_distance", pair_rows[0])
+            self.assertTrue((root / "series.csv").exists())
+            self.assertTrue((root / "pairs.csv").exists())
+
     def test_join_vlf_image_features_to_windows_aggregates_by_capture_time(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
@@ -1265,14 +1340,14 @@ class AcquisitionScaffoldTests(unittest.TestCase):
             ])
 
     @unittest.skipIf(importlib.util.find_spec("numba") is None, "numba not installed")
-    def test_sandpile_can_write_piezo_precursor_sensor_rows(self) -> None:
-        from elfquake.sim.piezo import AVALANCHE_PIEZO_SENSOR_FIELDS, PIEZO_SENSOR_FIELDS, PiezoConfig
+    def test_sandpile_can_write_piezo_precursor_and_avalanche_signal_rows(self) -> None:
+        from elfquake.sim.piezo import AVALANCHE_SIGNAL_SENSOR_FIELDS, PIEZO_SENSOR_FIELDS, PiezoConfig
         from elfquake.sim.sandpile import SandpileConfig, run_sandpile_simulation
 
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
             piezo_out = root / "piezo.csv"
-            piezo_avalanche_out = root / "piezo_avalanche.csv"
+            avalanche_signal_out = root / "avalanche_signal.csv"
 
             run_sandpile_simulation(
                 config=SandpileConfig(
@@ -1288,7 +1363,7 @@ class AcquisitionScaffoldTests(unittest.TestCase):
                 summary_out=root / "summary.csv",
                 sensors_out=root / "sensors.csv",
                 piezo_out=piezo_out,
-                piezo_avalanche_out=piezo_avalanche_out,
+                avalanche_signal_out=avalanche_signal_out,
                 piezo_config=PiezoConfig(
                     sensor_count=3,
                     susceptibility_base=1.0,
@@ -1312,10 +1387,10 @@ class AcquisitionScaffoldTests(unittest.TestCase):
                 max(float(line.split(",")[charge_index]) for line in lines[1:]),
                 0.0,
             )
-            avalanche_lines = piezo_avalanche_out.read_text(encoding="utf-8").splitlines()
-            self.assertEqual(avalanche_lines[0], ",".join(AVALANCHE_PIEZO_SENSOR_FIELDS))
+            avalanche_lines = avalanche_signal_out.read_text(encoding="utf-8").splitlines()
+            self.assertEqual(avalanche_lines[0], ",".join(AVALANCHE_SIGNAL_SENSOR_FIELDS))
             self.assertEqual(len(avalanche_lines), 1 + 8 * 3)
-            avalanche_signal_index = AVALANCHE_PIEZO_SENSOR_FIELDS.index("piezo_signal")
+            avalanche_signal_index = AVALANCHE_SIGNAL_SENSOR_FIELDS.index("avalanche_signal")
             self.assertGreater(
                 max(float(line.split(",")[avalanche_signal_index]) for line in avalanche_lines[1:]),
                 0.0,
@@ -1393,6 +1468,41 @@ class AcquisitionScaffoldTests(unittest.TestCase):
 
             self.assertEqual(rows, [])
             self.assertEqual((root / "events.csv").read_text(encoding="utf-8").strip(), ",".join(SYNTHETIC_EVENT_FIELDS))
+
+    def test_build_avalanche_signal_event_list_writes_ingv_like_rows(self) -> None:
+        from elfquake.sim.synthetic_events import (
+            AVALANCHE_SIGNAL_EVENT_FIELDS,
+            build_avalanche_signal_event_list,
+        )
+
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            avalanche = root / "avalanche.csv"
+            avalanche.write_text(
+                "step,sensor_id,x,y,avalanche_signal,avalanche_total_source,active_topple_cell_count,"
+                "max_local_topple,nearest_topple_distance,stress_drop_total,stress_drop_max,avalanche_release_total\n"
+                "0,0,2,3,0.0,0.0,0,0,,0.0,0.0,0.0\n"
+                "1,0,2,3,4.0,10.0,5,2,1.0,3.0,2.0,10.0\n"
+                "1,1,4,5,8.0,10.0,5,3,0.5,3.0,2.0,10.0\n",
+                encoding="utf-8",
+            )
+
+            rows = build_avalanche_signal_event_list(
+                avalanche_csv=avalanche,
+                out_path=root / "events.csv",
+                grid_width=10,
+                grid_height=10,
+                step_seconds=30,
+                min_signal=1.0,
+            )
+
+            self.assertEqual(len(rows), 1)
+            self.assertEqual(rows[0]["event_id"], "synthetic_avalanche_signal_step_000001")
+            self.assertEqual(rows[0]["event_time_utc"], "2026-01-01T00:00:30Z")
+            self.assertEqual(rows[0]["x"], "4")
+            self.assertEqual(rows[0]["location_quality"], "avalanche_signal_sensor")
+            self.assertEqual(rows[0]["avalanche_signal"], "8.000000000")
+            self.assertEqual((root / "events.csv").read_text(encoding="utf-8").splitlines()[0], ",".join(AVALANCHE_SIGNAL_EVENT_FIELDS))
 
     def test_render_piezo_spectrogram_writes_png_and_metadata(self) -> None:
         from elfquake.sim.piezo_spectrogram import render_piezo_spectrogram

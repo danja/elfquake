@@ -63,6 +63,20 @@ Piezo precursor sensor CSV:
 * `nearest_critical_distance`
 * `max_stress_ratio`
 
+Direct avalanche signal CSV:
+
+* `step`
+* `sensor_id`
+* `x`
+* `y`
+* `avalanche_signal`
+* `avalanche_total_source`
+* `active_topple_cell_count`
+* `max_local_topple`
+* `nearest_topple_distance`
+* `stress_drop_total`
+* `stress_drop_max`
+
 Optional later outputs:
 
 * height-grid snapshots at configured intervals
@@ -131,12 +145,14 @@ The emitted source is therefore based on stored charge and strain-driven release
 
 Piezo CSV diagnostics include total charge, maximum charge, and total release per step so the charge-store behavior can be audited.
 
-The simulator also writes an avalanche-derived piezo channel when configured by `sim.sh`:
+The simulator writes separate VLF-like and seismic-like signal forms when configured by `sim.sh`:
 
-* `*.piezo.csv` - pre-avalanche strain/charge sensor sampled before relaxation
-* `*.piezo_avalanche.csv` - toppling/stress-release sensor sampled from actual avalanche relaxation
+* `*.piezo.csv` - piezo strain/charge sensor for VLF-like analogue outputs
+* `*.avalanche_signal.csv` - direct toppling/stress-release signal sampled from avalanche relaxation
+* `*.synthetic_events.csv` - INGV-like direct seismic event rows from summary/sensor tables
+* `*.avalanche_events.csv` - INGV-like direct seismic event rows from the avalanche signal table
 
-The avalanche-derived channel is the default for the demo VLF image and WAV because any large spikes must come from the simulated avalanche dynamics, not from display-time noise injection.
+Keep these channels separate. The piezo channel is the VLF analogue and is sampled before relaxation; direct avalanche outputs are the seismic-event analogue and are sampled after toppling. Do not add display-time noise or artificial spikes to either path.
 
 Default charge parameters in `sim.sh`:
 
@@ -190,7 +206,7 @@ Render a VLF-shaped analogue summary:
 ./piezo-vlf-summary.sh
 ```
 
-This maps the avalanche-derived piezo envelope onto carrier-like bands from `0` to `24000` Hz. It is a display analogue for sanity checking the piezo-strain hypothesis, not a physical RF waveform or FFT of the simulation timestep. The envelope itself comes from simulated toppling and stress release.
+This maps the piezo strain envelope onto carrier-like bands from `0` to `24000` Hz. It is a display analogue for sanity checking the piezo-strain hypothesis, not a physical RF waveform or FFT of the simulation timestep.
 
 Render a WAV sonification of the summed piezo signal:
 
@@ -208,7 +224,7 @@ Render normalized or synthetic events over a simple offline Italy map:
 
 The helper prefers the newest synthetic event CSV and falls back to the newest combined INGV normalized CSV. It intentionally uses a schematic built-in basemap so it works without cartography packages. For publication-quality maps, add geospatial libraries such as `geopandas`, `shapely`, `contextily`, and `xyzservices`.
 
-Current synthetic event locations are proxy locations from the fixed simulation sensor set. They are suitable for a demo overlay, but not yet for evaluating spatial realism. Add avalanche centroid or rupture-mask output before using synthetic maps as spatial training data.
+Current synthetic event locations are proxy locations from fixed simulation sensors or direct avalanche-signal sensors. They are suitable for a demo overlay, but not yet for evaluating spatial realism. Add avalanche centroid or rupture-mask output before using synthetic maps as spatial training data.
 
 ## Mountain Mode
 
@@ -270,7 +286,7 @@ Run the full local demo pipeline:
 ./run-all.sh
 ```
 
-This runs `sim.sh`, builds synthetic events, renders the VLF-shaped avalanche-piezo analogue, writes the avalanche-piezo WAV sonification, builds the heatmap video, and renders the synthetic event map. It defaults to `mountain_256x256_seed42_10000`. Set `RUN_SIM=0` to reuse existing simulation files, `RUN_VIDEO=0` to skip MP4 generation, or `RUN_FFT=1` to also render the older FFT diagnostic PNG.
+This runs `sim.sh`, builds direct seismic synthetic events, renders the VLF-shaped piezo analogue, writes the piezo WAV sonification, builds the heatmap video, and renders the synthetic event map. It defaults to `mountain_256x256_seed42_10000`. Set `RUN_SIM=0` to reuse existing simulation files, `RUN_VIDEO=0` to skip MP4 generation, or `RUN_FFT=1` to also render the older FFT diagnostic PNG.
 
 Create a video from generated PNG heatmaps:
 

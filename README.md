@@ -17,13 +17,13 @@ Right now, while awaiting further data from INGV, the focus is on the simulation
 * Astronomical and space-weather archive connectors and normalization.
 * Prospective VLF-anchored feature rows with pending target labels.
 * Dependency-light logistic and ablation smoke models for feasibility checks.
-* Sandpile simulation with seismic-like avalanche outputs, pre-avalanche piezo strain sensors, and avalanche-derived piezo/VLF analogue outputs.
+* Sandpile simulation with separate seismic-like avalanche outputs and piezo/VLF analogue outputs.
 
 ## Simulation
 
 The simulation is an artificial mountain-like grid where broad background loading is combined with repeated localized stress at fixed point sources. As slopes become unstable, small avalanches redistribute height to neighbouring cells. The aim is to generate synthetic sequences that are close enough in shape to real-world seismic data to be useful as training data for a deep learning system, especially before enough matched seismic, VLF, and astronomical data is available.
 
-It also includes piezo-like sensors. The pre-avalanche channel watches quartz-like susceptible regions near failure, while the default VLF/WAV demo uses an avalanche-derived channel computed from actual toppling and stress release so spikes come from the simulation dynamics rather than display-time noise.
+It also includes piezo-like sensors that watch quartz-like susceptible regions near failure and produce the VLF/WAV analogue channel. Direct seismic-like event data is kept separate and is derived from avalanche/toppling behavior.
 
 Run the local simulation demo pipeline with:
 
@@ -31,7 +31,7 @@ Run the local simulation demo pipeline with:
 ./run-all.sh
 ```
 
-Default outputs use `data/derived/sim/mountain_256x256_seed42_10000` as the prefix. The normal piezo image is `*.piezo_vlf_summary.png`; the older FFT diagnostic is opt-in with `RUN_FFT=1`.
+Default outputs use `data/derived/sim/mountain_256x256_seed42_10000` as the prefix. The normal piezo image is `*.piezo_vlf_summary.png` from `*.piezo.csv`; the direct seismic event analogue is `*.avalanche_events.csv`. The older FFT diagnostic is opt-in with `RUN_FFT=1`.
 
 Compare the simulated VLF analogue image against captured Cumiana VLF spectrograms with:
 

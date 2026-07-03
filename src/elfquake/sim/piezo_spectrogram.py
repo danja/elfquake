@@ -525,20 +525,25 @@ def _strain_vlf_power(
     previous = np.zeros(freq_bins, dtype=np.float64)
     freq_tilt = 1.0 / (1.0 + 4.0 * ((freqs - carrier_freq_min_hz) / span))
 
+    previous_amplitude = 0.0
     for index, amplitude in enumerate(normalized):
-        column = 0.006 * freq_tilt
-        burst = amplitude ** 1.35
-        column += 0.10 * burst * freq_tilt
+        onset = max(0.0, amplitude - previous_amplitude)
+        column = 0.020 * freq_tilt
+        burst = amplitude ** 1.15
+        column += 0.24 * burst * freq_tilt
         for band_index, center in enumerate(centers):
             shimmer = 0.72 + 0.28 * np.sin(index * (0.019 + band_index * 0.004) + band_index * 1.7)
             band = np.exp(-0.5 * ((freqs - center) / max(widths[band_index], 1.0)) ** 2)
-            column += burst * shimmer * (0.42 + 0.05 * band_index) * band
-        if amplitude > 0.7:
+            column += burst * shimmer * (0.75 + 0.08 * band_index) * band
+        if amplitude > 0.45:
             wide_center = carrier_freq_min_hz + span * (0.35 + 0.25 * np.sin(index * 0.037))
             wide = np.exp(-0.5 * ((freqs - wide_center) / (span * 0.18)) ** 2)
-            column += (amplitude - 0.7) * 0.65 * wide
-        previous = np.maximum(column, previous * 0.88)
+            column += (amplitude - 0.45) * 1.10 * wide
+        if amplitude > 0.70 or onset > 0.10:
+            column += (0.45 * amplitude + 1.25 * onset) * (0.55 + 0.45 * freq_tilt)
+        previous = np.maximum(column, previous * 0.80)
         power[:, index] = previous
+        previous_amplitude = amplitude
     return power
 
 

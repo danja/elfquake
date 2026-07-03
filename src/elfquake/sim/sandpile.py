@@ -10,10 +10,10 @@ from typing import Callable
 import numpy as np
 
 from elfquake.sim.piezo import (
-    AVALANCHE_PIEZO_SENSOR_FIELDS,
+    AVALANCHE_SIGNAL_SENSOR_FIELDS,
     PIEZO_SENSOR_FIELDS,
     PiezoConfig,
-    build_avalanche_piezo_sensor_rows,
+    build_avalanche_signal_sensor_rows,
     build_piezo_sensor_rows,
     build_piezo_susceptibility,
 )
@@ -72,6 +72,7 @@ def run_sandpile_simulation(
     summary_out: Path,
     sensors_out: Path,
     piezo_out: Path | None = None,
+    avalanche_signal_out: Path | None = None,
     piezo_avalanche_out: Path | None = None,
     piezo_config: PiezoConfig | None = None,
     snapshot_dir: Path | None = None,
@@ -80,6 +81,13 @@ def run_sandpile_simulation(
     progress_callback: Callable[[int, int, dict[str, str]], None] | None = None,
 ) -> tuple[list[dict[str, str]], list[dict[str, str]]]:
     validate_config(config)
+    if (
+        avalanche_signal_out is not None
+        and piezo_avalanche_out is not None
+        and avalanche_signal_out != piezo_avalanche_out
+    ):
+        raise ValueError("use only one of avalanche_signal_out or piezo_avalanche_out")
+    resolved_avalanche_signal_out = avalanche_signal_out or piezo_avalanche_out
     if snapshot_dir is not None and snapshot_interval < 1:
         raise ValueError("snapshot_interval must be at least 1 when snapshot_dir is set")
     if progress_callback is not None and progress_interval < 1:
@@ -89,11 +97,11 @@ def run_sandpile_simulation(
     sources = _random_points(rng, config.width, config.height, config.source_count)
     sensors = _random_points(rng, config.width, config.height, config.sensor_count)
     piezo_rows = []
-    piezo_avalanche_rows = []
+    avalanche_signal_rows = []
     piezo_sensors = None
     piezo_susceptibility = None
     piezo_charge = None
-    if piezo_out is not None or piezo_avalanche_out is not None:
+    if piezo_out is not None or resolved_avalanche_signal_out is not None:
         resolved_piezo_config = piezo_config or PiezoConfig()
         piezo_rng = np.random.default_rng(config.seed + 1_000_003)
         piezo_sensors = _random_points(
@@ -156,12 +164,12 @@ def run_sandpile_simulation(
             config.threshold,
             config.max_relaxation_sweeps,
         )
-        if piezo_avalanche_out is not None:
+        if resolved_avalanche_signal_out is not None:
             assert resolved_piezo_config is not None
             assert piezo_sensors is not None
             assert piezo_susceptibility is not None
-            piezo_avalanche_rows.extend(
-                build_avalanche_piezo_sensor_rows(
+            avalanche_signal_rows.extend(
+                build_avalanche_signal_sensor_rows(
                     step=step,
                     sensors=piezo_sensors,
                     pre_relax_grid=pre_relax_grid,
@@ -207,8 +215,8 @@ def run_sandpile_simulation(
     _write_csv(sensors_out, SENSOR_FIELDS, sensor_rows)
     if piezo_out is not None:
         _write_csv(piezo_out, PIEZO_SENSOR_FIELDS, piezo_rows)
-    if piezo_avalanche_out is not None:
-        _write_csv(piezo_avalanche_out, AVALANCHE_PIEZO_SENSOR_FIELDS, piezo_avalanche_rows)
+    if resolved_avalanche_signal_out is not None:
+        _write_csv(resolved_avalanche_signal_out, AVALANCHE_SIGNAL_SENSOR_FIELDS, avalanche_signal_rows)
     if snapshot_dir is not None:
         _write_csv(snapshot_dir / "manifest.csv", ["step", "snapshot_file"], snapshot_rows)
     return summary_rows, sensor_rows
