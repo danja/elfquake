@@ -38,8 +38,10 @@ from elfquake.features.vlf_image import build_vlf_image_features, extract_vlf_im
 from elfquake.features.vlf_image_windows import join_vlf_image_features_to_windows
 from elfquake.features.vlf_windows import build_vlf_window_features
 from elfquake.models.ablation_smoke import train_ablation_smoke
+from elfquake.models.candidates import list_model_candidates, write_model_candidates
 from elfquake.models.logistic_smoke import train_logistic_smoke
 from elfquake.models.readiness import summarize_model_readiness
+from elfquake.models.tensor_spec import build_tensor_spec
 from elfquake.normalize.events import combine_normalized_events
 from elfquake.http import HttpCapture
 from elfquake.normalize.ingv import normalize_ingv_event_text, normalize_row
@@ -1210,6 +1212,38 @@ class AcquisitionScaffoldTests(unittest.TestCase):
 
             self.assertEqual(report["status"], "insufficient_class_variation")
             self.assertEqual(report["ablations"]["seismic_only"]["status"], "insufficient_class_variation")
+
+    def test_model_candidate_registry_can_be_filtered_and_written(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+
+            rows = write_model_candidates(out_path=root / "candidates.json", stage="transformer")
+
+            self.assertTrue(rows)
+            self.assertTrue(all(row["stage"] == "transformer" for row in rows))
+            self.assertTrue((root / "candidates.json").exists())
+            self.assertIn("patchtst_channel_independent", {row["candidate_id"] for row in list_model_candidates()})
+
+    def test_tensor_spec_groups_numeric_features_and_masks(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            table = root / "design.csv"
+            table.write_text(
+                "window_id,region_id,window_start_utc,seismic_event_count,astro_f107_mean,"
+                "vlf_image_intensity_mean_latest,quality_missing_vlf,target_occurred,target_status\n"
+                "w1,central_italy,2026-01-01T00:00:00Z,1,120,0.1,0,0,labeled\n"
+                "w2,central_italy,2026-01-02T00:00:00Z,2,121,,1,1,labeled\n",
+                encoding="utf-8",
+            )
+
+            spec = build_tensor_spec(input_csv=table, out_path=root / "tensor_spec.json")
+
+            self.assertEqual(spec["schema"], "elfquake.tensor_spec.v1")
+            self.assertEqual(spec["row_count"], 2)
+            self.assertIn("seismic_event_count", spec["modalities"]["seismic"]["feature_fields"])
+            self.assertIn("vlf_image_intensity_mean_latest__present", spec["modalities"]["vlf_image"]["mask_fields"])
+            self.assertEqual(spec["modalities"]["vlf_image"]["missing_cell_count"], 1)
+            self.assertIn("target_occurred", spec["target_fields"])
 
     @unittest.skipIf(importlib.util.find_spec("numba") is None, "numba not installed")
     def test_sandpile_simulation_is_deterministic_and_writes_expected_rows(self) -> None:

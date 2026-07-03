@@ -16,7 +16,7 @@
 6. Backfill enough historical INGV windows to get both positive and negative target classes by region.
 7. Continue with prospective-only VLF evaluation unless a separate historical Cumiana archive is obtained.
 8. Add full rupture-mask outputs if synthetic event maps need spatial extent rather than centroid locations.
-9. Define regular-cadence multimodal tensors with missing-data masks before implementing Transformer candidates.
+9. Build a regular-cadence tensor materializer from tensor specs before implementing Transformer candidates.
 10. Use the piezo/Cumiana comparison report to tune only the piezo VLF mapping derived from `*.piezo.csv`.
 11. Shape direct avalanche signal events for INGV-like seismic event experiments without using the piezo/VLF path.
 12. Use the signal-shape comparison report to tune simulation parameters separately for VLF-like and seismic-like outputs.
@@ -24,6 +24,7 @@
 ## Completed
 
 * Add sparse local-peak extraction for direct avalanche-derived seismic events.
+* Add modular model-candidate registry and tensor-spec scaffold for future Transformer work.
 * Compare full-size `256 x 256`, `10000` step seeds `40`, `41`, and `42` without heatmap/video overhead.
 * Add a Natural Earth Italy line basemap for avalanche-derived event-map demos.
 * Add direct avalanche activity centroids for synthetic seismic event locations.

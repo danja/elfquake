@@ -39,8 +39,10 @@ from elfquake.features.vlf_image import build_vlf_image_features
 from elfquake.features.vlf_image_windows import join_vlf_image_features_to_windows
 from elfquake.features.vlf_windows import build_vlf_window_features
 from elfquake.models.ablation_smoke import train_ablation_smoke
+from elfquake.models.candidates import write_model_candidates
 from elfquake.models.logistic_smoke import train_logistic_smoke
 from elfquake.models.readiness import summarize_model_readiness
+from elfquake.models.tensor_spec import build_tensor_spec
 from elfquake.normalize.events import combine_normalized_events
 from elfquake.normalize.ingv import normalize_ingv_event_text
 from elfquake.normalize.space_weather import (
@@ -269,6 +271,17 @@ def main() -> int:
     ablation.add_argument("--out", type=Path, required=True)
     ablation.add_argument("--epochs", type=int, default=600)
     ablation.add_argument("--learning-rate", type=float, default=0.2)
+
+    model_candidates = subparsers.add_parser("list-model-candidates")
+    model_candidates.add_argument("--out", type=Path, required=True)
+    model_candidates.add_argument("--stage", choices=["baseline", "transformer", "research"])
+
+    tensor_spec = subparsers.add_parser("build-tensor-spec")
+    tensor_spec.add_argument("--input", type=Path, required=True)
+    tensor_spec.add_argument("--out", type=Path, required=True)
+    tensor_spec.add_argument("--time-field", default="window_start_utc")
+    tensor_spec.add_argument("--region-field", default="region_id")
+    tensor_spec.add_argument("--target-field", default="target_occurred")
 
     sandpile = subparsers.add_parser("run-sandpile-sim")
     sandpile.add_argument("--width", type=int, default=128)
@@ -791,6 +804,23 @@ def main() -> int:
             print(f"status: {report['status']}")
             print(f"rows: {report['row_count']}")
             print(f"labeled rows: {report['labeled_row_count']}")
+            print(f"output: {args.out}")
+            return 0
+        elif args.command == "list-model-candidates":
+            rows = write_model_candidates(out_path=args.out, stage=args.stage)
+            print(f"candidates: {len(rows)}")
+            print(f"output: {args.out}")
+            return 0
+        elif args.command == "build-tensor-spec":
+            spec = build_tensor_spec(
+                input_csv=args.input,
+                out_path=args.out,
+                time_field=args.time_field,
+                region_field=args.region_field,
+                target_field=args.target_field,
+            )
+            print(f"rows: {spec['row_count']}")
+            print(f"numeric features: {spec['numeric_feature_count']}")
             print(f"output: {args.out}")
             return 0
         elif args.command == "run-sandpile-sim":

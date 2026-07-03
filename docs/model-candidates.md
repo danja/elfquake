@@ -120,3 +120,17 @@ Report calibration, false positives, false negatives, and performance against hi
 ## Implementation Note
 
 Current smoke trainers avoid external ML dependencies. A real Transformer implementation will likely require CPU PyTorch in the project venv; do not add GPU-only dependencies on the current system.
+
+Current scaffold:
+
+* `elfquake.models.candidates` - replaceable model-family registry.
+* `elfquake.models.tensor_spec` - CSV-to-tensor metadata spec with modality groups and generated present-mask channel names.
+* `list-model-candidates` - writes the candidate registry JSON.
+* `build-tensor-spec` - writes a tensor-spec JSON for a feature table.
+
+Initial artifacts:
+
+* `data/derived/models/model_candidates.json`
+* `data/derived/models/cumiana_vlf_image_tensor_spec.json`
+
+Keep model adapters behind small interfaces. Candidate selection, tensor specs, tensor materialization, training backends, and evaluation should remain separate modules so PyTorch, tree models, or event-process models can be swapped without rewriting feature generation.
