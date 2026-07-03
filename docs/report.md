@@ -24,7 +24,7 @@ Synthetic:
 
 * `data/derived/sim/mountain_256x256_seed42_10000.piezo.csv`
 * `data/derived/sim/mountain_256x256_seed42_10000.avalanche_events.csv`
-* `data/derived/sim/mountain_256x256_seed42_10000.piezo_avalanche.csv` as the legacy direct avalanche signal file
+* `data/derived/sim/mountain_256x256_seed42_10000.avalanche_signal.csv`
 
 ## Method
 
@@ -93,12 +93,4 @@ The current real seismic sample covers only June 2026 and is too short for robus
 
 Simulation step time is an assumed mapping. Frequency-domain comparisons are therefore shape diagnostics, not physical frequency validation.
 
-The current 10000-step direct avalanche signal input still uses a legacy filename, `*.piezo_avalanche.csv`; the next default simulation run should regenerate `*.avalanche_signal.csv`.
-
-## Next Actions
-
-1. Re-run the 10000-step default simulation so the direct signal file is produced as `*.avalanche_signal.csv`.
-2. Compare multiple full-size simulation seeds and parameter sets before accepting tuning changes.
-3. Tune direct avalanche peak thresholds against real INGV sparsity and burst metrics.
-4. Tune piezo signal dynamics so lag-1 autocorrelation moves closer to real VLF image-column traces.
-5. Backfill more INGV event windows and keep accumulating Cumiana VLF captures before model training claims.
+The current 10000-step direct avalanche signal input now uses `*.avalanche_signal.csv`.

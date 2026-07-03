@@ -1721,6 +1721,7 @@ class AcquisitionScaffoldTests(unittest.TestCase):
                 out_path=root / "map.png",
                 metadata_out=root / "map.json",
                 min_magnitude=2.0,
+                basemap_geojson=None,
             )
 
             self.assertEqual((root / "map.png").read_bytes()[:8], b"\x89PNG\r\n\x1a\n")
@@ -1728,6 +1729,57 @@ class AcquisitionScaffoldTests(unittest.TestCase):
             self.assertEqual(metadata["event_count"], "2")
             self.assertEqual(metadata["map_type"], "offline_schematic_italy")
             self.assertEqual(report["event_count"], "2")
+
+    @unittest.skipIf(importlib.util.find_spec("matplotlib") is None, "matplotlib not installed")
+    def test_render_event_map_can_use_geojson_line_basemap(self) -> None:
+        from elfquake.visualization.event_map import render_event_map
+
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            events = root / "events.csv"
+            events.write_text(
+                "event_id,source,event_time_utc,latitude,longitude,depth_km,magnitude,magnitude_type,"
+                "italy_region,event_location_name,event_type,raw_file,ingested_at_utc,raw_uri\n"
+                "a,synthetic_avalanche,2026-01-01T00:00:00Z,42.0,12.5,8,3.4,ML,central,Apennines,earthquake,,,\n",
+                encoding="utf-8",
+            )
+            basemap = root / "italy.geojson"
+            basemap.write_text(
+                json.dumps(
+                    {
+                        "type": "FeatureCollection",
+                        "features": [
+                            {
+                                "type": "Feature",
+                                "properties": {"ADMIN": "Italy"},
+                                "geometry": {
+                                    "type": "Polygon",
+                                    "coordinates": [[
+                                        [11.5, 41.5],
+                                        [13.5, 41.5],
+                                        [13.5, 42.5],
+                                        [11.5, 42.5],
+                                        [11.5, 41.5],
+                                    ]],
+                                },
+                            }
+                        ],
+                    }
+                ),
+                encoding="utf-8",
+            )
+
+            report = render_event_map(
+                events_csv=events,
+                out_path=root / "map.png",
+                metadata_out=root / "map.json",
+                basemap_geojson=basemap,
+            )
+
+            metadata = json.loads((root / "map.json").read_text(encoding="utf-8"))
+            self.assertEqual(metadata["map_type"], "natural_earth_line_italy")
+            self.assertEqual(metadata["basemap_geojson"], str(basemap))
+            self.assertEqual(report["event_count"], "1")
 
     @unittest.skipIf(importlib.util.find_spec("numba") is None, "numba not installed")
     def test_sandpile_simulation_writes_grid_snapshots(self) -> None:

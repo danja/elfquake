@@ -240,15 +240,15 @@ Render a WAV sonification of the summed piezo signal:
 
 The WAV is a time-compressed audio rendering for inspection, not a physical radio waveform. The default `SMOOTH_STEPS=64` suppresses step-to-step jitter before resampling to audio rate; reduce it to hear more high-frequency simulation jitter.
 
-Render normalized or synthetic events over a simple offline Italy map:
+Render avalanche-derived seismic-like events over an offline Italy map:
 
 ```sh
 ./event-map.sh
 ```
 
-The helper prefers the newest synthetic event CSV and falls back to the newest combined INGV normalized CSV. It intentionally uses a schematic built-in basemap so it works without cartography packages. For publication-quality maps, add geospatial libraries such as `geopandas`, `shapely`, `contextily`, and `xyzservices`.
+The helper prefers the newest `*.avalanche_events.csv`, then falls back to `*.synthetic_events.csv` and normalized INGV CSVs. By default it uses a packaged Natural Earth 1:10m Italy GeoJSON as a realistic offline line basemap and still works without `geopandas`, `shapely`, or web tiles. Use `BASEMAP_GEOJSON=/path/to/map.geojson ./event-map.sh` to override the outline.
 
-Current synthetic event locations are proxy locations from fixed simulation sensors or direct avalanche-signal sensors. They are suitable for a demo overlay, but not yet for evaluating spatial realism. Add avalanche centroid or rupture-mask output before using synthetic maps as spatial training data.
+Current synthetic event locations are proxy locations from direct avalanche-signal sensors. They are suitable for a demo overlay, but not yet for evaluating spatial realism. Add avalanche centroid or rupture-mask output before using synthetic maps as spatial training data.
 
 ## Mountain Mode
 

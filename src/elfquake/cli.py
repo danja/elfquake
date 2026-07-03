@@ -462,6 +462,7 @@ def main() -> int:
     event_map.add_argument("--lat-max", type=float, default=47.8)
     event_map.add_argument("--min-magnitude", type=float)
     event_map.add_argument("--max-events", type=int)
+    event_map.add_argument("--basemap-geojson", type=Path)
 
     args = parser.parse_args()
     try:
@@ -1193,7 +1194,7 @@ def main() -> int:
             print(f"pairs output: {args.pairs_out}")
             return 0
         elif args.command == "render-event-map":
-            from elfquake.visualization.event_map import render_event_map
+            from elfquake.visualization.event_map import DEFAULT_BASEMAP_GEOJSON, render_event_map
 
             report = render_event_map(
                 events_csv=args.events,
@@ -1206,6 +1207,7 @@ def main() -> int:
                 lat_max=args.lat_max,
                 min_magnitude=args.min_magnitude,
                 max_events=args.max_events,
+                basemap_geojson=args.basemap_geojson or DEFAULT_BASEMAP_GEOJSON,
             )
             print(f"map: {report['map_file']}")
             print(f"events: {report['event_count']}")

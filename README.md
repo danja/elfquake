@@ -1,14 +1,32 @@
 # ELFQuake
 
-ELFQuake is a research project testing whether VLF radio observations can augment seismic and astronomical data enough to support useful earthquake-related predictive modeling.
+ELFQuake is a research project testing whether [Extremely](https://en.wikipedia.org/wiki/Extremely_low_frequency/[Very Low Frequency](https://en.wikipedia.org/wiki/Very_low_frequency) radio observations can augment seismic and astronomical data enough to support useful earthquake-related predictive modeling.
 
-The core hypothesis is that natural ELF/VLF radio anomalies may contain signal that is not present in seismic event history alone. *To be useful this claim must be demonstrated against reproducible seismic-only baselines, held-out time periods, and multimodal ablations.*
+The core hypothesis is that natural ELF/VLF radio anomalies may contain signal that is not present in seismic event history alone. At least [one study]((https://pubs.geoscienceworld.org/ssa/bssa/article-abstract/113/6/2461/627949/Earthquake-Forecasting-Using-Big-Data-and)
+) suggests this may be a viable approach.
 
-### Status
+We wish to exploit modern machine learning/AI techniques to create a predictive model based on the transformer architecture. A key consideration is the availability of real-world data for training. The plan is to build a system (based around an avalanche model) with similar chacteristics to the geological system and use this to generate synthetic data for pre-training. Once pre-trained, real-world data will be used for fine-tuning.
+
+*To be useful this claim must be demonstrated against reproducible seismic-only baselines, held-out time periods, and multimodal ablations.*
+
+## Status
 
 Data acquisition, feature extraction, prospective rows, smoke models, CPU-only sandpile simulation, and first synthetic VLF comparison tooling are implemented; **no earthquake prediction capability is claimed**.
 
 Right now, while awaiting further data from INGV, the focus is on the simulation. (The first prospective VLF rows become labelable after `2026-07-06T09:57:24Z`).
+
+### Simulated Earthquakes
+
+![simulated earthquake map](docs/images/map-v1.0.png)
+
+### Simulated VLF Signal
+
+![simulated VLF emissions](docs/images/vlf-simulated.png)
+
+
+## Background
+
+This work was initially prompted by the tragedy of the [2009 L'Aquila earthquake](https://en.wikipedia.org/wiki/2009_L'Aquila_earthquake). Around the same period I was aware of developments in Deep Learning and coincidentally had stumbled on material related to natural radio signals occurring as precursors to seismic events (see [vlf.it](http://www.vlf.it/)). I made a start on research and began a blog about it : [ELFQuake](https://elfquake.wordpress.com/) (which I wound up using for general blogging). At the time it seemed possible but *very difficult*. But since then predictive models have improved in leaps and bounds, meaning that prediction has a much better chance of working. Not only that, but the ability to delegate much of the coding work to an intelligent assistant means that the difficulty in building the system has been drastically reduced. 
 
 ## Current Work
 

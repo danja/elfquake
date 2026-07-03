@@ -1,4 +1,4 @@
-"""Render normalized earthquake event CSVs on a simple offline Italy map."""
+"""Render normalized earthquake event CSVs on an offline Italy map."""
 
 from __future__ import annotations
 
@@ -11,6 +11,7 @@ from pathlib import Path
 
 
 ITALY_BOUNDS = (5.5, 19.5, 35.0, 47.8)
+DEFAULT_BASEMAP_GEOJSON = Path(__file__).with_name("assets") / "italy-natural-earth-10m.geojson"
 
 
 @dataclass(frozen=True)
@@ -32,6 +33,7 @@ def render_event_map(
     lat_max: float = ITALY_BOUNDS[3],
     min_magnitude: float | None = None,
     max_events: int | None = None,
+    basemap_geojson: Path | None = DEFAULT_BASEMAP_GEOJSON,
 ) -> dict[str, str]:
     """Render events from a normalized INGV-like CSV to a PNG image."""
 
@@ -60,7 +62,15 @@ def render_event_map(
     fig.patch.set_facecolor("#dcecf4")
     ax.set_facecolor("#cfe5ef")
 
-    _draw_base_map(ax, Polygon)
+    map_type = _draw_base_map(
+        ax,
+        Polygon,
+        basemap_geojson=basemap_geojson,
+        lon_min=lon_min,
+        lon_max=lon_max,
+        lat_min=lat_min,
+        lat_max=lat_max,
+    )
 
     if events:
         ordered = sorted(events, key=lambda item: item.magnitude)
@@ -110,7 +120,8 @@ def render_event_map(
         "map_file": str(out_path),
         "event_count": str(len(events)),
         "bounds": f"{lon_min},{lon_max},{lat_min},{lat_max}",
-        "map_type": "offline_schematic_italy",
+        "map_type": map_type,
+        "basemap_geojson": "" if basemap_geojson is None else str(basemap_geojson),
         "min_magnitude": "" if min_magnitude is None else str(min_magnitude),
         "max_events": "" if max_events is None else str(max_events),
     }
@@ -164,7 +175,128 @@ def _event_point(row: dict[str, str]) -> EventPoint | None:
     return EventPoint(latitude=latitude, longitude=longitude, magnitude=magnitude)
 
 
-def _draw_base_map(ax, polygon_class) -> None:
+def _draw_base_map(
+    ax,
+    polygon_class,
+    *,
+    basemap_geojson: Path | None,
+    lon_min: float,
+    lon_max: float,
+    lat_min: float,
+    lat_max: float,
+) -> str:
+    if basemap_geojson is not None:
+        rings = _load_geojson_rings(
+            basemap_geojson,
+            lon_min=lon_min,
+            lon_max=lon_max,
+            lat_min=lat_min,
+            lat_max=lat_max,
+        )
+        if rings:
+            _draw_geojson_line_map(ax, polygon_class, rings)
+            return "natural_earth_line_italy"
+
+    _draw_schematic_base_map(ax, polygon_class)
+    return "offline_schematic_italy"
+
+
+def _load_geojson_rings(
+    path: Path,
+    *,
+    lon_min: float,
+    lon_max: float,
+    lat_min: float,
+    lat_max: float,
+) -> list[list[tuple[float, float]]]:
+    if not path.exists():
+        return []
+    try:
+        payload = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError):
+        return []
+
+    rings: list[list[tuple[float, float]]] = []
+    for feature in payload.get("features", []):
+        geometry = feature.get("geometry") if isinstance(feature, dict) else None
+        if not isinstance(geometry, dict):
+            continue
+        for ring in _geometry_exterior_rings(geometry):
+            if len(ring) < 3:
+                continue
+            if _ring_overlaps_bounds(ring, lon_min=lon_min, lon_max=lon_max, lat_min=lat_min, lat_max=lat_max):
+                rings.append(ring)
+    return rings
+
+
+def _geometry_exterior_rings(geometry: dict[str, object]) -> list[list[tuple[float, float]]]:
+    geometry_type = geometry.get("type")
+    coordinates = geometry.get("coordinates")
+    polygons: list[object]
+    if geometry_type == "Polygon":
+        polygons = [coordinates]
+    elif geometry_type == "MultiPolygon":
+        polygons = list(coordinates) if isinstance(coordinates, list) else []
+    else:
+        return []
+
+    rings: list[list[tuple[float, float]]] = []
+    for polygon in polygons:
+        if not isinstance(polygon, list) or not polygon:
+            continue
+        exterior = polygon[0]
+        if not isinstance(exterior, list):
+            continue
+        ring: list[tuple[float, float]] = []
+        for point in exterior:
+            if not isinstance(point, list) or len(point) < 2:
+                continue
+            try:
+                lon = float(point[0])
+                lat = float(point[1])
+            except (TypeError, ValueError):
+                continue
+            if math.isfinite(lon) and math.isfinite(lat):
+                ring.append((lon, lat))
+        rings.append(ring)
+    return rings
+
+
+def _ring_overlaps_bounds(
+    ring: list[tuple[float, float]],
+    *,
+    lon_min: float,
+    lon_max: float,
+    lat_min: float,
+    lat_max: float,
+) -> bool:
+    ring_lon_min = min(point[0] for point in ring)
+    ring_lon_max = max(point[0] for point in ring)
+    ring_lat_min = min(point[1] for point in ring)
+    ring_lat_max = max(point[1] for point in ring)
+    return not (
+        ring_lon_max < lon_min
+        or ring_lon_min > lon_max
+        or ring_lat_max < lat_min
+        or ring_lat_min > lat_max
+    )
+
+
+def _draw_geojson_line_map(ax, polygon_class, rings: list[list[tuple[float, float]]]) -> None:
+    for ring in rings:
+        ax.add_patch(
+            polygon_class(
+                ring,
+                closed=True,
+                facecolor="#f2efe3",
+                edgecolor="#243238",
+                linewidth=0.65,
+                zorder=3,
+            )
+        )
+
+
+def _draw_schematic_base_map(ax, polygon_class) -> None:
     land = "#e9e0c2"
     land_edge = "#74806f"
     nearby_land = "#d9d4b9"

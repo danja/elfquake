@@ -7,7 +7,7 @@ Usage:
   ./event-map.sh [events_csv] [output_png] [metadata_json]
 
 Defaults:
-  events_csv     newest synthetic event CSV, else newest combined normalized INGV CSV
+  events_csv     newest avalanche event CSV, else synthetic event CSV, else normalized INGV CSV
   output_png     data/derived/maps/<input-stem>.event_map.png
   metadata_json  same prefix with .json
 
@@ -15,6 +15,7 @@ Environment:
   MIN_MAGNITUDE  optional minimum magnitude filter
   MAX_EVENTS     optional maximum number of latest rows to plot
   TITLE          optional map title
+  BASEMAP_GEOJSON optional GeoJSON outline override
 USAGE
 }
 
@@ -26,14 +27,17 @@ fi
 if [[ "${1:-}" ]]; then
   input="$1"
 else
-  input="$(find data/derived/sim -maxdepth 1 -type f -name '*.synthetic_events.csv' -printf '%T@ %p\n' 2>/dev/null | sort -nr | sed -n '1s/^[^ ]* //p')"
+  input="$(find data/derived/sim -maxdepth 1 -type f -name '*.avalanche_events.csv' -printf '%T@ %p\n' 2>/dev/null | sort -nr | sed -n '1s/^[^ ]* //p')"
   if [[ -z "$input" ]]; then
-    input="$(find data/derived/ingv -maxdepth 1 -type f -name '*.combined.normalized.csv' -printf '%T@ %p\n' 2>/dev/null | sort -nr | sed -n '1s/^[^ ]* //p')"
+    input="$(find data/derived/sim -maxdepth 1 -type f -name '*.synthetic_events.csv' -printf '%T@ %p\n' 2>/dev/null | sort -nr | sed -n '1s/^[^ ]* //p')"
+  fi
+  if [[ -z "$input" ]]; then
+    input="$(find data/derived/ingv -maxdepth 1 -type f -name '*.normalized.csv' -printf '%T@ %p\n' 2>/dev/null | sort -nr | sed -n '1s/^[^ ]* //p')"
   fi
 fi
 
 if [[ -z "$input" || ! -f "$input" ]]; then
-  echo "error: no event CSV found. Build a synthetic event list, or pass a normalized event CSV explicitly." >&2
+  echo "error: no event CSV found. Build an avalanche event list, or pass an event CSV explicitly." >&2
   exit 2
 fi
 
@@ -42,6 +46,7 @@ stem="$(basename "$input" .csv)"
 output="${2:-data/derived/maps/${stem}.event_map.png}"
 metadata="${3:-${output%.png}.json}"
 title="${TITLE:-ELFQuake synthetic event map}"
+basemap_geojson="${BASEMAP_GEOJSON:-}"
 
 args=(
   -m elfquake.cli render-event-map
@@ -50,6 +55,10 @@ args=(
   --metadata-out "$metadata"
   --title "$title"
 )
+
+if [[ "$basemap_geojson" ]]; then
+  args+=(--basemap-geojson "$basemap_geojson")
+fi
 
 if [[ "${MIN_MAGNITUDE:-}" ]]; then
   args+=(--min-magnitude "$MIN_MAGNITUDE")
