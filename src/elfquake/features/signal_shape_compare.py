@@ -26,6 +26,7 @@ SHAPE_METRICS = [
     "nonzero_ratio",
     "burst_ratio",
     "burst_run_count",
+    "burst_run_rate",
     "lag1_autocorrelation",
     "skewness",
     "excess_kurtosis",
@@ -42,7 +43,7 @@ DISTANCE_METRICS = [
     "coefficient_variation",
     "nonzero_ratio",
     "burst_ratio",
-    "burst_run_count",
+    "burst_run_rate",
     "lag1_autocorrelation",
     "skewness",
     "excess_kurtosis",
@@ -67,6 +68,31 @@ PAIR_FIELDNAMES = [
     "right_series_id",
     "normalized_distance",
 ] + [f"delta_{metric}" for metric in SHAPE_METRICS]
+
+SENSOR_SCAN_METRICS = [
+    "coefficient_variation",
+    "nonzero_ratio",
+    "burst_ratio",
+    "burst_run_rate",
+    "lag1_autocorrelation",
+    "skewness",
+    "excess_kurtosis",
+    "psd_slope",
+    "spectral_centroid_hz",
+    "spectral_rolloff90_hz",
+    "psd_low_band_ratio",
+    "psd_mid_band_ratio",
+    "psd_high_band_ratio",
+]
+
+SENSOR_SCAN_FIELDNAMES = [
+    "sensor_id",
+    "reference_series_id",
+    "signal_series_id",
+    "shape_score",
+    "sample_count",
+    "reference_sample_count",
+] + SENSOR_SCAN_METRICS + [f"delta_{metric}" for metric in SENSOR_SCAN_METRICS]
 
 
 @dataclass(frozen=True)
@@ -107,6 +133,57 @@ def compare_signal_shapes(
     return series_rows, pair_rows
 
 
+def scan_sensor_signal_shapes(
+    *,
+    reference: SignalSeries,
+    signal_csv: Path,
+    signal_field: str,
+    out_path: Path,
+    sample_seconds: float = 60.0,
+    sensor_ids: list[int] | None = None,
+    series_id_prefix: str = "sensor",
+) -> list[dict[str, str]]:
+    """Rank sensor traces by coarse shape similarity to a reference series."""
+    resolved_sensor_ids = sorted(sensor_ids if sensor_ids is not None else _read_sensor_ids(signal_csv))
+    if not resolved_sensor_ids:
+        raise ValueError("no sensor ids found")
+
+    reference_row = _series_row(reference)
+    rows = []
+    for sensor_id in resolved_sensor_ids:
+        signal = sensor_signal_series(
+            series_id=f"{series_id_prefix}_{sensor_id}",
+            signal_csv=signal_csv,
+            signal_field=signal_field,
+            sample_seconds=sample_seconds,
+            sensor_id=sensor_id,
+        )
+        signal_row = _series_row(signal)
+        deltas = {
+            metric: abs(_float(signal_row[metric], 0.0) - _float(reference_row[metric], 0.0))
+            for metric in SENSOR_SCAN_METRICS
+        }
+        row = {
+            "sensor_id": str(sensor_id),
+            "reference_series_id": reference.series_id,
+            "signal_series_id": signal.series_id,
+            "shape_score": _fmt(_sensor_shape_score(deltas)),
+            "sample_count": signal_row["sample_count"],
+            "reference_sample_count": reference_row["sample_count"],
+        }
+        row.update({metric: signal_row[metric] for metric in SENSOR_SCAN_METRICS})
+        row.update({f"delta_{key}": _fmt(value) for key, value in deltas.items()})
+        rows.append({field: row.get(field, "") for field in SENSOR_SCAN_FIELDNAMES})
+
+    rows.sort(key=lambda item: (_float(item["shape_score"], math.inf), int(item["sensor_id"])))
+    out_path.parent.mkdir(parents=True, exist_ok=True)
+    with out_path.open("w", newline="", encoding="utf-8") as handle:
+        writer = csv.DictWriter(handle, fieldnames=SENSOR_SCAN_FIELDNAMES, lineterminator="\n")
+        writer.writeheader()
+        writer.writerows(rows)
+    return rows
+
+
 def event_energy_series(
     *,
     series_id: str,
@@ -144,6 +221,7 @@ def sensor_signal_series(
     signal_csv: Path,
     signal_field: str,
     sample_seconds: float = 60.0,
+    sensor_id: int | None = None,
 ) -> SignalSeries:
     if sample_seconds <= 0:
         raise ValueError("sample_seconds must be positive")
@@ -151,6 +229,8 @@ def sensor_signal_series(
     with signal_csv.open(newline="", encoding="utf-8") as handle:
         for row in csv.DictReader(handle):
             if "step" not in row:
+                continue
+            if sensor_id is not None and row.get("sensor_id") != str(sensor_id):
                 continue
             value_text = row.get(signal_field, "")
             if signal_field == "avalanche_signal" and value_text == "":
@@ -165,6 +245,17 @@ def sensor_signal_series(
         for step, value in by_step.items():
             values[step - first] = value
     return SignalSeries(series_id, f"sensor_{signal_field}", (signal_csv,), float(sample_seconds), values)
+
+
+def _read_sensor_ids(signal_csv: Path) -> list[int]:
+    sensor_ids = set()
+    with signal_csv.open(newline="", encoding="utf-8") as handle:
+        for row in csv.DictReader(handle):
+            value = row.get("sensor_id")
+            if value in (None, ""):
+                continue
+            sensor_ids.add(int(value))
+    return sorted(sensor_ids)
 
 
 def vlf_image_column_series(
@@ -242,6 +333,17 @@ def _pair_row(left: dict[str, str], right: dict[str, str], all_rows: list[dict[s
     return {field: row.get(field, "") for field in PAIR_FIELDNAMES}
 
 
+def _sensor_shape_score(deltas: dict[str, float]) -> float:
+    # Ranking aid only; use individual delta columns when interpreting results.
+    return (
+        deltas["lag1_autocorrelation"] * 2.0
+        + deltas["psd_slope"]
+        + deltas["burst_run_rate"] * 10.0
+        + deltas["coefficient_variation"] * 0.5
+        + deltas["nonzero_ratio"] * 0.5
+    )
+
+
 def _shape_stats(values: np.ndarray, *, sample_seconds: float) -> dict[str, float]:
     signal = values.astype(np.float64)
     if signal.size == 0:
@@ -253,6 +355,7 @@ def _shape_stats(values: np.ndarray, *, sample_seconds: float) -> dict[str, floa
     abs_mean = abs(mean)
     burst_threshold = float(np.quantile(signal, 0.95))
     burst_flags = [bool(value > burst_threshold and value > 0.0) for value in signal]
+    burst_run_count = _count_runs(burst_flags)
     psd = _psd_stats(signal, sample_seconds=sample_seconds)
     stats = {
         "sample_count": float(signal.size),
@@ -267,7 +370,8 @@ def _shape_stats(values: np.ndarray, *, sample_seconds: float) -> dict[str, floa
         "p99": float(np.quantile(signal, 0.99)),
         "nonzero_ratio": float(np.count_nonzero(signal) / signal.size),
         "burst_ratio": float(sum(burst_flags) / signal.size),
-        "burst_run_count": float(_count_runs(burst_flags)),
+        "burst_run_count": float(burst_run_count),
+        "burst_run_rate": float(burst_run_count / signal.size),
         "lag1_autocorrelation": _lag1_autocorrelation(signal),
         "skewness": _skewness(centered, std),
         "excess_kurtosis": _excess_kurtosis(centered, std),

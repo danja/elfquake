@@ -19,8 +19,8 @@ Environment:
   RUN_AUDIO         default 0
   REAL_EVENTS       optional normalized INGV-like CSV for shape comparison
   REAL_IMAGE_ROOT   default data/raw/vlf/cumiana/captures
-  AVALANCHE_EVENT_QUANTILE default 0.95
-  AVALANCHE_EVENT_WINDOW   default 15
+  AVALANCHE_EVENT_QUANTILE default 0.99
+  AVALANCHE_EVENT_WINDOW   default 30
 USAGE
 }
 
@@ -39,8 +39,8 @@ run_video="${RUN_VIDEO:-0}"
 run_audio="${RUN_AUDIO:-0}"
 real_events="${REAL_EVENTS:-}"
 real_image_root="${REAL_IMAGE_ROOT:-data/raw/vlf/cumiana/captures}"
-avalanche_event_quantile="${AVALANCHE_EVENT_QUANTILE:-0.95}"
-avalanche_event_window="${AVALANCHE_EVENT_WINDOW:-15}"
+avalanche_event_quantile="${AVALANCHE_EVENT_QUANTILE:-0.99}"
+avalanche_event_window="${AVALANCHE_EVENT_WINDOW:-30}"
 
 for seed in $seeds; do
   prefix="data/derived/sim/mountain_${width}x${height}_seed${seed}_${steps}"

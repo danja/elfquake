@@ -10,9 +10,10 @@ Runs the simulation demo pipeline in dependency order:
   1. sim.sh
   2. direct seismic synthetic event list
   3. piezo-vlf-summary.sh
-  4. piezo-audio.sh
-  5. make-video.sh
-  6. event-map.sh
+  4. optional piezo-sensor-scan.sh
+  5. piezo-audio.sh
+  6. make-video.sh
+  7. event-map.sh
 
 Defaults match sim.sh:
   WIDTH=256 HEIGHT=256 STEPS=10000 SEED=42
@@ -23,9 +24,10 @@ Environment:
   RUN_VIDEO=0      skip make-video.sh
   RUN_AUDIO=0      skip piezo WAV sonification
   RUN_EVENT_MAP=0  skip direct seismic event list and event-map.sh
+  RUN_SENSOR_SCAN=1 rank piezo sensors against local Cumiana VLF captures
   RUN_FFT=1        also render the FFT diagnostic PNG
-  AVALANCHE_EVENT_QUANTILE default 0.95
-  AVALANCHE_EVENT_WINDOW   default 15
+  AVALANCHE_EVENT_QUANTILE default 0.99
+  AVALANCHE_EVENT_WINDOW   default 30
   AVALANCHE_EVENT_MAX      default 0, no cap
   AVALANCHE_SPATIAL_PROFILE default italy_apennines
   FPS=20           video frame rate
@@ -47,24 +49,25 @@ run_heatmaps="${RUN_HEATMAPS:-1}"
 run_video="${RUN_VIDEO:-1}"
 run_audio="${RUN_AUDIO:-1}"
 run_event_map="${RUN_EVENT_MAP:-1}"
+run_sensor_scan="${RUN_SENSOR_SCAN:-0}"
 run_fft="${RUN_FFT:-0}"
 fps="${FPS:-20}"
-avalanche_event_quantile="${AVALANCHE_EVENT_QUANTILE:-0.95}"
-avalanche_event_window="${AVALANCHE_EVENT_WINDOW:-15}"
+avalanche_event_quantile="${AVALANCHE_EVENT_QUANTILE:-0.99}"
+avalanche_event_window="${AVALANCHE_EVENT_WINDOW:-30}"
 avalanche_event_max="${AVALANCHE_EVENT_MAX:-0}"
 avalanche_spatial_profile="${AVALANCHE_SPATIAL_PROFILE:-italy_apennines}"
 
 echo "prefix: $prefix"
 
 if [[ "$run_sim" != "0" ]]; then
-  echo "step 1/6: simulation"
+  echo "step 1/7: simulation"
   WIDTH="$width" HEIGHT="$height" STEPS="$steps" SEED="$seed" RUN_HEATMAPS="$run_heatmaps" ./sim.sh
 else
-  echo "step 1/6: simulation skipped"
+  echo "step 1/7: simulation skipped"
 fi
 
 if [[ "$run_event_map" != "0" ]]; then
-  echo "step 2/6: direct seismic synthetic event list"
+  echo "step 2/7: direct seismic synthetic event list"
   PYTHONDONTWRITEBYTECODE=1 PYTHONPATH=src .venv/bin/python -m elfquake.cli build-synthetic-event-list \
     --summary "${prefix}.summary.csv" \
     --sensors "${prefix}.sensors.csv" \
@@ -82,7 +85,7 @@ if [[ "$run_event_map" != "0" ]]; then
     --spatial-profile "$avalanche_spatial_profile" \
     --out "${prefix}.avalanche_events.csv"
 else
-  echo "step 2/6: direct seismic synthetic event list skipped"
+  echo "step 2/7: direct seismic synthetic event list skipped"
 fi
 
 if [[ "$run_fft" != "0" ]]; then
@@ -90,14 +93,21 @@ if [[ "$run_fft" != "0" ]]; then
   WIDTH="$width" HEIGHT="$height" STEPS="$steps" SEED="$seed" ./piezo-summary.sh "${prefix}.piezo.csv"
 fi
 
-echo "step 3/6: piezo VLF summary"
+echo "step 3/7: piezo VLF summary"
 WIDTH="$width" HEIGHT="$height" STEPS="$steps" SEED="$seed" ./piezo-vlf-summary.sh "${prefix}.piezo.csv"
 
+if [[ "$run_sensor_scan" != "0" ]]; then
+  echo "step 4/7: piezo sensor scan"
+  WIDTH="$width" HEIGHT="$height" STEPS="$steps" SEED="$seed" ./piezo-sensor-scan.sh "${prefix}.piezo.csv"
+else
+  echo "step 4/7: piezo sensor scan skipped"
+fi
+
 if [[ "$run_audio" != "0" ]]; then
-  echo "step 4/6: piezo WAV sonification"
+  echo "step 5/7: piezo WAV sonification"
   WIDTH="$width" HEIGHT="$height" STEPS="$steps" SEED="$seed" ./piezo-audio.sh "${prefix}.piezo.csv"
 else
-  echo "step 4/6: piezo WAV sonification skipped"
+  echo "step 5/7: piezo WAV sonification skipped"
 fi
 
 if [[ "$run_video" != "0" && "$run_heatmaps" == "0" ]]; then
@@ -106,17 +116,17 @@ if [[ "$run_video" != "0" && "$run_heatmaps" == "0" ]]; then
 fi
 
 if [[ "$run_video" != "0" ]]; then
-  echo "step 5/6: heatmap video"
+  echo "step 6/7: heatmap video"
   WIDTH="$width" HEIGHT="$height" STEPS="$steps" SEED="$seed" ./make-video.sh "${prefix}.heatmaps" "${prefix}.mp4" "$fps"
 else
-  echo "step 5/6: heatmap video skipped"
+  echo "step 6/7: heatmap video skipped"
 fi
 
 if [[ "$run_event_map" != "0" ]]; then
-  echo "step 6/6: synthetic event map"
+  echo "step 7/7: synthetic event map"
   ./event-map.sh "${prefix}.avalanche_events.csv"
 else
-  echo "step 6/6: synthetic event map skipped"
+  echo "step 7/7: synthetic event map skipped"
 fi
 
 echo "done: $prefix"

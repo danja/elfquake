@@ -29,12 +29,17 @@ piezo_cluster_count="${PIEZO_CLUSTER_COUNT:-8}"
 piezo_activation_ratio="${PIEZO_ACTIVATION_RATIO:-0.75}"
 piezo_susceptibility_base="${PIEZO_SUSCEPTIBILITY_BASE:-0.15}"
 piezo_susceptibility_variation="${PIEZO_SUSCEPTIBILITY_VARIATION:-0.85}"
-piezo_attenuation_radius="${PIEZO_ATTENUATION_RADIUS:-0}"
+piezo_cluster_radius="${PIEZO_CLUSTER_RADIUS:-0}"
+piezo_attenuation_radius="${PIEZO_ATTENUATION_RADIUS:-16}"
+piezo_max_distance_radius="${PIEZO_MAX_DISTANCE_RADIUS:-48}"
 piezo_charge_decay="${PIEZO_CHARGE_DECAY:-0.995}"
 piezo_charge_coupling="${PIEZO_CHARGE_COUPLING:-1.0}"
-piezo_release_ratio="${PIEZO_RELEASE_RATIO:-0.15}"
-piezo_critical_release_ratio="${PIEZO_CRITICAL_RELEASE_RATIO:-0.05}"
+piezo_release_charge_threshold="${PIEZO_RELEASE_CHARGE_THRESHOLD:-40}"
+piezo_release_ratio="${PIEZO_RELEASE_RATIO:-0.25}"
+piezo_critical_release_ratio="${PIEZO_CRITICAL_RELEASE_RATIO:-0.10}"
 piezo_saturation="${PIEZO_SATURATION:-1000}"
+avalanche_signal_attenuation_radius="${AVALANCHE_SIGNAL_ATTENUATION_RADIUS:-0}"
+avalanche_signal_max_distance_radius="${AVALANCHE_SIGNAL_MAX_DISTANCE_RADIUS:-0}"
 slope_threshold="${SLOPE_THRESHOLD:-$(( width / 16 ))}"
 if [[ "$slope_threshold" -lt 4 ]]; then
   slope_threshold=4
@@ -61,12 +66,17 @@ args=(
   --piezo-activation-ratio "$piezo_activation_ratio" \
   --piezo-susceptibility-base "$piezo_susceptibility_base" \
   --piezo-susceptibility-variation "$piezo_susceptibility_variation" \
+  --piezo-cluster-radius "$piezo_cluster_radius" \
   --piezo-attenuation-radius "$piezo_attenuation_radius" \
+  --piezo-max-distance-radius "$piezo_max_distance_radius" \
   --piezo-charge-decay "$piezo_charge_decay" \
   --piezo-charge-coupling "$piezo_charge_coupling" \
+  --piezo-release-charge-threshold "$piezo_release_charge_threshold" \
   --piezo-release-ratio "$piezo_release_ratio" \
   --piezo-critical-release-ratio "$piezo_critical_release_ratio" \
-  --piezo-saturation "$piezo_saturation"
+  --piezo-saturation "$piezo_saturation" \
+  --avalanche-signal-attenuation-radius "$avalanche_signal_attenuation_radius" \
+  --avalanche-signal-max-distance-radius "$avalanche_signal_max_distance_radius"
 )
 
 if [[ "$run_heatmaps" != "0" ]]; then

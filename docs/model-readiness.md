@@ -21,3 +21,4 @@ Current status:
 * prospective VLF rows have all ablation feature groups but are waiting for labels
 * Central Italy June smoke rows have both classes but no historical VLF image features
 * all-Italy June smoke rows lack class variation
+* current synthetic smoke modeling should use the hourly `gt0` target described in [Model Targets](model-targets.md)

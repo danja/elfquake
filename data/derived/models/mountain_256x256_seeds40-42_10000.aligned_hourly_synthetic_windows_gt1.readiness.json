@@ -250,8 +250,8 @@
   },
   "input": "data/derived/models/mountain_256x256_seeds40-42_10000.aligned_hourly_synthetic_windows_gt1.csv",
   "labeled_row_count": 501,
-  "negative_count": 309,
-  "positive_count": 192,
+  "negative_count": 491,
+  "positive_count": 10,
   "row_count": 501,
   "status": "ready_for_smoke_training",
   "target_status_counts": {

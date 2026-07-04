@@ -45,10 +45,11 @@ from elfquake.models.dataset_combine import combine_aligned_datasets
 from elfquake.models.interface_shape import audit_model_interfaces
 from elfquake.models.logistic_smoke import train_logistic_smoke
 from elfquake.models.readiness import summarize_model_readiness
+from elfquake.models.report_summary import summarize_model_run_reports
 from elfquake.models.sequence_materializer import materialize_sequence_dataset
 from elfquake.models.tensor_materializer import materialize_tensor_dataset
 from elfquake.models.tensor_spec import build_tensor_spec
-from elfquake.models.temporal_holdout import evaluate_temporal_holdout
+from elfquake.models.temporal_holdout import evaluate_group_holdout, evaluate_temporal_holdout
 from elfquake.models.window_adapter import build_event_window_features
 from elfquake.normalize.events import combine_normalized_events
 from elfquake.http import HttpCapture
@@ -60,6 +61,7 @@ from elfquake.normalize.space_weather import (
     normalize_kyoto_dst_text,
     write_goes_xrs_netcdf_stub,
 )
+from elfquake.sim.avalanche_tuning import tune_avalanche_event_extraction
 from elfquake.sim.heatmap import render_sandpile_heatmap, render_sandpile_heatmaps_from_manifest
 from elfquake.sim.report import benchmark_sandpile_simulation, summarize_sandpile_outputs
 from elfquake.storage import write_capture
@@ -577,6 +579,7 @@ class AcquisitionScaffoldTests(unittest.TestCase):
             compare_signal_shapes,
             event_energy_series,
             sensor_signal_series,
+            scan_sensor_signal_shapes,
             vlf_image_column_series,
         )
 
@@ -600,7 +603,9 @@ class AcquisitionScaffoldTests(unittest.TestCase):
             piezo.write_text(
                 "step,sensor_id,x,y,piezo_signal\n"
                 "0,0,0,0,0.0\n"
+                "0,1,1,0,1.0\n"
                 "1,0,0,0,2.0\n"
+                "1,1,1,0,3.0\n"
                 "2,0,0,0,0.5\n",
                 encoding="utf-8",
             )
@@ -643,6 +648,29 @@ class AcquisitionScaffoldTests(unittest.TestCase):
             self.assertEqual(len(pair_rows), 10)
             self.assertIn("psd_slope", series_rows[0])
             self.assertIn("normalized_distance", pair_rows[0])
+            filtered = sensor_signal_series(
+                series_id="piezo_sensor_1",
+                signal_csv=piezo,
+                signal_field="piezo_signal",
+                sensor_id=1,
+            )
+            self.assertEqual(filtered.values.tolist(), [1.0, 3.0])
+            scan_rows = scan_sensor_signal_shapes(
+                reference=vlf_image_column_series(
+                    series_id="real_vlf",
+                    image_paths=[image_path],
+                    crop_left=0.0,
+                    crop_top=0.0,
+                    crop_right=1.0,
+                    crop_bottom=1.0,
+                ),
+                signal_csv=piezo,
+                signal_field="piezo_signal",
+                out_path=root / "sensor_scan.csv",
+            )
+            self.assertEqual({row["sensor_id"] for row in scan_rows}, {"0", "1"})
+            self.assertIn("delta_lag1_autocorrelation", scan_rows[0])
+            self.assertTrue((root / "sensor_scan.csv").exists())
             self.assertTrue((root / "series.csv").exists())
             self.assertTrue((root / "pairs.csv").exists())
 
@@ -1241,7 +1269,7 @@ class AcquisitionScaffoldTests(unittest.TestCase):
             report = evaluate_temporal_holdout(
                 input_csv=table,
                 out_path=root / "holdout.json",
-                train_fraction=0.67,
+                train_fraction=0.8,
                 epochs=100,
                 learning_rate=0.1,
             )
@@ -1253,6 +1281,80 @@ class AcquisitionScaffoldTests(unittest.TestCase):
             self.assertEqual(report["evaluations"]["synthetic_seismic_only"]["status"], "evaluated")
             self.assertEqual(report["evaluations"]["synthetic_seismic_piezo_vlf"]["status"], "evaluated")
             self.assertEqual(report["evaluations"]["all_features"]["test_labels"], [1, 1])
+
+    def test_group_holdout_uses_one_dataset_as_test(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            table = root / "aligned.csv"
+            table.write_text(
+                "dataset_id,window_id,region_id,window_start_utc,synthetic_seismic_event_count,"
+                "synthetic_piezo_vlf_signal_mean,target_occurred,target_status\n"
+                "seed1,w1,r,2026-01-01T00:00:00Z,0,0.1,0,labeled\n"
+                "seed1,w2,r,2026-01-01T01:00:00Z,1,0.2,0,labeled\n"
+                "seed1,w3,r,2026-01-01T02:00:00Z,8,0.8,1,labeled\n"
+                "seed2,w1,r,2026-01-01T00:00:00Z,0,0.1,0,labeled\n"
+                "seed2,w2,r,2026-01-01T01:00:00Z,9,0.9,1,labeled\n"
+                "seed2,w3,r,2026-01-01T02:00:00Z,10,1.0,1,labeled\n",
+                encoding="utf-8",
+            )
+
+            report = evaluate_group_holdout(
+                input_csv=table,
+                out_path=root / "holdout.json",
+                test_group="seed2",
+                epochs=100,
+                learning_rate=0.1,
+            )
+
+            self.assertEqual(report["schema"], "elfquake.group_holdout.v1")
+            self.assertEqual(report["status"], "evaluated")
+            self.assertEqual(report["train_groups"], ["seed1"])
+            self.assertEqual(report["train_row_count"], 3)
+            self.assertEqual(report["test_row_count"], 3)
+            self.assertEqual(report["test_positive_count"], 2)
+            self.assertNotIn("dataset_id", report["evaluations"]["all_features"]["feature_names"])
+
+    def test_model_run_summary_compacts_evaluation_reports(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            table = root / "aligned.csv"
+            table.write_text(
+                "dataset_id,window_id,region_id,window_start_utc,synthetic_seismic_event_count,"
+                "synthetic_piezo_vlf_signal_mean,target_occurred,target_status\n"
+                "seed1,w1,r,2026-01-01T00:00:00Z,0,0.1,0,labeled\n"
+                "seed1,w2,r,2026-01-01T01:00:00Z,1,0.2,0,labeled\n"
+                "seed1,w3,r,2026-01-01T02:00:00Z,8,0.8,1,labeled\n"
+                "seed2,w1,r,2026-01-01T00:00:00Z,0,0.1,0,labeled\n"
+                "seed2,w2,r,2026-01-01T01:00:00Z,9,0.9,1,labeled\n"
+                "seed2,w3,r,2026-01-01T02:00:00Z,10,1.0,1,labeled\n",
+                encoding="utf-8",
+            )
+            temporal = root / "temporal.json"
+            grouped = root / "grouped.json"
+            evaluate_temporal_holdout(
+                input_csv=table,
+                out_path=temporal,
+                epochs=100,
+                learning_rate=0.1,
+            )
+            evaluate_group_holdout(
+                input_csv=table,
+                out_path=grouped,
+                test_group="seed2",
+                epochs=100,
+                learning_rate=0.1,
+            )
+
+            summary = summarize_model_run_reports(
+                report_paths=[temporal, grouped],
+                out_path=root / "summary.json",
+            )
+
+            self.assertEqual(summary["schema"], "elfquake.model_run_summary.v1")
+            self.assertEqual(summary["report_count"], 2)
+            self.assertEqual(summary["reports"][0]["split"]["type"], "temporal")
+            self.assertEqual(summary["reports"][1]["split"]["type"], "group")
+            self.assertIn("all_features", summary["reports"][0]["evaluations"])
 
     def test_model_candidate_registry_can_be_filtered_and_written(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
@@ -1826,6 +1928,47 @@ class AcquisitionScaffoldTests(unittest.TestCase):
                 0,
             )
 
+    @unittest.skipIf(importlib.util.find_spec("numba") is None, "numba not installed")
+    def test_avalanche_signal_range_is_separate_from_piezo_range(self) -> None:
+        from elfquake.sim.piezo import PiezoConfig
+        from elfquake.sim.sandpile import SandpileConfig, run_sandpile_simulation
+
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+
+            def run_case(name: str, piezo_radius: float) -> str:
+                case_root = root / name
+                case_root.mkdir()
+                avalanche_signal_out = case_root / "avalanche_signal.csv"
+                run_sandpile_simulation(
+                    config=SandpileConfig(
+                        width=8,
+                        height=8,
+                        steps=8,
+                        threshold=4,
+                        source_count=4,
+                        sensor_count=2,
+                        deposition_probability=1.0,
+                        seed=11,
+                    ),
+                    summary_out=case_root / "summary.csv",
+                    sensors_out=case_root / "sensors.csv",
+                    piezo_out=case_root / "piezo.csv",
+                    avalanche_signal_out=avalanche_signal_out,
+                    piezo_config=PiezoConfig(
+                        sensor_count=3,
+                        susceptibility_base=1.0,
+                        susceptibility_variation=0.0,
+                        cluster_count=0,
+                        activation_ratio=0.25,
+                        attenuation_radius=piezo_radius,
+                    ),
+                    avalanche_signal_config=PiezoConfig(attenuation_radius=0.0, max_distance_radius=0.0),
+                )
+                return avalanche_signal_out.read_text(encoding="utf-8")
+
+            self.assertEqual(run_case("narrow_piezo", 2.0), run_case("wide_piezo", 8.0))
+
     def test_build_synthetic_event_list_writes_ingv_like_rows(self) -> None:
         from elfquake.sim.synthetic_events import SYNTHETIC_EVENT_FIELDS, build_synthetic_event_list
 
@@ -1995,6 +2138,45 @@ class AcquisitionScaffoldTests(unittest.TestCase):
             )
 
             self.assertEqual([row["step"] for row in rows], ["1", "3"])
+
+    def test_tune_avalanche_event_extraction_writes_ranked_grid(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            real_events = root / "real.csv"
+            real_events.write_text(
+                "event_id,event_time_utc,latitude,longitude,depth_km,magnitude,italy_region\n"
+                "r1,2026-01-01T01:00:00Z,42,13,10,2.0,central_italy\n"
+                "r2,2026-01-01T03:00:00Z,42,13,10,3.0,central_italy\n",
+                encoding="utf-8",
+            )
+            avalanche = root / "avalanche.csv"
+            avalanche.write_text(
+                "step,sensor_id,x,y,avalanche_signal,avalanche_total_source\n"
+                "0,0,1,1,0.0,0.0\n"
+                "60,0,2,2,2.0,2.0\n"
+                "120,0,3,3,0.5,0.5\n"
+                "180,0,4,4,4.0,4.0\n"
+                "240,0,5,5,0.1,0.1\n",
+                encoding="utf-8",
+            )
+
+            rows = tune_avalanche_event_extraction(
+                real_events_csv=real_events,
+                avalanche_csv=avalanche,
+                out_path=root / "tuning.csv",
+                work_dir=root / "events",
+                grid_width=8,
+                grid_height=8,
+                quantiles=[0.0, 0.5],
+                local_max_windows=[0, 1],
+                event_bin_seconds=3600,
+            )
+
+            self.assertEqual(len(rows), 4)
+            self.assertEqual(rows[0]["rank"], "1")
+            self.assertTrue((root / "tuning.csv").exists())
+            self.assertTrue(Path(rows[0]["events_file"]).exists())
+            self.assertIn("normalized_distance", rows[0])
 
     def test_render_piezo_spectrogram_writes_png_and_metadata(self) -> None:
         from elfquake.sim.piezo_spectrogram import render_piezo_spectrogram

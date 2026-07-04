@@ -18,6 +18,7 @@ TARGET_FIELDS = {
 }
 
 ID_FIELDS = {
+    "dataset_id",
     "window_id",
     "region_id",
     "window_start_utc",

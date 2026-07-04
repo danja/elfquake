@@ -22,7 +22,7 @@ Environment:
   SCALE              default 4
   TIMESERIES_HEIGHT  default 48
   OUTPUT_WIDTH       default 1600
-  SENSOR_ID          default 0
+  SENSOR_ID          default 5
   DC_BLOCK           default 0.995
 USAGE
 }
@@ -57,7 +57,7 @@ window_steps="${WINDOW_STEPS:-64}"
 scale="${SCALE:-4}"
 timeseries_height="${TIMESERIES_HEIGHT:-48}"
 output_width="${OUTPUT_WIDTH:-1600}"
-sensor_id="${SENSOR_ID:-0}"
+sensor_id="${SENSOR_ID:-5}"
 dc_block="${DC_BLOCK:-0.995}"
 
 PYTHONDONTWRITEBYTECODE=1 PYTHONPATH=src .venv/bin/python -m elfquake.cli render-piezo-summary \

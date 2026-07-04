@@ -1,6 +1,7 @@
 {
   "field_count": 107,
   "id_fields": [
+    "dataset_id",
     "window_id",
     "region_id",
     "window_start_utc",

@@ -62,6 +62,7 @@ Piezo precursor sensor CSV:
 * `critical_cell_count`
 * `nearest_critical_distance`
 * `max_stress_ratio`
+* accumulated charge and release diagnostics
 
 Direct avalanche signal CSV:
 
@@ -107,6 +108,8 @@ Use NumPy arrays for simulation state and Numba-compiled kernels for hot loops:
 
 Keep visualization separate from the simulation core. Batch simulation must run headlessly.
 
+Piezo-like sensors are sampled before relaxation/toppling. They derive signal from near-critical stress gradients, local stress increase, susceptibility, accumulated charge, and distance attenuation. The optional `PIEZO_RELEASE_CHARGE_THRESHOLD` enables a stick-slip style release gate: charge must accumulate past the threshold before regular piezo release occurs. This remains derived from avalanche state; it must not inject artificial spikes.
+
 Initial milestone:
 
 * `128 x 128` grid
@@ -127,6 +130,7 @@ Before using generated data for ML experiments, verify:
 * sensor table has `steps * sensor_count` rows
 * summary and sensor CSV schemas are stable
 * small benchmark reports steps per second
+* piezo sensor scans compare individual simulated sensors with Cumiana VLF image-column traces
 
 ## ML Use
 
@@ -139,6 +143,8 @@ Use simulation outputs for:
 
 Do not use simulation performance as evidence of earthquake prediction ability. Any useful claim must come from held-out real data and ablation comparisons.
 
+Current piezo note: thresholded charge release with a local receiver footprint is the current default after seed `40`-`42` validation. The best VLF-like sensor is seed-dependent, so preserve `sensor_id` and scan or pool sensors during model preparation.
+
 ## Piezo Precursor Analogue
 
 The piezo channel is an analogue for electromagnetic precursors from quartz-like rock under stress. It is not a physical EM model.
@@ -149,12 +155,14 @@ The simulator creates a clustered susceptibility map to represent quartz-bearing
 2. measure each cell's steepest local downhill slope
 3. add charge from positive stress/height change when the cell is near the failure threshold
 4. cap charge with `PIEZO_SATURATION`, releasing any excess
-5. release charge when strain is increasing near the failure threshold
+5. release charge when stored charge passes `PIEZO_RELEASE_CHARGE_THRESHOLD` and strain is increasing near the failure threshold
 6. release an additional fraction when a cell crosses into critical slope
 
 The emitted source is therefore based on stored charge and strain-driven release, not only instantaneous height change. Sustained stress alone should not create a constant radio floor. Piezo sensors record a distance-weighted sum from nearby emitting cells. This creates a separate precursor time series sampled before the avalanche-like toppling event. Keep this channel separate from seismic-like toppling outputs so later ML experiments can test whether precursor features add value.
 
 Piezo CSV diagnostics include total charge, maximum charge, and total release per step so the charge-store behavior can be audited.
+
+The direct avalanche signal uses its own receiver range controls. Piezo VLF-like tuning must not change the seismic-like avalanche channel.
 
 The simulator writes separate VLF-like and seismic-like signal forms when configured by `sim.sh`:
 
@@ -168,13 +176,16 @@ Keep these channels separate. The piezo channel is the VLF analogue and is sampl
 
 Default charge parameters in `sim.sh`:
 
+* `PIEZO_ATTENUATION_RADIUS=16`
+* `PIEZO_MAX_DISTANCE_RADIUS=48`
 * `PIEZO_CHARGE_DECAY=0.995`
 * `PIEZO_CHARGE_COUPLING=1.0`
-* `PIEZO_RELEASE_RATIO=0.15`
-* `PIEZO_CRITICAL_RELEASE_RATIO=0.05`
+* `PIEZO_RELEASE_CHARGE_THRESHOLD=40`
+* `PIEZO_RELEASE_RATIO=0.25`
+* `PIEZO_CRITICAL_RELEASE_RATIO=0.10`
 * `PIEZO_SATURATION=1000`
 
-A `32 x 32`, `200` step smoke run with these defaults produced a rough log-log PSD slope near `-1` for sensor `0`, which is the intended 1/f-like diagnostic target. Treat this as a simulation sanity check, not validation against real VLF data.
+These defaults come from the current seed `42`, `10000` step piezo tuning pass and were checked across seeds `40`, `41`, and `42`. Treat this as a simulation sanity check, not validation against real VLF data.
 
 ## Derived Synthetic Outputs
 
@@ -204,7 +215,23 @@ PYTHONDONTWRITEBYTECODE=1 PYTHONPATH=src .venv/bin/python -m elfquake.cli build-
   --out data/derived/sim/mountain_128x128_seed42_1000.avalanche_events.csv
 ```
 
-`run-all.sh` applies this peak extraction by default with `AVALANCHE_EVENT_QUANTILE=0.95` and `AVALANCHE_EVENT_WINDOW=15`.
+`run-all.sh` applies this peak extraction by default with `AVALANCHE_EVENT_QUANTILE=0.99` and `AVALANCHE_EVENT_WINDOW=30`.
+
+To tune these extraction knobs against real seismic event-shape metrics:
+
+```sh
+PYTHONPATH=src python -m elfquake.cli tune-avalanche-event-extraction \
+  --real-events data/derived/ingv/events_italy_2026-06-01_2026-06-29.normalized.csv \
+  --avalanche data/derived/sim/mountain_256x256_seed42_10000.avalanche_signal.csv \
+  --activity data/derived/sim/mountain_256x256_seed42_10000.avalanche_activity.csv \
+  --grid-width 256 \
+  --grid-height 256 \
+  --quantile 0.90 --quantile 0.95 --quantile 0.975 --quantile 0.99 \
+  --local-max-window 5 --local-max-window 15 --local-max-window 30 --local-max-window 60 \
+  --out data/derived/sim/mountain_256x256_seed42_10000.avalanche_event_tuning.csv
+```
+
+The full-size seed `40`-`42` tuning pass and longer `20000` step runs favour quantile `0.99`. Window `30` is the most stable current default across the longer multi-seed check.
 
 By default, direct avalanche events use `--spatial-profile italy_apennines`. This keeps raw avalanche `x,y` coordinates in the CSV, but scales the selected event distribution onto an Apennine-style Italy belt for demo latitude/longitude fields. Use `--spatial-profile central_italy --no-fit-spatial-extent` for the older rectangular Central Italy projection.
 
@@ -227,7 +254,7 @@ Render a combined time-series and spectrogram PNG:
 
 This is an FFT diagnostic of the simulated receiver envelope. It is useful for checking drift, bursts, and rough spectral slope, but it is not expected to look like a real VLF receiver spectrogram because the simulation timestep is much slower than VLF carrier sampling.
 
-By default the helper renders one receiver (`SENSOR_ID=0`) with a one-pole DC-blocking filter (`DC_BLOCK=0.995`). Set `SENSOR_ID` to another integer or clear the filter with `DC_BLOCK=0` when comparing sensors.
+By default the helper renders one receiver (`SENSOR_ID=5`) with a one-pole DC-blocking filter (`DC_BLOCK=0.995`). Set `SENSOR_ID` to another integer or clear the filter with `DC_BLOCK=0` when comparing sensors.
 
 Render a VLF-shaped analogue summary:
 
@@ -246,6 +273,14 @@ REAL_EVENTS=data/derived/ingv/events_italy_2026-06-01_2026-06-29.normalized.csv 
 ```
 
 `compare-simulation-grid.sh` defaults to metrics-only runs with `RUN_HEATMAPS=0`, `RUN_VIDEO=0`, and `RUN_AUDIO=0`.
+
+Tune piezo VLF-like sensor settings with:
+
+```sh
+./piezo-tune-grid.sh
+```
+
+Use `burst_run_rate`, not raw `burst_run_count`, when comparing VLF image-column traces with simulation traces of different lengths.
 
 See [Simulation Time Scale](simulation-time-scale.md) before interpreting PSD metrics from simulated traces.
 

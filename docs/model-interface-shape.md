@@ -74,31 +74,53 @@ Aligned window datasets:
 
 * `data/derived/models/mountain_256x256_seed42_10000.aligned_synthetic_windows.csv`
 * `data/derived/models/mountain_256x256_seed42_10000_aligned_synthetic_windows_tensor/manifest.json`
+* `data/derived/models/mountain_256x256_seed42_10000.aligned_hourly_synthetic_windows.csv`
+* `data/derived/models/mountain_256x256_seeds40-42_10000.aligned_hourly_synthetic_windows.csv`
+* `data/derived/models/mountain_256x256_seeds40-42_10000_aligned_hourly_synthetic_windows_tensor/manifest.json`
 * `data/derived/models/mountain_256x256_seed42_10000.aligned_hourly_synthetic_windows_gt1.csv`
 * `data/derived/models/mountain_256x256_seed42_10000_aligned_hourly_synthetic_windows_gt1_tensor/manifest.json`
+* `data/derived/models/mountain_256x256_seeds40-42_10000.aligned_hourly_synthetic_windows_gt1.csv`
+* `data/derived/models/mountain_256x256_seeds40-42_10000_aligned_hourly_synthetic_windows_gt1_tensor/manifest.json`
 * `data/derived/models/ingv_italy_2026-06-01_2026-06-30.aligned_real_windows.csv`
 * `data/derived/models/ingv_italy_2026-06-01_2026-06-30_aligned_real_windows_tensor/manifest.json`
 
 The synthetic aligned table uses next-window synthetic event count as a smoke target. The current real aligned table is unlabeled and waits for target maturation.
 
-The hourly synthetic `gt1` table is the current best smoke target:
+After direct avalanche extraction tuning, the hourly synthetic `gt0` table is the current best smoke target:
+
+* `501` labeled hourly rows from seeds `40`, `41`, and `42`
+* target is next-hour synthetic event count greater than `0`
+* class balance is `160` positive and `341` negative rows
+* `dataset_id` is preserved as provenance, not as a model feature
+* default chronological evaluation uses an `80/20` train/test split
+* leave-one-seed-out reports test whether features transfer across generated runs
+
+The previous hourly synthetic `gt1` table is now mostly a sparsity check:
 
 * `167` labeled hourly rows
 * target is next-hour synthetic event count greater than `1`
-* chronological test fold has both classes
+* after `0.99/30` event extraction, the combined seed `40`-`42` table has only `10` positive rows
 
 Synthetic smoke reports:
 
 * `data/derived/models/mountain_256x256_seed42_10000.aligned_synthetic_windows.logistic_smoke.json`
 * `data/derived/models/mountain_256x256_seed42_10000.aligned_synthetic_windows.ablation_smoke.json`
 * `data/derived/models/mountain_256x256_seed42_10000.aligned_synthetic_windows.temporal_holdout.json`
+* `data/derived/models/mountain_256x256_seeds40-42_10000.aligned_hourly_synthetic_windows.temporal_holdout.json`
+* `data/derived/models/mountain_256x256_seeds40-42_10000.aligned_hourly_synthetic_windows.group_holdout_seed40.json`
+* `data/derived/models/mountain_256x256_seeds40-42_10000.aligned_hourly_synthetic_windows.group_holdout_seed41.json`
+* `data/derived/models/mountain_256x256_seeds40-42_10000.aligned_hourly_synthetic_windows.group_holdout_seed42.json`
+* `data/derived/models/mountain_256x256_seeds40-42_10000.aligned_hourly_synthetic_windows.model_run_summary.json`
 * `data/derived/models/mountain_256x256_seed42_10000.aligned_hourly_synthetic_windows_gt1.temporal_holdout.json`
+* `data/derived/models/mountain_256x256_seeds40-42_10000.aligned_hourly_synthetic_windows_gt1.temporal_holdout.json`
+* `data/derived/models/mountain_256x256_seeds40-42_10000.aligned_hourly_synthetic_windows_gt1.group_holdout_seed40.json`
+* `data/derived/models/mountain_256x256_seeds40-42_10000.aligned_hourly_synthetic_windows_gt1.group_holdout_seed41.json`
+* `data/derived/models/mountain_256x256_seeds40-42_10000.aligned_hourly_synthetic_windows_gt1.group_holdout_seed42.json`
+* `data/derived/models/mountain_256x256_seeds40-42_10000.model_run_summary.json`
 
-The temporal holdout trains on earlier rows and tests on later rows. The current six-row synthetic sample is only a pipeline check; its test fold contains only positive labels.
+The temporal holdout trains on earlier rows and tests on later rows. For the refreshed multi-seed `gt0` table, the chronological test fold is still positive-skewed and weak: best default balanced accuracy is `0.533333`.
 
-For the hourly `gt1` table, multimodal variants still overpredict positives and recover almost no true negatives. Treat this as a useful evaluator sanity check, not model evidence.
-
-The temporal holdout report includes naive baselines and train-calibrated probability thresholds. Current `gt1` balanced accuracy is close to the naive `0.5` baseline, so the present single-seed synthetic data should not be used for model claims.
+Leave-one-seed-out reports are more informative for synthetic transfer. For the refreshed `gt0` table, calibrated best balanced accuracy is `0.778144` for seed `40`, `0.830023` for seed `41`, and `0.789334` for seed `42`. Treat these as synthetic-transfer checks, not real-data evidence.
 
 Alignment manifest:
 

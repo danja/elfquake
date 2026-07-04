@@ -128,6 +128,8 @@ Current scaffold:
 * `elfquake.models.aligned_windows` - aggregates window, timed tensor, and sequence inputs into one model-row CSV.
 * `elfquake.models.interface_shape` - audits derived table shapes before choosing adapters or model backends.
 * `elfquake.models.temporal_holdout` - dependency-free chronological train/test smoke evaluator for aligned rows.
+* `elfquake.models.dataset_combine` - combines aligned rows from multiple synthetic runs while preserving dataset provenance.
+* `elfquake.models.report_summary` - compacts multiple evaluation reports into one comparison artifact.
 * `elfquake.models.window_adapter` - aggregates irregular real or synthetic event lists into regular window features.
 * `elfquake.models.sequence_materializer` - materializes `time x entity x channel` sequence tables with present masks.
 * `elfquake.models.tensor_spec` - CSV-to-tensor metadata spec with modality groups and generated present-mask channel names.
@@ -136,6 +138,8 @@ Current scaffold:
 * `build-alignment-manifest` - writes a model-run manifest across tensor and sequence datasets.
 * `build-aligned-window-dataset` - writes aligned regular-window model rows for synthetic or real inputs.
 * `evaluate-temporal-holdout` - trains on earlier labeled rows and evaluates on later labeled rows.
+* `evaluate-group-holdout` - trains on all labeled groups except one held-out group, currently useful for leave-one-seed-out synthetic checks.
+* `summarize-model-run-reports` - writes a compact comparison across chronological and group-holdout reports.
 * `audit-model-interfaces` - classifies event lists, image feature tables, sensor series, and summary series.
 * `build-event-window-features` - writes regular event-window features from INGV-like event lists.
 * `materialize-sequence-dataset` - writes sequence `values.csv`, `masks.csv`, axis files, and a manifest.
@@ -154,9 +158,18 @@ Initial artifacts:
 * `data/derived/models/mountain_256x256_seed42_10000.aligned_synthetic_windows.csv`
 * `data/derived/models/mountain_256x256_seed42_10000.aligned_synthetic_windows.ablation_smoke.json`
 * `data/derived/models/mountain_256x256_seed42_10000.aligned_synthetic_windows.temporal_holdout.json`
+* `data/derived/models/mountain_256x256_seeds40-42_10000.aligned_hourly_synthetic_windows.csv`
+* `data/derived/models/mountain_256x256_seeds40-42_10000.aligned_hourly_synthetic_windows.temporal_holdout.json`
+* `data/derived/models/mountain_256x256_seeds40-42_10000.aligned_hourly_synthetic_windows.model_run_summary.json`
 * `data/derived/models/mountain_256x256_seed42_10000.aligned_hourly_synthetic_windows_gt1.temporal_holdout.json`
+* `data/derived/models/mountain_256x256_seeds40-42_10000.aligned_hourly_synthetic_windows_gt1.csv`
+* `data/derived/models/mountain_256x256_seeds40-42_10000.aligned_hourly_synthetic_windows_gt1.temporal_holdout.json`
+* `data/derived/models/mountain_256x256_seeds40-42_10000.aligned_hourly_synthetic_windows_gt1.group_holdout_seed42.json`
+* `data/derived/models/mountain_256x256_seeds40-42_10000.model_run_summary.json`
 * `data/derived/models/ingv_italy_2026-06-01_2026-06-30.aligned_real_windows.csv`
 
 Keep model adapters behind small interfaces. Candidate selection, tensor specs, tensor materialization, training backends, and evaluation should remain separate modules so PyTorch, tree models, or event-process models can be swapped without rewriting feature generation.
 
 See [Model Interface Shape](model-interface-shape.md) for the current adapter gaps.
+
+Chronological smoke evaluations use an `80/20` train/test split by default. For multi-seed synthetic rows, also run leave-one-seed-out evaluation before interpreting model behavior. After the `0.99/30` avalanche event extraction update, use the `gt0` hourly synthetic table for smoke modeling; the `gt1` target is now too sparse for useful training checks.

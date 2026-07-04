@@ -28,6 +28,7 @@ from elfquake.features.signal_shape_compare import (
     compare_signal_shapes,
     event_energy_series,
     sensor_signal_series,
+    scan_sensor_signal_shapes,
     vlf_image_column_series,
 )
 from elfquake.features.table import build_multimodal_table_from_manifest, write_multimodal_manifest_template
@@ -46,10 +47,11 @@ from elfquake.models.dataset_combine import combine_aligned_datasets
 from elfquake.models.interface_shape import audit_model_interfaces
 from elfquake.models.logistic_smoke import train_logistic_smoke
 from elfquake.models.readiness import summarize_model_readiness
+from elfquake.models.report_summary import summarize_model_run_reports
 from elfquake.models.sequence_materializer import materialize_sequence_dataset
 from elfquake.models.tensor_materializer import materialize_tensor_dataset
 from elfquake.models.tensor_spec import build_tensor_spec
-from elfquake.models.temporal_holdout import evaluate_temporal_holdout
+from elfquake.models.temporal_holdout import evaluate_group_holdout, evaluate_temporal_holdout
 from elfquake.models.window_adapter import build_event_window_features
 from elfquake.normalize.events import combine_normalized_events
 from elfquake.normalize.ingv import normalize_ingv_event_text
@@ -59,6 +61,7 @@ from elfquake.normalize.space_weather import (
     normalize_goes_xrs_netcdf,
     normalize_kyoto_dst_text,
 )
+from elfquake.sim.avalanche_tuning import tune_avalanche_event_extraction
 
 
 def main() -> int:
@@ -284,9 +287,21 @@ def main() -> int:
     temporal_holdout.add_argument("--input", type=Path, required=True)
     temporal_holdout.add_argument("--out", type=Path, required=True)
     temporal_holdout.add_argument("--time-field", default="window_start_utc")
-    temporal_holdout.add_argument("--train-fraction", type=float, default=0.67)
+    temporal_holdout.add_argument("--train-fraction", type=float, default=0.8)
     temporal_holdout.add_argument("--epochs", type=int, default=600)
     temporal_holdout.add_argument("--learning-rate", type=float, default=0.2)
+
+    group_holdout = subparsers.add_parser("evaluate-group-holdout")
+    group_holdout.add_argument("--input", type=Path, required=True)
+    group_holdout.add_argument("--out", type=Path, required=True)
+    group_holdout.add_argument("--group-field", default="dataset_id")
+    group_holdout.add_argument("--test-group", required=True)
+    group_holdout.add_argument("--epochs", type=int, default=600)
+    group_holdout.add_argument("--learning-rate", type=float, default=0.2)
+
+    model_run_summary = subparsers.add_parser("summarize-model-run-reports")
+    model_run_summary.add_argument("--report", type=Path, action="append", required=True)
+    model_run_summary.add_argument("--out", type=Path, required=True)
 
     model_candidates = subparsers.add_parser("list-model-candidates")
     model_candidates.add_argument("--out", type=Path, required=True)
@@ -376,13 +391,16 @@ def main() -> int:
     sandpile.add_argument("--piezo-cluster-count", type=int, default=8)
     sandpile.add_argument("--piezo-cluster-radius", type=float, default=0.0)
     sandpile.add_argument("--piezo-activation-ratio", type=float, default=0.75)
-    sandpile.add_argument("--piezo-attenuation-radius", type=float, default=0.0)
-    sandpile.add_argument("--piezo-max-distance-radius", type=float, default=0.0)
+    sandpile.add_argument("--piezo-attenuation-radius", type=float, default=16.0)
+    sandpile.add_argument("--piezo-max-distance-radius", type=float, default=48.0)
     sandpile.add_argument("--piezo-charge-decay", type=float, default=0.995)
     sandpile.add_argument("--piezo-charge-coupling", type=float, default=1.0)
-    sandpile.add_argument("--piezo-release-ratio", type=float, default=0.15)
-    sandpile.add_argument("--piezo-critical-release-ratio", type=float, default=0.05)
+    sandpile.add_argument("--piezo-release-charge-threshold", type=float, default=40.0)
+    sandpile.add_argument("--piezo-release-ratio", type=float, default=0.25)
+    sandpile.add_argument("--piezo-critical-release-ratio", type=float, default=0.10)
     sandpile.add_argument("--piezo-saturation", type=float, default=1000.0)
+    sandpile.add_argument("--avalanche-signal-attenuation-radius", type=float, default=0.0)
+    sandpile.add_argument("--avalanche-signal-max-distance-radius", type=float, default=0.0)
     sandpile.add_argument("--snapshot-dir", type=Path)
     sandpile.add_argument("--snapshot-interval", type=int, default=0)
     sandpile.add_argument("--heatmap-dir", type=Path)
@@ -458,6 +476,20 @@ def main() -> int:
     avalanche_events.add_argument("--source", default="elfquake_avalanche_signal_synthetic")
     avalanche_events.add_argument("--ingested-at-utc")
 
+    avalanche_tuning = subparsers.add_parser("tune-avalanche-event-extraction")
+    avalanche_tuning.add_argument("--real-events", type=Path, required=True)
+    avalanche_tuning.add_argument("--avalanche", type=Path, required=True)
+    avalanche_tuning.add_argument("--activity", type=Path)
+    avalanche_tuning.add_argument("--out", type=Path, required=True)
+    avalanche_tuning.add_argument("--work-dir", type=Path)
+    avalanche_tuning.add_argument("--grid-width", type=int, required=True)
+    avalanche_tuning.add_argument("--grid-height", type=int, required=True)
+    avalanche_tuning.add_argument("--quantile", type=float, action="append")
+    avalanche_tuning.add_argument("--local-max-window", type=int, action="append")
+    avalanche_tuning.add_argument("--start-time-utc", default="2026-01-01T00:00:00Z")
+    avalanche_tuning.add_argument("--step-seconds", type=int, default=60)
+    avalanche_tuning.add_argument("--event-bin-seconds", type=int, default=3600)
+
     piezo_spectrogram = subparsers.add_parser("render-piezo-spectrogram")
     piezo_spectrogram.add_argument("--piezo", type=Path, required=True)
     piezo_spectrogram.add_argument("--out", type=Path, required=True)
@@ -523,7 +555,9 @@ def main() -> int:
     shape_compare.add_argument("--real-vlf-image-root", type=Path, action="append", default=[])
     shape_compare.add_argument("--real-vlf-filename-prefix", action="append", default=["last_E_VLF"])
     shape_compare.add_argument("--sim-piezo", type=Path)
+    shape_compare.add_argument("--sim-piezo-sensor-id", type=int)
     shape_compare.add_argument("--sim-avalanche", type=Path)
+    shape_compare.add_argument("--sim-avalanche-sensor-id", type=int)
     shape_compare.add_argument("--event-bin-seconds", type=int, default=3600)
     shape_compare.add_argument("--sim-step-seconds", type=float, default=60.0)
     shape_compare.add_argument("--vlf-column-seconds", type=float, default=1.0)
@@ -533,6 +567,20 @@ def main() -> int:
     shape_compare.add_argument("--vlf-crop-bottom", type=float, default=0.95)
     shape_compare.add_argument("--series-out", type=Path, required=True)
     shape_compare.add_argument("--pairs-out", type=Path, required=True)
+
+    piezo_sensor_scan = subparsers.add_parser("scan-piezo-sensors")
+    piezo_sensor_scan.add_argument("--real-vlf-image", type=Path, action="append", default=[])
+    piezo_sensor_scan.add_argument("--real-vlf-image-root", type=Path, action="append", default=[])
+    piezo_sensor_scan.add_argument("--real-vlf-filename-prefix", action="append", default=["last_E_VLF"])
+    piezo_sensor_scan.add_argument("--sim-piezo", type=Path, required=True)
+    piezo_sensor_scan.add_argument("--sensor-id", type=int, action="append")
+    piezo_sensor_scan.add_argument("--sim-step-seconds", type=float, default=60.0)
+    piezo_sensor_scan.add_argument("--vlf-column-seconds", type=float, default=1.0)
+    piezo_sensor_scan.add_argument("--vlf-crop-left", type=float, default=0.0)
+    piezo_sensor_scan.add_argument("--vlf-crop-top", type=float, default=0.13)
+    piezo_sensor_scan.add_argument("--vlf-crop-right", type=float, default=0.83)
+    piezo_sensor_scan.add_argument("--vlf-crop-bottom", type=float, default=0.95)
+    piezo_sensor_scan.add_argument("--out", type=Path, required=True)
 
     event_map = subparsers.add_parser("render-event-map")
     event_map.add_argument("--events", type=Path, required=True)
@@ -889,6 +937,28 @@ def main() -> int:
                 print(f"test rows: {report['test_row_count']}")
             print(f"output: {args.out}")
             return 0
+        elif args.command == "evaluate-group-holdout":
+            report = evaluate_group_holdout(
+                input_csv=args.input,
+                out_path=args.out,
+                group_field=args.group_field,
+                test_group=args.test_group,
+                epochs=args.epochs,
+                learning_rate=args.learning_rate,
+            )
+            print(f"status: {report['status']}")
+            print(f"rows: {report['row_count']}")
+            print(f"labeled rows: {report['labeled_row_count']}")
+            if "train_row_count" in report:
+                print(f"train rows: {report['train_row_count']}")
+                print(f"test rows: {report['test_row_count']}")
+            print(f"output: {args.out}")
+            return 0
+        elif args.command == "summarize-model-run-reports":
+            summary = summarize_model_run_reports(report_paths=args.report, out_path=args.out)
+            print(f"reports: {summary['report_count']}")
+            print(f"output: {args.out}")
+            return 0
         elif args.command == "list-model-candidates":
             rows = write_model_candidates(out_path=args.out, stage=args.stage)
             print(f"candidates: {len(rows)}")
@@ -1054,11 +1124,18 @@ def main() -> int:
                     max_distance_radius=args.piezo_max_distance_radius,
                     charge_decay=args.piezo_charge_decay,
                     charge_coupling=args.piezo_charge_coupling,
+                    release_charge_threshold=args.piezo_release_charge_threshold,
                     release_ratio=args.piezo_release_ratio,
                     critical_release_ratio=args.piezo_critical_release_ratio,
                     saturation=args.piezo_saturation,
                 )
                 if args.piezo_out or args.avalanche_signal_out or args.piezo_avalanche_out
+                else None,
+                avalanche_signal_config=PiezoConfig(
+                    attenuation_radius=args.avalanche_signal_attenuation_radius,
+                    max_distance_radius=args.avalanche_signal_max_distance_radius,
+                )
+                if args.avalanche_signal_out or args.piezo_avalanche_out
                 else None,
                 snapshot_dir=args.snapshot_dir,
                 snapshot_interval=args.snapshot_interval,
@@ -1227,6 +1304,31 @@ def main() -> int:
             print(f"avalanche signal events: {len(rows)}")
             print(f"output: {args.out}")
             return 0
+        elif args.command == "tune-avalanche-event-extraction":
+            rows = tune_avalanche_event_extraction(
+                real_events_csv=args.real_events,
+                avalanche_csv=args.avalanche,
+                avalanche_activity_csv=args.activity,
+                out_path=args.out,
+                work_dir=args.work_dir,
+                grid_width=args.grid_width,
+                grid_height=args.grid_height,
+                quantiles=args.quantile,
+                local_max_windows=args.local_max_window,
+                start_time_utc=args.start_time_utc,
+                step_seconds=args.step_seconds,
+                event_bin_seconds=args.event_bin_seconds,
+            )
+            print(f"grid rows: {len(rows)}")
+            if rows:
+                print(
+                    "best: "
+                    f"q={rows[0]['min_signal_quantile']} "
+                    f"window={rows[0]['local_max_window']} "
+                    f"distance={rows[0]['normalized_distance']}"
+                )
+            print(f"output: {args.out}")
+            return 0
         elif args.command == "render-piezo-spectrogram":
             from elfquake.sim.piezo_spectrogram import render_piezo_spectrogram
 
@@ -1274,7 +1376,6 @@ def main() -> int:
                 output_width=args.output_width,
                 sensor_id=args.sensor_id,
                 dc_block=args.dc_block,
-                display_color_quantile=args.display_color_quantile,
             )
             print(f"image: {report['image_file']}")
             print(f"steps: {report['step_count']}")
@@ -1376,6 +1477,7 @@ def main() -> int:
                         signal_csv=args.sim_piezo,
                         signal_field="piezo_signal",
                         sample_seconds=args.sim_step_seconds,
+                        sensor_id=args.sim_piezo_sensor_id,
                     )
                 )
             if args.sim_avalanche:
@@ -1385,6 +1487,7 @@ def main() -> int:
                         signal_csv=args.sim_avalanche,
                         signal_field="avalanche_signal",
                         sample_seconds=args.sim_step_seconds,
+                        sensor_id=args.sim_avalanche_sensor_id,
                     )
                 )
             series_rows, pair_rows = compare_signal_shapes(
@@ -1396,6 +1499,36 @@ def main() -> int:
             print(f"pairs: {len(pair_rows)}")
             print(f"series output: {args.series_out}")
             print(f"pairs output: {args.pairs_out}")
+            return 0
+        elif args.command == "scan-piezo-sensors":
+            real_vlf_images = _resolve_image_paths(
+                image_paths=args.real_vlf_image,
+                image_roots=args.real_vlf_image_root,
+                filename_prefixes=args.real_vlf_filename_prefix,
+            )
+            reference = vlf_image_column_series(
+                series_id="real_vlf_image_columns",
+                image_paths=real_vlf_images,
+                sample_seconds=args.vlf_column_seconds,
+                crop_left=args.vlf_crop_left,
+                crop_top=args.vlf_crop_top,
+                crop_right=args.vlf_crop_right,
+                crop_bottom=args.vlf_crop_bottom,
+            )
+            rows = scan_sensor_signal_shapes(
+                reference=reference,
+                signal_csv=args.sim_piezo,
+                signal_field="piezo_signal",
+                out_path=args.out,
+                sample_seconds=args.sim_step_seconds,
+                sensor_ids=args.sensor_id,
+                series_id_prefix="synthetic_piezo_sensor",
+            )
+            print(f"sensors: {len(rows)}")
+            if rows:
+                print(f"best sensor: {rows[0]['sensor_id']}")
+                print(f"best shape score: {rows[0]['shape_score']}")
+            print(f"output: {args.out}")
             return 0
         elif args.command == "render-event-map":
             from elfquake.visualization.event_map import DEFAULT_BASEMAP_GEOJSON, render_event_map

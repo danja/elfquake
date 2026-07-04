@@ -19,7 +19,7 @@ Environment:
   DURATION_SECONDS  default 20
   GAIN              default 0.95
   SMOOTH_STEPS      default 64
-  SENSOR_ID         default 0
+  SENSOR_ID         default 5
   DC_BLOCK          default 0.995
 
 The WAV is a time-compressed sonification of the summed piezo signal, not a
@@ -57,7 +57,7 @@ sample_rate="${SAMPLE_RATE:-44100}"
 duration_seconds="${DURATION_SECONDS:-20}"
 gain="${GAIN:-0.95}"
 smooth_steps="${SMOOTH_STEPS:-64}"
-sensor_id="${SENSOR_ID:-0}"
+sensor_id="${SENSOR_ID:-5}"
 dc_block="${DC_BLOCK:-0.995}"
 
 PYTHONDONTWRITEBYTECODE=1 PYTHONPATH=src .venv/bin/python -m elfquake.cli render-piezo-audio \

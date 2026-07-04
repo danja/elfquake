@@ -86,7 +86,7 @@
         "synthetic_seismic_longitude_mean__present",
         "synthetic_seismic_energy_sum__present"
       ],
-      "missing_cell_count": 335
+      "missing_cell_count": 560
     },
     "synthetic_summary": {
       "feature_count": 0,

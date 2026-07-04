@@ -52,12 +52,13 @@ class PiezoConfig:
     cluster_count: int = 8
     cluster_radius: float = 0.0
     activation_ratio: float = 0.75
-    attenuation_radius: float = 0.0
-    max_distance_radius: float = 0.0
+    attenuation_radius: float = 16.0
+    max_distance_radius: float = 48.0
     charge_decay: float = 0.995
     charge_coupling: float = 1.0
-    release_ratio: float = 0.15
-    critical_release_ratio: float = 0.05
+    release_charge_threshold: float = 40.0
+    release_ratio: float = 0.25
+    critical_release_ratio: float = 0.10
     saturation: float = 1000.0
 
 
@@ -82,6 +83,8 @@ def validate_piezo_config(config: PiezoConfig) -> None:
         raise ValueError("piezo charge_decay must be between 0 and 1")
     if config.charge_coupling < 0:
         raise ValueError("piezo charge_coupling must be non-negative")
+    if config.release_charge_threshold < 0:
+        raise ValueError("piezo release_charge_threshold must be non-negative")
     if not 0 <= config.release_ratio <= 1:
         raise ValueError("piezo release_ratio must be between 0 and 1")
     if not 0 <= config.critical_release_ratio <= 1:
@@ -152,6 +155,7 @@ def build_piezo_sensor_rows(
         float(max_distance_radius),
         float(config.charge_decay),
         float(config.charge_coupling),
+        float(config.release_charge_threshold),
         float(config.release_ratio),
         float(config.critical_release_ratio),
         float(config.saturation),
@@ -249,6 +253,7 @@ def _piezo_sensor_values(
     max_distance_radius: float,
     charge_decay: float,
     charge_coupling: float,
+    release_charge_threshold: float,
     release_ratio: float,
     critical_release_ratio: float,
     saturation: float,
@@ -340,7 +345,8 @@ def _piezo_sensor_values(
                     stress_gate = 1.0
 
             regular_release = 0.0
-            if stress_gate > 0.0 and strain_drive > 0.0 and charge[y, x] > 0.0:
+            release_gate = release_charge_threshold <= 0.0 or charge[y, x] >= release_charge_threshold
+            if release_gate and stress_gate > 0.0 and strain_drive > 0.0 and charge[y, x] > 0.0:
                 drive_gate = strain_drive / threshold
                 if drive_gate > 1.0:
                     drive_gate = 1.0

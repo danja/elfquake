@@ -22,7 +22,7 @@ Environment:
   SCALE                default 4
   TIMESERIES_HEIGHT    default 48
   OUTPUT_WIDTH         default 1600
-  SENSOR_ID            default 0
+  SENSOR_ID            default 5
   DC_BLOCK             default 0.995
   DISPLAY_COLOR_QUANTILE default 0.82
 USAGE
@@ -61,7 +61,7 @@ freq_bins="${FREQ_BINS:-192}"
 scale="${SCALE:-4}"
 timeseries_height="${TIMESERIES_HEIGHT:-48}"
 output_width="${OUTPUT_WIDTH:-1600}"
-sensor_id="${SENSOR_ID:-0}"
+sensor_id="${SENSOR_ID:-5}"
 dc_block="${DC_BLOCK:-0.995}"
 display_color_quantile="${DISPLAY_COLOR_QUANTILE:-0.82}"
 

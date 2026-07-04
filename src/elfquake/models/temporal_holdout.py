@@ -15,7 +15,7 @@ def evaluate_temporal_holdout(
     input_csv: Path,
     out_path: Path,
     time_field: str = "window_start_utc",
-    train_fraction: float = 0.67,
+    train_fraction: float = 0.8,
     epochs: int = 600,
     learning_rate: float = 0.2,
 ) -> dict[str, object]:
@@ -55,6 +55,64 @@ def evaluate_temporal_holdout(
             "train_time_end": train_rows[-1].get(time_field, ""),
             "test_time_start": test_rows[0].get(time_field, ""),
             "test_time_end": test_rows[-1].get(time_field, ""),
+            "train_positive_count": sum(labels_train),
+            "train_negative_count": len(labels_train) - sum(labels_train),
+            "test_positive_count": sum(labels_test),
+            "test_negative_count": len(labels_test) - sum(labels_test),
+            "baselines": _baselines(labels_train, labels_test),
+        }
+    )
+
+    evaluation_specs: dict[str, tuple[str, ...] | None] = {"all_features": None}
+    evaluation_specs.update(ABLATIONS)
+    for name, groups in evaluation_specs.items():
+        report["evaluations"][name] = _evaluate_one(
+            train_rows=train_rows,
+            test_rows=test_rows,
+            fieldnames=fieldnames,
+            groups=groups,
+            epochs=epochs,
+            learning_rate=learning_rate,
+        )
+    report["status"] = _overall_status(report)
+    return _write_report(out_path, report)
+
+
+def evaluate_group_holdout(
+    *,
+    input_csv: Path,
+    out_path: Path,
+    group_field: str = "dataset_id",
+    test_group: str,
+    epochs: int = 600,
+    learning_rate: float = 0.2,
+) -> dict[str, object]:
+    rows, fieldnames = _read_rows_and_fields(input_csv)
+    labeled = [row for row in rows if row.get("target_occurred") in {"0", "1"}]
+    train_rows = [row for row in labeled if row.get(group_field, "") != test_group]
+    test_rows = [row for row in labeled if row.get(group_field, "") == test_group]
+    labels_train = [int(row["target_occurred"]) for row in train_rows]
+    labels_test = [int(row["target_occurred"]) for row in test_rows]
+    report: dict[str, object] = {
+        "schema": "elfquake.group_holdout.v1",
+        "input": str(input_csv),
+        "row_count": len(rows),
+        "labeled_row_count": len(labeled),
+        "group_field": group_field,
+        "test_group": test_group,
+        "train_groups": sorted({row.get(group_field, "") for row in train_rows}),
+        "epochs": epochs,
+        "learning_rate": learning_rate,
+        "evaluations": {},
+    }
+    if len(train_rows) < 2 or len(test_rows) < 1:
+        report["status"] = "insufficient_group_rows"
+        return _write_report(out_path, report)
+
+    report.update(
+        {
+            "train_row_count": len(train_rows),
+            "test_row_count": len(test_rows),
             "train_positive_count": sum(labels_train),
             "train_negative_count": len(labels_train) - sum(labels_train),
             "test_positive_count": sum(labels_test),

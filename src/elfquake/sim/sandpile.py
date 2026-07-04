@@ -77,6 +77,7 @@ def run_sandpile_simulation(
     avalanche_activity_out: Path | None = None,
     piezo_avalanche_out: Path | None = None,
     piezo_config: PiezoConfig | None = None,
+    avalanche_signal_config: PiezoConfig | None = None,
     snapshot_dir: Path | None = None,
     snapshot_interval: int = 0,
     progress_interval: int = 0,
@@ -106,6 +107,10 @@ def run_sandpile_simulation(
     piezo_charge = None
     if piezo_out is not None or resolved_avalanche_signal_out is not None:
         resolved_piezo_config = piezo_config or PiezoConfig()
+        resolved_avalanche_signal_config = avalanche_signal_config or PiezoConfig(
+            attenuation_radius=0.0,
+            max_distance_radius=0.0,
+        )
         piezo_rng = np.random.default_rng(config.seed + 1_000_003)
         piezo_sensors = _random_points(
             piezo_rng,
@@ -122,6 +127,7 @@ def run_sandpile_simulation(
         piezo_charge = np.zeros((config.height, config.width), dtype=np.float64)
     else:
         resolved_piezo_config = None
+        resolved_avalanche_signal_config = None
     summary_rows = []
     sensor_rows = []
     snapshot_rows = []
@@ -171,6 +177,7 @@ def run_sandpile_simulation(
             avalanche_activity_rows.append(build_avalanche_activity_row(step=step, topple_counts=topple_counts))
         if resolved_avalanche_signal_out is not None:
             assert resolved_piezo_config is not None
+            assert resolved_avalanche_signal_config is not None
             assert piezo_sensors is not None
             assert piezo_susceptibility is not None
             avalanche_signal_rows.extend(
@@ -181,7 +188,7 @@ def run_sandpile_simulation(
                     post_relax_grid=grid,
                     topple_counts=topple_counts,
                     susceptibility=piezo_susceptibility,
-                    config=resolved_piezo_config,
+                    config=resolved_avalanche_signal_config,
                 )
             )
         bottom_layer_removed_mass = 0
