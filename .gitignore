@@ -3,6 +3,11 @@ __pycache__/
 .pytest_cache/
 .mypy_cache/
 .ruff_cache/
+.coverage
+coverage.xml
+htmlcov/
+*.log
+*.tmp
 
 # Local Python environments and dependency artifacts.
 .venv/
@@ -17,8 +22,9 @@ env/
 
 # Generated raw captures and source payloads.
 data/raw/**/captures/
-data/raw/ingv/*.txt
-data/raw/ingv/*.metadata.json
+data/raw/**/*.txt
+data/raw/**/*.json
+data/raw/**/*.metadata.json
 *.nc
 *.jpg
 *.jpeg
@@ -26,9 +32,14 @@ data/raw/ingv/*.metadata.json
 
 # Generated derived datasets.
 data/derived/**/*.csv
+data/derived/**/*.json
+data/derived/**/*.txt
 data/derived/**/*.mp4
 data/derived/**/*.wav
 data/derived/**/*.npy
+data/derived/**/*.npz
 data/derived/**/*.png
+data/derived/**/*.nc
+data/derived/**/*.parquet
 !data/derived/**/manifests/
 !data/derived/**/manifests/*.csv

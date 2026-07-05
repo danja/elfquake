@@ -3,26 +3,27 @@
 ## Simulation
 
 1. Backfill more INGV event windows and keep accumulating Cumiana VLF captures before model training claims.
-2. Compare leave-one-seed-out synthetic results against longer-run synthetic results before treating the generator as stable.
-3. Add longer synthetic aligned datasets using the `0.99/30` event extraction defaults.
+2. Investigate why `20000`-step chronological synthetic holdout remains weak despite more target support.
+3. Compare longer synthetic runs against real seismic/VLF shape metrics before treating the generator as stable.
 4. Add a small grouped-sensor piezo scan only if single-receiver traces prove too local after multi-seed validation.
-5. Add a reusable script for refreshing synthetic aligned model artifacts if this pipeline is repeated often.
+5. Optimize or chunk sequence materialization further before attempting substantially larger runs.
 
 ## General
 
-1. Reinstall/reload the updated prospective systemd unit if timer-managed image features and summaries are desired.
-2. Keep the VLF capture and prospective timers running until the first target windows mature.
-3. On or after `2026-07-06T09:57:24Z`, refresh INGV events through `2026-07-07` and label the first prospective rows.
-4. Add chunked sandpile snapshot storage only if larger pretraining runs outgrow `.npy` sanity snapshots.
-5. Add slope/erosion smoothing to mountain-mode synthetic terrain if ridgeline-like visuals are needed.
-6. Backfill enough historical INGV windows to get both positive and negative target classes by region.
-7. Continue with prospective-only VLF evaluation unless a separate historical Cumiana archive is obtained.
-8. Add full rupture-mask outputs if synthetic event maps need spatial extent rather than centroid locations.
-9. Generate a longer synthetic aligned dataset to reduce time-split distribution drift.
-10. Use the piezo/Cumiana comparison report to tune only the piezo VLF mapping derived from `*.piezo.csv`.
-11. Shape direct avalanche signal events for INGV-like seismic event experiments without using the piezo/VLF path.
-12. Use the signal-shape comparison report to tune simulation parameters separately for VLF-like and seismic-like outputs.
-13. Add a small Markdown or CSV view over the compact model-run summary only if JSON becomes awkward to inspect.
+1. Split `tests/test_acquisition_scaffold.py` by subsystem if test maintenance starts slowing down changes.
+2. Reinstall/reload the updated prospective systemd unit if timer-managed image features and summaries are desired.
+3. Keep the VLF capture and prospective timers running until the first target windows mature.
+4. On or after `2026-07-06T09:57:24Z`, refresh INGV events through `2026-07-07` and label the first prospective rows.
+5. Add chunked sandpile snapshot storage only if larger pretraining runs outgrow `.npy` sanity snapshots.
+6. Add slope/erosion smoothing to mountain-mode synthetic terrain if ridgeline-like visuals are needed.
+7. Backfill enough historical INGV windows to get both positive and negative target classes by region.
+8. Continue with prospective-only VLF evaluation unless a separate historical Cumiana archive is obtained.
+9. Add full rupture-mask outputs if synthetic event maps need spatial extent rather than centroid locations.
+10. Generate a longer synthetic aligned dataset to reduce time-split distribution drift.
+11. Use the piezo/Cumiana comparison report to tune only the piezo VLF mapping derived from `*.piezo.csv`.
+12. Shape direct avalanche signal events for INGV-like seismic event experiments without using the piezo/VLF path.
+13. Use the signal-shape comparison report to tune simulation parameters separately for VLF-like and seismic-like outputs.
+14. Add a small Markdown or CSV view over the compact model-run summary only if JSON becomes awkward to inspect.
 
 ## Completed
 
@@ -63,3 +64,9 @@
 * Validate tuned piezo defaults over seeds `40`, `41`, and `42`; best sensor varies by seed but scores are consistent.
 * Separate piezo receiver locality controls from direct avalanche-signal receiver range, then regenerate seed `40`-`42` simulation CSVs.
 * Refresh direct avalanche event lists, event maps, aligned synthetic model rows, tensors, and smoke reports after separating receiver ranges.
+* Add `refresh-synthetic-model-artifacts.sh` to reproduce synthetic event, map, aligned row, tensor, and smoke-report refreshes from existing simulation CSVs.
+* Regenerate current-default `20000`-step seeds `40`, `41`, and `42`, then refresh longer-run event lists, maps, aligned tensors, and smoke reports.
+* Optimize aligned window aggregation with timestamp indexes so longer sequence refreshes do not repeatedly scan every record for every window.
+* Split signal-shape metrics, piezo signal/audio helpers, and sandpile output helpers out of previously oversized production modules.
+* Refactor the CLI into command-family modules while preserving the existing command names and error handling.
+* Add optional dependency constraints so Numba-compatible installs keep NumPy below `2.5`.

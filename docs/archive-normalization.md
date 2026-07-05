@@ -25,6 +25,6 @@ Corrected current archive outputs:
 Installed choices:
 
 * Debian/Ubuntu system Python: `sudo apt install python3-netcdf4`
-* virtualenv: `python3 -m pip install netCDF4`
+* virtualenv: `python3 -m pip install -r requirements-optional.txt`
 
 The package also requires the native NetCDF/HDF5 stack. Prefer the OS package on long-running hosts unless the project is deployed inside a managed virtualenv.

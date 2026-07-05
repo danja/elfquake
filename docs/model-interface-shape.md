@@ -86,6 +86,14 @@ Aligned window datasets:
 
 The synthetic aligned table uses next-window synthetic event count as a smoke target. The current real aligned table is unlabeled and waits for target maturation.
 
+Use `./refresh-synthetic-model-artifacts.sh` to rebuild synthetic event lists, maps, per-seed aligned rows, combined tensors, and smoke reports from existing simulation CSVs.
+
+Longer-run synthetic artifacts:
+
+* `data/derived/models/mountain_256x256_seeds40-42_20000.aligned_hourly_synthetic_windows.csv`
+* `data/derived/models/mountain_256x256_seeds40-42_20000_aligned_hourly_synthetic_windows_tensor/manifest.json`
+* `data/derived/models/mountain_256x256_seeds40-42_20000.aligned_hourly_synthetic_windows.model_run_summary.json`
+
 After direct avalanche extraction tuning, the hourly synthetic `gt0` table is the current best smoke target:
 
 * `501` labeled hourly rows from seeds `40`, `41`, and `42`
@@ -121,6 +129,8 @@ Synthetic smoke reports:
 The temporal holdout trains on earlier rows and tests on later rows. For the refreshed multi-seed `gt0` table, the chronological test fold is still positive-skewed and weak: best default balanced accuracy is `0.533333`.
 
 Leave-one-seed-out reports are more informative for synthetic transfer. For the refreshed `gt0` table, calibrated best balanced accuracy is `0.778144` for seed `40`, `0.830023` for seed `41`, and `0.789334` for seed `42`. Treat these as synthetic-transfer checks, not real-data evidence.
+
+For the `20000`-step `gt0` table, chronological best default balanced accuracy is `0.483305`, and leave-one-seed-out best default balanced accuracy ranges from `0.605426` to `0.628385`. More synthetic rows improved target support but did not improve chronological generalization.
 
 Alignment manifest:
 

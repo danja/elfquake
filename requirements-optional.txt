@@ -1,0 +1,8 @@
+# Optional runtime dependencies for simulation, NetCDF normalization, and visualization.
+# Keep NumPy below 2.5 until the pinned/installed Numba release supports it.
+numpy>=1.22,<2.5
+numba
+netCDF4
+h5py
+zarr
+pyvista

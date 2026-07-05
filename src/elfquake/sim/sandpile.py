@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import csv
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Callable
@@ -18,6 +17,7 @@ from elfquake.sim.piezo import (
     build_piezo_sensor_rows,
     build_piezo_susceptibility,
 )
+from elfquake.sim.sandpile_outputs import write_csv, write_snapshot
 
 try:
     from numba import njit
@@ -215,7 +215,7 @@ def run_sandpile_simulation(
         summary_rows.append(summary_row)
         sensor_rows.extend(_sensor_rows(step, sensors, grid, topple_counts))
         if snapshot_dir is not None and (step % snapshot_interval == 0 or step == config.steps - 1):
-            snapshot_rows.append(_write_snapshot(snapshot_dir, step, grid))
+            snapshot_rows.append(write_snapshot(snapshot_dir, step, grid))
         completed_steps = step + 1
         if progress_callback is not None and (
             completed_steps % progress_interval == 0 or completed_steps == config.steps
@@ -223,16 +223,16 @@ def run_sandpile_simulation(
             progress_callback(completed_steps, config.steps, summary_row)
         previous_grid = grid.copy()
 
-    _write_csv(summary_out, SUMMARY_FIELDS, summary_rows)
-    _write_csv(sensors_out, SENSOR_FIELDS, sensor_rows)
+    write_csv(summary_out, SUMMARY_FIELDS, summary_rows)
+    write_csv(sensors_out, SENSOR_FIELDS, sensor_rows)
     if piezo_out is not None:
-        _write_csv(piezo_out, PIEZO_SENSOR_FIELDS, piezo_rows)
+        write_csv(piezo_out, PIEZO_SENSOR_FIELDS, piezo_rows)
     if resolved_avalanche_signal_out is not None:
-        _write_csv(resolved_avalanche_signal_out, AVALANCHE_SIGNAL_SENSOR_FIELDS, avalanche_signal_rows)
+        write_csv(resolved_avalanche_signal_out, AVALANCHE_SIGNAL_SENSOR_FIELDS, avalanche_signal_rows)
     if avalanche_activity_out is not None:
-        _write_csv(avalanche_activity_out, AVALANCHE_ACTIVITY_FIELDS, avalanche_activity_rows)
+        write_csv(avalanche_activity_out, AVALANCHE_ACTIVITY_FIELDS, avalanche_activity_rows)
     if snapshot_dir is not None:
-        _write_csv(snapshot_dir / "manifest.csv", ["step", "snapshot_file"], snapshot_rows)
+        write_csv(snapshot_dir / "manifest.csv", ["step", "snapshot_file"], snapshot_rows)
     return summary_rows, sensor_rows
 
 
@@ -492,17 +492,3 @@ def _sensor_rows(step: int, sensors: np.ndarray, grid: np.ndarray, topple_counts
         )
     return rows
 
-
-def _write_csv(path: Path, fieldnames: list[str], rows: list[dict[str, str]]) -> None:
-    path.parent.mkdir(parents=True, exist_ok=True)
-    with path.open("w", newline="", encoding="utf-8") as handle:
-        writer = csv.DictWriter(handle, fieldnames=fieldnames, lineterminator="\n")
-        writer.writeheader()
-        writer.writerows(rows)
-
-
-def _write_snapshot(snapshot_dir: Path, step: int, grid: np.ndarray) -> dict[str, str]:
-    snapshot_dir.mkdir(parents=True, exist_ok=True)
-    path = snapshot_dir / f"sandpile_step_{step:06d}.npy"
-    np.save(path, grid)
-    return {"step": str(step), "snapshot_file": str(path)}

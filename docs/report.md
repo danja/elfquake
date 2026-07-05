@@ -137,6 +137,18 @@ Piezo receiver locality is now separated from the direct avalanche signal range.
 
 After that separation, seed `40`-`42` simulation CSVs, sparse avalanche event lists, event maps, aligned synthetic model rows, tensors, and smoke reports were refreshed. The combined `gt0` aligned table still has `501` rows with `160` positives and `341` negatives. The chronological holdout remains weak: best default balanced accuracy is `0.5333` for `synthetic_seismic_piezo_vlf`. Leave-one-seed-out checks remain stronger, with best default balanced accuracy from `0.7177` to `0.7947` depending on the held-out seed.
 
+Longer synthetic run check:
+
+* regenerated seed `40`, `41`, and `42` at `20000` steps under current defaults
+* sparse event counts: seed `40` has `130`, seed `41` has `129`, seed `42` has `135`
+* combined `gt0` aligned table: `1005` rows, `364` positives, `641` negatives
+* combined `gt1` aligned table: `1005` rows, `30` positives, `975` negatives
+* `gt0` chronological best default balanced accuracy: `0.4833`
+* `gt0` leave-one-seed-out best default balanced accuracy range: `0.6054` to `0.6284`
+* `gt1` remains mostly a sparsity check
+
+The longer run increases target support but does not improve chronological generalization. It should be used to stress-test the model interface and synthetic-transfer workflow, not as evidence of predictive value.
+
 The direct avalanche signal should remain separate from the piezo/VLF channel. Cross-modality distances can be useful sanity checks, but tuning should compare real seismic primarily with direct avalanche outputs, and real VLF primarily with piezo-derived outputs.
 
 ## Limitations

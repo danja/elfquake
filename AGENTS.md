@@ -71,14 +71,16 @@ Recommended setup:
 ```sh
 python3 -m venv .venv
 . .venv/bin/activate
-pip install numba pyvista h5py zarr
+pip install -r requirements-optional.txt
 ```
 
-Install `netCDF4` in the venv too if running the full offline test suite there:
+If repairing an existing venv after NumPy was upgraded too far for Numba, reinstall with the same constraint:
 
 ```sh
-pip install netCDF4
+pip install --upgrade --force-reinstall --no-cache-dir -r requirements-optional.txt
 ```
+
+Numba `0.65.1` requires `numpy<2.5`; do not let `pip` upgrade NumPy to `2.5.x` until Numba support catches up.
 
 Run project commands with the venv activated when using optional simulation or visualization dependencies.
 

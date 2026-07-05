@@ -2,15 +2,21 @@
 
 from __future__ import annotations
 
-import csv
 import json
-import wave
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
 import numpy as np
 
 from elfquake.sim.heatmap import _grid_to_rgb
+from elfquake.sim.piezo_audio import render_piezo_audio
+from elfquake.sim.piezo_signal import (
+    dc_block as _dc_block,
+    moving_average as _moving_average,
+    normalize_audio_signal as _normalize_audio_signal,
+    read_piezo_rows as _read_rows,
+    signal_by_step as _signal_by_step,
+)
 
 
 def render_piezo_spectrogram(
@@ -215,54 +221,6 @@ def render_piezo_timeseries_spectrogram(
     return report
 
 
-def render_piezo_audio(
-    *,
-    piezo_csv: Path,
-    out_path: Path,
-    sample_rate: int = 44100,
-    duration_seconds: float = 20.0,
-    gain: float = 0.95,
-    smooth_steps: int = 64,
-    sensor_id: int | None = None,
-    dc_block: float = 0.0,
-) -> dict[str, str]:
-    if sample_rate < 8000:
-        raise ValueError("sample_rate must be at least 8000")
-    if duration_seconds <= 0:
-        raise ValueError("duration_seconds must be positive")
-    if not 0 < gain <= 1:
-        raise ValueError("gain must be greater than 0 and at most 1")
-    if smooth_steps < 1:
-        raise ValueError("smooth_steps must be at least 1")
-
-    rows = _read_rows(piezo_csv)
-    steps, sensor_ids, signal = _signal_by_step(rows, sensor_id=sensor_id)
-    signal = _dc_block(signal, dc_block)
-    sample_count = max(1, int(round(sample_rate * duration_seconds)))
-    smoothed = _moving_average(signal, smooth_steps)
-    audio = _resample_for_audio(smoothed, sample_count) * gain
-    pcm = np.clip(audio * 32767, -32767, 32767).astype("<i2")
-    out_path.parent.mkdir(parents=True, exist_ok=True)
-    with wave.open(str(out_path), "wb") as handle:
-        handle.setnchannels(1)
-        handle.setsampwidth(2)
-        handle.setframerate(sample_rate)
-        handle.writeframes(pcm.tobytes())
-    return {
-        "piezo_file": str(piezo_csv),
-        "audio_file": str(out_path),
-        "audio_type": "sonified_sum_piezo_signal_by_step",
-        "step_count": str(len(steps)),
-        "sensor_count": str(len(sensor_ids)),
-        "sample_rate_hz": str(sample_rate),
-        "duration_seconds": f"{duration_seconds:.6f}",
-        "audio_sample_count": str(sample_count),
-        "smooth_steps": str(smooth_steps),
-        "selected_sensor_id": "" if sensor_id is None else str(sensor_id),
-        "dc_block": str(dc_block),
-    }
-
-
 def render_piezo_strain_vlf_summary(
     *,
     piezo_csv: Path,
@@ -419,57 +377,6 @@ def _stft_power(
     return power
 
 
-def _signal_by_step(rows: list[dict[str, str]], *, sensor_id: int | None = None) -> tuple[list[int], list[int], np.ndarray]:
-    steps = sorted({int(row["step"]) for row in rows})
-    sensor_ids = sorted({int(row["sensor_id"]) for row in rows})
-    sample_count = (max(steps) - min(steps) + 1) if steps else 0
-    signal = np.zeros(sample_count, dtype=np.float64)
-    if steps:
-        first_step = min(steps)
-        for row in rows:
-            if sensor_id is not None and int(row["sensor_id"]) != sensor_id:
-                continue
-            signal[int(row["step"]) - first_step] += float(row["piezo_signal"])
-    return steps, sensor_ids, signal
-
-
-def _dc_block(signal: np.ndarray, coefficient: float) -> np.ndarray:
-    if signal.size == 0 or coefficient <= 0:
-        return signal
-    if not 0 < coefficient < 1:
-        raise ValueError("dc_block must be between 0 and 1")
-    output = np.zeros_like(signal, dtype=np.float64)
-    previous_input = 0.0
-    previous_output = 0.0
-    for index, value in enumerate(signal.astype(np.float64)):
-        current = value - previous_input + coefficient * previous_output
-        output[index] = current
-        previous_input = value
-        previous_output = current
-    return output
-
-
-def _resample_for_audio(signal: np.ndarray, sample_count: int) -> np.ndarray:
-    if signal.size == 0:
-        return np.zeros(sample_count, dtype=np.float64)
-    if signal.size == 1:
-        source = np.repeat(signal, 2)
-    else:
-        source = signal
-    normalized = _normalize_audio_signal(source)
-    x_old = np.linspace(0.0, 1.0, normalized.size)
-    x_new = np.linspace(0.0, 1.0, sample_count)
-    return np.interp(x_new, x_old, normalized)
-
-
-def _moving_average(signal: np.ndarray, window: int) -> np.ndarray:
-    if signal.size == 0 or window <= 1:
-        return signal.astype(np.float64)
-    resolved = min(window, signal.size)
-    kernel = np.ones(resolved, dtype=np.float64) / resolved
-    return np.convolve(signal.astype(np.float64), kernel, mode="same")
-
-
 def _compress_for_display(
     *,
     signal: np.ndarray,
@@ -492,16 +399,6 @@ def _compress_for_display(
         if power.shape[1]:
             display_power[:, index] = power[:, start:end].max(axis=1)
     return display_signal, display_power
-
-
-def _normalize_audio_signal(signal: np.ndarray) -> np.ndarray:
-    if signal.size == 0:
-        return signal.astype(np.float64)
-    centered = signal.astype(np.float64) - float(signal.mean())
-    peak = float(np.max(np.abs(centered))) if centered.size else 0.0
-    if peak <= 0:
-        return np.zeros_like(centered, dtype=np.float64)
-    return centered / peak
 
 
 def _analysis_window(size: int) -> np.ndarray:
@@ -565,11 +462,6 @@ def _positive_quantile(values: np.ndarray, quantile: float) -> float:
     if positive.size == 0:
         return 1.0
     return max(float(np.quantile(positive, quantile)), 1e-12)
-
-
-def _read_rows(path: Path) -> list[dict[str, str]]:
-    with path.open(newline="", encoding="utf-8") as handle:
-        return list(csv.DictReader(handle))
 
 
 def _parse_utc(value: str) -> datetime:

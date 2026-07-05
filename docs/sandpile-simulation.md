@@ -374,7 +374,7 @@ Create a video from generated PNG heatmaps:
 
 Required for the first implementation:
 
-* `numpy` - already available in the current environment
+* `numpy>=1.22,<2.5` - constrained because Numba `0.65.1` does not accept NumPy `2.5.x`
 * `numba` - install in the project venv
 
 Optional:

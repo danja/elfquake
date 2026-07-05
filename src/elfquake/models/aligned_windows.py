@@ -5,6 +5,7 @@ from __future__ import annotations
 import csv
 import json
 import re
+from bisect import bisect_left
 from pathlib import Path
 
 from elfquake.features.common import parse_utc
@@ -105,11 +106,19 @@ def _read_sequence_dataset(path: Path) -> dict[str, object]:
         time_utc = time_by_index.get(row["time_index"], "")
         if not time_utc:
             continue
-        records.append({"time_utc": time_utc, **{field: row.get(field, "") for field in channels}})
+        records.append(
+            {
+                "time_utc": time_utc,
+                "parsed_time": parse_utc(time_utc),
+                **{field: row.get(field, "") for field in channels},
+            }
+        )
+    records.sort(key=lambda row: row["parsed_time"])
     return {
         "prefix": prefix,
         "channels": channels,
         "records": records,
+        "times": [record["parsed_time"] for record in records],
     }
 
 
@@ -127,22 +136,37 @@ def _read_timed_tensor_dataset(path: Path) -> dict[str, object]:
         if not time_utc:
             continue
         value_row = values_by_row[index_row["row_index"]]
-        records.append({"time_utc": time_utc, **{field: value_row.get(field, "") for field in channels}})
+        records.append(
+            {
+                "time_utc": time_utc,
+                "parsed_time": parse_utc(time_utc),
+                **{field: value_row.get(field, "") for field in channels},
+            }
+        )
+    records.sort(key=lambda row: row["parsed_time"])
     return {
         "prefix": prefix,
         "channels": channels,
         "records": records,
+        "times": [record["parsed_time"] for record in records],
     }
 
 
 def _aggregate_records(dataset: dict[str, object], *, start, end) -> dict[str, str]:
     prefix = str(dataset["prefix"])
     channels = [str(field) for field in dataset["channels"]]
-    records = [
-        record
-        for record in dataset["records"]
-        if start <= parse_utc(str(record["time_utc"])) < end
-    ]
+    all_records = dataset["records"]
+    times = dataset.get("times", [])
+    if times:
+        left = bisect_left(times, start)
+        right = bisect_left(times, end)
+        records = all_records[left:right]
+    else:
+        records = [
+            record
+            for record in all_records
+            if start <= parse_utc(str(record["time_utc"])) < end
+        ]
     output = {
         f"{prefix}_sample_count": str(len(records)),
         f"quality_missing_{prefix}": "1" if not records else "0",
