@@ -16,7 +16,7 @@ from elfquake.connectors.space_archives import (
     fetch_spaceweather_canada_f107_daily,
 )
 from elfquake.connectors.vlf_cumiana import fetch_manifest_images, repeat_manifest_images
-from elfquake.connectors.vlf_abelian import fetch_cumiana_archive, record_cumiana_stream
+from elfquake.connectors.vlf_abelian import fetch_cumiana_archive, probe_cumiana_archive, record_cumiana_stream
 from elfquake.normalize.events import combine_normalized_events
 from elfquake.normalize.ingv import normalize_ingv_event_text
 from elfquake.normalize.space_weather import (
@@ -70,6 +70,14 @@ def register_source_commands(subparsers: _SubParsersAction) -> None:
     abelian_archive.add_argument("--duration-seconds", type=float, default=5.0)
     abelian_archive.add_argument("--format", choices=["sg", "td", "vt", "wav"], default="wav")
     abelian_archive.set_defaults(func=_fetch_vlf_abelian_cumiana_archive)
+
+    abelian_archive_probe = subparsers.add_parser("probe-vlf-abelian-cumiana-archive")
+    abelian_archive_probe.add_argument("--start", action="append", required=True)
+    abelian_archive_probe.add_argument("--duration-seconds", type=float, default=5.0)
+    abelian_archive_probe.add_argument("--format", action="append", choices=["sg", "td", "vt", "wav"], default=[])
+    abelian_archive_probe.add_argument("--fetch-downloads", action="store_true")
+    abelian_archive_probe.add_argument("--out", type=Path, required=True)
+    abelian_archive_probe.set_defaults(func=_probe_vlf_abelian_cumiana_archive)
 
     astro = subparsers.add_parser("fetch-astronomy")
     astro.add_argument("--manifest", type=Path, default=Path("data/raw/astronomy/manifest.csv"))
@@ -197,6 +205,21 @@ def _fetch_vlf_abelian_cumiana_archive(args: Namespace) -> int:
             output_format=args.format,
         )
     )
+
+
+def _probe_vlf_abelian_cumiana_archive(args: Namespace) -> int:
+    rows = probe_cumiana_archive(
+        start_times_utc=args.start,
+        duration_seconds=args.duration_seconds,
+        output_formats=args.format or ["wav"],
+        fetch_downloads=args.fetch_downloads,
+        out_path=args.out,
+    )
+    usable = sum(1 for row in rows if row["usable_nonempty"] == "1")
+    print(f"probe rows: {len(rows)}")
+    print(f"usable nonempty rows: {usable}")
+    print(f"output: {args.out}")
+    return 0
 
 
 def _fetch_astronomy(args: Namespace) -> int:

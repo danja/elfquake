@@ -25,6 +25,8 @@ These rows are VLF-anchored, unlabeled, and targetable after their `target_end_u
 
 Use `update-prospective-vlf-table` for recurring updates. It preserves existing rows and appends only unseen `window_id`s.
 
+Current rebuilt image-window tables have 247 rows per region as of `2026-07-06T07:01:06Z`, with no missing VLF, VLF image, or astronomy coverage. The first target window ends at `2026-07-06T09:57:24Z`.
+
 Image-derived feature tables:
 
 * `data/derived/multimodal/cumiana_last_E_VLF_2026-06-29.image_features.csv`

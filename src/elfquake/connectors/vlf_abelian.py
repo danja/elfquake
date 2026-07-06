@@ -3,6 +3,8 @@
 from __future__ import annotations
 
 import time
+import csv
+import re
 from dataclasses import dataclass
 from html.parser import HTMLParser
 from pathlib import Path
@@ -23,6 +25,7 @@ ABELIAN_CUMIANA_LATITUDE = "44.96"
 ABELIAN_CUMIANA_LONGITUDE = "7.42"
 ARCHIVE_FORMATS = {"sg", "td", "vt", "wav"}
 ARCHIVE_EXTENSIONS = {"sg": "png", "td": "png", "vt": "vt", "wav": "wav"}
+DOWNLOAD_SIZE_RE = re.compile(r"href=([^>\s]+)[^>]*>[^<]*</a>\s*size\s+(\d+)", re.IGNORECASE)
 
 
 @dataclass(frozen=True)
@@ -99,6 +102,83 @@ def fetch_cumiana_archive(
     )
 
 
+def probe_cumiana_archive(
+    *,
+    start_times_utc: list[str],
+    duration_seconds: float,
+    output_formats: list[str],
+    out_path: Path,
+    fetch_downloads: bool = False,
+    fetcher: Callable[[str], HttpCapture] = fetch_bytes,
+) -> list[dict[str, str]]:
+    rows = probe_abelian_archive(
+        endpoint=CUMIANA_ENDPOINT,
+        start_times_utc=start_times_utc,
+        duration_seconds=duration_seconds,
+        output_formats=output_formats,
+        fetch_downloads=fetch_downloads,
+        fetcher=fetcher,
+    )
+    out_path.parent.mkdir(parents=True, exist_ok=True)
+    with out_path.open("w", newline="", encoding="utf-8") as handle:
+        writer = csv.DictWriter(handle, fieldnames=ARCHIVE_PROBE_FIELDNAMES, lineterminator="\n")
+        writer.writeheader()
+        writer.writerows(rows)
+    return rows
+
+
+def probe_abelian_archive(
+    *,
+    endpoint: StreamEndpoint,
+    start_times_utc: list[str],
+    duration_seconds: float,
+    output_formats: list[str],
+    fetch_downloads: bool = False,
+    fetcher: Callable[[str], HttpCapture] = fetch_bytes,
+) -> list[dict[str, str]]:
+    rows = []
+    for start_time_utc in start_times_utc:
+        for output_format in output_formats:
+            request_capture = _fetch_archive_request_capture(
+                endpoint=endpoint,
+                start_time_utc=start_time_utc,
+                duration_seconds=duration_seconds,
+                output_format=output_format,
+                fetcher=fetcher,
+            )
+            response = summarize_archive_response(
+                request_capture.body.decode("utf-8", errors="replace"),
+                base_url=request_capture.url,
+            )
+            fetched_download_count = 0
+            fetched_download_byte_count = 0
+            if fetch_downloads:
+                for link in response["download_links"]:
+                    download = fetcher(link)
+                    if download.body:
+                        fetched_download_count += 1
+                        fetched_download_byte_count += len(download.body)
+            declared_size = response["declared_download_size_bytes"]
+            usable = fetched_download_byte_count > 0 or declared_size > 0
+            rows.append({
+                "start_time_utc": start_time_utc,
+                "duration_seconds": f"{duration_seconds:g}",
+                "format": output_format,
+                "station": endpoint.station,
+                "stream_id": endpoint.stream_id,
+                "request_url": request_capture.url,
+                "http_status": str(request_capture.status),
+                "response_byte_count": str(len(request_capture.body)),
+                "no_database": "1" if response["no_database"] else "0",
+                "download_link_count": str(len(response["download_links"])),
+                "declared_download_size_bytes": str(declared_size),
+                "fetched_download_count": str(fetched_download_count),
+                "fetched_download_byte_count": str(fetched_download_byte_count),
+                "usable_nonempty": "1" if usable else "0",
+            })
+    return rows
+
+
 def fetch_abelian_archive(
     *,
     endpoint: StreamEndpoint,
@@ -140,6 +220,24 @@ def fetch_abelian_archive(
             link_index=index,
         ))
     return stored
+
+
+ARCHIVE_PROBE_FIELDNAMES = [
+    "start_time_utc",
+    "duration_seconds",
+    "format",
+    "station",
+    "stream_id",
+    "request_url",
+    "http_status",
+    "response_byte_count",
+    "no_database",
+    "download_link_count",
+    "declared_download_size_bytes",
+    "fetched_download_count",
+    "fetched_download_byte_count",
+    "usable_nonempty",
+]
 
 
 def fetch_abelian_archive_request(
@@ -297,6 +395,18 @@ def extract_archive_download_links(html: str, base_url: str = ABELIAN_RETRIEVE_U
         normalized = href.replace("http:/vlf/", "http://abelian.org/vlf/")
         links.append(urljoin(base_url, normalized))
     return links
+
+
+def summarize_archive_response(html: str, base_url: str = ABELIAN_RETRIEVE_URL) -> dict[str, object]:
+    links = extract_archive_download_links(html, base_url=base_url)
+    declared_size = 0
+    for _href, size in DOWNLOAD_SIZE_RE.findall(html):
+        declared_size += int(size)
+    return {
+        "no_database": "no database" in html.lower(),
+        "download_links": links,
+        "declared_download_size_bytes": declared_size,
+    }
 
 
 def build_archive_retrieve_url(

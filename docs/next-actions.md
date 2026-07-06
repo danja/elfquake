@@ -13,11 +13,11 @@
 1. Split `tests/test_acquisition_scaffold.py` by subsystem if test maintenance starts slowing down changes.
 2. Reinstall/reload the updated prospective systemd unit if timer-managed image features and summaries are desired.
 3. Keep the VLF capture and prospective timers running until the first target windows mature.
-4. On or after `2026-07-06T09:57:24Z`, refresh INGV events through `2026-07-07` and label the first prospective rows.
+4. Continue periodic INGV refresh and prospective labeling as more target windows mature; train only after both classes exist in one table.
 5. Add chunked sandpile snapshot storage only if larger pretraining runs outgrow `.npy` sanity snapshots.
 6. Add slope/erosion smoothing to mountain-mode synthetic terrain if ridgeline-like visuals are needed.
 7. Backfill enough historical INGV windows to get both positive and negative target classes by region.
-8. Validate Abelian Cumiana with a reproducible nonempty live Ogg, archive WAV, or archive VT pull.
+8. Validate Abelian Cumiana with a reproducible nonempty live Ogg, archive WAV, or archive VT pull; recent archive probes still returned zero usable bytes.
 9. Add full rupture-mask outputs if synthetic event maps need spatial extent rather than centroid locations.
 10. Generate a longer synthetic aligned dataset to reduce time-split distribution drift.
 11. Use the piezo/Cumiana comparison report to tune only the piezo VLF mapping derived from `*.piezo.csv`.
@@ -25,6 +25,7 @@
 13. Use the signal-shape comparison report to tune simulation parameters separately for VLF-like and seismic-like outputs.
 14. Add a small Markdown or CSV view over the compact model-run summary only if JSON becomes awkward to inspect.
 15. Decode Abelian live/archive audio into time-frequency features after confirming sampling metadata and file readability.
+16. Probe a wider Abelian archive range or alternate station only if a documented usable interval can be identified from the source pages.
 
 ## Completed
 
@@ -73,3 +74,7 @@
 * Add optional dependency constraints so Numba-compatible installs keep NumPy below `2.5`.
 * Add temporal split diagnostics and use them to explain the weak `20000`-step chronological synthetic holdout.
 * Add Abelian Cumiana live Ogg capture, archive retrieve scaffolding, and audio/container feature extraction.
+* Add a reproducible Abelian archive probe CSV report; first tested Cumiana `wav`/`vt` rows were HTTP 200 but zero usable bytes.
+* Probe Abelian Cumiana archive availability across five additional timestamps from `2026-06-29` through `2026-07-05`; all ten `wav`/`vt` rows were HTTP 200 but zero usable bytes.
+* Refresh INGV through the July rollover, rebuild 247-row prospective VLF image tables for central Italy and all Italy, and confirm no missing VLF, VLF image, or astronomy coverage.
+* Label the first matured prospective VLF target window: central Italy was negative, all Italy was positive, with one labeled row per table.

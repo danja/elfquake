@@ -10,6 +10,7 @@ The project should proceed cautiously: no prediction capability is assumed until
 
 * [Roadmap](roadmap.md)
 * [Development Environment](development-environment.md)
+* [Command Steps](steps.md)
 * [Data Sources](data-sources.md)
 * [Data Acquisition Code](data-acquisition-code.md)
 * [Acquisition Smoke Run](acquisition-smoke-run.md)

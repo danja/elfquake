@@ -57,7 +57,7 @@ def build_astronomy_features(
         "astro_usno_next_phase_utc": moon_phase_utc,
         "astro_noaa_solar_cycle_f107_month": f107_month,
         "astro_noaa_solar_cycle_f107_value": f107_value,
-        "quality_missing_astro": "0" if captures else "1",
+        "quality_missing_astro": "0" if captures or moon_phase or f107_value else "1",
     }
     _write_one_row(out_path, row)
     return row

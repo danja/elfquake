@@ -29,7 +29,9 @@ from elfquake.connectors.vlf_abelian import (
     build_archive_retrieve_url,
     extract_archive_download_links,
     fetch_cumiana_archive,
+    probe_cumiana_archive,
     record_cumiana_stream,
+    summarize_archive_response,
 )
 from elfquake.features.astronomy import build_astronomy_features
 from elfquake.features.design_matrix import build_design_matrix
@@ -257,6 +259,14 @@ class AcquisitionScaffoldTests(unittest.TestCase):
             ),
             ["http://abelian.org/vlf/live/retrieve/1783247914_18149.wav"],
         )
+        summary = summarize_archive_response(
+            "retrieving vlf15... no database for vlf15 "
+            "Download <A href=http:/vlf/live/retrieve/1783247914_18149.wav>file</A> size 0<br>",
+            base_url=url,
+        )
+        self.assertTrue(summary["no_database"])
+        self.assertEqual(summary["declared_download_size_bytes"], 0)
+        self.assertEqual(summary["download_links"], ["http://abelian.org/vlf/live/retrieve/1783247914_18149.wav"])
 
     def test_abelian_archive_fetch_stores_request_and_nonempty_download(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
@@ -294,6 +304,42 @@ class AcquisitionScaffoldTests(unittest.TestCase):
             self.assertEqual(stored[1].payload_path.suffix, ".wav")
             self.assertEqual(stored[1].payload_path.read_bytes(), b"RIFFfake")
             self.assertEqual(urls[1], "http://abelian.org/vlf/live/retrieve/1783247914_18149.wav")
+
+    def test_abelian_archive_probe_reports_empty_and_nonempty_rows(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+
+            def fetcher(url: str) -> HttpCapture:
+                body = (
+                    b"Download <A href=http:/vlf/live/retrieve/nonempty.wav>file</A> size 8<br>"
+                    if "format=vt" in url
+                    else b"retrieving vlf15... no database for vlf15 "
+                    b"Download <A href=http:/vlf/live/retrieve/empty.wav>file</A> size 0<br>"
+                )
+                return HttpCapture(
+                    url=url,
+                    status=200,
+                    captured_at_utc=datetime(2026, 7, 5, 10, 39, tzinfo=timezone.utc),
+                    headers={"Content-Type": "text/html"},
+                    body=body,
+                )
+
+            rows = probe_cumiana_archive(
+                start_times_utc=["2026-07-05T10:38:11Z"],
+                duration_seconds=0.05,
+                output_formats=["wav", "vt"],
+                out_path=root / "probe.csv",
+                fetcher=fetcher,
+            )
+
+            self.assertEqual(len(rows), 2)
+            self.assertEqual(rows[0]["format"], "wav")
+            self.assertEqual(rows[0]["no_database"], "1")
+            self.assertEqual(rows[0]["usable_nonempty"], "0")
+            self.assertEqual(rows[1]["format"], "vt")
+            self.assertEqual(rows[1]["declared_download_size_bytes"], "8")
+            self.assertEqual(rows[1]["usable_nonempty"], "1")
+            self.assertTrue((root / "probe.csv").exists())
 
     def test_vlf_audio_features_summarize_audio_capture(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
@@ -885,6 +931,45 @@ class AcquisitionScaffoldTests(unittest.TestCase):
             self.assertEqual(row["astro_capture_count"], "2")
             self.assertEqual(row["astro_usno_next_phase"], "Full Moon")
             self.assertEqual(row["astro_noaa_solar_cycle_f107_value"], "125.69")
+
+    def test_astronomy_features_can_use_slow_context_outside_capture_window(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            moon_payload = root / "usno_moon_phases_2026-06-29T09-56-53Z.json"
+            moon_payload.write_text(
+                json.dumps(
+                    {
+                        "phasedata": [
+                            {"year": 2026, "month": 7, "day": 7, "time": "19:29", "phase": "Last Quarter"}
+                        ]
+                    }
+                ),
+                encoding="utf-8",
+            )
+            moon_metadata = moon_payload.with_suffix(".json.metadata.json")
+            moon_metadata.write_text(
+                json.dumps({"captured_at_utc": "2026-06-29T09:56:53Z", "source_id": "usno_moon_phases"}),
+                encoding="utf-8",
+            )
+            f107_payload = root / "noaa_solar_cycle_f107_2026-06-29T10-10-17Z.json"
+            f107_payload.write_text(json.dumps([{"time-tag": "2026-05", "f10.7": 125.69}]), encoding="utf-8")
+            f107_metadata = f107_payload.with_suffix(".json.metadata.json")
+            f107_metadata.write_text(
+                json.dumps({"captured_at_utc": "2026-06-29T10:10:17Z", "source_id": "noaa_solar_cycle_f107"}),
+                encoding="utf-8",
+            )
+
+            row = build_astronomy_features(
+                metadata_paths=[moon_metadata, f107_metadata],
+                window_start_utc="2026-07-02T00:00:00Z",
+                window_end_utc="2026-07-03T00:00:00Z",
+                out_path=root / "astro.csv",
+            )
+
+            self.assertEqual(row["astro_capture_count"], "0")
+            self.assertEqual(row["astro_usno_next_phase"], "Last Quarter")
+            self.assertEqual(row["astro_noaa_solar_cycle_f107_value"], "125.69")
+            self.assertEqual(row["quality_missing_astro"], "0")
 
     def test_space_weather_normalization_stubs_write_csvs(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
