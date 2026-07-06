@@ -54,6 +54,18 @@ def _split_summary(report: dict[str, object]) -> dict[str, object]:
             "test_group": report.get("test_group", ""),
             "train_groups": report.get("train_groups", []),
         }
+    if report.get("schema") == "elfquake.torch_tabular_holdout.v1":
+        return {
+            "type": "temporal",
+            "backend": report.get("backend", ""),
+            "device": report.get("device", ""),
+            "time_field": report.get("time_field", ""),
+            "train_fraction": report.get("train_fraction", ""),
+            "train_time_start": report.get("train_time_start", ""),
+            "train_time_end": report.get("train_time_end", ""),
+            "test_time_start": report.get("test_time_start", ""),
+            "test_time_end": report.get("test_time_end", ""),
+        }
     return {
         "type": "temporal",
         "time_field": report.get("time_field", ""),

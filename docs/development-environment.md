@@ -10,6 +10,12 @@ pip install -r requirements-optional.txt
 
 Run optional simulation, visualization, and full offline test commands with the venv activated.
 
+CPU PyTorch is optional but required for the neural tabular baseline:
+
+```sh
+pip install torch
+```
+
 If NumPy has been upgraded to a version incompatible with Numba, repair the venv with:
 
 ```sh

@@ -178,6 +178,10 @@ Train simple smoke models over available feature-group ablations. Use this to co
 
 Evaluate smoke models with a time-ordered train/test split. Use this before random splits because the project is time-series oriented.
 
+### `train-torch-tabular-holdout`
+
+Train a CPU PyTorch tabular MLP with the same time-ordered split and feature-group ablations. Use this as the first swappable neural baseline on synthetic aligned rows.
+
 ### `diagnose-temporal-split`
 
 Measure target balance and feature drift between temporal train/test partitions. Use this when holdout metrics look unstable or suspicious.

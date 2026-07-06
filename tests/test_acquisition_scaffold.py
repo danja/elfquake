@@ -61,6 +61,7 @@ from elfquake.models.split_diagnostics import diagnose_temporal_split
 from elfquake.models.tensor_materializer import materialize_tensor_dataset
 from elfquake.models.tensor_spec import build_tensor_spec
 from elfquake.models.temporal_holdout import evaluate_group_holdout, evaluate_temporal_holdout
+from elfquake.models.torch_tabular import evaluate_torch_tabular_holdout
 from elfquake.models.window_adapter import build_event_window_features
 from elfquake.normalize.events import combine_normalized_events
 from elfquake.http import HttpCapture
@@ -1495,6 +1496,45 @@ class AcquisitionScaffoldTests(unittest.TestCase):
             self.assertEqual(report["evaluations"]["synthetic_seismic_only"]["status"], "evaluated")
             self.assertEqual(report["evaluations"]["synthetic_seismic_piezo_vlf"]["status"], "evaluated")
             self.assertEqual(report["evaluations"]["all_features"]["test_labels"], [1, 1])
+
+    @unittest.skipUnless(importlib.util.find_spec("torch"), "PyTorch optional dependency is not installed")
+    def test_torch_tabular_holdout_trains_synthetic_ablations(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            table = root / "aligned.csv"
+            table.write_text(
+                "window_id,region_id,window_start_utc,synthetic_seismic_event_count,"
+                "synthetic_piezo_vlf_signal_mean,synthetic_summary_topple_count_mean,"
+                "target_occurred,target_status\n"
+                "w1,r,2026-01-01T00:00:00Z,0,0.1,1,0,labeled\n"
+                "w2,r,2026-01-01T01:00:00Z,1,,2,0,labeled\n"
+                "w3,r,2026-01-01T02:00:00Z,2,0.3,3,1,labeled\n"
+                "w4,r,2026-01-01T03:00:00Z,3,0.4,4,1,labeled\n"
+                "w5,r,2026-01-01T04:00:00Z,4,0.5,5,0,labeled\n"
+                "w6,r,2026-01-01T05:00:00Z,5,0.6,6,1,labeled\n",
+                encoding="utf-8",
+            )
+
+            report = evaluate_torch_tabular_holdout(
+                input_csv=table,
+                out_path=root / "torch.json",
+                train_fraction=0.67,
+                epochs=4,
+                hidden_units=4,
+                batch_size=2,
+                seed=7,
+            )
+
+            self.assertEqual(report["schema"], "elfquake.torch_tabular_holdout.v1")
+            self.assertEqual(report["status"], "evaluated")
+            self.assertEqual(report["device"], "cpu")
+            self.assertEqual(report["train_row_count"], 4)
+            self.assertEqual(report["evaluations"]["synthetic_full"]["status"], "evaluated")
+            self.assertIn(
+                "synthetic_piezo_vlf_signal_mean__present_mask",
+                report["evaluations"]["synthetic_full"]["model_feature_names"],
+            )
+            self.assertTrue((root / "torch.json").exists())
 
     def test_temporal_split_diagnostics_reports_feature_drift(self) -> None:
         with tempfile.TemporaryDirectory() as directory:

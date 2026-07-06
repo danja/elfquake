@@ -84,6 +84,8 @@ Numba `0.65.1` requires `numpy<2.5`; do not let `pip` upgrade NumPy to `2.5.x` u
 
 Run project commands with the venv activated when using optional simulation or visualization dependencies.
 
+CPU PyTorch may be used for neural model baselines in the venv. Keep these paths CPU-only on the current system and preserve swappable model backends.
+
 ## Simulation Environment
 
 The current system has no GPU. Keep sandpile simulation and related smoke tests CPU-only, using Numba CPU kernels. Do not add CUDA, CuPy, or GPU-only ML dependencies unless the runtime target changes.

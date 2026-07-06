@@ -19,6 +19,7 @@ from elfquake.models.split_diagnostics import diagnose_temporal_split
 from elfquake.models.tensor_materializer import materialize_tensor_dataset
 from elfquake.models.tensor_spec import build_tensor_spec
 from elfquake.models.temporal_holdout import evaluate_group_holdout, evaluate_temporal_holdout
+from elfquake.models.torch_tabular import evaluate_torch_tabular_holdout
 from elfquake.models.window_adapter import build_event_window_features
 
 
@@ -50,6 +51,20 @@ def register_model_commands(subparsers: _SubParsersAction) -> None:
     temporal_holdout.add_argument("--epochs", type=int, default=600)
     temporal_holdout.add_argument("--learning-rate", type=float, default=0.2)
     temporal_holdout.set_defaults(func=_evaluate_temporal_holdout)
+
+    torch_tabular = subparsers.add_parser("train-torch-tabular-holdout")
+    torch_tabular.add_argument("--input", type=Path, required=True)
+    torch_tabular.add_argument("--out", type=Path, required=True)
+    torch_tabular.add_argument("--time-field", default="window_start_utc")
+    torch_tabular.add_argument("--train-fraction", type=float, default=0.8)
+    torch_tabular.add_argument("--epochs", type=int, default=80)
+    torch_tabular.add_argument("--learning-rate", type=float, default=0.001)
+    torch_tabular.add_argument("--hidden-units", type=int, default=32)
+    torch_tabular.add_argument("--batch-size", type=int, default=64)
+    torch_tabular.add_argument("--seed", type=int, default=42)
+    torch_tabular.add_argument("--weight-decay", type=float, default=0.0)
+    torch_tabular.add_argument("--no-missing-masks", action="store_true")
+    torch_tabular.set_defaults(func=_train_torch_tabular_holdout)
 
     split_diagnostics = subparsers.add_parser("diagnose-temporal-split")
     split_diagnostics.add_argument("--input", type=Path, required=True)
@@ -189,6 +204,24 @@ def _evaluate_temporal_holdout(args: Namespace) -> int:
         train_fraction=args.train_fraction,
         epochs=args.epochs,
         learning_rate=args.learning_rate,
+    )
+    _print_holdout_report(report, args.out)
+    return 0
+
+
+def _train_torch_tabular_holdout(args: Namespace) -> int:
+    report = evaluate_torch_tabular_holdout(
+        input_csv=args.input,
+        out_path=args.out,
+        time_field=args.time_field,
+        train_fraction=args.train_fraction,
+        epochs=args.epochs,
+        learning_rate=args.learning_rate,
+        hidden_units=args.hidden_units,
+        batch_size=args.batch_size,
+        seed=args.seed,
+        include_missing_masks=not args.no_missing_masks,
+        weight_decay=args.weight_decay,
     )
     _print_holdout_report(report, args.out)
     return 0

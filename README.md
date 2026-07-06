@@ -11,7 +11,7 @@ We wish to exploit more modern machine learning/AI techniques to create a predic
 
 ## Status
 
-Data acquisition, feature extraction, prospective rows, smoke models, CPU-only sandpile simulation, and first synthetic VLF comparison tooling are implemented; **no earthquake prediction capability is claimed**.
+Data acquisition, feature extraction, prospective rows, smoke models, a CPU PyTorch synthetic tabular baseline, CPU-only sandpile simulation, and first synthetic VLF comparison tooling are implemented; **no earthquake prediction capability is claimed**.
 
 Right now, while awaiting further data from INGV, the focus is on the simulation. (The first prospective VLF rows become labelable after `2026-07-06T09:57:24Z`). Evaluation of the current model can be found in [report.md](docs/report.md).
 
@@ -34,7 +34,7 @@ This work was initially prompted by the tragedy of the [2009 L'Aquila earthquake
 * Cumiana VLF live spectrogram capture through systemd, with pixel-derived image features.
 * Astronomical and space-weather archive connectors and normalization.
 * Prospective VLF-anchored feature rows with pending target labels.
-* Dependency-light logistic and ablation smoke models for feasibility checks.
+* Dependency-light logistic checks and a CPU PyTorch tabular MLP for synthetic aligned rows.
 * Sandpile simulation with separate seismic-like avalanche outputs and piezo/VLF analogue outputs.
 
 ## Simulation

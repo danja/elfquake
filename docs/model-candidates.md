@@ -17,6 +17,7 @@ Current smoke commands:
 * `summarize-model-readiness`
 * `train-logistic-smoke`
 * `train-ablation-smoke`
+* `train-torch-tabular-holdout`
 
 Treat current reports as wiring checks only; the labeled dataset is too small for model selection.
 
@@ -128,6 +129,7 @@ Current scaffold:
 * `elfquake.models.aligned_windows` - aggregates window, timed tensor, and sequence inputs into one model-row CSV.
 * `elfquake.models.interface_shape` - audits derived table shapes before choosing adapters or model backends.
 * `elfquake.models.temporal_holdout` - dependency-free chronological train/test smoke evaluator for aligned rows.
+* `elfquake.models.torch_tabular` - CPU PyTorch tabular MLP evaluator for aligned rows, missing masks, and modality ablations.
 * `elfquake.models.dataset_combine` - combines aligned rows from multiple synthetic runs while preserving dataset provenance.
 * `elfquake.models.report_summary` - compacts multiple evaluation reports into one comparison artifact.
 * `elfquake.models.window_adapter` - aggregates irregular real or synthetic event lists into regular window features.
@@ -138,6 +140,7 @@ Current scaffold:
 * `build-alignment-manifest` - writes a model-run manifest across tensor and sequence datasets.
 * `build-aligned-window-dataset` - writes aligned regular-window model rows for synthetic or real inputs.
 * `evaluate-temporal-holdout` - trains on earlier labeled rows and evaluates on later labeled rows.
+* `train-torch-tabular-holdout` - trains a CPU PyTorch MLP on earlier labeled rows and evaluates on later labeled rows.
 * `evaluate-group-holdout` - trains on all labeled groups except one held-out group, currently useful for leave-one-seed-out synthetic checks.
 * `summarize-model-run-reports` - writes a compact comparison across chronological and group-holdout reports.
 * `audit-model-interfaces` - classifies event lists, image feature tables, sensor series, and summary series.
@@ -166,6 +169,7 @@ Initial artifacts:
 * `data/derived/models/mountain_256x256_seeds40-42_10000.aligned_hourly_synthetic_windows_gt1.temporal_holdout.json`
 * `data/derived/models/mountain_256x256_seeds40-42_10000.aligned_hourly_synthetic_windows_gt1.group_holdout_seed42.json`
 * `data/derived/models/mountain_256x256_seeds40-42_10000.model_run_summary.json`
+* `data/derived/models/mountain_256x256_seeds40-42_20000.aligned_hourly_synthetic_windows.torch_tabular.json`
 * `data/derived/models/ingv_italy_2026-06-01_2026-06-30.aligned_real_windows.csv`
 
 Keep model adapters behind small interfaces. Candidate selection, tensor specs, tensor materialization, training backends, and evaluation should remain separate modules so PyTorch, tree models, or event-process models can be swapped without rewriting feature generation.
@@ -173,3 +177,5 @@ Keep model adapters behind small interfaces. Candidate selection, tensor specs, 
 See [Model Interface Shape](model-interface-shape.md) for the current adapter gaps.
 
 Chronological smoke evaluations use an `80/20` train/test split by default. For multi-seed synthetic rows, also run leave-one-seed-out evaluation before interpreting model behavior. After the `0.99/30` avalanche event extraction update, use the `gt0` hourly synthetic table for smoke modeling; the `gt1` target is now too sparse for useful training checks.
+
+First CPU PyTorch result on `data/derived/models/mountain_256x256_seeds40-42_20000.aligned_hourly_synthetic_windows.csv`: `1005` labeled rows, `804/201` temporal split, best default balanced accuracy `0.541096` for `synthetic_full`, best calibrated balanced accuracy `0.550888` for `synthetic_seismic_piezo_vlf`. This is better than the dependency-free chronological logistic report on the same table, but still only a synthetic wiring check.

@@ -59,6 +59,18 @@ MODEL_CANDIDATES: tuple[ModelCandidate, ...] = (
         notes="Useful tabular nonlinearity check before deep sequence models.",
     ),
     ModelCandidate(
+        candidate_id="torch_tabular_mlp",
+        name="CPU PyTorch tabular MLP",
+        stage="baseline",
+        input_kind="region_window_table",
+        required_modalities=("seismic",),
+        optional_modalities=("vlf_image", "astronomy", "quality", "simulation"),
+        baseline_required=True,
+        external_dependencies=("torch",),
+        status="implemented_synthetic_smoke",
+        notes="First swappable neural backend for aligned synthetic rows; CPU-only and ablation-aware.",
+    ),
+    ModelCandidate(
         candidate_id="tft_tabular_sequence",
         name="Temporal Fusion Transformer style tabular sequence",
         stage="transformer",

@@ -6,3 +6,6 @@ netCDF4
 h5py
 zarr
 pyvista
+
+# Optional CPU neural baseline. Install a CPU build in the project venv.
+torch

@@ -93,6 +93,7 @@ Longer-run synthetic artifacts:
 * `data/derived/models/mountain_256x256_seeds40-42_20000.aligned_hourly_synthetic_windows.csv`
 * `data/derived/models/mountain_256x256_seeds40-42_20000_aligned_hourly_synthetic_windows_tensor/manifest.json`
 * `data/derived/models/mountain_256x256_seeds40-42_20000.aligned_hourly_synthetic_windows.model_run_summary.json`
+* `data/derived/models/mountain_256x256_seeds40-42_20000.aligned_hourly_synthetic_windows.torch_tabular.json`
 
 After direct avalanche extraction tuning, the hourly synthetic `gt0` table is the current best smoke target:
 
@@ -131,6 +132,8 @@ The temporal holdout trains on earlier rows and tests on later rows. For the ref
 Leave-one-seed-out reports are more informative for synthetic transfer. For the refreshed `gt0` table, calibrated best balanced accuracy is `0.778144` for seed `40`, `0.830023` for seed `41`, and `0.789334` for seed `42`. Treat these as synthetic-transfer checks, not real-data evidence.
 
 For the `20000`-step `gt0` table, chronological best default balanced accuracy is `0.483305`, and leave-one-seed-out best default balanced accuracy ranges from `0.605426` to `0.628385`. More synthetic rows improved target support but did not improve chronological generalization.
+
+The first CPU PyTorch tabular MLP uses the same `80/20` chronological split on `1005` labeled rows. Best default balanced accuracy is `0.541096` for `synthetic_full`; best calibrated balanced accuracy is `0.550888` for `synthetic_seismic_piezo_vlf`. The result confirms the neural training path works, but the temporal split remains weak enough that synthetic regime handling is still a priority.
 
 Alignment manifest:
 
