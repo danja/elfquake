@@ -20,6 +20,7 @@ The project should proceed cautiously: no prediction capability is assumed until
 * [Multimodal Smoke Row](multimodal-smoke-row.md)
 * [VLF Feasibility](vlf-feasibility.md)
 * [Cumiana Live VLF](vlf-cumiana-live.md)
+* [Abelian VLF](vlf-abelian.md)
 * [VLF Capture Manifest](vlf-capture-manifest.md)
 * [Astronomical Feasibility](astronomical-feasibility.md)
 * [NOAA Archive Feasibility](noaa-archive-feasibility.md)

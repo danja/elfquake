@@ -16,6 +16,7 @@ from elfquake.connectors.space_archives import (
     fetch_spaceweather_canada_f107_daily,
 )
 from elfquake.connectors.vlf_cumiana import fetch_manifest_images, repeat_manifest_images
+from elfquake.connectors.vlf_abelian import fetch_cumiana_archive, record_cumiana_stream
 from elfquake.normalize.events import combine_normalized_events
 from elfquake.normalize.ingv import normalize_ingv_event_text
 from elfquake.normalize.space_weather import (
@@ -56,6 +57,19 @@ def register_source_commands(subparsers: _SubParsersAction) -> None:
     vlf_loop.add_argument("--cycles", type=int, default=2, help="0 means run forever")
     vlf_loop.add_argument("--interval-seconds", type=int, default=1800)
     vlf_loop.set_defaults(func=_capture_vlf_cumiana_loop)
+
+    abelian = subparsers.add_parser("record-vlf-abelian-cumiana")
+    abelian.add_argument("--out-root", type=Path, default=Path("data/raw/vlf/abelian/cumiana"))
+    abelian.add_argument("--duration-seconds", type=int, default=60)
+    abelian.add_argument("--max-bytes", type=int)
+    abelian.set_defaults(func=_record_vlf_abelian_cumiana)
+
+    abelian_archive = subparsers.add_parser("fetch-vlf-abelian-cumiana-archive")
+    abelian_archive.add_argument("--out-root", type=Path, default=Path("data/raw/vlf/abelian/cumiana"))
+    abelian_archive.add_argument("--start", required=True, help="UTC start, e.g. 2026-07-05T10:38:11Z")
+    abelian_archive.add_argument("--duration-seconds", type=float, default=5.0)
+    abelian_archive.add_argument("--format", choices=["sg", "td", "vt", "wav"], default="wav")
+    abelian_archive.set_defaults(func=_fetch_vlf_abelian_cumiana_archive)
 
     astro = subparsers.add_parser("fetch-astronomy")
     astro.add_argument("--manifest", type=Path, default=Path("data/raw/astronomy/manifest.csv"))
@@ -162,6 +176,27 @@ def _capture_vlf_cumiana_loop(args: Namespace) -> int:
         interval_seconds=args.interval_seconds,
         only=set(args.only) if args.only else None,
     ))
+
+
+def _record_vlf_abelian_cumiana(args: Namespace) -> int:
+    return print_stored_captures([
+        record_cumiana_stream(
+            out_root=args.out_root,
+            duration_seconds=args.duration_seconds,
+            max_bytes=args.max_bytes,
+        )
+    ])
+
+
+def _fetch_vlf_abelian_cumiana_archive(args: Namespace) -> int:
+    return print_stored_captures(
+        fetch_cumiana_archive(
+            out_root=args.out_root,
+            start_time_utc=args.start,
+            duration_seconds=args.duration_seconds,
+            output_format=args.format,
+        )
+    )
 
 
 def _fetch_astronomy(args: Namespace) -> int:

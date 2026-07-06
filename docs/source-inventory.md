@@ -8,6 +8,7 @@ Track only Italy-relevant data. Mark a source usable only after a sample pull is
 | INGV FDSN station | Station metadata | `https://webservices.ingv.it/fdsnws/station/1/` | StationXML, text | Candidate |
 | INGV FDSN dataselect | Waveform signals | `https://webservices.ingv.it/fdsnws/dataselect/1/` | MiniSEED | Candidate |
 | vlf.it Cumiana live | VLF radio context | `http://www.vlf.it/cumiana/livedata.html` | JPG spectrograms and plots | Live image endpoints confirmed; raw waveform not confirmed |
+| Abelian Cumiana VLF | VLF audio and archive candidate | `http://abelian.org/vlf/` | Ogg live stream, retrieve form, WAV/VT candidates | Endpoints confirmed; nonempty live/archive pull pending |
 | NOAA SWPC | Solar and geomagnetic indexes | `https://services.swpc.noaa.gov/json/` | JSON | Monthly solar-cycle history confirmed; Kp, Dst, GOES X-ray rolling feeds only so far |
 | NOAA/NCEI GOES SEM | GOES XRS archive | `https://www.ncei.noaa.gov/instruments/solar-space-observing/particle-detectors/sem/goes/access/` | HTML, text, NetCDF | Historical archive tree confirmed |
 | GFZ Kp | Planetary Kp/ap archive | `https://kp.gfz.de/app/files/Kp_ap_since_1932.txt` | text | Historical Kp/ap candidate confirmed |
@@ -30,6 +31,6 @@ INGV states its web services follow FDSN specifications and lists event, station
 
 See [Connector Notes](connector-notes.md) for tested request shapes and known failures.
 
-See [VLF Feasibility](vlf-feasibility.md) and [Cumiana Live VLF](vlf-cumiana-live.md) for current VLF source findings.
+See [VLF Feasibility](vlf-feasibility.md), [Cumiana Live VLF](vlf-cumiana-live.md), and [Abelian VLF](vlf-abelian.md) for current VLF source findings.
 
 See [Astronomical Feasibility](astronomical-feasibility.md) and [NOAA Archive Feasibility](noaa-archive-feasibility.md) for lunar, solar, and geomagnetic source findings.

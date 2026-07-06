@@ -147,7 +147,21 @@ Longer synthetic run check:
 * `gt0` leave-one-seed-out best default balanced accuracy range: `0.6054` to `0.6284`
 * `gt1` remains mostly a sparsity check
 
+Chronological split diagnostics:
+
+* diagnostic outputs:
+  * `data/derived/models/mountain_256x256_seeds40-42_20000.aligned_hourly_synthetic_windows.temporal_diagnostics.json`
+  * `data/derived/models/mountain_256x256_seeds40-42_20000.aligned_hourly_synthetic_windows.temporal_diagnostics.csv`
+  * `data/derived/models/mountain_256x256_seeds40-42_20000.aligned_hourly_synthetic_windows_gt1.temporal_diagnostics.json`
+  * `data/derived/models/mountain_256x256_seeds40-42_20000.aligned_hourly_synthetic_windows_gt1.temporal_diagnostics.csv`
+* `gt0` train positive rate is `0.2935`; test positive rate is `0.6368`
+* `gt1` train positive rate is `0.0249`; test positive rate is `0.0498`
+* later test windows have much higher terrain/topple intensity: `synthetic_summary_max_height_mean`, `synthetic_direct_avalanche_active_topple_cell_count_*`, and `synthetic_summary_topple_count_*` all drift upward by about one training standard deviation
+* several synthetic seismic aggregate features flip their target correlation sign between train and test in the `gt0` split
+
 The longer run increases target support but does not improve chronological generalization. It should be used to stress-test the model interface and synthetic-transfer workflow, not as evidence of predictive value.
+
+The weak `20000` chronological holdout appears to be mostly a non-stationary split problem. The simulation trajectory changes regime over time: later windows are taller and more avalanche-active, and the target rate changes substantially. Time-split evaluation is still the right conservative check, but the current synthetic generator needs burn-in handling, regime-balanced splitting, or longer/more varied runs before model metrics are meaningful.
 
 The direct avalanche signal should remain separate from the piezo/VLF channel. Cross-modality distances can be useful sanity checks, but tuning should compare real seismic primarily with direct avalanche outputs, and real VLF primarily with piezo-derived outputs.
 

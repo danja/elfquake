@@ -15,6 +15,7 @@ from elfquake.models.logistic_smoke import train_logistic_smoke
 from elfquake.models.readiness import summarize_model_readiness
 from elfquake.models.report_summary import summarize_model_run_reports
 from elfquake.models.sequence_materializer import materialize_sequence_dataset
+from elfquake.models.split_diagnostics import diagnose_temporal_split
 from elfquake.models.tensor_materializer import materialize_tensor_dataset
 from elfquake.models.tensor_spec import build_tensor_spec
 from elfquake.models.temporal_holdout import evaluate_group_holdout, evaluate_temporal_holdout
@@ -49,6 +50,16 @@ def register_model_commands(subparsers: _SubParsersAction) -> None:
     temporal_holdout.add_argument("--epochs", type=int, default=600)
     temporal_holdout.add_argument("--learning-rate", type=float, default=0.2)
     temporal_holdout.set_defaults(func=_evaluate_temporal_holdout)
+
+    split_diagnostics = subparsers.add_parser("diagnose-temporal-split")
+    split_diagnostics.add_argument("--input", type=Path, required=True)
+    split_diagnostics.add_argument("--out", type=Path, required=True)
+    split_diagnostics.add_argument("--feature-out", type=Path)
+    split_diagnostics.add_argument("--time-field", default="window_start_utc")
+    split_diagnostics.add_argument("--train-fraction", type=float, default=0.8)
+    split_diagnostics.add_argument("--target-field", default="target_occurred")
+    split_diagnostics.add_argument("--top-n", type=int, default=20)
+    split_diagnostics.set_defaults(func=_diagnose_temporal_split)
 
     group_holdout = subparsers.add_parser("evaluate-group-holdout")
     group_holdout.add_argument("--input", type=Path, required=True)
@@ -180,6 +191,31 @@ def _evaluate_temporal_holdout(args: Namespace) -> int:
         learning_rate=args.learning_rate,
     )
     _print_holdout_report(report, args.out)
+    return 0
+
+
+def _diagnose_temporal_split(args: Namespace) -> int:
+    report = diagnose_temporal_split(
+        input_csv=args.input,
+        out_path=args.out,
+        feature_out=args.feature_out,
+        time_field=args.time_field,
+        train_fraction=args.train_fraction,
+        target_field=args.target_field,
+        top_n=args.top_n,
+    )
+    print(f"status: {report['status']}")
+    print(f"rows: {report['row_count']}")
+    print(f"labeled rows: {report['labeled_row_count']}")
+    if report["status"] == "evaluated":
+        print(f"train rows: {report['train_row_count']}")
+        print(f"test rows: {report['test_row_count']}")
+        print(f"train positive rate: {report['train_positive_rate']:.6f}")
+        print(f"test positive rate: {report['test_positive_rate']:.6f}")
+        print(f"features: {report['feature_count']}")
+    print(f"output: {args.out}")
+    if args.feature_out:
+        print(f"feature output: {args.feature_out}")
     return 0
 
 

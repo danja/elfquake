@@ -3,8 +3,8 @@
 ## Simulation
 
 1. Backfill more INGV event windows and keep accumulating Cumiana VLF captures before model training claims.
-2. Investigate why `20000`-step chronological synthetic holdout remains weak despite more target support.
-3. Compare longer synthetic runs against real seismic/VLF shape metrics before treating the generator as stable.
+2. Compare longer synthetic runs against real seismic/VLF shape metrics before treating the generator as stable.
+3. Add burn-in or regime-balanced synthetic split handling before treating chronological synthetic model metrics as stable.
 4. Add a small grouped-sensor piezo scan only if single-receiver traces prove too local after multi-seed validation.
 5. Optimize or chunk sequence materialization further before attempting substantially larger runs.
 
@@ -17,13 +17,14 @@
 5. Add chunked sandpile snapshot storage only if larger pretraining runs outgrow `.npy` sanity snapshots.
 6. Add slope/erosion smoothing to mountain-mode synthetic terrain if ridgeline-like visuals are needed.
 7. Backfill enough historical INGV windows to get both positive and negative target classes by region.
-8. Continue with prospective-only VLF evaluation unless a separate historical Cumiana archive is obtained.
+8. Validate Abelian Cumiana with a reproducible nonempty live Ogg, archive WAV, or archive VT pull.
 9. Add full rupture-mask outputs if synthetic event maps need spatial extent rather than centroid locations.
 10. Generate a longer synthetic aligned dataset to reduce time-split distribution drift.
 11. Use the piezo/Cumiana comparison report to tune only the piezo VLF mapping derived from `*.piezo.csv`.
 12. Shape direct avalanche signal events for INGV-like seismic event experiments without using the piezo/VLF path.
 13. Use the signal-shape comparison report to tune simulation parameters separately for VLF-like and seismic-like outputs.
 14. Add a small Markdown or CSV view over the compact model-run summary only if JSON becomes awkward to inspect.
+15. Decode Abelian live/archive audio into time-frequency features after confirming sampling metadata and file readability.
 
 ## Completed
 
@@ -70,3 +71,5 @@
 * Split signal-shape metrics, piezo signal/audio helpers, and sandpile output helpers out of previously oversized production modules.
 * Refactor the CLI into command-family modules while preserving the existing command names and error handling.
 * Add optional dependency constraints so Numba-compatible installs keep NumPy below `2.5`.
+* Add temporal split diagnostics and use them to explain the weak `20000`-step chronological synthetic holdout.
+* Add Abelian Cumiana live Ogg capture, archive retrieve scaffolding, and audio/container feature extraction.

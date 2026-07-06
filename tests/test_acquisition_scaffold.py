@@ -24,6 +24,13 @@ from elfquake.connectors.space_archives import (
     fetch_spaceweather_canada_f107_daily,
 )
 from elfquake.connectors.vlf_cumiana import fetch_manifest_images, repeat_manifest_images
+from elfquake.connectors.vlf_abelian import (
+    CUMIANA_ENDPOINT,
+    build_archive_retrieve_url,
+    extract_archive_download_links,
+    fetch_cumiana_archive,
+    record_cumiana_stream,
+)
 from elfquake.features.astronomy import build_astronomy_features
 from elfquake.features.design_matrix import build_design_matrix
 from elfquake.features.multimodal_design import join_vlf_design_matrix
@@ -34,6 +41,7 @@ from elfquake.features.table import build_multimodal_table_from_manifest
 from elfquake.features.targets import label_multimodal_targets
 from elfquake.features.training_windows import build_seismic_training_windows
 from elfquake.features.vlf import build_vlf_features
+from elfquake.features.vlf_audio import build_vlf_audio_features, extract_vlf_audio_features
 from elfquake.features.vlf_image import build_vlf_image_features, extract_vlf_image_features
 from elfquake.features.vlf_image_windows import join_vlf_image_features_to_windows
 from elfquake.features.vlf_windows import build_vlf_window_features
@@ -47,6 +55,7 @@ from elfquake.models.logistic_smoke import train_logistic_smoke
 from elfquake.models.readiness import summarize_model_readiness
 from elfquake.models.report_summary import summarize_model_run_reports
 from elfquake.models.sequence_materializer import materialize_sequence_dataset
+from elfquake.models.split_diagnostics import diagnose_temporal_split
 from elfquake.models.tensor_materializer import materialize_tensor_dataset
 from elfquake.models.tensor_spec import build_tensor_spec
 from elfquake.models.temporal_holdout import evaluate_group_holdout, evaluate_temporal_holdout
@@ -198,6 +207,126 @@ class AcquisitionScaffoldTests(unittest.TestCase):
 
             captures = list((root / "captures").glob("**/*.jpg"))
             self.assertEqual(len(captures), 1)
+
+    def test_abelian_live_stream_records_cumiana_ogg(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+
+            stored = record_cumiana_stream(
+                out_root=root,
+                duration_seconds=2,
+                max_bytes=1024,
+                fetcher=_fake_ogg_stream_capture,
+            )
+
+            self.assertEqual(stored.payload_path.suffix, ".ogg")
+            self.assertIn("abelian_cumiana_vlf15", stored.payload_path.name)
+            self.assertEqual(stored.payload_path.read_bytes(), b"OggSfake")
+            metadata = json.loads(stored.metadata_path.read_text(encoding="utf-8"))
+            self.assertEqual(metadata["source_kind"], "vlf_live_audio_stream")
+            self.assertEqual(metadata["station"], "cumiana")
+            self.assertEqual(metadata["stream_id"], "vlf15")
+            self.assertEqual(metadata["content_type"], "audio/ogg")
+
+    def test_abelian_live_stream_rejects_empty_body(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            with self.assertRaisesRegex(ValueError, "no audio bytes"):
+                record_cumiana_stream(
+                    out_root=Path(directory),
+                    duration_seconds=2,
+                    fetcher=_fake_empty_ogg_stream_capture,
+                )
+
+    def test_abelian_archive_url_and_download_extraction(self) -> None:
+        url = build_archive_retrieve_url(
+            endpoint=CUMIANA_ENDPOINT,
+            start_time_utc="2026-07-05T10:38:11Z",
+            duration_seconds=0.05,
+            output_format="wav",
+        )
+        query = parse_qs(urlparse(url).query)
+
+        self.assertEqual(query["ts"], ["2026-07-05 10:38:11"])
+        self.assertEqual(query["len"], ["0.05"])
+        self.assertEqual(query["vlf15"], ["on"])
+        self.assertEqual(query["format"], ["wav"])
+        self.assertEqual(
+            extract_archive_download_links(
+                "Download <A href=http:/vlf/live/retrieve/1783247914_18149.wav>file</A>",
+                base_url=url,
+            ),
+            ["http://abelian.org/vlf/live/retrieve/1783247914_18149.wav"],
+        )
+
+    def test_abelian_archive_fetch_stores_request_and_nonempty_download(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            urls: list[str] = []
+
+            def fetcher(url: str) -> HttpCapture:
+                urls.append(url)
+                if "/vlf/live/retrieve/" in url:
+                    return HttpCapture(
+                        url=url,
+                        status=200,
+                        captured_at_utc=datetime(2026, 7, 5, 10, 40, tzinfo=timezone.utc),
+                        headers={"Content-Type": "audio/wav"},
+                        body=b"RIFFfake",
+                    )
+                return HttpCapture(
+                    url=url,
+                    status=200,
+                    captured_at_utc=datetime(2026, 7, 5, 10, 39, tzinfo=timezone.utc),
+                    headers={"Content-Type": "text/html"},
+                    body=b"Download <A href=http:/vlf/live/retrieve/1783247914_18149.wav>file</A>",
+                )
+
+            stored = fetch_cumiana_archive(
+                out_root=root,
+                start_time_utc="2026-07-05T10:38:11Z",
+                duration_seconds=0.05,
+                output_format="wav",
+                fetcher=fetcher,
+            )
+
+            self.assertEqual(len(stored), 2)
+            self.assertEqual(stored[0].payload_path.suffix, ".html")
+            self.assertEqual(stored[1].payload_path.suffix, ".wav")
+            self.assertEqual(stored[1].payload_path.read_bytes(), b"RIFFfake")
+            self.assertEqual(urls[1], "http://abelian.org/vlf/live/retrieve/1783247914_18149.wav")
+
+    def test_vlf_audio_features_summarize_audio_capture(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            audio = root / "capture.ogg"
+            audio.write_bytes(b"OggSfake")
+            audio.with_suffix(".ogg.metadata.json").write_text(
+                json.dumps(
+                    {
+                        "captured_at_utc": "2026-07-05T10:40:00Z",
+                        "provider": "abelian",
+                        "station": "cumiana",
+                        "stream_id": "vlf15",
+                        "content_type": "audio/ogg",
+                    }
+                ),
+                encoding="utf-8",
+            )
+
+            row = extract_vlf_audio_features(audio, use_ffprobe=False)
+            rows = build_vlf_audio_features(
+                audio_paths=[audio],
+                out_path=root / "audio_features.csv",
+                use_ffprobe=False,
+            )
+
+            self.assertEqual(row["vlf_audio_provider"], "abelian")
+            self.assertEqual(row["vlf_audio_station"], "cumiana")
+            self.assertEqual(row["vlf_audio_byte_count"], "8")
+            self.assertEqual(row["vlf_audio_ogg_page_count"], "1")
+            self.assertEqual(row["quality_missing_vlf_audio"], "0")
+            self.assertEqual(row["quality_unreadable_vlf_audio"], "0")
+            self.assertEqual(rows[0]["vlf_audio_stream_id"], "vlf15")
 
     def test_astronomy_manifest_fetch_filters_source_ids(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
@@ -1281,6 +1410,36 @@ class AcquisitionScaffoldTests(unittest.TestCase):
             self.assertEqual(report["evaluations"]["synthetic_seismic_only"]["status"], "evaluated")
             self.assertEqual(report["evaluations"]["synthetic_seismic_piezo_vlf"]["status"], "evaluated")
             self.assertEqual(report["evaluations"]["all_features"]["test_labels"], [1, 1])
+
+    def test_temporal_split_diagnostics_reports_feature_drift(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            table = root / "aligned.csv"
+            table.write_text(
+                "window_id,window_start_utc,target_occurred,synthetic_seismic_event_count,quality_missing\n"
+                "w1,2026-01-01T00:00:00Z,0,1,0\n"
+                "w2,2026-01-01T01:00:00Z,1,3,0\n"
+                "w3,2026-01-01T02:00:00Z,0,2,0\n"
+                "w4,2026-01-01T03:00:00Z,1,4,0\n"
+                "w5,2026-01-01T04:00:00Z,0,20,0\n"
+                "w6,2026-01-01T05:00:00Z,1,30,\n",
+                encoding="utf-8",
+            )
+
+            report = diagnose_temporal_split(
+                input_csv=table,
+                out_path=root / "diagnostics.json",
+                feature_out=root / "features.csv",
+                train_fraction=0.67,
+            )
+
+            self.assertEqual(report["schema"], "elfquake.temporal_split_diagnostics.v1")
+            self.assertEqual(report["status"], "evaluated")
+            self.assertEqual(report["train_row_count"], 4)
+            self.assertEqual(report["test_row_count"], 2)
+            self.assertEqual(report["top_feature_drifts"][0]["feature"], "synthetic_seismic_event_count")
+            self.assertTrue((root / "diagnostics.json").exists())
+            self.assertTrue((root / "features.csv").exists())
 
     def test_group_holdout_uses_one_dataset_as_test(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
@@ -2585,6 +2744,28 @@ def _fake_jpeg_capture(url: str) -> HttpCapture:
         captured_at_utc=datetime(2026, 6, 29, 9, 57, 24, tzinfo=timezone.utc),
         headers={"Last-Modified": "Mon, 29 Jun 2026 09:45:00 GMT", "Content-Type": "image/jpeg"},
         body=b"jpeg",
+    )
+
+
+def _fake_ogg_stream_capture(url: str, duration_seconds: int, max_bytes: int | None) -> HttpCapture:
+    del duration_seconds, max_bytes
+    return HttpCapture(
+        url=url,
+        status=200,
+        captured_at_utc=datetime(2026, 7, 5, 10, 40, 0, tzinfo=timezone.utc),
+        headers={"Content-Type": "audio/ogg"},
+        body=b"OggSfake",
+    )
+
+
+def _fake_empty_ogg_stream_capture(url: str, duration_seconds: int, max_bytes: int | None) -> HttpCapture:
+    del duration_seconds, max_bytes
+    return HttpCapture(
+        url=url,
+        status=200,
+        captured_at_utc=datetime(2026, 7, 5, 10, 40, 0, tzinfo=timezone.utc),
+        headers={"Content-Type": "audio/ogg"},
+        body=b"",
     )
 
 

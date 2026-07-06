@@ -52,7 +52,7 @@ Mark a source usable only after a reproducible sample pull works.
 
 For INGV, prefer the public FDSN event service documented in `docs/source-inventory.md`. Some query variants may fail; record the exact working request shape before relying on it.
 
-For VLF, Cumiana live JPG spectrograms are the first confirmed capture candidate. Treat them as image-derived features unless raw waveform or numeric trace exports are found.
+For VLF, Cumiana live JPG spectrograms are the first confirmed usable capture candidate. Abelian Cumiana `vlf15` live Ogg audio and `retrieve.php` archive requests are raw-sample candidates, but use requires a reproducible nonempty pull.
 
 For astronomical and geomagnetic data, NOAA SWPC live JSON and USNO moon phase JSON are confirmed candidates. Confirm archival access before using them for historical backtests.
 

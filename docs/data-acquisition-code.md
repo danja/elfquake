@@ -36,6 +36,18 @@ Run the Cumiana loop forever for service supervision:
 PYTHONPATH=src python -m elfquake.cli capture-vlf-cumiana-loop --only last_E_VLF --cycles 0 --interval-seconds 1800
 ```
 
+Record Abelian Cumiana live audio:
+
+```sh
+PYTHONPATH=src python -m elfquake.cli record-vlf-abelian-cumiana --duration-seconds 10 --max-bytes 1048576
+```
+
+Fetch an Abelian Cumiana archive request:
+
+```sh
+PYTHONPATH=src python -m elfquake.cli fetch-vlf-abelian-cumiana-archive --start 2026-07-05T10:38:11Z --duration-seconds 5 --format wav
+```
+
 Fetch astronomical and geomagnetic JSON:
 
 ```sh

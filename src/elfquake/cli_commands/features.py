@@ -16,6 +16,7 @@ from elfquake.features.table import build_multimodal_table_from_manifest, write_
 from elfquake.features.targets import label_multimodal_targets
 from elfquake.features.training_windows import build_seismic_training_windows
 from elfquake.features.vlf import build_vlf_features
+from elfquake.features.vlf_audio import build_vlf_audio_features
 from elfquake.features.vlf_image import build_vlf_image_features
 from elfquake.features.vlf_image_compare import compare_vlf_image_features
 from elfquake.features.vlf_image_windows import join_vlf_image_features_to_windows
@@ -81,6 +82,13 @@ def register_feature_commands(subparsers: _SubParsersAction) -> None:
     vlf_image_join.add_argument("--out", type=Path, required=True)
     vlf_image_join.add_argument("--exclude-window-end", action="store_true")
     vlf_image_join.set_defaults(func=_join_vlf_image_features)
+
+    vlf_audio_features = subparsers.add_parser("extract-vlf-audio-features")
+    vlf_audio_features.add_argument("--audio", type=Path, action="append", default=[])
+    vlf_audio_features.add_argument("--audio-root", type=Path, action="append", default=[])
+    vlf_audio_features.add_argument("--out", type=Path, required=True)
+    vlf_audio_features.add_argument("--no-ffprobe", action="store_true")
+    vlf_audio_features.set_defaults(func=_extract_vlf_audio_features)
 
     astro_features = subparsers.add_parser("build-astronomy-features")
     astro_features.add_argument("--metadata", type=Path, action="append", default=[])
@@ -256,6 +264,18 @@ def _join_vlf_image_features(args: Namespace) -> int:
     return 0
 
 
+def _extract_vlf_audio_features(args: Namespace) -> int:
+    audio_paths = _resolve_audio_paths(audio_paths=args.audio, audio_roots=args.audio_root)
+    rows = build_vlf_audio_features(
+        audio_paths=audio_paths,
+        out_path=args.out,
+        use_ffprobe=not args.no_ffprobe,
+    )
+    print(f"audio rows: {len(rows)}")
+    print(f"output: {args.out}")
+    return 0
+
+
 def _build_astronomy_features(args: Namespace) -> int:
     row = build_astronomy_features(
         metadata_paths=args.metadata,
@@ -278,6 +298,18 @@ def _label_multimodal_targets(args: Namespace) -> int:
     print(f"labeled rows: {len(rows)}")
     print(f"output: {args.out}")
     return 0
+
+
+def _resolve_audio_paths(*, audio_paths: list[Path], audio_roots: list[Path]) -> list[Path]:
+    resolved = list(audio_paths)
+    for root in audio_roots:
+        resolved.extend(sorted(root.glob("**/*.ogg")))
+        resolved.extend(sorted(root.glob("**/*.oga")))
+        resolved.extend(sorted(root.glob("**/*.wav")))
+    unique = sorted(dict.fromkeys(resolved))
+    if not unique:
+        raise ValueError("at least one --audio or matching --audio-root file is required")
+    return unique
 
 
 def _build_multimodal_table(args: Namespace) -> int:
