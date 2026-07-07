@@ -61,6 +61,7 @@ from elfquake.models.sequence_materializer import materialize_sequence_dataset
 from elfquake.models.sequence_comparison import diagnose_sequence_comparison
 from elfquake.models.sequence_selection import summarize_sequence_selection
 from elfquake.models.split_diagnostics import diagnose_temporal_split
+from elfquake.models.synthetic_regimes import annotate_synthetic_regimes
 from elfquake.models.tensor_materializer import materialize_tensor_dataset
 from elfquake.models.tensor_spec import build_tensor_spec
 from elfquake.models.temporal_holdout import evaluate_group_holdout, evaluate_temporal_holdout
@@ -1831,6 +1832,21 @@ class AcquisitionScaffoldTests(unittest.TestCase):
             self.assertEqual(report["evaluations"]["sequence_full"]["status"], "evaluated")
             self.assertIn("synthetic_piezo_vlf_piezo_signal", report["evaluations"]["sequence_piezo_vlf_only"]["feature_names"])
 
+            filtered = evaluate_torch_sequence_holdout(
+                input_csv=aligned,
+                sequence_manifest_paths=manifests,
+                out_path=root / "sequence_full_only.json",
+                train_fraction=0.67,
+                lookback_steps=2,
+                epochs=1,
+                hidden_units=4,
+                batch_size=2,
+                evaluation_names=["sequence_full"],
+            )
+
+            self.assertEqual(list(filtered["evaluations"]), ["sequence_full"])
+            self.assertEqual(filtered["selected_evaluations"], ["sequence_full"])
+
     @unittest.skipUnless(importlib.util.find_spec("torch"), "PyTorch optional dependency is not installed")
     def test_torch_sequence_group_holdout_uses_test_group(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
@@ -1867,6 +1883,39 @@ class AcquisitionScaffoldTests(unittest.TestCase):
             self.assertEqual(report["train_groups"], ["seed1"])
             self.assertEqual(report["test_group"], "seed2")
             self.assertEqual(report["evaluations"]["sequence_direct_avalanche_piezo_vlf"]["status"], "evaluated")
+
+    def test_synthetic_regime_annotation_can_drop_burn_in(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            table = root / "aligned.csv"
+            table.write_text(
+                "dataset_id,window_id,window_start_utc,window_end_utc,target_occurred\n"
+                "seed1,w0,2026-01-01T00:00:00Z,2026-01-01T01:00:00Z,0\n"
+                "seed1,w1,2026-01-01T01:00:00Z,2026-01-01T02:00:00Z,1\n"
+                "seed1,w2,2026-01-01T02:00:00Z,2026-01-01T03:00:00Z,0\n"
+                "seed1,w3,2026-01-01T03:00:00Z,2026-01-01T04:00:00Z,1\n"
+                "seed2,w0,2026-01-01T00:00:00Z,2026-01-01T01:00:00Z,0\n"
+                "seed2,w1,2026-01-01T01:00:00Z,2026-01-01T02:00:00Z,1\n"
+                "seed2,w2,2026-01-01T02:00:00Z,2026-01-01T03:00:00Z,0\n"
+                "seed2,w3,2026-01-01T03:00:00Z,2026-01-01T04:00:00Z,1\n",
+                encoding="utf-8",
+            )
+
+            report = annotate_synthetic_regimes(
+                input_csv=table,
+                out_csv=root / "regimes.csv",
+                report_path=root / "regimes.json",
+                regime_count=2,
+                burn_in_fraction=0.25,
+                drop_burn_in=True,
+            )
+
+            self.assertEqual(report["row_count"], 8)
+            self.assertEqual(report["output_row_count"], 6)
+            lines = (root / "regimes.csv").read_text(encoding="utf-8").splitlines()
+            self.assertIn("synthetic_regime_id", lines[0])
+            self.assertNotIn(",w0,", "\n".join(lines[1:]))
+            self.assertEqual(report["regime_ids"], ["seed1_r0", "seed1_r1", "seed2_r0", "seed2_r1"])
 
     def test_temporal_split_diagnostics_reports_feature_drift(self) -> None:
         with tempfile.TemporaryDirectory() as directory:

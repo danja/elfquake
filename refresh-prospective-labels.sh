@@ -5,6 +5,7 @@ PYTHON_BIN="${PYTHON_BIN:-.venv/bin/python}"
 START="${START:-2026-06-29T00:00:00Z}"
 END="${END:-2026-07-08T00:00:00Z}"
 AS_OF="${AS_OF:-$(date -u +%Y-%m-%dT%H:%M:%SZ)}"
+COMBINE_START_DATE="${COMBINE_START_DATE:-2026-06-01}"
 START_DATE="${START:0:10}"
 END_DATE="${END:0:10}"
 
@@ -29,16 +30,28 @@ PYTHONDONTWRITEBYTECODE=1 PYTHONPATH=src "$PYTHON_BIN" -m elfquake.cli normalize
 
 italy_inputs=()
 while IFS= read -r path; do
+  name="${path##*/}"
+  chunk_start="${name#events_italy_}"
+  chunk_start="${chunk_start%%_*}"
+  if [[ "$chunk_start" < "$COMBINE_START_DATE" ]]; then
+    continue
+  fi
   italy_inputs+=(--input "$path")
 done < <(find data/derived/ingv -maxdepth 1 -name "events_italy_*.normalized.csv" ! -name "*.combined.normalized.csv" | sort)
 
 central_inputs=()
 while IFS= read -r path; do
+  name="${path##*/}"
+  chunk_start="${name#events_central_italy_}"
+  chunk_start="${chunk_start%%_*}"
+  if [[ "$chunk_start" < "$COMBINE_START_DATE" ]]; then
+    continue
+  fi
   central_inputs+=(--input "$path")
 done < <(find data/derived/ingv -maxdepth 1 -name "events_central_italy_*.normalized.csv" ! -name "*.combined.normalized.csv" | sort)
 
-ITALY_EVENTS="data/derived/ingv/events_italy_2026-06-01_${END_DATE}.combined.normalized.csv"
-CENTRAL_EVENTS="data/derived/ingv/events_central_italy_2026-06-01_${END_DATE}.combined.normalized.csv"
+ITALY_EVENTS="data/derived/ingv/events_italy_${COMBINE_START_DATE}_${END_DATE}.combined.normalized.csv"
+CENTRAL_EVENTS="data/derived/ingv/events_central_italy_${COMBINE_START_DATE}_${END_DATE}.combined.normalized.csv"
 
 PYTHONDONTWRITEBYTECODE=1 PYTHONPATH=src "$PYTHON_BIN" -m elfquake.cli combine-normalized-events \
   "${italy_inputs[@]}" \

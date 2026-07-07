@@ -12,6 +12,10 @@ Plan bounded INGV event fetches over a long date range before making network req
 
 Fetch raw INGV FDSN event text for the Italy bounding box and a UTC time range. Store the raw response unchanged, then normalize it in a separate step.
 
+### `backfill-ingv-history.sh`
+
+Plan, fetch, normalize, combine, and window bounded historical INGV event data. Use this for reproducible seismic-only real baseline smoke datasets before VLF-aligned real labels have both classes.
+
 ## 2. Acquire VLF Sources
 
 ### `fetch-vlf-cumiana`
@@ -192,15 +196,19 @@ Train the same CPU PyTorch tabular MLP while holding out one dataset group, usua
 
 ### `train-torch-sequence-holdout`
 
-Train a CPU PyTorch GRU over materialized sequence manifests with a time-ordered split. Use this to test whether sensor time structure adds value beyond tabular aggregates.
+Train a CPU PyTorch GRU over materialized sequence manifests with a time-ordered split. Use this to test whether sensor time structure adds value beyond tabular aggregates. Use repeated `--evaluation` options for focused runs such as `sequence_full`.
 
 ### `train-torch-sequence-group-holdout`
 
-Train the same CPU PyTorch sequence model while holding out one dataset group. Use this for leave-one-seed-out synthetic transfer checks.
+Train the same CPU PyTorch sequence model while holding out one dataset group. Use this for leave-one-seed-out or synthetic-regime transfer checks.
 
 ### `diagnose-temporal-split`
 
 Measure target balance and feature drift between temporal train/test partitions. Use this when holdout metrics look unstable or suspicious.
+
+### `annotate-synthetic-regimes`
+
+Add burn-in and regime identifiers to synthetic aligned rows. Use `--drop-burn-in` before regime holdout experiments when early simulation transients should not dominate the split.
 
 ### `evaluate-group-holdout`
 
@@ -213,6 +221,10 @@ Compact multiple evaluation JSON reports into one summary. Use this after tempor
 ### `compare-model-run-summaries`
 
 Compare compact model-run summary JSON files and optionally write a CSV view. Use this to compare tabular, sequence, sweep, and missing-modality runs.
+
+### `compare-real-synthetic-models.sh`
+
+Summarize the central-Italy historical seismic baseline and compare it against the default synthetic sequence and post-burn-in regime summaries. Use this for the compact real-vs-synthetic report.
 
 ### `diagnose-sequence-comparison`
 
@@ -249,6 +261,10 @@ Run a matched 20-epoch sequence comparison over lookbacks `30`, `60`, and `120` 
 ### `repeat-sequence-training-seeds.sh`
 
 Repeat the default sequence training with multiple PyTorch seeds and summarize stability across training seeds and held-out synthetic seeds.
+
+### `train-sequence-full-regime.sh`
+
+Annotate post-burn-in synthetic regimes, train only `sequence_full`, hold out each remaining seed/regime block, and write one compact robustness summary.
 
 ### `train-real-tabular-model.sh`
 

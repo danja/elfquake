@@ -22,12 +22,14 @@ Run from the repository root with the project virtual environment active. Keep m
 ./sweep-synthetic-sequence-model.sh
 ./matched-sequence-comparison.sh
 ./repeat-sequence-training-seeds.sh
+./train-sequence-full-regime.sh
 ```
 
 3. Summarize and diagnose model outputs:
 
 ```sh
 ./compare-model-runs.sh
+./compare-real-synthetic-models.sh
 ./diagnose-sequence-models.sh
 ./summarize-sequence-selection.sh
 ```

@@ -4,7 +4,7 @@ Date: 2026-07-07
 
 ## Overview
 
-ELFQuake is currently a feasibility pipeline, not an earthquake prediction system. The project can collect Italy-scoped INGV seismic events, Cumiana VLF spectrogram images, and astronomy/space-weather context; it can also generate synthetic seismic-like and VLF-like signals from an avalanche simulation. The latest useful work is on shaping those synthetic signals, checking whether PyTorch models can learn from multimodal synthetic data, and preparing real VLF-aligned model inputs. Real training remains blocked because the matured prospective real rows still contain only one target class per table.
+ELFQuake is currently a feasibility pipeline, not an earthquake prediction system. The project can collect Italy-scoped INGV seismic events, Cumiana VLF spectrogram images, and astronomy/space-weather context; it can also generate synthetic seismic-like and VLF-like signals from an avalanche simulation. Historical seismic-only backfill now gives a small real baseline target set, while real VLF-aligned model training remains blocked because the matured prospective VLF rows still contain only one target class per table.
 
 ## Scope
 
@@ -20,6 +20,10 @@ Real seismic:
 * 175 normalized all-Italy INGV event rows
 * `data/derived/ingv/events_central_italy_2026-06-01_2026-07-08.combined.normalized.csv`
 * 22 normalized central-Italy INGV event rows
+* `data/derived/ingv/events_italy_all_available.combined.normalized.csv`
+* 1034 normalized all-Italy rows after 2026 historical backfill
+* `data/derived/ingv/events_central_italy_all_available.combined.normalized.csv`
+* 141 normalized central-Italy rows after 2026 historical backfill
 
 Real VLF:
 
@@ -37,9 +41,9 @@ Real prospective model rows:
 
 * `data/derived/models/all_italy.real_vlf_aligned_windows.csv`
 * `data/derived/models/central_italy.real_vlf_aligned_windows.csv`
-* each table has 247 rows and 18 labeled rows
-* all-Italy labels are currently 18 positive / 0 negative
-* central-Italy labels are currently 0 positive / 18 negative
+* each table has 247 rows and 22 labeled rows
+* all-Italy labels are currently 22 positive / 0 negative
+* central-Italy labels are currently 0 positive / 22 negative
 * both are `insufficient_class_variation`
 
 ## Method
@@ -62,6 +66,11 @@ Output files:
 * `data/derived/sim/mountain_256x256_seed42_10000.piezo_sensor_scan.csv`
 * `data/derived/models/model_family_comparison.json`
 * `data/derived/models/sequence_modality_diagnostic.json`
+* `data/derived/models/sequence_full_regime/sequence_full_model_run_summary.json`
+* `data/derived/models/sequence_full_regime/post_burn_in_temporal_split_diagnostics.json`
+* `data/derived/models/real_synthetic_compact_comparison.json`
+* `data/derived/models/all_italy.ingv_backfill_seismic_windows.temporal_holdout.json`
+* `data/derived/models/central_italy.ingv_backfill_seismic_windows.temporal_holdout.json`
 
 ## Current Status
 
@@ -71,6 +80,9 @@ Real-data status:
 * Cumiana VLF image capture and image-feature extraction are working.
 * Real VLF-aligned model tables are scaffolded for all-Italy and central Italy.
 * Real PyTorch training should not start yet, because each real table has only one target class.
+* Historical seismic-only backfill for `2026-01-01` to `2026-07-08` produced 25 training windows per scope.
+* Backfilled all-Italy seismic windows are ready but heavily positive-skewed: 23 positive / 2 negative.
+* Backfilled central-Italy seismic windows are ready with 4 positive / 21 negative, making them the better current real seismic smoke baseline.
 
 Synthetic-model status:
 
@@ -79,6 +91,8 @@ Synthetic-model status:
 * Best calibrated synthetic family row is `0.772558` balanced accuracy for `sequence_piezo_vlf_only` on held-out `seed42`.
 * Full sequence sweep best calibrated row is `0.766942` for `sequence_direct_avalanche_only`, `lookback=60`, `hidden=24`, held-out `seed42`.
 * The sequence diagnostic says not to change defaults yet: the prior best run used 20 epochs, the sweep used 10, temporal sequence rows stay near `0.5`, and mean group performance is highest for `sequence_full`.
+* A post-burn-in `sequence_full` regime run dropped the first 20 percent of each seed, evaluated 804 rows, and produced weak robustness scores: temporal calibrated balanced accuracy `0.509804`; regime-holdout mean `0.508413`, min `0.436111`, max `0.630037`.
+* Post-burn-in temporal split diagnostics show a large label/regime shift: train positive rate `0.398134`, test positive rate `0.645963`; the largest drift features include terrain height summaries and synthetic row/regime index.
 
 ## Shape Diagnostics
 
@@ -220,6 +234,17 @@ Smoke outputs:
 * real model-input scaffold: `data/derived/models/all_italy.real_vlf_aligned_windows.csv` and `data/derived/models/central_italy.real_vlf_aligned_windows.csv`; both have `247` rows and `18` labeled rows but still lack class variation
 
 Sequence diagnostic interpretation: do not change the default GRU lookback from `60` on current evidence. Repeated training seeds confirm the strongest single row is still piezo/VLF-only on held-out `seed42`; however, `sequence_full` is more stable across held-out seeds and training seeds. All temporal sequence rows remain near balanced accuracy `0.5`, so these are still synthetic-transfer diagnostics rather than evidence of real predictive skill.
+
+Post-burn-in regime interpretation: `sequence_full` does not yet show robust performance once the first 20 percent of each synthetic seed is removed and holdouts are made by seed/regime block. This supports the earlier concern that the current synthetic generator and split design still contain regime effects that should be understood before larger model runs.
+
+Compact model comparison:
+
+* artifact: `data/derived/models/real_synthetic_compact_comparison.json`
+* CSV view: `data/derived/models/real_synthetic_compact_comparison.csv`
+* central-Italy historical seismic-only temporal baseline: calibrated balanced accuracy `0.500000`
+* synthetic default temporal sequence run: calibrated balanced accuracy `0.500000`
+* best synthetic seed-holdout row: `sequence_piezo_vlf_only`, held-out `seed42`, calibrated balanced accuracy `0.772558`
+* post-burn-in `sequence_full` regime holdouts: mean calibrated balanced accuracy `0.508413`
 
 ## Limitations
 

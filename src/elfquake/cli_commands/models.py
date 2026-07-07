@@ -16,6 +16,7 @@ from elfquake.models.readiness import summarize_model_readiness
 from elfquake.models.report_summary import summarize_model_run_reports
 from elfquake.models.sequence_materializer import materialize_sequence_dataset
 from elfquake.models.split_diagnostics import diagnose_temporal_split
+from elfquake.models.synthetic_regimes import annotate_synthetic_regimes
 from elfquake.models.tensor_materializer import materialize_tensor_dataset
 from elfquake.models.tensor_spec import build_tensor_spec
 from elfquake.models.temporal_holdout import evaluate_group_holdout, evaluate_temporal_holdout
@@ -94,6 +95,7 @@ def register_model_commands(subparsers: _SubParsersAction) -> None:
     torch_sequence.add_argument("--batch-size", type=int, default=64)
     torch_sequence.add_argument("--seed", type=int, default=42)
     torch_sequence.add_argument("--no-missing-masks", action="store_true")
+    torch_sequence.add_argument("--evaluation", action="append", default=[], help="Sequence evaluation name to run; repeatable")
     torch_sequence.set_defaults(func=_train_torch_sequence_holdout)
 
     torch_sequence_group = subparsers.add_parser("train-torch-sequence-group-holdout")
@@ -109,6 +111,7 @@ def register_model_commands(subparsers: _SubParsersAction) -> None:
     torch_sequence_group.add_argument("--batch-size", type=int, default=64)
     torch_sequence_group.add_argument("--seed", type=int, default=42)
     torch_sequence_group.add_argument("--no-missing-masks", action="store_true")
+    torch_sequence_group.add_argument("--evaluation", action="append", default=[], help="Sequence evaluation name to run; repeatable")
     torch_sequence_group.set_defaults(func=_train_torch_sequence_group_holdout)
 
     split_diagnostics = subparsers.add_parser("diagnose-temporal-split")
@@ -120,6 +123,17 @@ def register_model_commands(subparsers: _SubParsersAction) -> None:
     split_diagnostics.add_argument("--target-field", default="target_occurred")
     split_diagnostics.add_argument("--top-n", type=int, default=20)
     split_diagnostics.set_defaults(func=_diagnose_temporal_split)
+
+    synthetic_regimes = subparsers.add_parser("annotate-synthetic-regimes")
+    synthetic_regimes.add_argument("--input", type=Path, required=True)
+    synthetic_regimes.add_argument("--out", type=Path, required=True)
+    synthetic_regimes.add_argument("--report", type=Path, required=True)
+    synthetic_regimes.add_argument("--group-field", default="dataset_id")
+    synthetic_regimes.add_argument("--time-field", default="window_start_utc")
+    synthetic_regimes.add_argument("--regime-count", type=int, default=5)
+    synthetic_regimes.add_argument("--burn-in-fraction", type=float, default=0.2)
+    synthetic_regimes.add_argument("--drop-burn-in", action="store_true")
+    synthetic_regimes.set_defaults(func=_annotate_synthetic_regimes)
 
     group_holdout = subparsers.add_parser("evaluate-group-holdout")
     group_holdout.add_argument("--input", type=Path, required=True)
@@ -304,6 +318,7 @@ def _train_torch_sequence_holdout(args: Namespace) -> int:
         batch_size=args.batch_size,
         seed=args.seed,
         include_missing_masks=not args.no_missing_masks,
+        evaluation_names=args.evaluation or None,
     )
     _print_holdout_report(report, args.out)
     return 0
@@ -323,6 +338,7 @@ def _train_torch_sequence_group_holdout(args: Namespace) -> int:
         batch_size=args.batch_size,
         seed=args.seed,
         include_missing_masks=not args.no_missing_masks,
+        evaluation_names=args.evaluation or None,
     )
     _print_holdout_report(report, args.out)
     return 0
@@ -350,6 +366,25 @@ def _diagnose_temporal_split(args: Namespace) -> int:
     print(f"output: {args.out}")
     if args.feature_out:
         print(f"feature output: {args.feature_out}")
+    return 0
+
+
+def _annotate_synthetic_regimes(args: Namespace) -> int:
+    report = annotate_synthetic_regimes(
+        input_csv=args.input,
+        out_csv=args.out,
+        report_path=args.report,
+        group_field=args.group_field,
+        time_field=args.time_field,
+        regime_count=args.regime_count,
+        burn_in_fraction=args.burn_in_fraction,
+        drop_burn_in=args.drop_burn_in,
+    )
+    print(f"rows: {report['row_count']}")
+    print(f"output rows: {report['output_row_count']}")
+    print(f"regimes: {len(report['regime_ids'])}")
+    print(f"output: {args.out}")
+    print(f"report: {args.report}")
     return 0
 
 

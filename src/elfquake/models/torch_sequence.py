@@ -34,6 +34,7 @@ def evaluate_torch_sequence_holdout(
     batch_size: int = 64,
     seed: int = 42,
     include_missing_masks: bool = True,
+    evaluation_names: list[str] | None = None,
 ) -> dict[str, object]:
     if not 0 < train_fraction < 1:
         raise ValueError("train_fraction must be between 0 and 1")
@@ -52,6 +53,7 @@ def evaluate_torch_sequence_holdout(
         batch_size=batch_size,
         seed=seed,
         include_missing_masks=include_missing_masks,
+        evaluation_names=evaluation_names,
     )
     report["time_field"] = time_field
     report["train_fraction"] = train_fraction
@@ -75,6 +77,7 @@ def evaluate_torch_sequence_holdout(
         hidden_units=hidden_units,
         batch_size=batch_size,
         seed=seed,
+        evaluation_names=evaluation_names,
     )
     report["status"] = _overall_status(report)
     return _write_report(out_path, report)
@@ -94,6 +97,7 @@ def evaluate_torch_sequence_group_holdout(
     batch_size: int = 64,
     seed: int = 42,
     include_missing_masks: bool = True,
+    evaluation_names: list[str] | None = None,
 ) -> dict[str, object]:
     rows, _ = _read_rows_and_fields(input_csv)
     labeled = [row for row in rows if row.get("target_occurred") in {"0", "1"}]
@@ -112,6 +116,7 @@ def evaluate_torch_sequence_group_holdout(
         batch_size=batch_size,
         seed=seed,
         include_missing_masks=include_missing_masks,
+        evaluation_names=evaluation_names,
     )
     report["group_field"] = group_field
     report["test_group"] = test_group
@@ -135,6 +140,7 @@ def evaluate_torch_sequence_group_holdout(
         hidden_units=hidden_units,
         batch_size=batch_size,
         seed=seed,
+        evaluation_names=evaluation_names,
     )
     report["status"] = _overall_status(report)
     return _write_report(out_path, report)
@@ -154,7 +160,9 @@ def _base_report(
     batch_size: int,
     seed: int,
     include_missing_masks: bool,
+    evaluation_names: list[str] | None,
 ) -> dict[str, object]:
+    selected = _selected_evaluations(evaluation_names)
     return {
         "schema": schema,
         "backend": "torch",
@@ -170,6 +178,7 @@ def _base_report(
         "batch_size": batch_size,
         "seed": seed,
         "include_missing_masks": include_missing_masks,
+        "selected_evaluations": list(selected),
         "evaluations": {},
     }
 
@@ -217,8 +226,9 @@ def _evaluate_all(
     hidden_units: int,
     batch_size: int,
     seed: int,
+    evaluation_names: list[str] | None,
 ) -> None:
-    for name, modalities in SEQUENCE_EVALUATIONS.items():
+    for name, modalities in _selected_evaluations(evaluation_names).items():
         report["evaluations"][name] = _evaluate_one(
             sequences=sequences,
             train_rows=train_rows,
@@ -431,6 +441,15 @@ def _overall_status(report: dict[str, object]) -> str:
     if statuses == {"insufficient_train_class_variation"}:
         return "insufficient_train_class_variation"
     return "not_evaluated"
+
+
+def _selected_evaluations(evaluation_names: list[str] | None) -> dict[str, tuple[str, ...]]:
+    if not evaluation_names:
+        return dict(SEQUENCE_EVALUATIONS)
+    unknown = sorted(set(evaluation_names) - set(SEQUENCE_EVALUATIONS))
+    if unknown:
+        raise ValueError(f"unknown sequence evaluation(s): {', '.join(unknown)}")
+    return {name: SEQUENCE_EVALUATIONS[name] for name in evaluation_names}
 
 
 def _write_report(out_path: Path, report: dict[str, object]) -> dict[str, object]:

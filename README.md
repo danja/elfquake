@@ -11,9 +11,9 @@ We wish to exploit more modern machine learning/AI techniques to create a predic
 
 ## Status
 
-Data acquisition, feature extraction, prospective rows, smoke models, CPU PyTorch tabular and sequence baselines, CPU-only sandpile simulation, and first synthetic VLF comparison tooling are implemented; **no earthquake prediction capability is claimed**.
+Status: historical seismic-only baselines and synthetic CPU PyTorch sequence diagnostics are runnable, but real VLF-aligned training is still blocked by one-class labels; **no earthquake prediction capability is claimed**.
 
-Right now, while awaiting further data, the focus is on the simulation and scaffolding for a machine learning system. Evaluation of the current model can be found in [report.md](docs/report.md).
+Right now, while awaiting further VLF-aligned labels, the focus is on real seismic baselines, synthetic regime diagnostics, and keeping the multimodal model interface stable. Evaluation of the current model can be found in [report.md](docs/report.md) and [model-comparison.md](docs/model-comparison.md).
 
 ### Simulated Earthquakes
 
@@ -37,6 +37,7 @@ This work was initially prompted by the tragedy of the [2009 L'Aquila earthquake
 * Dependency-light logistic checks and a CPU PyTorch tabular MLP for synthetic aligned rows.
 * A first CPU PyTorch GRU sequence model over synthetic avalanche and piezo/VLF sensor tensors.
 * Summary comparison, sequence sweep, and missing-modality scripts for model diagnostics.
+* A compact real-vs-synthetic comparison wrapper for central-Italy seismic baselines and synthetic sequence reports.
 * Real Cumiana VLF image features materialized into the same sequence shape as synthetic piezo/VLF inputs.
 * Real prospective aligned model inputs scaffolded for all-Italy and central-Italy rows; real training remains blocked by insufficient class variation.
 * VLF model feature roles that allow synthetic piezo/VLF analogue data to exercise the same PyTorch VLF path before real labels mature.
@@ -81,4 +82,5 @@ This is a simplified stress-and-release analogy, not a geological model. Its val
 * [Multimodal Feasibility](docs/multimodal-feasibility.md)
 * [Systemd Service](docs/systemd-service.md)
 * [Initial Model Trials](docs/initial-model-trials.md)
+* [Model Comparison](docs/model-comparison.md)
 * [Sandpile Simulation](docs/sandpile-simulation.md)

@@ -2,16 +2,15 @@
 
 ## Simulation
 
-1. Backfill more INGV event windows and keep accumulating Cumiana VLF captures before model training claims.
+1. Keep accumulating Cumiana VLF captures before real multimodal model training claims.
 2. Compare longer synthetic runs against real seismic/VLF shape metrics before treating the generator as stable.
-3. Add burn-in or regime-balanced synthetic split handling before treating chronological synthetic model metrics as stable.
+3. Reduce synthetic regime drift before expanding sequence model runs; current post-burn-in diagnostics show label and terrain-height drift.
 4. Add a small grouped-sensor piezo scan only if single-receiver traces prove too local after multi-seed validation.
 5. Optimize or chunk sequence materialization further before attempting substantially larger runs.
-6. Review the tabular-vs-sequence comparison and bounded sequence sweep outputs before changing the default GRU lookback.
+6. Review the tabular-vs-sequence comparison, bounded sequence sweep, and post-burn-in regime outputs before changing the default GRU lookback.
 7. Use missing-modality reports to decide whether VLF/piezo, direct avalanche, or combined sequence inputs deserve the next model pass.
 8. Wait for real prospective rows to include both positive and negative labels before attempting real PyTorch training.
-9. Use `sequence_full` for the next robustness experiments, while keeping piezo/VLF-only noted as the strongest single synthetic group row.
-10. Add a regime-balanced or burn-in-aware synthetic split before spending more time on chronological sequence metrics.
+9. Use central-Italy historical seismic-only windows as the current real baseline smoke path.
 
 ## General
 
@@ -21,7 +20,7 @@
 4. Continue periodic INGV refresh and prospective labeling as more target windows mature; train only after both classes exist in one table.
 5. Add chunked sandpile snapshot storage only if larger pretraining runs outgrow `.npy` sanity snapshots.
 6. Add slope/erosion smoothing to mountain-mode synthetic terrain if ridgeline-like visuals are needed.
-7. Backfill enough historical INGV windows to get both positive and negative target classes by region.
+7. Extend historical INGV backfill earlier than 2026 only if baseline windows need more class balance.
 8. Validate Abelian Cumiana with a reproducible nonempty live Ogg, archive WAV, or archive VT pull; recent archive probes still returned zero usable bytes.
 9. Add full rupture-mask outputs if synthetic event maps need spatial extent rather than centroid locations.
 10. Generate a longer synthetic aligned dataset to reduce time-split distribution drift.
@@ -36,6 +35,13 @@
 
 ## Completed
 
+* Refresh prospective labels to 22 matured rows per scope and rebuild real VLF-aligned model inputs; real training remains class-blocked.
+* Fix `refresh-prospective-labels.sh` so prospective combined INGV files exclude earlier historical backfill chunks.
+* Add and run `compare-real-synthetic-models.sh`, producing compact JSON/CSV real-vs-synthetic model comparisons.
+* Add `docs/model-comparison.md` with the current central-Italy seismic baseline, synthetic sequence, and post-burn-in regime interpretation.
+* Add and run `backfill-ingv-history.sh`; 2026 historical INGV backfill produced ready seismic-only windows for all-Italy and central Italy.
+* Add burn-in/regime annotation for synthetic aligned rows and run a post-burn-in `sequence_full` regime robustness check.
+* Add sequence evaluation filtering so focused robustness scripts can run only `sequence_full`.
 * Add repo-local Codex skills for source ingest, prospective data refresh, simulation pipeline runs, and synthetic model workflows.
 * Add naive baseline and threshold-calibrated metrics to temporal holdout reports.
 * Add a reproducible direct avalanche event-extraction tuning helper and run it on seeds `40`, `41`, and `42`.

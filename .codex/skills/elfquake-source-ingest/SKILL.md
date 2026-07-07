@@ -12,6 +12,7 @@ Run from the repository root. Use `PYTHONDONTWRITEBYTECODE=1 PYTHONPATH=src pyth
 Use bounded, reproducible pulls and keep raw files unchanged:
 
 ```sh
+./backfill-ingv-history.sh
 PYTHONDONTWRITEBYTECODE=1 PYTHONPATH=src python3 -m elfquake.cli plan-ingv-backfill
 PYTHONDONTWRITEBYTECODE=1 PYTHONPATH=src python3 -m elfquake.cli fetch-ingv-events
 PYTHONDONTWRITEBYTECODE=1 PYTHONPATH=src python3 -m elfquake.cli fetch-vlf-cumiana
