@@ -51,6 +51,17 @@ If testing a larger synthetic-only model, keep it tiny:
 
 Avoid large attention models and GPU-only dependencies on the current system.
 
+## Current Larger-Model Check
+
+The first larger-model scaffold is implemented as a tiny CPU-only patch Transformer:
+
+* command: `./train-tiny-patch-transformer.sh`
+* output: `data/derived/models/tiny_patch_transformer/tiny_patch_transformer_model_run_summary.json`
+* split: post-burn-in regime-balanced synthetic rows, 642 train / 162 test
+* best calibrated balanced accuracy: `0.637500` for `sequence_piezo_vlf_only`
+
+This is below the current regime-balanced GRU `sequence_full` score of `0.650000`, so it validates the model interface but does not replace the GRU baseline.
+
 ## Recommendation
 
-Do not scale real models yet. For synthetic-only engineering, the next larger model should be a tiny PatchTST-style or patch-GRU comparison, run only after keeping the current GRU and regime-balanced split as baselines. Treat any synthetic gain as model-interface evidence, not earthquake prediction evidence.
+Do not scale real models yet. For synthetic-only engineering, compare the tiny patch Transformer across additional generated seeds before increasing size. Treat any synthetic gain as model-interface evidence, not earthquake prediction evidence.

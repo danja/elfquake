@@ -143,6 +143,7 @@ Current scaffold:
 * `elfquake.models.torch_tabular` - CPU PyTorch tabular MLP evaluator for aligned rows, missing masks, and modality ablations.
 * `elfquake.models.dataset_combine` - combines aligned rows from multiple synthetic runs while preserving dataset provenance.
 * `elfquake.models.report_summary` - compacts multiple evaluation reports into one comparison artifact.
+* `elfquake.models.torch_patch_transformer` - CPU PyTorch patch Transformer evaluator for synthetic sequence engineering checks.
 * `elfquake.models.window_adapter` - aggregates irregular real or synthetic event lists into regular window features.
 * `elfquake.models.sequence_materializer` - materializes `time x entity x channel` sequence tables with present masks.
 * `elfquake.models.tensor_spec` - CSV-to-tensor metadata spec with modality groups and generated present-mask channel names.
@@ -165,6 +166,7 @@ Current scaffold:
 * `sweep-synthetic-sequence-model.sh` - runs a bounded sequence GRU hyperparameter sweep.
 * `test-sequence-missing-modalities.sh` - exercises sequence training with VLF-only and no-VLF/piezo inputs.
 * `estimate-model-scale` - reports larger-model gates, sequence feature counts, class balance, and CPU-only size guidance.
+* `train-torch-patch-transformer-split-holdout` - trains a tiny CPU PyTorch patch Transformer on explicit train/test split rows.
 
 Initial artifacts:
 
@@ -217,6 +219,7 @@ Latest smoke artifacts:
 * `data/derived/models/sequence_modality_diagnostic.json`
 * `data/derived/models/sequence_sweep_20epoch/default_vs_matched_sequence_diagnostic.json`
 * `data/derived/models/sequence_training_seed_repeat/sequence_training_seed_selection.json`
+* `data/derived/models/tiny_patch_transformer/tiny_patch_transformer_model_run_summary.json`
 * `data/derived/models/missing_modality/missing_modality_seed42_summary.json`
 * `data/derived/models/cumiana_vlf_image_sequence/manifest.json`
 * `data/derived/models/all_italy.real_vlf_alignment_manifest.json`
@@ -227,3 +230,5 @@ Full sequence sweep result: the best calibrated sweep row is `0.766942` for `seq
 The matched 20-epoch rerun keeps `lookback=60`, `hidden=24`, `sequence_piezo_vlf_only` as the strongest single group-holdout row at `0.772558`. Mean group performance is still strongest for `sequence_full`, and temporal sequence rows remain near `0.5`, so keep treating these as synthetic-transfer diagnostics rather than stable model-selection evidence.
 
 Repeated training-seed runs reinforce that interpretation: `sequence_piezo_vlf_only` still wins the best-single-row metric, but `sequence_full` wins mean group score and worst held-out seed score. Prefer `sequence_full` for robustness experiments, but do not make real claims until real data has both classes and passes held-out evaluation.
+
+The first tiny patch Transformer scaffold uses the post-burn-in regime-balanced split and CPU-only settings (`d_model=32`, 2 layers, 2 heads). It reaches calibrated balanced accuracy `0.637500` with `sequence_piezo_vlf_only`, below the balanced GRU `sequence_full` result of `0.650000`. Keep it as an interface and scaling diagnostic until it is tested on additional synthetic seeds.

@@ -7,6 +7,7 @@ REAL_SUMMARY="${REAL_SUMMARY:-data/derived/models/central_italy.ingv_backfill_se
 SYNTHETIC_SEQUENCE_SUMMARY="${SYNTHETIC_SEQUENCE_SUMMARY:-data/derived/models/mountain_256x256_seeds40-42_20000.sequence_model_run_summary.json}"
 REGIME_SUMMARY="${REGIME_SUMMARY:-data/derived/models/sequence_full_regime/sequence_full_model_run_summary.json}"
 BALANCED_SUMMARY="${BALANCED_SUMMARY:-data/derived/models/sequence_full_balanced/sequence_full_balanced_model_run_summary.json}"
+PATCH_TRANSFORMER_SUMMARY="${PATCH_TRANSFORMER_SUMMARY:-data/derived/models/tiny_patch_transformer/tiny_patch_transformer_model_run_summary.json}"
 OUT="${OUT:-data/derived/models/real_synthetic_compact_comparison.json}"
 CSV_OUT="${CSV_OUT:-data/derived/models/real_synthetic_compact_comparison.csv}"
 
@@ -19,5 +20,6 @@ PYTHONDONTWRITEBYTECODE=1 PYTHONPATH=src "$PYTHON_BIN" -m elfquake.cli compare-m
   --summary "$SYNTHETIC_SEQUENCE_SUMMARY" \
   --summary "$REGIME_SUMMARY" \
   --summary "$BALANCED_SUMMARY" \
+  $(if [[ -f "$PATCH_TRANSFORMER_SUMMARY" ]]; then printf '%s %s' --summary "$PATCH_TRANSFORMER_SUMMARY"; fi) \
   --out "$OUT" \
   --csv-out "$CSV_OUT"

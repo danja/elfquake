@@ -60,7 +60,10 @@ def _split_summary(report: dict[str, object]) -> dict[str, object]:
             "test_group": report.get("test_group", ""),
             "train_groups": report.get("train_groups", []),
         }
-    if report.get("schema") == "elfquake.torch_sequence_split_holdout.v1":
+    if report.get("schema") in {
+        "elfquake.torch_sequence_split_holdout.v1",
+        "elfquake.torch_patch_transformer_split_holdout.v1",
+    }:
         return {
             "type": "explicit",
             "backend": report.get("backend", ""),

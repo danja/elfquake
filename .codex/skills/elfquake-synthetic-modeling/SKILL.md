@@ -24,6 +24,7 @@ Run from the repository root with the project virtual environment active. Keep m
 ./repeat-sequence-training-seeds.sh
 ./train-sequence-full-regime.sh
 ./train-sequence-full-balanced.sh
+./train-tiny-patch-transformer.sh
 ```
 
 3. Summarize and diagnose model outputs:

@@ -71,6 +71,7 @@ from elfquake.models.torch_sequence import (
     evaluate_torch_sequence_holdout,
     evaluate_torch_sequence_split_holdout,
 )
+from elfquake.models.torch_patch_transformer import evaluate_torch_patch_transformer_split_holdout
 from elfquake.models.torch_tabular import evaluate_torch_tabular_group_holdout, evaluate_torch_tabular_holdout
 from elfquake.models.window_adapter import build_event_window_features
 from elfquake.normalize.events import combine_normalized_events
@@ -1925,6 +1926,47 @@ class AcquisitionScaffoldTests(unittest.TestCase):
             self.assertEqual(report["status"], "evaluated")
             self.assertEqual(report["train_row_count"], 4)
             self.assertEqual(report["test_row_count"], 2)
+            self.assertEqual(list(report["evaluations"]), ["sequence_full"])
+
+    @unittest.skipUnless(importlib.util.find_spec("torch"), "PyTorch optional dependency is not installed")
+    def test_torch_patch_transformer_split_holdout_trains(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            aligned = root / "aligned.csv"
+            aligned.write_text(
+                "dataset_id,window_id,region_id,window_start_utc,window_end_utc,target_occurred,target_status,model_split\n"
+                "seed1,w0,r,2026-01-01T00:00:00Z,2026-01-01T00:02:00Z,0,labeled,train\n"
+                "seed1,w1,r,2026-01-01T00:02:00Z,2026-01-01T00:04:00Z,1,labeled,train\n"
+                "seed1,w2,r,2026-01-01T00:04:00Z,2026-01-01T00:06:00Z,0,labeled,train\n"
+                "seed1,w3,r,2026-01-01T00:06:00Z,2026-01-01T00:08:00Z,1,labeled,train\n"
+                "seed1,w4,r,2026-01-01T00:08:00Z,2026-01-01T00:10:00Z,0,labeled,test\n"
+                "seed1,w5,r,2026-01-01T00:10:00Z,2026-01-01T00:12:00Z,1,labeled,test\n",
+                encoding="utf-8",
+            )
+            manifests = [
+                self._write_sequence_fixture(root, "seed1", "synthetic_direct_avalanche", "avalanche_signal", [0, 0, 1, 1, 2, 2, 6, 7, 8, 2, 3, 9, 9]),
+                self._write_sequence_fixture(root, "seed1", "synthetic_piezo_vlf", "piezo_signal", [0, 0, 1, 2, 3, 4, 8, 8, 7, 3, 2, 9, 10]),
+                self._write_sequence_fixture(root, "seed1", "synthetic_summary", "topple_count", [1, 1, 2, 2, 3, 3, 8, 8, 8, 3, 3, 9, 9]),
+            ]
+
+            report = evaluate_torch_patch_transformer_split_holdout(
+                input_csv=aligned,
+                sequence_manifest_paths=manifests,
+                out_path=root / "patch_transformer.json",
+                lookback_steps=2,
+                patch_steps=1,
+                epochs=2,
+                d_model=8,
+                layers=1,
+                heads=2,
+                batch_size=2,
+                evaluation_names=["sequence_full"],
+            )
+
+            self.assertEqual(report["schema"], "elfquake.torch_patch_transformer_split_holdout.v1")
+            self.assertEqual(report["status"], "evaluated")
+            self.assertEqual(report["d_model"], 8)
+            self.assertEqual(report["patch_steps"], 1)
             self.assertEqual(list(report["evaluations"]), ["sequence_full"])
 
     def test_synthetic_regime_annotation_can_drop_burn_in(self) -> None:

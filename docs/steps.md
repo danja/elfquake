@@ -202,6 +202,10 @@ Train a CPU PyTorch GRU over materialized sequence manifests with a time-ordered
 
 Train the same CPU PyTorch sequence model while holding out one dataset group. Use this for leave-one-seed-out or synthetic-regime transfer checks.
 
+### `train-torch-patch-transformer-split-holdout`
+
+Train a tiny CPU PyTorch patch Transformer over materialized sequence manifests using an explicit train/test split field. Use this only for synthetic larger-model interface checks until real VLF-aligned rows have both target classes.
+
 ### `diagnose-temporal-split`
 
 Measure target balance and feature drift between temporal train/test partitions. Use this when holdout metrics look unstable or suspicious.
@@ -229,6 +233,10 @@ Estimate row counts, class balance, sequence feature size, memory footprint, and
 ### `estimate-model-scale.sh`
 
 Run the default scale estimates for current synthetic, post-burn-in balanced synthetic, and real VLF-aligned datasets.
+
+### `train-tiny-patch-transformer.sh`
+
+Regenerate the post-burn-in regime-balanced synthetic split, train the tiny CPU patch Transformer, and write a compact model-run summary.
 
 ### `compare-model-run-summaries`
 

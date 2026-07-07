@@ -70,6 +70,7 @@ Output files:
 * `data/derived/models/sequence_full_regime/post_burn_in_temporal_split_diagnostics.json`
 * `data/derived/models/sequence_full_balanced/sequence_full_balanced_model_run_summary.json`
 * `data/derived/models/sequence_full_balanced/regime_balanced_split.json`
+* `data/derived/models/tiny_patch_transformer/tiny_patch_transformer_model_run_summary.json`
 * `data/derived/models/real_synthetic_compact_comparison.json`
 * `data/derived/models/all_italy.ingv_backfill_seismic_windows.temporal_holdout.json`
 * `data/derived/models/central_italy.ingv_backfill_seismic_windows.temporal_holdout.json`
@@ -96,6 +97,7 @@ Synthetic-model status:
 * A post-burn-in `sequence_full` regime run dropped the first 20 percent of each seed, evaluated 804 rows, and produced weak robustness scores: temporal calibrated balanced accuracy `0.509804`; regime-holdout mean `0.508413`, min `0.436111`, max `0.630037`.
 * Post-burn-in temporal split diagnostics show a large label/regime shift: train positive rate `0.398134`, test positive rate `0.645963`; the largest drift features include terrain height summaries and synthetic row/regime index.
 * A post-burn-in regime-balanced explicit split has matched train/test class rates and gives `sequence_full` calibrated balanced accuracy `0.650000`; use this as an engineering diagnostic, not as forecasting evidence.
+* A tiny CPU patch Transformer now runs on the same regime-balanced split. Its best calibrated row is `sequence_piezo_vlf_only` at `0.637500`, so it is a larger-model scaffold rather than a new default.
 
 ## Shape Diagnostics
 
@@ -234,7 +236,8 @@ Smoke outputs:
 * sequence modality diagnostic: `data/derived/models/sequence_modality_diagnostic.json`, `112` evaluation rows; best default sequence row uses `20` epochs and piezo/VLF-only, while best sweep row uses `10` epochs and direct avalanche-only
 * matched 20-epoch sequence comparison: `data/derived/models/sequence_sweep_20epoch/default_vs_matched_sequence_diagnostic.json`, `64` evaluation rows; best row remains `sequence_piezo_vlf_only`, `lookback=60`, `hidden=24`, held-out `seed42`, calibrated balanced accuracy `0.772558`
 * repeated training-seed comparison: `data/derived/models/sequence_training_seed_repeat/sequence_training_seed_selection.json`; best single row is still `sequence_piezo_vlf_only` at `0.772558`, but `sequence_full` has the best mean group score (`0.741342`) and best worst-held-out-seed score (`0.712754`)
-* real model-input scaffold: `data/derived/models/all_italy.real_vlf_aligned_windows.csv` and `data/derived/models/central_italy.real_vlf_aligned_windows.csv`; both have `247` rows and `18` labeled rows but still lack class variation
+* tiny patch Transformer scaffold: `data/derived/models/tiny_patch_transformer/tiny_patch_transformer_model_run_summary.json`; best calibrated row `0.637500`, `sequence_piezo_vlf_only`, explicit regime-balanced split
+* real model-input scaffold: `data/derived/models/all_italy.real_vlf_aligned_windows.csv` and `data/derived/models/central_italy.real_vlf_aligned_windows.csv`; both have `247` rows and `23` labeled rows but still lack class variation
 
 Sequence diagnostic interpretation: do not change the default GRU lookback from `60` on current evidence. Repeated training seeds confirm the strongest single row is still piezo/VLF-only on held-out `seed42`; however, `sequence_full` is more stable across held-out seeds and training seeds. All temporal sequence rows remain near balanced accuracy `0.5`, so these are still synthetic-transfer diagnostics rather than evidence of real predictive skill.
 
@@ -249,6 +252,7 @@ Compact model comparison:
 * best synthetic seed-holdout row: `sequence_piezo_vlf_only`, held-out `seed42`, calibrated balanced accuracy `0.772558`
 * post-burn-in `sequence_full` regime holdouts: mean calibrated balanced accuracy `0.508413`
 * post-burn-in `sequence_full` regime-balanced split: calibrated balanced accuracy `0.650000`
+* tiny patch Transformer regime-balanced split: `sequence_piezo_vlf_only`, calibrated balanced accuracy `0.637500`
 
 ## Limitations
 

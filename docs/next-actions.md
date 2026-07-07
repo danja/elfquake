@@ -6,7 +6,7 @@
 2. Compare longer synthetic runs against real seismic/VLF shape metrics before treating the generator as stable.
 3. Reduce synthetic regime drift before expanding sequence model runs; regime-balanced evaluation helps debugging but is not a forecasting-style validation.
 4. Add a small grouped-sensor piezo scan only if single-receiver traces prove too local after multi-seed validation.
-5. If testing a larger model, keep it synthetic-only and tiny: patch/channel encoder, `d_model=32`, 2 layers, 2 heads, CPU-only.
+5. Compare the tiny patch Transformer against the balanced GRU over additional synthetic seeds before increasing model size.
 6. Optimize or chunk sequence materialization further before attempting substantially larger runs.
 7. Review the tabular-vs-sequence comparison, bounded sequence sweep, and post-burn-in regime outputs before changing the default GRU lookback.
 8. Use missing-modality reports to decide whether VLF/piezo, direct avalanche, or combined sequence inputs deserve the next model pass.
@@ -38,6 +38,7 @@
 
 * Add `estimate-model-scale` and `estimate-model-scale.sh` to capture larger-model gates, sequence sizes, and CPU-only model guidance.
 * Add `docs/model-scaling-requirements.md`; current real VLF rows are blocked, while the full synthetic 20000-step table can support only a tiny synthetic-only larger-model check.
+* Add and run a tiny CPU patch Transformer split-holdout path; best regime-balanced calibrated row is `0.637500` for `sequence_piezo_vlf_only`, below the balanced GRU `sequence_full` score.
 * Add deterministic regime-balanced split assignment and explicit split sequence evaluation.
 * Add and run `train-sequence-full-balanced.sh`; post-burn-in `sequence_full` reached calibrated balanced accuracy `0.650000` on the balanced synthetic split.
 * Refresh prospective labels to 23 matured rows per scope and rebuild real VLF-aligned model inputs; real training remains class-blocked.

@@ -11,7 +11,7 @@ We wish to exploit more modern machine learning/AI techniques to create a predic
 
 ## Status
 
-Status: historical seismic-only baselines, synthetic CPU PyTorch sequence diagnostics, and regime-balanced synthetic split checks are runnable, but real VLF-aligned training is still blocked by one-class labels; **no earthquake prediction capability is claimed**.
+Status: historical seismic-only baselines, synthetic CPU PyTorch GRU and tiny patch Transformer diagnostics, and regime-balanced synthetic split checks are runnable, but real VLF-aligned training is still blocked by one-class labels; **no earthquake prediction capability is claimed**.
 
 Right now, while awaiting further VLF-aligned labels, the focus is on real seismic baselines, synthetic regime diagnostics, and keeping the multimodal model interface stable. Evaluation of the current model can be found in [report.md](docs/report.md), [model-comparison.md](docs/model-comparison.md), and [model-scaling-requirements.md](docs/model-scaling-requirements.md).
 
@@ -36,6 +36,7 @@ This work was initially prompted by the tragedy of the [2009 L'Aquila earthquake
 * Prospective VLF-anchored feature rows with pending target labels.
 * Dependency-light logistic checks and a CPU PyTorch tabular MLP for synthetic aligned rows.
 * A first CPU PyTorch GRU sequence model over synthetic avalanche and piezo/VLF sensor tensors.
+* A tiny CPU PyTorch patch Transformer scaffold for synthetic sequence engineering checks.
 * Summary comparison, sequence sweep, and missing-modality scripts for model diagnostics.
 * A compact real-vs-synthetic comparison wrapper for central-Italy seismic baselines and synthetic sequence reports.
 * Larger-model scale checks for row count, class balance, sequence size, and CPU-only model limits.
