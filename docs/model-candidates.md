@@ -202,9 +202,12 @@ Latest smoke artifacts:
 * `data/derived/models/sequence_sweep_smoke/sequence_sweep_comparison.json`
 * `data/derived/models/sequence_sweep/sequence_sweep_comparison.json`
 * `data/derived/models/model_family_comparison.json`
+* `data/derived/models/sequence_modality_diagnostic.json`
 * `data/derived/models/missing_modality/missing_modality_seed42_summary.json`
 * `data/derived/models/cumiana_vlf_image_sequence/manifest.json`
 * `data/derived/models/all_italy.real_vlf_alignment_manifest.json`
 * `data/derived/models/central_italy.real_vlf_alignment_manifest.json`
 
 Full sequence sweep result: the best calibrated sweep row is `0.766942` for `sequence_direct_avalanche_only` with `lookback=60`, `hidden=24`, held-out `seed42`. The overall family comparison still prefers the earlier default sequence report at `0.772558` for `sequence_piezo_vlf_only` on held-out `seed42`. This is synthetic-only evidence and should not be interpreted as real predictive skill.
+
+The sequence modality diagnostic shows this is not enough to change defaults: the prior best row used `20` epochs and the sweep used `10`; temporal sequence rows remain near `0.5`; and mean group performance is highest for `sequence_full`, not direct-only or piezo-only. A matched-epoch rerun is needed before selecting a default modality.

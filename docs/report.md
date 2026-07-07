@@ -1,10 +1,14 @@
 # Analysis Report
 
-Date: 2026-07-03
+Date: 2026-07-07
+
+## Overview
+
+ELFQuake is currently a feasibility pipeline, not an earthquake prediction system. The project can collect Italy-scoped INGV seismic events, Cumiana VLF spectrogram images, and astronomy/space-weather context; it can also generate synthetic seismic-like and VLF-like signals from an avalanche simulation. The latest useful work is on shaping those synthetic signals, checking whether PyTorch models can learn from multimodal synthetic data, and preparing real VLF-aligned model inputs. Real training remains blocked because the matured prospective real rows still contain only one target class per table.
 
 ## Scope
 
-This report summarizes the first statistical comparison between real Italy-scoped seismic/VLF data and signals derived from the avalanche simulation.
+This report summarizes the current statistical comparison between real Italy-scoped seismic/VLF data and signals derived from the avalanche simulation, plus the current model-interface and PyTorch smoke results.
 
 The comparison is diagnostic only. It does not demonstrate earthquake prediction capability.
 
@@ -12,19 +16,31 @@ The comparison is diagnostic only. It does not demonstrate earthquake prediction
 
 Real seismic:
 
-* `data/derived/ingv/events_italy_2026-06-01_2026-06-29.normalized.csv`
-* 151 normalized INGV event rows
+* `data/derived/ingv/events_italy_2026-06-01_2026-07-08.combined.normalized.csv`
+* 175 normalized all-Italy INGV event rows
+* `data/derived/ingv/events_central_italy_2026-06-01_2026-07-08.combined.normalized.csv`
+* 22 normalized central-Italy INGV event rows
 
 Real VLF:
 
-* 115 Cumiana `last_E_VLF` spectrogram captures
-* capture range represented in the current data: 2026-06-29 to 2026-07-03
+* 247 Cumiana `last_E_VLF` spectrogram image-feature rows
+* `data/derived/multimodal/cumiana_last_E_VLF.image_features.csv`
+* image sequence manifest: `data/derived/models/cumiana_vlf_image_sequence/manifest.json`
 
 Synthetic:
 
-* `data/derived/sim/mountain_256x256_seed42_10000.piezo.csv`
-* `data/derived/sim/mountain_256x256_seed42_10000.avalanche_events.csv`
-* `data/derived/sim/mountain_256x256_seed42_10000.avalanche_signal.csv`
+* current model training rows: `data/derived/models/mountain_256x256_seeds40-42_20000.aligned_hourly_synthetic_windows.csv`
+* 1005 combined hourly synthetic rows from seeds `40`, `41`, and `42`
+* source simulation outputs include `*.piezo.csv`, `*.avalanche_signal.csv`, and `*.avalanche_events.csv`
+
+Real prospective model rows:
+
+* `data/derived/models/all_italy.real_vlf_aligned_windows.csv`
+* `data/derived/models/central_italy.real_vlf_aligned_windows.csv`
+* each table has 247 rows and 18 labeled rows
+* all-Italy labels are currently 18 positive / 0 negative
+* central-Italy labels are currently 0 positive / 18 negative
+* both are `insufficient_class_variation`
 
 ## Method
 
@@ -44,8 +60,27 @@ Output files:
 * `data/derived/sim/mountain_256x256_seed42_10000.signal_shape_pairs.csv`
 * `data/derived/sim/mountain_256x256_seed42_10000.piezo_vlf_comparison.csv`
 * `data/derived/sim/mountain_256x256_seed42_10000.piezo_sensor_scan.csv`
+* `data/derived/models/model_family_comparison.json`
+* `data/derived/models/sequence_modality_diagnostic.json`
 
-## Key Results
+## Current Status
+
+Real-data status:
+
+* INGV refresh is working through `2026-07-08T00:00:00Z`.
+* Cumiana VLF image capture and image-feature extraction are working.
+* Real VLF-aligned model tables are scaffolded for all-Italy and central Italy.
+* Real PyTorch training should not start yet, because each real table has only one target class.
+
+Synthetic-model status:
+
+* The current synthetic model table has 1005 rows and enough positive/negative labels for smoke modeling.
+* CPU PyTorch tabular and GRU sequence models are implemented and compared.
+* Best calibrated synthetic family row is `0.772558` balanced accuracy for `sequence_piezo_vlf_only` on held-out `seed42`.
+* Full sequence sweep best calibrated row is `0.766942` for `sequence_direct_avalanche_only`, `lookback=60`, `hidden=24`, held-out `seed42`.
+* The sequence diagnostic says not to change defaults yet: the prior best run used 20 epochs, the sweep used 10, temporal sequence rows stay near `0.5`, and mean group performance is highest for `sequence_full`.
+
+## Shape Diagnostics
 
 Real seismic vs synthetic seismic event traces:
 
@@ -179,14 +214,17 @@ Smoke outputs:
 * INGV refresh through `2026-07-08T00:00:00Z`: all-Italy prospective labels have `18` positives and `0` negatives; central Italy has `18` negatives and `0` positives, so real training still has insufficient class variation
 * full sequence sweep: `data/derived/models/sequence_sweep/sequence_sweep_comparison.json`, `24` reports; best calibrated row `0.766942`, `sequence_direct_avalanche_only`, `lookback=60`, `hidden=24`, held-out `seed42`
 * combined family comparison: `data/derived/models/model_family_comparison.json`, `37` rows; best calibrated row remains `0.772558`, `sequence_piezo_vlf_only`, held-out `seed42`
+* sequence modality diagnostic: `data/derived/models/sequence_modality_diagnostic.json`, `112` evaluation rows; best default sequence row uses `20` epochs and piezo/VLF-only, while best sweep row uses `10` epochs and direct avalanche-only
 * real model-input scaffold: `data/derived/models/all_italy.real_vlf_aligned_windows.csv` and `data/derived/models/central_italy.real_vlf_aligned_windows.csv`; both have `247` rows and `18` labeled rows but still lack class variation
+
+Sequence diagnostic interpretation: do not change the default GRU modality or lookback from this sweep alone. The strongest single row is still the 20-epoch default piezo/VLF-only seed42 holdout, while the best 10-epoch sweep row is direct avalanche-only. Across group rows, `sequence_full` has the highest mean calibrated balanced accuracy (`0.733418`), and all temporal sequence rows remain near balanced accuracy `0.5`.
 
 ## Limitations
 
 The real VLF data is image-derived, not raw waveform data.
 
-The current real seismic sample covers only June 2026 and is too short for robust statistical claims.
+The current real seismic sample covers June 1 through July 8, 2026 and is still far too short for robust statistical claims.
 
 Simulation step time is an assumed mapping. Frequency-domain comparisons are therefore shape diagnostics, not physical frequency validation.
 
-The current 10000-step direct avalanche signal input now uses `*.avalanche_signal.csv`.
+The current direct avalanche signal input uses `*.avalanche_signal.csv`; model smoke runs currently use the 20000-step seed `40`-`42` synthetic tables.

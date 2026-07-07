@@ -214,6 +214,10 @@ Compact multiple evaluation JSON reports into one summary. Use this after tempor
 
 Compare compact model-run summary JSON files and optionally write a CSV view. Use this to compare tabular, sequence, sweep, and missing-modality runs.
 
+### `diagnose-sequence-comparison`
+
+Expand sequence model reports from a family comparison into per-evaluation diagnostics with epochs, lookback, hidden size, modality, split, and calibrated metrics.
+
 ### `compare-model-runs.sh`
 
 Compare the current synthetic tabular and sequence PyTorch summaries. This is the quickest view of whether sequence inputs are adding value over tabular aggregates.
@@ -225,6 +229,10 @@ Run a small sequence GRU lookback/model-size sweep over the current synthetic al
 ### `test-sequence-missing-modalities.sh`
 
 Run sequence group-holdout checks with VLF/piezo-only and no-piezo inputs. Use this to exercise missing-modality behavior and ablation resilience.
+
+### `diagnose-sequence-models.sh`
+
+Run the default sequence diagnostic over `data/derived/models/model_family_comparison.json`. Use this before changing sequence defaults, because it makes epoch and modality differences explicit.
 
 ### `list-model-candidates`
 

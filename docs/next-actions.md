@@ -10,7 +10,7 @@
 6. Review the tabular-vs-sequence comparison and bounded sequence sweep outputs before changing the default GRU lookback.
 7. Use missing-modality reports to decide whether VLF/piezo, direct avalanche, or combined sequence inputs deserve the next model pass.
 8. Wait for real prospective rows to include both positive and negative labels before attempting real PyTorch training.
-9. Inspect why the full sequence sweep favors direct avalanche-only while the prior default sequence report favored piezo/VLF-only before changing model defaults.
+9. Run a matched-epoch sequence comparison before changing the default sequence modality or lookback.
 
 ## General
 
@@ -105,3 +105,4 @@
 * Add nested comparison support so sweep comparison rows can be included in family-level comparisons.
 * Generate `data/derived/models/model_family_comparison.json`; best calibrated row remains `0.772558` for sequence piezo/VLF-only on held-out `seed42`.
 * Add and run `prepare-real-model-inputs.sh`; real aligned VLF tables are scaffolded, but both still have insufficient class variation.
+* Add and run sequence modality diagnostics over `112` evaluation rows; the direct-only sweep result is not a sufficient reason to change defaults because epoch counts differ and temporal rows remain near `0.5`.

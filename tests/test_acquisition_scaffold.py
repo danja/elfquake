@@ -58,6 +58,7 @@ from elfquake.models.logistic_smoke import train_logistic_smoke
 from elfquake.models.readiness import summarize_model_readiness
 from elfquake.models.report_summary import summarize_model_run_reports
 from elfquake.models.sequence_materializer import materialize_sequence_dataset
+from elfquake.models.sequence_comparison import diagnose_sequence_comparison
 from elfquake.models.split_diagnostics import diagnose_temporal_split
 from elfquake.models.tensor_materializer import materialize_tensor_dataset
 from elfquake.models.tensor_spec import build_tensor_spec
@@ -231,6 +232,55 @@ class AcquisitionScaffoldTests(unittest.TestCase):
 
             self.assertEqual(nested["report_count"], 2)
             self.assertEqual(nested["best_calibrated_balanced_accuracy"]["test_group"], "seed42")
+
+    def test_sequence_comparison_diagnostic_reads_full_reports(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            default_report = root / "default_sequence_group_seed42.json"
+            sweep_dir = root / "sequence_sweep" / "lookback_60_hidden_24"
+            sweep_dir.mkdir(parents=True)
+            sweep_report = sweep_dir / "torch_sequence_group_seed42.json"
+            _write_sequence_report(default_report, epochs=20, best_name="sequence_piezo_vlf_only", best_score=0.77)
+            _write_sequence_report(sweep_report, epochs=10, best_name="sequence_direct_avalanche_only", best_score=0.76)
+            comparison = root / "comparison.json"
+            comparison.write_text(
+                json.dumps(
+                    {
+                        "schema": "elfquake.model_summary_comparison.v1",
+                        "rows": [
+                            {
+                                "summary_path": "default.json",
+                                "report_path": str(default_report),
+                                "schema": "elfquake.torch_sequence_group_holdout.v1",
+                                "status": "evaluated",
+                                "split_type": "group",
+                                "test_group": "seed42",
+                            },
+                            {
+                                "summary_path": "sequence_sweep/summary.json",
+                                "report_path": str(sweep_report),
+                                "schema": "elfquake.torch_sequence_group_holdout.v1",
+                                "status": "evaluated",
+                                "split_type": "group",
+                                "test_group": "seed42",
+                            },
+                        ],
+                    }
+                ),
+                encoding="utf-8",
+            )
+
+            report = diagnose_sequence_comparison(
+                comparison_path=comparison,
+                out_path=root / "diagnostic.json",
+                csv_out_path=root / "diagnostic.csv",
+            )
+
+            self.assertEqual(report["evaluation_row_count"], 4)
+            self.assertEqual(report["best_overall"]["evaluation_name"], "sequence_piezo_vlf_only")
+            self.assertIn("default_sequence", report["best_by_source"])
+            self.assertTrue(any("matched epochs" in note for note in report["notes"]))
+            self.assertTrue((root / "diagnostic.csv").exists())
 
     def test_astronomy_url_materializes_moon_placeholders(self) -> None:
         url = _materialize_url(
@@ -3199,6 +3249,48 @@ class AcquisitionScaffoldTests(unittest.TestCase):
             self.assertEqual(report["summary_row_count"], 3)
             self.assertEqual(report["sensor_row_count"], 6)
             self.assertTrue((root / "benchmark.json").exists())
+
+
+def _write_sequence_report(path: Path, *, epochs: int, best_name: str, best_score: float) -> None:
+    other_name = "sequence_direct_avalanche_only"
+    if best_name == other_name:
+        other_name = "sequence_piezo_vlf_only"
+    path.write_text(
+        json.dumps(
+            {
+                "schema": "elfquake.torch_sequence_group_holdout.v1",
+                "epochs": epochs,
+                "lookback_steps": 60,
+                "hidden_units": 24,
+                "learning_rate": 0.001,
+                "evaluations": {
+                    best_name: {
+                        "status": "evaluated",
+                        "feature_count": 3,
+                        "train_row_count": 8,
+                        "test_row_count": 2,
+                        "dropped_train_row_count": 0,
+                        "dropped_test_row_count": 0,
+                        "test_metrics": {"balanced_accuracy": best_score - 0.01},
+                        "calibrated_test_metrics": {"balanced_accuracy": best_score},
+                        "calibrated_threshold": 0.5,
+                    },
+                    other_name: {
+                        "status": "evaluated",
+                        "feature_count": 3,
+                        "train_row_count": 8,
+                        "test_row_count": 2,
+                        "dropped_train_row_count": 0,
+                        "dropped_test_row_count": 0,
+                        "test_metrics": {"balanced_accuracy": 0.5},
+                        "calibrated_test_metrics": {"balanced_accuracy": 0.5},
+                        "calibrated_threshold": 0.5,
+                    },
+                },
+            }
+        ),
+        encoding="utf-8",
+    )
 
 
 def _fake_jpeg_capture(url: str) -> HttpCapture:
