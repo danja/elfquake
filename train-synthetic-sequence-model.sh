@@ -5,6 +5,7 @@ PYTHON_BIN="${PYTHON_BIN:-.venv/bin/python}"
 INPUT="${INPUT:-data/derived/models/mountain_256x256_seeds40-42_20000.aligned_hourly_synthetic_windows.csv}"
 OUT="${OUT:-data/derived/models/mountain_256x256_seeds40-42_20000.aligned_hourly_synthetic_windows.torch_sequence.json}"
 SUMMARY="${SUMMARY:-data/derived/models/mountain_256x256_seeds40-42_20000.sequence_model_run_summary.json}"
+GROUP_PREFIX="${GROUP_PREFIX:-data/derived/models/mountain_256x256_seeds40-42_20000.aligned_hourly_synthetic_windows.torch_sequence_group}"
 
 manifest_args=()
 for seed in 40 41 42; do
@@ -29,16 +30,17 @@ PYTHONDONTWRITEBYTECODE=1 PYTHONPATH=src "$PYTHON_BIN" -m elfquake.cli train-tor
   --out "$OUT" \
   --train-fraction 0.8
 
+group_reports=()
 for TEST_GROUP in seed40 seed41 seed42; do
+  GROUP_OUT="${GROUP_PREFIX}_${TEST_GROUP}.json"
   PYTHONDONTWRITEBYTECODE=1 PYTHONPATH=src "$PYTHON_BIN" -m elfquake.cli train-torch-sequence-group-holdout \
     "${common_args[@]}" \
-    --out "data/derived/models/mountain_256x256_seeds40-42_20000.aligned_hourly_synthetic_windows.torch_sequence_group_${TEST_GROUP}.json" \
+    --out "$GROUP_OUT" \
     --test-group "$TEST_GROUP"
+  group_reports+=(--report "$GROUP_OUT")
 done
 
 PYTHONDONTWRITEBYTECODE=1 PYTHONPATH=src "$PYTHON_BIN" -m elfquake.cli summarize-model-run-reports \
   --report "$OUT" \
-  --report data/derived/models/mountain_256x256_seeds40-42_20000.aligned_hourly_synthetic_windows.torch_sequence_group_seed40.json \
-  --report data/derived/models/mountain_256x256_seeds40-42_20000.aligned_hourly_synthetic_windows.torch_sequence_group_seed41.json \
-  --report data/derived/models/mountain_256x256_seeds40-42_20000.aligned_hourly_synthetic_windows.torch_sequence_group_seed42.json \
+  "${group_reports[@]}" \
   --out "$SUMMARY"

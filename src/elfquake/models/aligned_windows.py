@@ -195,7 +195,11 @@ def _target_fields(
     threshold: float,
 ) -> dict[str, str]:
     if not source_feature:
-        return {}
+        return {
+            field: base_rows[row_index].get(field, "")
+            for field in TARGET_FIELDS
+            if field in base_rows[row_index]
+        }
     target_index = row_index + horizon_rows
     if target_index >= len(base_rows):
         return {

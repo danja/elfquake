@@ -51,6 +51,7 @@ from elfquake.models.ablation_smoke import train_ablation_smoke
 from elfquake.models.aligned_windows import build_aligned_window_dataset
 from elfquake.models.alignment_manifest import build_alignment_manifest
 from elfquake.models.candidates import list_model_candidates, write_model_candidates
+from elfquake.models.comparison import compare_model_run_summaries
 from elfquake.models.dataset_combine import combine_aligned_datasets
 from elfquake.models.interface_shape import audit_model_interfaces
 from elfquake.models.logistic_smoke import train_logistic_smoke
@@ -151,6 +152,85 @@ class AcquisitionScaffoldTests(unittest.TestCase):
         self.assertEqual(query["orderby"], ["time-asc"])
         self.assertEqual(query["starttime"], ["2026-06-22T00:00:00"])
         self.assertEqual(query["endtime"], ["2026-06-29T23:59:59"])
+
+    def test_model_summary_comparison_extracts_best_rows(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            summary = root / "summary.json"
+            summary.write_text(
+                json.dumps(
+                    {
+                        "schema": "elfquake.model_run_summary.v1",
+                        "report_count": 2,
+                        "reports": [
+                            {
+                                "path": "temporal.json",
+                                "schema": "elfquake.torch_tabular_holdout.v1",
+                                "status": "evaluated",
+                                "split": {"type": "temporal", "backend": "torch", "device": "cpu"},
+                                "train_row_count": 8,
+                                "test_row_count": 2,
+                                "train_positive_count": 4,
+                                "test_positive_count": 1,
+                                "best_default_balanced_accuracy": {
+                                    "name": "seismic_only",
+                                    "test_balanced_accuracy": 0.5,
+                                },
+                                "best_calibrated_balanced_accuracy": {
+                                    "name": "seismic_only",
+                                    "calibrated_test_balanced_accuracy": 0.5,
+                                },
+                            },
+                            {
+                                "path": "group.json",
+                                "schema": "elfquake.torch_tabular_group_holdout.v1",
+                                "status": "evaluated",
+                                "split": {
+                                    "type": "group",
+                                    "backend": "torch",
+                                    "device": "cpu",
+                                    "test_group": "seed42",
+                                },
+                                "train_row_count": 10,
+                                "test_row_count": 5,
+                                "train_positive_count": 5,
+                                "test_positive_count": 2,
+                                "best_default_balanced_accuracy": {
+                                    "name": "synthetic_seismic_piezo_vlf",
+                                    "test_balanced_accuracy": 0.6,
+                                },
+                                "best_calibrated_balanced_accuracy": {
+                                    "name": "synthetic_seismic_piezo_vlf",
+                                    "calibrated_test_balanced_accuracy": 0.75,
+                                },
+                            },
+                        ],
+                    }
+                ),
+                encoding="utf-8",
+            )
+
+            report = compare_model_run_summaries(
+                summary_paths=[summary],
+                out_path=root / "comparison.json",
+                csv_out_path=root / "comparison.csv",
+            )
+
+            self.assertEqual(report["report_count"], 2)
+            self.assertEqual(
+                report["best_calibrated_balanced_accuracy"]["model_name"],
+                "synthetic_seismic_piezo_vlf",
+            )
+            self.assertEqual(report["best_calibrated_balanced_accuracy"]["test_group"], "seed42")
+            self.assertTrue((root / "comparison.csv").exists())
+
+            nested = compare_model_run_summaries(
+                summary_paths=[root / "comparison.json"],
+                out_path=root / "nested.json",
+            )
+
+            self.assertEqual(nested["report_count"], 2)
+            self.assertEqual(nested["best_calibrated_balanced_accuracy"]["test_group"], "seed42")
 
     def test_astronomy_url_materializes_moon_placeholders(self) -> None:
         url = _materialize_url(
@@ -2086,9 +2166,9 @@ class AcquisitionScaffoldTests(unittest.TestCase):
             base_dir = root / "base"
             base_dir.mkdir()
             (base_dir / "index.csv").write_text(
-                "row_index,window_id,region_id,window_start_utc,window_end_utc\n"
-                "0,w0,r,2026-01-01T00:00:00Z,2026-01-01T01:00:00Z\n"
-                "1,w1,r,2026-01-01T01:00:00Z,2026-01-01T02:00:00Z\n",
+                "row_index,window_id,region_id,window_start_utc,window_end_utc,target_event_count,target_occurred,target_status\n"
+                "0,w0,r,2026-01-01T00:00:00Z,2026-01-01T01:00:00Z,7,1,labeled\n"
+                "1,w1,r,2026-01-01T01:00:00Z,2026-01-01T02:00:00Z,0,0,labeled\n",
                 encoding="utf-8",
             )
             (base_dir / "values.csv").write_text(
@@ -2180,6 +2260,18 @@ class AcquisitionScaffoldTests(unittest.TestCase):
             self.assertEqual(rows[1]["quality_missing_vlf_image"], "1")
             self.assertEqual(rows[0]["target_occurred"], "1")
             self.assertEqual(rows[1]["target_status"], "unlabeled_no_future_window")
+
+            preserved_rows = build_aligned_window_dataset(
+                base_manifest_path=base_manifest,
+                sequence_manifest_paths=[sequence_manifest],
+                tensor_manifest_paths=[timed_manifest],
+                out_path=root / "aligned_preserved.csv",
+            )
+
+            self.assertEqual(preserved_rows[0]["target_event_count"], "7")
+            self.assertEqual(preserved_rows[0]["target_occurred"], "1")
+            self.assertEqual(preserved_rows[1]["target_occurred"], "0")
+            self.assertEqual(preserved_rows[1]["target_status"], "labeled")
 
     def test_combine_aligned_datasets_adds_dataset_id(self) -> None:
         with tempfile.TemporaryDirectory() as directory:

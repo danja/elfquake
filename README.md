@@ -11,7 +11,7 @@ We wish to exploit more modern machine learning/AI techniques to create a predic
 
 ## Status
 
-Data acquisition, feature extraction, prospective rows, smoke models, a CPU PyTorch synthetic tabular baseline, CPU-only sandpile simulation, and first synthetic VLF comparison tooling are implemented; **no earthquake prediction capability is claimed**.
+Data acquisition, feature extraction, prospective rows, smoke models, CPU PyTorch tabular and sequence baselines, CPU-only sandpile simulation, and first synthetic VLF comparison tooling are implemented; **no earthquake prediction capability is claimed**.
 
 Right now, while awaiting further data from INGV, the focus is on the simulation. (The first prospective VLF rows become labelable after `2026-07-06T09:57:24Z`). Evaluation of the current model can be found in [report.md](docs/report.md).
 
@@ -36,6 +36,9 @@ This work was initially prompted by the tragedy of the [2009 L'Aquila earthquake
 * Prospective VLF-anchored feature rows with pending target labels.
 * Dependency-light logistic checks and a CPU PyTorch tabular MLP for synthetic aligned rows.
 * A first CPU PyTorch GRU sequence model over synthetic avalanche and piezo/VLF sensor tensors.
+* Summary comparison, sequence sweep, and missing-modality scripts for model diagnostics.
+* Real Cumiana VLF image features materialized into the same sequence shape as synthetic piezo/VLF inputs.
+* Real prospective aligned model inputs scaffolded for all-Italy and central-Italy rows; real training remains blocked by insufficient class variation.
 * VLF model feature roles that allow synthetic piezo/VLF analogue data to exercise the same PyTorch VLF path before real labels mature.
 * Sandpile simulation with separate seismic-like avalanche outputs and piezo/VLF analogue outputs.
 

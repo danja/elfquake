@@ -22,6 +22,10 @@ Fetch the configured Cumiana live image endpoints once. This is the primary usab
 
 Run repeated Cumiana image captures at a configured interval. Use this under service supervision for prospective data collection.
 
+### `refresh-prospective-labels.sh`
+
+Fetch the latest INGV Italy events for the configured date window, normalize/combine them, relabel matured prospective VLF image rows, and refresh prospective summary/readiness reports.
+
 ### `record-vlf-abelian-cumiana`
 
 Try to record a bounded Abelian Cumiana `vlf15` live Ogg audio chunk. The command rejects empty audio bodies, so it is still a validation path rather than a trusted source.
@@ -206,6 +210,22 @@ Evaluate a model by holding out one group, usually a synthetic seed or dataset I
 
 Compact multiple evaluation JSON reports into one summary. Use this after temporal and group-holdout evaluations.
 
+### `compare-model-run-summaries`
+
+Compare compact model-run summary JSON files and optionally write a CSV view. Use this to compare tabular, sequence, sweep, and missing-modality runs.
+
+### `compare-model-runs.sh`
+
+Compare the current synthetic tabular and sequence PyTorch summaries. This is the quickest view of whether sequence inputs are adding value over tabular aggregates.
+
+### `sweep-synthetic-sequence-model.sh`
+
+Run a small sequence GRU lookback/model-size sweep over the current synthetic aligned dataset. Keep defaults small, then expand `LOOKBACKS`, `HIDDEN_UNITS_LIST`, and `EPOCHS` only when the smoke run is stable.
+
+### `test-sequence-missing-modalities.sh`
+
+Run sequence group-holdout checks with VLF/piezo-only and no-piezo inputs. Use this to exercise missing-modality behavior and ablation resilience.
+
 ### `list-model-candidates`
 
 Write the current model-candidate registry to JSON, optionally filtered by stage. Use this to track baseline, Transformer, and research candidates.
@@ -227,6 +247,14 @@ Materialize a tensor spec into values, masks, index CSVs, and a manifest. Use th
 ### `materialize-sequence-dataset`
 
 Materialize sensor or simulation time-series CSVs into time/entity/channel values and masks. Use this for VLF-like or synthetic sequence inputs.
+
+### `materialize-real-vlf-sequence.sh`
+
+Materialize the current Cumiana image-feature table into the same sequence-manifest shape used by synthetic sequence models. This prepares real VLF data for later aligned multimodal training.
+
+### `prepare-real-model-inputs.sh`
+
+Build real prospective tensor specs, tensor manifests, alignment manifests, aligned window CSVs, and readiness reports for the current all-Italy and central-Italy VLF image tables. This is scaffold-only until each table has both target classes.
 
 ### `build-alignment-manifest`
 

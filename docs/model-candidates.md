@@ -136,6 +136,7 @@ Current scaffold:
 * `elfquake.models.sequence_materializer` - materializes `time x entity x channel` sequence tables with present masks.
 * `elfquake.models.tensor_spec` - CSV-to-tensor metadata spec with modality groups and generated present-mask channel names.
 * `elfquake.models.tensor_materializer` - backend-neutral values, mask, and index CSV materialization from a tensor spec.
+* `elfquake.models.comparison` - compares compact tabular, sequence, sweep, and missing-modality model summaries.
 * `list-model-candidates` - writes the candidate registry JSON.
 * `build-alignment-manifest` - writes a model-run manifest across tensor and sequence datasets.
 * `build-aligned-window-dataset` - writes aligned regular-window model rows for synthetic or real inputs.
@@ -143,11 +144,15 @@ Current scaffold:
 * `train-torch-tabular-holdout` - trains a CPU PyTorch MLP on earlier labeled rows and evaluates on later labeled rows.
 * `evaluate-group-holdout` - trains on all labeled groups except one held-out group, currently useful for leave-one-seed-out synthetic checks.
 * `summarize-model-run-reports` - writes a compact comparison across chronological and group-holdout reports.
+* `compare-model-run-summaries` - compares one or more compact summary files and can emit JSON plus CSV.
 * `audit-model-interfaces` - classifies event lists, image feature tables, sensor series, and summary series.
 * `build-event-window-features` - writes regular event-window features from INGV-like event lists.
 * `materialize-sequence-dataset` - writes sequence `values.csv`, `masks.csv`, axis files, and a manifest.
 * `build-tensor-spec` - writes a tensor-spec JSON for a feature table.
 * `materialize-tensor-dataset` - writes `values.csv`, `masks.csv`, `index.csv`, and `manifest.json`.
+* `materialize-real-vlf-sequence.sh` - materializes current Cumiana VLF image features as a sequence manifest.
+* `sweep-synthetic-sequence-model.sh` - runs a bounded sequence GRU hyperparameter sweep.
+* `test-sequence-missing-modalities.sh` - exercises sequence training with VLF-only and no-VLF/piezo inputs.
 
 Initial artifacts:
 
@@ -188,3 +193,18 @@ Current CPU PyTorch result on `data/derived/models/mountain_256x256_seeds40-42_2
 Current CPU PyTorch leave-one-seed-out results on the same table: best calibrated balanced accuracy `0.753501` for held-out seed `40`, `0.752810` for seed `41`, and `0.768286` for seed `42`. These results are more useful than the chronological split for checking synthetic transfer, but they remain synthetic-only.
 
 First CPU PyTorch sequence GRU results use materialized `synthetic_direct_avalanche`, `synthetic_piezo_vlf`, and `synthetic_summary` sequences with a `60` step lookback. Chronological balanced accuracy is flat at `0.500000`, matching the weak chronological regime split. Leave-one-seed-out calibrated balanced accuracy is `0.712754` for seed `40` with `sequence_full`, `0.746127` for seed `41` with `sequence_piezo_vlf_only`, and `0.772558` for seed `42` with `sequence_piezo_vlf_only`.
+
+Current next model checks are comparison-driven: compare tabular vs sequence reports, run a small sequence lookback sweep, test missing-modality behavior, and keep the real VLF sequence manifest in the same shape as the synthetic piezo/VLF path.
+
+Latest smoke artifacts:
+
+* `data/derived/models/mountain_256x256_seeds40-42_20000.tabular_vs_sequence_model_comparison.json`
+* `data/derived/models/sequence_sweep_smoke/sequence_sweep_comparison.json`
+* `data/derived/models/sequence_sweep/sequence_sweep_comparison.json`
+* `data/derived/models/model_family_comparison.json`
+* `data/derived/models/missing_modality/missing_modality_seed42_summary.json`
+* `data/derived/models/cumiana_vlf_image_sequence/manifest.json`
+* `data/derived/models/all_italy.real_vlf_alignment_manifest.json`
+* `data/derived/models/central_italy.real_vlf_alignment_manifest.json`
+
+Full sequence sweep result: the best calibrated sweep row is `0.766942` for `sequence_direct_avalanche_only` with `lookback=60`, `hidden=24`, held-out `seed42`. The overall family comparison still prefers the earlier default sequence report at `0.772558` for `sequence_piezo_vlf_only` on held-out `seed42`. This is synthetic-only evidence and should not be interpreted as real predictive skill.
