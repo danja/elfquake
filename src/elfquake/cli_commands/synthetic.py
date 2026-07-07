@@ -61,6 +61,7 @@ def register_synthetic_commands(subparsers: _SubParsersAction) -> None:
     avalanche_tuning.add_argument("--grid-height", type=int, required=True)
     avalanche_tuning.add_argument("--quantile", type=float, action="append")
     avalanche_tuning.add_argument("--local-max-window", type=int, action="append")
+    avalanche_tuning.add_argument("--max-events", type=int, action="append")
     avalanche_tuning.add_argument("--start-time-utc", default="2026-01-01T00:00:00Z")
     avalanche_tuning.add_argument("--step-seconds", type=int, default=60)
     avalanche_tuning.add_argument("--event-bin-seconds", type=int, default=3600)
@@ -129,6 +130,7 @@ def _tune_avalanche_event_extraction(args: Namespace) -> int:
         grid_height=args.grid_height,
         quantiles=args.quantile,
         local_max_windows=args.local_max_window,
+        max_events_values=args.max_events,
         start_time_utc=args.start_time_utc,
         step_seconds=args.step_seconds,
         event_bin_seconds=args.event_bin_seconds,
@@ -139,6 +141,8 @@ def _tune_avalanche_event_extraction(args: Namespace) -> int:
             "best: "
             f"q={rows[0]['min_signal_quantile']} "
             f"window={rows[0]['local_max_window']} "
+            f"max_events={rows[0]['max_events']} "
+            f"shape_score={rows[0]['shape_score']} "
             f"distance={rows[0]['normalized_distance']}"
         )
     print(f"output: {args.out}")

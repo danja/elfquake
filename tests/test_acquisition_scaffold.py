@@ -2991,14 +2991,16 @@ class AcquisitionScaffoldTests(unittest.TestCase):
                 grid_height=8,
                 quantiles=[0.0, 0.5],
                 local_max_windows=[0, 1],
+                max_events_values=[0, 1],
                 event_bin_seconds=3600,
             )
 
-            self.assertEqual(len(rows), 4)
+            self.assertEqual(len(rows), 8)
             self.assertEqual(rows[0]["rank"], "1")
             self.assertTrue((root / "tuning.csv").exists())
             self.assertTrue(Path(rows[0]["events_file"]).exists())
             self.assertIn("normalized_distance", rows[0])
+            self.assertIn("max_events", rows[0])
 
     def test_render_piezo_spectrogram_writes_png_and_metadata(self) -> None:
         from elfquake.sim.piezo_spectrogram import render_piezo_spectrogram

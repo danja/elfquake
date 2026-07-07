@@ -366,7 +366,11 @@ Convert direct avalanche-signal outputs into an INGV-like synthetic event list. 
 
 ### `tune-avalanche-event-extraction`
 
-Search avalanche-event extraction thresholds and local-max windows against a real event-series reference. Use this before locking synthetic event defaults.
+Search avalanche-event extraction thresholds, local-max windows, and optional max-event caps against a real event-series reference. Use this before locking synthetic event defaults.
+
+### `tune-avalanche-events.sh`
+
+Run the current refined central-Italy avalanche-event tuning grid against the extended historical INGV catalog. Use this to reproduce the sparse direct-seismic profile check.
 
 ## 12. Render And Compare Synthetic VLF Signals
 

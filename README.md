@@ -11,7 +11,7 @@ We wish to exploit more modern machine learning/AI techniques to create a predic
 
 ## Status
 
-Status: historical seismic-only baselines, synthetic CPU PyTorch GRU and tiny patch Transformer diagnostics, and regime-balanced synthetic split checks are runnable, but real VLF-aligned training is still blocked by one-class labels; **no earthquake prediction capability is claimed**.
+Status: extended 2024-2026 seismic-only baselines, synthetic CPU PyTorch GRU and tiny patch Transformer diagnostics, and regime-balanced synthetic split checks are runnable, but real VLF-aligned training is still blocked by one-class labels; **no earthquake prediction capability is claimed**.
 
 Right now, while awaiting further VLF-aligned labels, the focus is on real seismic baselines, synthetic regime diagnostics, and keeping the multimodal model interface stable. Evaluation of the current model can be found in [report.md](docs/report.md), [model-comparison.md](docs/model-comparison.md), and [model-scaling-requirements.md](docs/model-scaling-requirements.md).
 
@@ -30,7 +30,7 @@ This work was initially prompted by the tragedy of the [2009 L'Aquila earthquake
 
 ## Current Work
 
-* INGV seismic event acquisition, normalization, and Italy/Central Italy training windows.
+* INGV seismic event acquisition, normalization, and Italy/Central Italy training windows, currently backfilled from 2024-01-01 through 2026-07-07.
 * Cumiana VLF live spectrogram capture through systemd, with pixel-derived image features.
 * Astronomical and space-weather archive connectors and normalization.
 * Prospective VLF-anchored feature rows with pending target labels.

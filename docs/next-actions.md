@@ -3,7 +3,7 @@
 ## Simulation
 
 1. Keep accumulating Cumiana VLF captures before real multimodal model training claims.
-2. Compare longer synthetic runs against real seismic/VLF shape metrics before treating the generator as stable.
+2. Evaluate downstream target balance and model artifacts using the refined sparse avalanche profile before promoting it as the default.
 3. Reduce synthetic regime drift before expanding sequence model runs; regime-balanced evaluation helps debugging but is not a forecasting-style validation.
 4. Add a small grouped-sensor piezo scan only if single-receiver traces prove too local after multi-seed validation.
 5. Compare the tiny patch Transformer against the balanced GRU over additional synthetic seeds before increasing model size.
@@ -21,7 +21,7 @@
 4. Continue periodic INGV refresh and prospective labeling as more target windows mature; train only after both classes exist in one table.
 5. Add chunked sandpile snapshot storage only if larger pretraining runs outgrow `.npy` sanity snapshots.
 6. Add slope/erosion smoothing to mountain-mode synthetic terrain if ridgeline-like visuals are needed.
-7. Extend historical INGV backfill earlier than 2026 only if baseline windows need more class balance.
+7. Extend historical INGV backfill earlier than 2024 only if baseline windows need more class balance or longer seasonal coverage.
 8. Validate Abelian Cumiana with a reproducible nonempty live Ogg, archive WAV, or archive VT pull; recent archive probes still returned zero usable bytes.
 9. Add full rupture-mask outputs if synthetic event maps need spatial extent rather than centroid locations.
 10. Generate a longer synthetic aligned dataset to reduce time-split distribution drift.
@@ -37,6 +37,9 @@
 ## Completed
 
 * Add `estimate-model-scale` and `estimate-model-scale.sh` to capture larger-model gates, sequence sizes, and CPU-only model guidance.
+* Add `max_events` to avalanche event-extraction tuning, add a stable sparse-event `shape_score`, and identify refined central-Italy sparse profiles.
+* Extend INGV historical backfill from `2024-01-01` through `2026-07-07`, producing 4836 all-Italy events, 594 central-Italy events, and 130 weekly labeled windows per scope.
+* Rebuild seismic-only temporal baselines and real-vs-synthetic signal-shape diagnostics from the extended INGV history.
 * Add `docs/model-scaling-requirements.md`; current real VLF rows are blocked, while the full synthetic 20000-step table can support only a tiny synthetic-only larger-model check.
 * Add and run a tiny CPU patch Transformer split-holdout path; best regime-balanced calibrated row is `0.637500` for `sequence_piezo_vlf_only`, below the balanced GRU `sequence_full` score.
 * Add deterministic regime-balanced split assignment and explicit split sequence evaluation.

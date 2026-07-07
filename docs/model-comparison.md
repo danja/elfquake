@@ -14,7 +14,7 @@ Purpose: compact comparison of the current real seismic smoke baseline and synth
 
 | run | split | test rows | test positives | best model | calibrated balanced accuracy |
 | --- | --- | ---: | ---: | --- | ---: |
-| central-Italy historical seismic-only | temporal | 5 | 1 | `all_features` | 0.500000 |
+| central-Italy historical seismic-only | temporal | 26 | 6 | `all_features` | 0.441667 |
 | synthetic sequence default | temporal | 201 | 128 | `sequence_direct_avalanche_only` | 0.500000 |
 | synthetic sequence seed holdout | seed42 | 335 | 125 | `sequence_piezo_vlf_only` | 0.772558 |
 | post-burn-in `sequence_full` | temporal | 161 | 104 | `sequence_full` | 0.509804 |
@@ -24,7 +24,7 @@ Purpose: compact comparison of the current real seismic smoke baseline and synth
 
 ## Interpretation
 
-The real central-Italy seismic-only baseline is now runnable but tiny, with only 25 windows and 5 test rows. The synthetic seed-holdout results remain stronger than temporal or regime holdouts, so they should be treated as synthetic-transfer diagnostics rather than evidence of real predictive skill.
+The real central-Italy seismic-only baseline now uses the extended 2024-2026 backfill and has 130 weekly windows, with 104 train rows and 26 test rows. It is still a smoke baseline: the calibrated central-Italy score is below the majority-class balanced baseline, while all-Italy remains heavily positive-skewed. The synthetic seed-holdout results remain stronger than temporal or regime holdouts, so they should be treated as synthetic-transfer diagnostics rather than evidence of real predictive skill.
 
 The post-burn-in `sequence_full` failure appears dominated by regime shift: the temporal train positive rate is `0.398134`, while the test positive rate is `0.645963`. Top drift features include synthetic row/regime index and terrain height summaries, which means the split is still partly measuring simulation evolution rather than stable signal learning.
 

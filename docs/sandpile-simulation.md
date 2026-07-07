@@ -231,7 +231,7 @@ PYTHONPATH=src python -m elfquake.cli tune-avalanche-event-extraction \
   --out data/derived/sim/mountain_256x256_seed42_10000.avalanche_event_tuning.csv
 ```
 
-The full-size seed `40`-`42` tuning pass and longer `20000` step runs favour quantile `0.99`. Window `30` is the most stable current default across the longer multi-seed check.
+The first full-size seed `40`-`42` tuning pass and longer `20000` step runs favour quantile `0.99`; window `30` is the most stable model-training default from that pass. Refined sparse tuning against the extended central-Italy catalog adds `--max-events` and a stable `shape_score`; the current sparse profile for `20000` step runs is quantile `0.999`, window `240`, max events `5`.
 
 By default, direct avalanche events use `--spatial-profile italy_apennines`. This keeps raw avalanche `x,y` coordinates in the CSV, but scales the selected event distribution onto an Apennine-style Italy belt for demo latitude/longitude fields. Use `--spatial-profile central_italy --no-fit-spatial-extent` for the older rectangular Central Italy projection.
 

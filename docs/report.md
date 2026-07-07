@@ -4,7 +4,7 @@ Date: 2026-07-07
 
 ## Overview
 
-ELFQuake is currently a feasibility pipeline, not an earthquake prediction system. The project can collect Italy-scoped INGV seismic events, Cumiana VLF spectrogram images, and astronomy/space-weather context; it can also generate synthetic seismic-like and VLF-like signals from an avalanche simulation. Historical seismic-only backfill now gives a small real baseline target set, while real VLF-aligned model training remains blocked because the matured prospective VLF rows still contain only one target class per table.
+ELFQuake is currently a feasibility pipeline, not an earthquake prediction system. The project can collect Italy-scoped INGV seismic events, Cumiana VLF spectrogram images, and astronomy/space-weather context; it can also generate synthetic seismic-like and VLF-like signals from an avalanche simulation. Historical seismic-only backfill now covers 2024-2026 and gives usable smoke baselines, while real VLF-aligned model training remains blocked because the matured prospective VLF rows still contain only one target class per table.
 
 ## Scope
 
@@ -21,9 +21,9 @@ Real seismic:
 * `data/derived/ingv/events_central_italy_2026-06-01_2026-07-08.combined.normalized.csv`
 * 22 normalized central-Italy INGV event rows
 * `data/derived/ingv/events_italy_all_available.combined.normalized.csv`
-* 1034 normalized all-Italy rows after 2026 historical backfill
+* 4836 normalized all-Italy rows, from `2024-01-01T21:38:30.320000Z` to `2026-07-07T08:51:55.110000Z`
 * `data/derived/ingv/events_central_italy_all_available.combined.normalized.csv`
-* 141 normalized central-Italy rows after 2026 historical backfill
+* 594 normalized central-Italy rows, from `2024-01-03T07:43:40.720000Z` to `2026-07-07T08:51:55.110000Z`
 
 Real VLF:
 
@@ -62,6 +62,10 @@ Output files:
 
 * `data/derived/sim/mountain_256x256_seed42_10000.signal_shape_series.csv`
 * `data/derived/sim/mountain_256x256_seed42_10000.signal_shape_pairs.csv`
+* `data/derived/sim/mountain_256x256_seed42_10000.central_italy_signal_shape_series.csv`
+* `data/derived/sim/mountain_256x256_seed42_10000.central_italy_signal_shape_pairs.csv`
+* `data/derived/sim/mountain_256x256_seed42_10000.all_italy_signal_shape_series.csv`
+* `data/derived/sim/mountain_256x256_seed42_10000.all_italy_signal_shape_pairs.csv`
 * `data/derived/sim/mountain_256x256_seed42_10000.piezo_vlf_comparison.csv`
 * `data/derived/sim/mountain_256x256_seed42_10000.piezo_sensor_scan.csv`
 * `data/derived/models/model_family_comparison.json`
@@ -79,13 +83,14 @@ Output files:
 
 Real-data status:
 
-* INGV refresh is working through `2026-07-08T00:00:00Z`.
+* INGV refresh and historical backfill are working through `2026-07-07T00:00:00Z`.
 * Cumiana VLF image capture and image-feature extraction are working.
 * Real VLF-aligned model tables are scaffolded for all-Italy and central Italy.
 * Real PyTorch training should not start yet, because each real table has only one target class.
-* Historical seismic-only backfill for `2026-01-01` to `2026-07-08` produced 25 training windows per scope.
-* Backfilled all-Italy seismic windows are ready but heavily positive-skewed: 23 positive / 2 negative.
-* Backfilled central-Italy seismic windows are ready with 4 positive / 21 negative, making them the better current real seismic smoke baseline.
+* Historical seismic-only backfill for `2024-01-01` to `2026-07-07` produced 130 weekly training windows per scope.
+* Backfilled all-Italy seismic windows are ready but heavily positive-skewed: train 95 positive / 9 negative, test 25 positive / 1 negative.
+* Backfilled central-Italy seismic windows are more balanced: train 13 positive / 91 negative, test 6 positive / 20 negative.
+* Current seismic-only temporal smoke scores are weak: all-Italy calibrated balanced accuracy `0.740000` on a one-negative test set; central Italy calibrated balanced accuracy `0.441667`.
 
 Synthetic-model status:
 
@@ -103,11 +108,12 @@ Synthetic-model status:
 
 Real seismic vs synthetic seismic event traces:
 
-* current seed `42` shape distance after sparse direct avalanche peak extraction: `1.5258`
-* real seismic is sparse: nonzero ratio `0.1583`
-* synthetic event trace is less dense than before: nonzero ratio `0.7652`
-* real seismic PSD slope: `-0.0670`
-* synthetic event PSD slope: `-0.1678`
+* central-Italy seed `42` sparse-event distance: `1.4709`
+* all-Italy seed `42` sparse-event distance: `1.3992`
+* central-Italy real seismic is very sparse: nonzero ratio `0.0245`, PSD slope `-0.0380`
+* all-Italy real seismic is less sparse: nonzero ratio `0.1756`, PSD slope `-0.0272`
+* current synthetic seismic events remain too dense: nonzero ratio `0.4275`, PSD slope `0.0689`
+* raw synthetic avalanche signal is effectively continuous: nonzero ratio `0.9991`
 
 Real VLF image columns vs synthetic piezo/VLF signal:
 
@@ -172,14 +178,18 @@ Direct avalanche event extraction tuning:
 * current default `0.95/15` is denser than the tuned `0.99` candidates
 * longer `20000` step runs for seeds `40`, `41`, and `42` also favour quantile `0.99`
 * in the longer runs, window `30` is best for seeds `40` and `41`, and second-best for seed `42`
+* refined sparse tuning adds `max_events` and a stable `shape_score` independent of candidate-grid size
+* refined 10000-step seed `42` central-Italy sparse profile: `q=0.99`, window `480`, max events `3`
+* refined 20000-step seeds `40`-`42` consistently prefer: `q=0.999`, window `240`, max events `5`
+* refined 20000-step sparse profile event shape scores: seed `40` `0.193665`, seed `41` `0.119737`, seed `42` `0.144586`
 
 ## Interpretation
 
-Sparse local-peak extraction improved the direct synthetic seismic event trace. It is still denser than the real INGV trace, but the PSD slope and overall distance are much closer than the previous all-nonzero event extraction.
+Sparse local-peak extraction improved the direct synthetic seismic event trace. The extended 2024-2026 INGV comparison showed the previous synthetic seismic event list was still too dense, especially against central Italy. The refined sparse profile improves 10000-step seed `42` central-Italy distance from `1.4709` to `1.0218`, with nonzero ratio `0.0259` versus real `0.0245`. Keep it as a sparse seismic profile until downstream target balance is re-evaluated.
 
 Across the full-size seed check, seed `42` is still the best current default on direct seismic event-shape distance and sparsity, but all tested seeds remain much denser than real seismic events. The next tuning target is therefore direct avalanche event extraction thresholds and burst spacing, not map projection.
 
-The extraction tuning pass supports increasing the avalanche event quantile to `0.99` and local-max window to `30`. Window `30` is not best for every run, but it is the most stable current default across the longer multi-seed check.
+The old extraction tuning pass supported quantile `0.99` and local-max window `30` as a usable model-training default. The refined sparse profile uses far fewer events (`q=0.999`, window `240`, max events `5` on 20000-step runs) and better matches central-Italy sparsity, but it may make synthetic model targets too sparse if promoted without redesigning the target windows.
 
 The piezo/VLF image rendering is now much closer to Cumiana image statistics for brightness, high-intensity coverage, and vertical streaks. The underlying piezo time series is still too smooth in time, with very high autocorrelation, so later tuning should focus on signal dynamics rather than adding display artifacts.
 
@@ -230,7 +240,7 @@ Smoke outputs:
 * tiny sequence sweep smoke: `data/derived/models/sequence_sweep_smoke/sequence_sweep_comparison.json`; best calibrated row `0.709624`, `sequence_full`, held-out `seed41`
 * missing-modality smoke: `data/derived/models/missing_modality/missing_modality_seed42_summary.json`; no-piezo direct avalanche scored higher than piezo-only in this short run
 * real VLF image sequence manifest: `data/derived/models/cumiana_vlf_image_sequence/manifest.json`, with `247` time steps and `25` channels
-* INGV refresh through `2026-07-08T00:00:00Z`: all-Italy prospective labels have `18` positives and `0` negatives; central Italy has `18` negatives and `0` positives, so real training still has insufficient class variation
+* prospective VLF-aligned labels currently have `23` all-Italy positives and `0` negatives, while central Italy has `0` positives and `23` negatives, so real VLF-aligned training still has insufficient class variation
 * full sequence sweep: `data/derived/models/sequence_sweep/sequence_sweep_comparison.json`, `24` reports; best calibrated row `0.766942`, `sequence_direct_avalanche_only`, `lookback=60`, `hidden=24`, held-out `seed42`
 * combined family comparison: `data/derived/models/model_family_comparison.json`, `37` rows; best calibrated row remains `0.772558`, `sequence_piezo_vlf_only`, held-out `seed42`
 * sequence modality diagnostic: `data/derived/models/sequence_modality_diagnostic.json`, `112` evaluation rows; best default sequence row uses `20` epochs and piezo/VLF-only, while best sweep row uses `10` epochs and direct avalanche-only
@@ -247,7 +257,7 @@ Compact model comparison:
 
 * artifact: `data/derived/models/real_synthetic_compact_comparison.json`
 * CSV view: `data/derived/models/real_synthetic_compact_comparison.csv`
-* central-Italy historical seismic-only temporal baseline: calibrated balanced accuracy `0.500000`
+* central-Italy historical seismic-only temporal baseline: calibrated balanced accuracy `0.441667`
 * synthetic default temporal sequence run: calibrated balanced accuracy `0.500000`
 * best synthetic seed-holdout row: `sequence_piezo_vlf_only`, held-out `seed42`, calibrated balanced accuracy `0.772558`
 * post-burn-in `sequence_full` regime holdouts: mean calibrated balanced accuracy `0.508413`
@@ -258,7 +268,7 @@ Compact model comparison:
 
 The real VLF data is image-derived, not raw waveform data.
 
-The current real seismic sample covers June 1 through July 8, 2026 and is still far too short for robust statistical claims.
+The current historical seismic sample covers January 1, 2024 through July 7, 2026. It is large enough for smoke baselines and shape diagnostics, but still not enough for robust predictive claims.
 
 Simulation step time is an assumed mapping. Frequency-domain comparisons are therefore shape diagnostics, not physical frequency validation.
 
