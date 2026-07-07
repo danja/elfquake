@@ -170,6 +170,9 @@ Initial artifacts:
 * `data/derived/models/mountain_256x256_seeds40-42_10000.aligned_hourly_synthetic_windows_gt1.group_holdout_seed42.json`
 * `data/derived/models/mountain_256x256_seeds40-42_10000.model_run_summary.json`
 * `data/derived/models/mountain_256x256_seeds40-42_20000.aligned_hourly_synthetic_windows.torch_tabular.json`
+* `data/derived/models/mountain_256x256_seeds40-42_20000.aligned_hourly_synthetic_windows.torch_tabular_group_seed40.json`
+* `data/derived/models/mountain_256x256_seeds40-42_20000.aligned_hourly_synthetic_windows.torch_tabular_group_seed41.json`
+* `data/derived/models/mountain_256x256_seeds40-42_20000.aligned_hourly_synthetic_windows.torch_tabular_group_seed42.json`
 * `data/derived/models/ingv_italy_2026-06-01_2026-06-30.aligned_real_windows.csv`
 
 Keep model adapters behind small interfaces. Candidate selection, tensor specs, tensor materialization, training backends, and evaluation should remain separate modules so PyTorch, tree models, or event-process models can be swapped without rewriting feature generation.
@@ -178,4 +181,10 @@ See [Model Interface Shape](model-interface-shape.md) for the current adapter ga
 
 Chronological smoke evaluations use an `80/20` train/test split by default. For multi-seed synthetic rows, also run leave-one-seed-out evaluation before interpreting model behavior. After the `0.99/30` avalanche event extraction update, use the `gt0` hourly synthetic table for smoke modeling; the `gt1` target is now too sparse for useful training checks.
 
-First CPU PyTorch result on `data/derived/models/mountain_256x256_seeds40-42_20000.aligned_hourly_synthetic_windows.csv`: `1005` labeled rows, `804/201` temporal split, best default balanced accuracy `0.541096` for `synthetic_full`, best calibrated balanced accuracy `0.550888` for `synthetic_seismic_piezo_vlf`. This is better than the dependency-free chronological logistic report on the same table, but still only a synthetic wiring check.
+The model feature registry now declares a `vlf` role. For real rows this covers `vlf_metadata` and `vlf_image`; for synthetic test rows it also covers `synthetic_piezo_vlf`, so the piezo analogue can stand in for VLF data without mixing it with direct avalanche/seismic features.
+
+Current CPU PyTorch result on `data/derived/models/mountain_256x256_seeds40-42_20000.aligned_hourly_synthetic_windows.csv`: `1005` labeled rows, `804/201` temporal split, best calibrated balanced accuracy `0.543076` for `synthetic_seismic_piezo_vlf`. The `synthetic_vlf_only` and `vlf_only` ablations both use the synthetic piezo/VLF analogue on this table.
+
+Current CPU PyTorch leave-one-seed-out results on the same table: best calibrated balanced accuracy `0.753501` for held-out seed `40`, `0.752810` for seed `41`, and `0.768286` for seed `42`. These results are more useful than the chronological split for checking synthetic transfer, but they remain synthetic-only.
+
+First CPU PyTorch sequence GRU results use materialized `synthetic_direct_avalanche`, `synthetic_piezo_vlf`, and `synthetic_summary` sequences with a `60` step lookback. Chronological balanced accuracy is flat at `0.500000`, matching the weak chronological regime split. Leave-one-seed-out calibrated balanced accuracy is `0.712754` for seed `40` with `sequence_full`, `0.746127` for seed `41` with `sequence_piezo_vlf_only`, and `0.772558` for seed `42` with `sequence_piezo_vlf_only`.

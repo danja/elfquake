@@ -7,7 +7,7 @@ import json
 import math
 from pathlib import Path
 
-from elfquake.models.readiness import ABLATIONS, FEATURE_GROUP_PREFIXES, ID_FIELDS, TARGET_FIELDS
+from elfquake.models.feature_groups import ABLATIONS, FEATURE_GROUP_PREFIXES, ID_FIELDS, TARGET_FIELDS
 
 
 def train_ablation_smoke(

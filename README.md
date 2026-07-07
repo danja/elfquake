@@ -17,7 +17,7 @@ Right now, while awaiting further data from INGV, the focus is on the simulation
 
 ### Simulated Earthquakes
 
-![simulated earthquake map](docs/images/map_v1.0.0.png)
+![simulated earthquake map](docs/images/map_v1.1.0.png)
 
 ### Simulated VLF Signal
 
@@ -35,6 +35,8 @@ This work was initially prompted by the tragedy of the [2009 L'Aquila earthquake
 * Astronomical and space-weather archive connectors and normalization.
 * Prospective VLF-anchored feature rows with pending target labels.
 * Dependency-light logistic checks and a CPU PyTorch tabular MLP for synthetic aligned rows.
+* A first CPU PyTorch GRU sequence model over synthetic avalanche and piezo/VLF sensor tensors.
+* VLF model feature roles that allow synthetic piezo/VLF analogue data to exercise the same PyTorch VLF path before real labels mature.
 * Sandpile simulation with separate seismic-like avalanche outputs and piezo/VLF analogue outputs.
 
 ## Simulation
@@ -52,6 +54,12 @@ Run the local simulation demo pipeline with:
 Default outputs use `data/derived/sim/mountain_256x256_seed42_10000` as the prefix. The normal piezo image is `*.piezo_vlf_summary.png` from `*.piezo.csv`; the direct seismic event analogue is `*.avalanche_events.csv`. The older FFT diagnostic is opt-in with `RUN_FFT=1`.
 
 The event-map demo projects avalanche-derived locations over an Apennine-style Italy belt and uses point size for synthetic magnitude.
+
+Render a demo overlay of actual synthetic avalanche events and PyTorch predicted-positive target-window hits with:
+
+```sh
+./prediction-event-map.sh
+```
 
 Compare the simulated VLF analogue image against captured Cumiana VLF spectrograms with:
 

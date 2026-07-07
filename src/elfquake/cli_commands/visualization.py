@@ -6,6 +6,7 @@ from argparse import Namespace, _SubParsersAction
 from pathlib import Path
 
 from elfquake.visualization.event_map import DEFAULT_BASEMAP_GEOJSON, render_event_map
+from elfquake.visualization.prediction_map import render_prediction_event_map
 
 
 def register_visualization_commands(subparsers: _SubParsersAction) -> None:
@@ -22,6 +23,19 @@ def register_visualization_commands(subparsers: _SubParsersAction) -> None:
     event_map.add_argument("--max-events", type=int)
     event_map.add_argument("--basemap-geojson", type=Path)
     event_map.set_defaults(func=_render_event_map)
+
+    prediction_map = subparsers.add_parser("render-prediction-event-map")
+    prediction_map.add_argument("--events", type=Path, required=True)
+    prediction_map.add_argument("--windows", type=Path, required=True)
+    prediction_map.add_argument("--report", type=Path, required=True)
+    prediction_map.add_argument("--out", type=Path, required=True)
+    prediction_map.add_argument("--metadata-out", type=Path)
+    prediction_map.add_argument("--title", default="ELFQuake synthetic actual vs predicted events")
+    prediction_map.add_argument("--evaluation")
+    prediction_map.add_argument("--threshold", type=float)
+    prediction_map.add_argument("--max-actual-events", type=int)
+    prediction_map.add_argument("--basemap-geojson", type=Path)
+    prediction_map.set_defaults(func=_render_prediction_event_map)
 
 
 def _render_event_map(args: Namespace) -> int:
@@ -41,6 +55,30 @@ def _render_event_map(args: Namespace) -> int:
     print(f"map: {report['map_file']}")
     print(f"events: {report['event_count']}")
     print(f"type: {report['map_type']}")
+    if args.metadata_out:
+        print(f"metadata: {args.metadata_out}")
+    return 0
+
+
+def _render_prediction_event_map(args: Namespace) -> int:
+    report = render_prediction_event_map(
+        events_csv=args.events,
+        windows_csv=args.windows,
+        report_json=args.report,
+        out_path=args.out,
+        metadata_out=args.metadata_out,
+        title=args.title,
+        evaluation=args.evaluation,
+        threshold=args.threshold,
+        max_actual_events=args.max_actual_events,
+        basemap_geojson=args.basemap_geojson or DEFAULT_BASEMAP_GEOJSON,
+    )
+    print(f"map: {report['map_file']}")
+    print(f"actual events: {report['actual_event_count']}")
+    print(f"predicted event points: {report['predicted_event_point_count']}")
+    print(f"predicted windows without location: {report['predicted_without_location_count']}")
+    print(f"evaluation: {report['evaluation']}")
+    print(f"threshold: {report['threshold']}")
     if args.metadata_out:
         print(f"metadata: {args.metadata_out}")
     return 0

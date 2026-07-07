@@ -19,7 +19,8 @@ from elfquake.models.split_diagnostics import diagnose_temporal_split
 from elfquake.models.tensor_materializer import materialize_tensor_dataset
 from elfquake.models.tensor_spec import build_tensor_spec
 from elfquake.models.temporal_holdout import evaluate_group_holdout, evaluate_temporal_holdout
-from elfquake.models.torch_tabular import evaluate_torch_tabular_holdout
+from elfquake.models.torch_sequence import evaluate_torch_sequence_group_holdout, evaluate_torch_sequence_holdout
+from elfquake.models.torch_tabular import evaluate_torch_tabular_group_holdout, evaluate_torch_tabular_holdout
 from elfquake.models.window_adapter import build_event_window_features
 
 
@@ -65,6 +66,50 @@ def register_model_commands(subparsers: _SubParsersAction) -> None:
     torch_tabular.add_argument("--weight-decay", type=float, default=0.0)
     torch_tabular.add_argument("--no-missing-masks", action="store_true")
     torch_tabular.set_defaults(func=_train_torch_tabular_holdout)
+
+    torch_tabular_group = subparsers.add_parser("train-torch-tabular-group-holdout")
+    torch_tabular_group.add_argument("--input", type=Path, required=True)
+    torch_tabular_group.add_argument("--out", type=Path, required=True)
+    torch_tabular_group.add_argument("--group-field", default="dataset_id")
+    torch_tabular_group.add_argument("--test-group", required=True)
+    torch_tabular_group.add_argument("--epochs", type=int, default=80)
+    torch_tabular_group.add_argument("--learning-rate", type=float, default=0.001)
+    torch_tabular_group.add_argument("--hidden-units", type=int, default=32)
+    torch_tabular_group.add_argument("--batch-size", type=int, default=64)
+    torch_tabular_group.add_argument("--seed", type=int, default=42)
+    torch_tabular_group.add_argument("--weight-decay", type=float, default=0.0)
+    torch_tabular_group.add_argument("--no-missing-masks", action="store_true")
+    torch_tabular_group.set_defaults(func=_train_torch_tabular_group_holdout)
+
+    torch_sequence = subparsers.add_parser("train-torch-sequence-holdout")
+    torch_sequence.add_argument("--input", type=Path, required=True)
+    torch_sequence.add_argument("--sequence-manifest", type=Path, action="append", required=True)
+    torch_sequence.add_argument("--out", type=Path, required=True)
+    torch_sequence.add_argument("--time-field", default="window_start_utc")
+    torch_sequence.add_argument("--train-fraction", type=float, default=0.8)
+    torch_sequence.add_argument("--lookback-steps", type=int, default=60)
+    torch_sequence.add_argument("--epochs", type=int, default=40)
+    torch_sequence.add_argument("--learning-rate", type=float, default=0.001)
+    torch_sequence.add_argument("--hidden-units", type=int, default=24)
+    torch_sequence.add_argument("--batch-size", type=int, default=64)
+    torch_sequence.add_argument("--seed", type=int, default=42)
+    torch_sequence.add_argument("--no-missing-masks", action="store_true")
+    torch_sequence.set_defaults(func=_train_torch_sequence_holdout)
+
+    torch_sequence_group = subparsers.add_parser("train-torch-sequence-group-holdout")
+    torch_sequence_group.add_argument("--input", type=Path, required=True)
+    torch_sequence_group.add_argument("--sequence-manifest", type=Path, action="append", required=True)
+    torch_sequence_group.add_argument("--out", type=Path, required=True)
+    torch_sequence_group.add_argument("--group-field", default="dataset_id")
+    torch_sequence_group.add_argument("--test-group", required=True)
+    torch_sequence_group.add_argument("--lookback-steps", type=int, default=60)
+    torch_sequence_group.add_argument("--epochs", type=int, default=40)
+    torch_sequence_group.add_argument("--learning-rate", type=float, default=0.001)
+    torch_sequence_group.add_argument("--hidden-units", type=int, default=24)
+    torch_sequence_group.add_argument("--batch-size", type=int, default=64)
+    torch_sequence_group.add_argument("--seed", type=int, default=42)
+    torch_sequence_group.add_argument("--no-missing-masks", action="store_true")
+    torch_sequence_group.set_defaults(func=_train_torch_sequence_group_holdout)
 
     split_diagnostics = subparsers.add_parser("diagnose-temporal-split")
     split_diagnostics.add_argument("--input", type=Path, required=True)
@@ -222,6 +267,62 @@ def _train_torch_tabular_holdout(args: Namespace) -> int:
         seed=args.seed,
         include_missing_masks=not args.no_missing_masks,
         weight_decay=args.weight_decay,
+    )
+    _print_holdout_report(report, args.out)
+    return 0
+
+
+def _train_torch_tabular_group_holdout(args: Namespace) -> int:
+    report = evaluate_torch_tabular_group_holdout(
+        input_csv=args.input,
+        out_path=args.out,
+        group_field=args.group_field,
+        test_group=args.test_group,
+        epochs=args.epochs,
+        learning_rate=args.learning_rate,
+        hidden_units=args.hidden_units,
+        batch_size=args.batch_size,
+        seed=args.seed,
+        include_missing_masks=not args.no_missing_masks,
+        weight_decay=args.weight_decay,
+    )
+    _print_holdout_report(report, args.out)
+    return 0
+
+
+def _train_torch_sequence_holdout(args: Namespace) -> int:
+    report = evaluate_torch_sequence_holdout(
+        input_csv=args.input,
+        sequence_manifest_paths=args.sequence_manifest,
+        out_path=args.out,
+        time_field=args.time_field,
+        train_fraction=args.train_fraction,
+        lookback_steps=args.lookback_steps,
+        epochs=args.epochs,
+        learning_rate=args.learning_rate,
+        hidden_units=args.hidden_units,
+        batch_size=args.batch_size,
+        seed=args.seed,
+        include_missing_masks=not args.no_missing_masks,
+    )
+    _print_holdout_report(report, args.out)
+    return 0
+
+
+def _train_torch_sequence_group_holdout(args: Namespace) -> int:
+    report = evaluate_torch_sequence_group_holdout(
+        input_csv=args.input,
+        sequence_manifest_paths=args.sequence_manifest,
+        out_path=args.out,
+        group_field=args.group_field,
+        test_group=args.test_group,
+        lookback_steps=args.lookback_steps,
+        epochs=args.epochs,
+        learning_rate=args.learning_rate,
+        hidden_units=args.hidden_units,
+        batch_size=args.batch_size,
+        seed=args.seed,
+        include_missing_masks=not args.no_missing_masks,
     )
     _print_holdout_report(report, args.out)
     return 0

@@ -7,55 +7,7 @@ import json
 from collections import Counter
 from pathlib import Path
 
-
-TARGET_FIELDS = {
-    "target_event_count",
-    "target_magnitude_min",
-    "target_occurred",
-    "target_start_utc",
-    "target_status",
-    "target_end_utc",
-}
-
-ID_FIELDS = {
-    "dataset_id",
-    "window_id",
-    "region_id",
-    "window_start_utc",
-    "window_end_utc",
-    "source_file",
-    "seismic_source_file",
-    "vlf_image_source_file",
-    "vlf_image_latest_source_file",
-}
-
-FEATURE_GROUP_PREFIXES = {
-    "seismic": ("seismic_",),
-    "astronomy": ("astro_",),
-    "vlf_metadata": ("vlf_capture_", "vlf_latest_", "vlf_total_", "vlf_jpeg_"),
-    "vlf_image": ("vlf_image_",),
-    "synthetic_seismic": ("synthetic_seismic_",),
-    "synthetic_piezo_vlf": ("synthetic_piezo_vlf_",),
-    "synthetic_direct_avalanche": ("synthetic_direct_avalanche_",),
-    "synthetic_summary": ("synthetic_summary_",),
-    "quality": ("quality_",),
-}
-
-ABLATIONS = {
-    "seismic_only": ("seismic",),
-    "seismic_astronomy": ("seismic", "astronomy"),
-    "seismic_vlf": ("seismic", "vlf_metadata", "vlf_image"),
-    "full_multimodal": ("seismic", "astronomy", "vlf_metadata", "vlf_image"),
-    "synthetic_seismic_only": ("synthetic_seismic",),
-    "synthetic_seismic_piezo_vlf": ("synthetic_seismic", "synthetic_piezo_vlf"),
-    "synthetic_seismic_direct_avalanche": ("synthetic_seismic", "synthetic_direct_avalanche"),
-    "synthetic_full": (
-        "synthetic_seismic",
-        "synthetic_piezo_vlf",
-        "synthetic_direct_avalanche",
-        "synthetic_summary",
-    ),
-}
+from elfquake.models.feature_groups import ABLATIONS, FEATURE_GROUP_PREFIXES, FEATURE_ROLE_GROUPS, ID_FIELDS, TARGET_FIELDS
 
 
 def summarize_model_readiness(*, input_csv: Path, out_path: Path) -> dict[str, object]:
@@ -78,6 +30,7 @@ def summarize_model_readiness(*, input_csv: Path, out_path: Path) -> dict[str, o
         "negative_count": labels.get("0", 0),
         "target_status_counts": dict(Counter(row.get("target_status", "") for row in rows)),
         "feature_groups": feature_groups,
+        "feature_roles": FEATURE_ROLE_GROUPS,
         "available_feature_groups": available_groups,
         "ablation_plan": _ablation_plan(feature_groups),
     }

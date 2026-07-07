@@ -7,7 +7,7 @@
 3. Add burn-in or regime-balanced synthetic split handling before treating chronological synthetic model metrics as stable.
 4. Add a small grouped-sensor piezo scan only if single-receiver traces prove too local after multi-seed validation.
 5. Optimize or chunk sequence materialization further before attempting substantially larger runs.
-6. Add a sequence-based PyTorch model over materialized sensor tensors after the tabular MLP path is stable.
+6. Tune sequence lookback/model size only if repeated seed runs confirm the sequence GRU adds value over tabular PyTorch.
 
 ## General
 
@@ -79,4 +79,9 @@
 * Probe Abelian Cumiana archive availability across five additional timestamps from `2026-06-29` through `2026-07-05`; all ten `wav`/`vt` rows were HTTP 200 but zero usable bytes.
 * Refresh INGV through the July rollover, rebuild 247-row prospective VLF image tables for central Italy and all Italy, and confirm no missing VLF, VLF image, or astronomy coverage.
 * Label the first matured prospective VLF target window: central Italy was negative, all Italy was positive, with one labeled row per table.
-* Add and run a CPU PyTorch tabular MLP on the `20000`-step multi-seed synthetic aligned table; best calibrated chronological balanced accuracy was `0.550888`.
+* Add and run a CPU PyTorch tabular MLP on the `20000`-step multi-seed synthetic aligned table; best calibrated chronological balanced accuracy is now `0.543076`.
+* Add and run CPU PyTorch leave-one-seed-out tabular MLP reports; best calibrated balanced accuracy now ranges from `0.752810` to `0.768286` across held-out seeds.
+* Add a demo map overlay for actual avalanche-derived events and PyTorch predicted-positive target-window event hits.
+* Add a shared model feature-role registry so real VLF fields and synthetic piezo/VLF analogue fields can feed the PyTorch VLF path.
+* Add a first CPU PyTorch GRU sequence model over materialized synthetic avalanche, piezo/VLF, and summary tensors.
+* Run temporal and leave-one-seed-out sequence GRU reports; chronological balanced accuracy is flat at `0.500000`, while seed holdouts reach `0.712754` to `0.772558`.

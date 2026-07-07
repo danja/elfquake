@@ -6,26 +6,23 @@ import csv
 import json
 from pathlib import Path
 
-from elfquake.models.readiness import ID_FIELDS, TARGET_FIELDS
+from elfquake.models.feature_groups import (
+    ID_FIELDS,
+    SYNTHETIC_PIEZO_VLF_PREFIXES,
+    TARGET_FIELDS,
+    VLF_IMAGE_PREFIXES,
+    VLF_METADATA_PREFIXES,
+)
 
 
 MODALITY_PREFIXES: dict[str, tuple[str, ...]] = {
     "seismic": ("seismic_",),
-    "vlf_metadata": ("vlf_capture_", "vlf_latest_", "vlf_total_", "vlf_jpeg_"),
-    "vlf_image": (
-        "vlf_image_",
-        "vlf_intensity_",
-        "vlf_high_",
-        "vlf_hot_",
-        "vlf_column_",
-        "vlf_vertical_",
-        "vlf_band_",
-        "vlf_pixel_",
-        "vlf_crop_",
-    ),
+    "vlf": VLF_METADATA_PREFIXES + VLF_IMAGE_PREFIXES + SYNTHETIC_PIEZO_VLF_PREFIXES,
+    "vlf_metadata": VLF_METADATA_PREFIXES,
+    "vlf_image": VLF_IMAGE_PREFIXES,
     "astronomy": ("astro_", "astronomy_", "moon_", "solar_", "kp_", "ap_", "f107_"),
     "synthetic_seismic": ("synthetic_seismic_",),
-    "synthetic_piezo_vlf": ("synthetic_piezo_vlf_",),
+    "synthetic_piezo_vlf": SYNTHETIC_PIEZO_VLF_PREFIXES,
     "synthetic_direct_avalanche": ("synthetic_direct_avalanche_",),
     "synthetic_summary": ("synthetic_summary_",),
     "simulation": ("piezo_", "avalanche_", "sim_"),

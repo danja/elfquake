@@ -47,14 +47,20 @@ def _summarize_report(path: Path) -> dict[str, object]:
 
 
 def _split_summary(report: dict[str, object]) -> dict[str, object]:
-    if report.get("schema") == "elfquake.group_holdout.v1":
+    if report.get("schema") in {
+        "elfquake.group_holdout.v1",
+        "elfquake.torch_tabular_group_holdout.v1",
+        "elfquake.torch_sequence_group_holdout.v1",
+    }:
         return {
             "type": "group",
+            "backend": report.get("backend", ""),
+            "device": report.get("device", ""),
             "group_field": report.get("group_field", ""),
             "test_group": report.get("test_group", ""),
             "train_groups": report.get("train_groups", []),
         }
-    if report.get("schema") == "elfquake.torch_tabular_holdout.v1":
+    if report.get("schema") in {"elfquake.torch_tabular_holdout.v1", "elfquake.torch_sequence_holdout.v1"}:
         return {
             "type": "temporal",
             "backend": report.get("backend", ""),

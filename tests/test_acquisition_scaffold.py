@@ -61,7 +61,8 @@ from elfquake.models.split_diagnostics import diagnose_temporal_split
 from elfquake.models.tensor_materializer import materialize_tensor_dataset
 from elfquake.models.tensor_spec import build_tensor_spec
 from elfquake.models.temporal_holdout import evaluate_group_holdout, evaluate_temporal_holdout
-from elfquake.models.torch_tabular import evaluate_torch_tabular_holdout
+from elfquake.models.torch_sequence import evaluate_torch_sequence_group_holdout, evaluate_torch_sequence_holdout
+from elfquake.models.torch_tabular import evaluate_torch_tabular_group_holdout, evaluate_torch_tabular_holdout
 from elfquake.models.window_adapter import build_event_window_features
 from elfquake.normalize.events import combine_normalized_events
 from elfquake.http import HttpCapture
@@ -80,6 +81,64 @@ from elfquake.storage import write_capture
 
 
 class AcquisitionScaffoldTests(unittest.TestCase):
+    def _write_sequence_fixture(
+        self,
+        root: Path,
+        dataset_id: str,
+        modality: str,
+        channel: str,
+        values: list[float],
+    ) -> Path:
+        sequence_dir = root / f"{dataset_id}_{modality}_sequence"
+        sequence_dir.mkdir()
+        (sequence_dir / "time_axis.csv").write_text(
+            "time_index,step,time_utc\n"
+            + "".join(
+                f"{index},{index},2026-01-01T00:{index:02d}:00Z\n"
+                for index in range(len(values))
+            ),
+            encoding="utf-8",
+        )
+        (sequence_dir / "entity_axis.csv").write_text("entity_index,sensor_id\n0,0\n", encoding="utf-8")
+        (sequence_dir / "index.csv").write_text(
+            "row_index,time_index,entity_index,step,sensor_id\n"
+            + "".join(f"{index},{index},0,{index},0\n" for index in range(len(values))),
+            encoding="utf-8",
+        )
+        (sequence_dir / "values.csv").write_text(
+            f"row_index,time_index,entity_index,{channel}\n"
+            + "".join(f"{index},{index},0,{value:.6f}\n" for index, value in enumerate(values)),
+            encoding="utf-8",
+        )
+        (sequence_dir / "masks.csv").write_text(
+            f"row_index,time_index,entity_index,{channel}__present\n"
+            + "".join(f"{index},{index},0,1\n" for index in range(len(values))),
+            encoding="utf-8",
+        )
+        manifest = sequence_dir / "manifest.json"
+        manifest.write_text(
+            json.dumps(
+                {
+                    "schema": "elfquake.sequence_dataset.v1",
+                    "input_csv": str(root / f"{dataset_id}.{modality}.csv"),
+                    "layout": "row,time,entity,channel",
+                    "modality": modality,
+                    "time_count": len(values),
+                    "entity_count": 1,
+                    "channel_count": 1,
+                    "channel_fields": [channel],
+                    "mask_fields": [f"{channel}__present"],
+                    "time_axis_csv": str(sequence_dir / "time_axis.csv"),
+                    "entity_axis_csv": str(sequence_dir / "entity_axis.csv"),
+                    "index_csv": str(sequence_dir / "index.csv"),
+                    "values_csv": str(sequence_dir / "values.csv"),
+                    "masks_csv": str(sequence_dir / "masks.csv"),
+                }
+            ),
+            encoding="utf-8",
+        )
+        return manifest
+
     def test_ingv_event_url_uses_italy_bounds_and_text_format(self) -> None:
         url = build_event_url("2026-06-22T00:00:00Z", "2026-06-29T23:59:59Z")
         query = parse_qs(urlparse(url).query)
@@ -1428,6 +1487,25 @@ class AcquisitionScaffoldTests(unittest.TestCase):
             self.assertEqual(report["negative_count"], 1)
             self.assertFalse(report["ablation_plan"]["seismic_vlf"]["has_required_features"])
 
+    def test_model_readiness_maps_synthetic_piezo_to_vlf_role(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            table = root / "synthetic.csv"
+            table.write_text(
+                "window_id,region_id,synthetic_seismic_event_count,synthetic_piezo_vlf_signal_mean,"
+                "target_occurred,target_status\n"
+                "w1,central_italy,1,0.1,0,labeled\n"
+                "w2,central_italy,3,0.8,1,labeled\n",
+                encoding="utf-8",
+            )
+
+            report = summarize_model_readiness(input_csv=table, out_path=root / "readiness.json")
+
+            self.assertIn("vlf", report["available_feature_groups"])
+            self.assertIn("synthetic_piezo_vlf", report["feature_roles"]["vlf"])
+            self.assertTrue(report["ablation_plan"]["synthetic_vlf_only"]["has_required_features"])
+            self.assertTrue(report["ablation_plan"]["synthetic_seismic_vlf_unified"]["has_required_features"])
+
     def test_ablation_smoke_trains_available_feature_groups(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
@@ -1530,11 +1608,124 @@ class AcquisitionScaffoldTests(unittest.TestCase):
             self.assertEqual(report["device"], "cpu")
             self.assertEqual(report["train_row_count"], 4)
             self.assertEqual(report["evaluations"]["synthetic_full"]["status"], "evaluated")
+            self.assertEqual(report["evaluations"]["synthetic_vlf_only"]["status"], "evaluated")
             self.assertIn(
                 "synthetic_piezo_vlf_signal_mean__present_mask",
                 report["evaluations"]["synthetic_full"]["model_feature_names"],
             )
+            self.assertIn(
+                "synthetic_piezo_vlf_signal_mean",
+                report["evaluations"]["vlf_only"]["feature_names"],
+            )
             self.assertTrue((root / "torch.json").exists())
+
+    @unittest.skipUnless(importlib.util.find_spec("torch"), "PyTorch optional dependency is not installed")
+    def test_torch_tabular_group_holdout_uses_test_group(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            table = root / "aligned.csv"
+            table.write_text(
+                "dataset_id,window_id,region_id,synthetic_seismic_event_count,"
+                "synthetic_piezo_vlf_signal_mean,target_occurred,target_status\n"
+                "seed1,w1,r,0,0.1,0,labeled\n"
+                "seed1,w2,r,1,0.2,0,labeled\n"
+                "seed1,w3,r,5,0.5,1,labeled\n"
+                "seed2,w1,r,0,0.1,0,labeled\n"
+                "seed2,w2,r,6,0.6,1,labeled\n"
+                "seed2,w3,r,7,0.7,1,labeled\n",
+                encoding="utf-8",
+            )
+
+            report = evaluate_torch_tabular_group_holdout(
+                input_csv=table,
+                out_path=root / "torch_group.json",
+                test_group="seed2",
+                epochs=4,
+                hidden_units=4,
+                batch_size=2,
+            )
+
+            self.assertEqual(report["schema"], "elfquake.torch_tabular_group_holdout.v1")
+            self.assertEqual(report["status"], "evaluated")
+            self.assertEqual(report["train_groups"], ["seed1"])
+            self.assertEqual(report["test_group"], "seed2")
+            self.assertEqual(report["test_row_count"], 3)
+            self.assertNotIn("dataset_id", report["evaluations"]["all_features"]["feature_names"])
+
+    @unittest.skipUnless(importlib.util.find_spec("torch"), "PyTorch optional dependency is not installed")
+    def test_torch_sequence_holdout_trains_synthetic_modalities(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            aligned = root / "aligned.csv"
+            aligned.write_text(
+                "dataset_id,window_id,region_id,window_start_utc,window_end_utc,target_occurred,target_status\n"
+                "seed1,w0,r,2026-01-01T00:00:00Z,2026-01-01T00:02:00Z,0,labeled\n"
+                "seed1,w1,r,2026-01-01T00:02:00Z,2026-01-01T00:04:00Z,0,labeled\n"
+                "seed1,w2,r,2026-01-01T00:04:00Z,2026-01-01T00:06:00Z,1,labeled\n"
+                "seed1,w3,r,2026-01-01T00:06:00Z,2026-01-01T00:08:00Z,1,labeled\n"
+                "seed1,w4,r,2026-01-01T00:08:00Z,2026-01-01T00:10:00Z,0,labeled\n"
+                "seed1,w5,r,2026-01-01T00:10:00Z,2026-01-01T00:12:00Z,1,labeled\n",
+                encoding="utf-8",
+            )
+            manifests = [
+                self._write_sequence_fixture(root, "seed1", "synthetic_direct_avalanche", "avalanche_signal", [0, 0, 1, 1, 2, 2, 6, 7, 8, 2, 3, 9, 9]),
+                self._write_sequence_fixture(root, "seed1", "synthetic_piezo_vlf", "piezo_signal", [0, 0, 1, 2, 3, 4, 8, 8, 7, 3, 2, 9, 10]),
+                self._write_sequence_fixture(root, "seed1", "synthetic_summary", "topple_count", [1, 1, 2, 2, 3, 3, 8, 8, 8, 3, 3, 9, 9]),
+            ]
+
+            report = evaluate_torch_sequence_holdout(
+                input_csv=aligned,
+                sequence_manifest_paths=manifests,
+                out_path=root / "sequence.json",
+                train_fraction=0.67,
+                lookback_steps=2,
+                epochs=3,
+                hidden_units=4,
+                batch_size=2,
+            )
+
+            self.assertEqual(report["schema"], "elfquake.torch_sequence_holdout.v1")
+            self.assertEqual(report["status"], "evaluated")
+            self.assertEqual(report["evaluations"]["sequence_piezo_vlf_only"]["status"], "evaluated")
+            self.assertEqual(report["evaluations"]["sequence_full"]["status"], "evaluated")
+            self.assertIn("synthetic_piezo_vlf_piezo_signal", report["evaluations"]["sequence_piezo_vlf_only"]["feature_names"])
+
+    @unittest.skipUnless(importlib.util.find_spec("torch"), "PyTorch optional dependency is not installed")
+    def test_torch_sequence_group_holdout_uses_test_group(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            aligned = root / "aligned.csv"
+            aligned.write_text(
+                "dataset_id,window_id,region_id,window_start_utc,window_end_utc,target_occurred,target_status\n"
+                "seed1,w0,r,2026-01-01T00:00:00Z,2026-01-01T00:02:00Z,0,labeled\n"
+                "seed1,w1,r,2026-01-01T00:02:00Z,2026-01-01T00:04:00Z,1,labeled\n"
+                "seed2,w0,r,2026-01-01T00:00:00Z,2026-01-01T00:02:00Z,0,labeled\n"
+                "seed2,w1,r,2026-01-01T00:02:00Z,2026-01-01T00:04:00Z,1,labeled\n",
+                encoding="utf-8",
+            )
+            manifests = []
+            for seed in ("seed1", "seed2"):
+                manifests.extend([
+                    self._write_sequence_fixture(root, seed, "synthetic_direct_avalanche", "avalanche_signal", [0, 1, 2, 3, 4]),
+                    self._write_sequence_fixture(root, seed, "synthetic_piezo_vlf", "piezo_signal", [0, 2, 4, 6, 8]),
+                ])
+
+            report = evaluate_torch_sequence_group_holdout(
+                input_csv=aligned,
+                sequence_manifest_paths=manifests,
+                out_path=root / "sequence_group.json",
+                test_group="seed2",
+                lookback_steps=2,
+                epochs=3,
+                hidden_units=4,
+                batch_size=2,
+            )
+
+            self.assertEqual(report["schema"], "elfquake.torch_sequence_group_holdout.v1")
+            self.assertEqual(report["status"], "evaluated")
+            self.assertEqual(report["train_groups"], ["seed1"])
+            self.assertEqual(report["test_group"], "seed2")
+            self.assertEqual(report["evaluations"]["sequence_direct_avalanche_piezo_vlf"]["status"], "evaluated")
 
     def test_temporal_split_diagnostics_reports_feature_drift(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
@@ -2710,6 +2901,62 @@ class AcquisitionScaffoldTests(unittest.TestCase):
             self.assertEqual(metadata["map_type"], "natural_earth_line_italy")
             self.assertEqual(metadata["basemap_geojson"], str(basemap))
             self.assertEqual(report["event_count"], "1")
+
+    @unittest.skipIf(importlib.util.find_spec("matplotlib") is None, "matplotlib not installed")
+    def test_render_prediction_event_map_writes_actual_and_predicted_layers(self) -> None:
+        from elfquake.visualization.prediction_map import render_prediction_event_map
+
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            events = root / "events.csv"
+            events.write_text(
+                "event_id,source,event_time_utc,latitude,longitude,depth_km,magnitude,magnitude_type,"
+                "italy_region,event_location_name,event_type,raw_file,ingested_at_utc,raw_uri\n"
+                "a,synthetic,2026-01-01T01:20:00Z,42.0,12.5,8,4.2,ML,central,Apennines,earthquake,,,\n",
+                encoding="utf-8",
+            )
+            windows = root / "windows.csv"
+            windows.write_text(
+                "dataset_id,window_id,region_id,window_start_utc,window_end_utc,target_occurred,target_status,"
+                "synthetic_seismic_event_count\n"
+                "seed1,w0,r,2026-01-01T00:00:00Z,2026-01-01T01:00:00Z,1,labeled,0\n",
+                encoding="utf-8",
+            )
+            report_json = root / "report.json"
+            report_json.write_text(
+                json.dumps(
+                    {
+                        "schema": "elfquake.torch_tabular_group_holdout.v1",
+                        "group_field": "dataset_id",
+                        "test_group": "seed1",
+                        "evaluations": {
+                            "synthetic_full": {
+                                "status": "evaluated",
+                                "calibrated_threshold": 0.5,
+                                "calibrated_test_metrics": {"balanced_accuracy": 1.0},
+                                "test_probabilities": [0.9],
+                            }
+                        },
+                    }
+                ),
+                encoding="utf-8",
+            )
+
+            report = render_prediction_event_map(
+                events_csv=events,
+                windows_csv=windows,
+                report_json=report_json,
+                out_path=root / "prediction_map.png",
+                metadata_out=root / "prediction_map.json",
+                basemap_geojson=None,
+            )
+
+            self.assertEqual((root / "prediction_map.png").read_bytes()[:8], b"\x89PNG\r\n\x1a\n")
+            metadata = json.loads((root / "prediction_map.json").read_text(encoding="utf-8"))
+            self.assertEqual(metadata["actual_event_count"], "1")
+            self.assertEqual(metadata["predicted_positive_window_count"], "1")
+            self.assertEqual(metadata["predicted_event_point_count"], "1")
+            self.assertEqual(report["evaluation"], "synthetic_full")
 
     @unittest.skipIf(importlib.util.find_spec("numba") is None, "numba not installed")
     def test_sandpile_simulation_writes_grid_snapshots(self) -> None:

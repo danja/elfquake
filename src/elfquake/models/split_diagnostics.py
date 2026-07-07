@@ -7,7 +7,7 @@ import json
 import math
 from pathlib import Path
 
-from elfquake.models.readiness import ID_FIELDS, TARGET_FIELDS
+from elfquake.models.feature_groups import ID_FIELDS, TARGET_FIELDS
 
 
 FEATURE_ROW_FIELDS = [

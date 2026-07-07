@@ -182,6 +182,18 @@ Evaluate smoke models with a time-ordered train/test split. Use this before rand
 
 Train a CPU PyTorch tabular MLP with the same time-ordered split and feature-group ablations. Use this as the first swappable neural baseline on synthetic aligned rows.
 
+### `train-torch-tabular-group-holdout`
+
+Train the same CPU PyTorch tabular MLP while holding out one dataset group, usually a synthetic seed. Use this to check synthetic transfer across generated runs.
+
+### `train-torch-sequence-holdout`
+
+Train a CPU PyTorch GRU over materialized sequence manifests with a time-ordered split. Use this to test whether sensor time structure adds value beyond tabular aggregates.
+
+### `train-torch-sequence-group-holdout`
+
+Train the same CPU PyTorch sequence model while holding out one dataset group. Use this for leave-one-seed-out synthetic transfer checks.
+
 ### `diagnose-temporal-split`
 
 Measure target balance and feature drift between temporal train/test partitions. Use this when holdout metrics look unstable or suspicious.
@@ -291,3 +303,7 @@ Compare individual piezo sensors against real VLF image traces and rank sensor s
 ### `render-event-map`
 
 Render real or synthetic event CSVs on an Italy map background with magnitude-scaled points. Use this for spatial sanity checks and demonstrations.
+
+### `render-prediction-event-map`
+
+Render avalanche-derived actual events and PyTorch predicted-positive target-window hits on one Italy map. Use this as a synthetic model demo; the model predicts windows, not epicentre coordinates.

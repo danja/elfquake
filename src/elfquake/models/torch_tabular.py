@@ -9,7 +9,7 @@ import random
 from dataclasses import dataclass
 from pathlib import Path
 
-from elfquake.models.readiness import ABLATIONS, FEATURE_GROUP_PREFIXES, ID_FIELDS, TARGET_FIELDS
+from elfquake.models.feature_groups import ABLATIONS, FEATURE_GROUP_PREFIXES, FEATURE_ROLE_GROUPS, ID_FIELDS, TARGET_FIELDS
 from elfquake.models.temporal_holdout import _baselines, _best_threshold, _metrics, _predictions
 
 
@@ -74,6 +74,7 @@ def evaluate_torch_tabular_holdout(
         "seed": seed,
         "include_missing_masks": include_missing_masks,
         "weight_decay": weight_decay,
+        "feature_roles": FEATURE_ROLE_GROUPS,
         "evaluations": {},
     }
     if len(labeled) < 4:
@@ -101,6 +102,94 @@ def evaluate_torch_tabular_holdout(
         }
     )
 
+    evaluation_specs: dict[str, tuple[str, ...] | None] = {"all_features": None}
+    evaluation_specs.update(ABLATIONS)
+    for name, groups in evaluation_specs.items():
+        report["evaluations"][name] = _evaluate_one(
+            torch=torch,
+            train_rows=train_rows,
+            test_rows=test_rows,
+            fieldnames=fieldnames,
+            groups=groups,
+            labels_train=labels_train,
+            labels_test=labels_test,
+            epochs=epochs,
+            learning_rate=learning_rate,
+            hidden_units=hidden_units,
+            batch_size=batch_size,
+            include_missing_masks=include_missing_masks,
+            weight_decay=weight_decay,
+            seed=seed,
+        )
+    report["status"] = _overall_status(report)
+    return _write_report(out_path, report)
+
+
+def evaluate_torch_tabular_group_holdout(
+    *,
+    input_csv: Path,
+    out_path: Path,
+    group_field: str = "dataset_id",
+    test_group: str,
+    epochs: int = 80,
+    learning_rate: float = 0.001,
+    hidden_units: int = 32,
+    batch_size: int = 64,
+    seed: int = 42,
+    include_missing_masks: bool = True,
+    weight_decay: float = 0.0,
+) -> dict[str, object]:
+    if epochs < 1:
+        raise ValueError("epochs must be positive")
+    if hidden_units < 1:
+        raise ValueError("hidden_units must be positive")
+    if batch_size < 1:
+        raise ValueError("batch_size must be positive")
+
+    torch = _import_torch()
+    _set_deterministic_seed(torch, seed)
+
+    rows, fieldnames = _read_rows_and_fields(input_csv)
+    labeled = [row for row in rows if row.get("target_occurred") in {"0", "1"}]
+    train_rows = [row for row in labeled if row.get(group_field, "") != test_group]
+    test_rows = [row for row in labeled if row.get(group_field, "") == test_group]
+    labels_train = [int(row["target_occurred"]) for row in train_rows]
+    labels_test = [int(row["target_occurred"]) for row in test_rows]
+    report: dict[str, object] = {
+        "schema": "elfquake.torch_tabular_group_holdout.v1",
+        "backend": "torch",
+        "device": "cpu",
+        "input": str(input_csv),
+        "row_count": len(rows),
+        "labeled_row_count": len(labeled),
+        "group_field": group_field,
+        "test_group": test_group,
+        "train_groups": sorted({row.get(group_field, "") for row in train_rows}),
+        "epochs": epochs,
+        "learning_rate": learning_rate,
+        "hidden_units": hidden_units,
+        "batch_size": batch_size,
+        "seed": seed,
+        "include_missing_masks": include_missing_masks,
+        "weight_decay": weight_decay,
+        "feature_roles": FEATURE_ROLE_GROUPS,
+        "evaluations": {},
+    }
+    if len(train_rows) < 2 or len(test_rows) < 1:
+        report["status"] = "insufficient_group_rows"
+        return _write_report(out_path, report)
+
+    report.update(
+        {
+            "train_row_count": len(train_rows),
+            "test_row_count": len(test_rows),
+            "train_positive_count": sum(labels_train),
+            "train_negative_count": len(labels_train) - sum(labels_train),
+            "test_positive_count": sum(labels_test),
+            "test_negative_count": len(labels_test) - sum(labels_test),
+            "baselines": _baselines(labels_train, labels_test),
+        }
+    )
     evaluation_specs: dict[str, tuple[str, ...] | None] = {"all_features": None}
     evaluation_specs.update(ABLATIONS)
     for name, groups in evaluation_specs.items():
@@ -390,10 +479,7 @@ def _set_deterministic_seed(torch: object, seed: int) -> None:
     random.seed(seed)
     torch.manual_seed(seed)
     torch.set_num_threads(1)
-    try:
-        torch.use_deterministic_algorithms(True)
-    except RuntimeError:
-        pass
+    torch.use_deterministic_algorithms(True, warn_only=True)
 
 
 def _overall_status(report: dict[str, object]) -> str:
