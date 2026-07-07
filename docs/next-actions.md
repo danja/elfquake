@@ -4,13 +4,14 @@
 
 1. Keep accumulating Cumiana VLF captures before real multimodal model training claims.
 2. Compare longer synthetic runs against real seismic/VLF shape metrics before treating the generator as stable.
-3. Reduce synthetic regime drift before expanding sequence model runs; current post-burn-in diagnostics show label and terrain-height drift.
+3. Reduce synthetic regime drift before expanding sequence model runs; regime-balanced evaluation helps debugging but is not a forecasting-style validation.
 4. Add a small grouped-sensor piezo scan only if single-receiver traces prove too local after multi-seed validation.
-5. Optimize or chunk sequence materialization further before attempting substantially larger runs.
-6. Review the tabular-vs-sequence comparison, bounded sequence sweep, and post-burn-in regime outputs before changing the default GRU lookback.
-7. Use missing-modality reports to decide whether VLF/piezo, direct avalanche, or combined sequence inputs deserve the next model pass.
-8. Wait for real prospective rows to include both positive and negative labels before attempting real PyTorch training.
-9. Use central-Italy historical seismic-only windows as the current real baseline smoke path.
+5. If testing a larger model, keep it synthetic-only and tiny: patch/channel encoder, `d_model=32`, 2 layers, 2 heads, CPU-only.
+6. Optimize or chunk sequence materialization further before attempting substantially larger runs.
+7. Review the tabular-vs-sequence comparison, bounded sequence sweep, and post-burn-in regime outputs before changing the default GRU lookback.
+8. Use missing-modality reports to decide whether VLF/piezo, direct avalanche, or combined sequence inputs deserve the next model pass.
+9. Wait for real prospective rows to include both positive and negative labels before attempting real PyTorch training.
+10. Use central-Italy historical seismic-only windows as the current real baseline smoke path.
 
 ## General
 
@@ -35,7 +36,11 @@
 
 ## Completed
 
-* Refresh prospective labels to 22 matured rows per scope and rebuild real VLF-aligned model inputs; real training remains class-blocked.
+* Add `estimate-model-scale` and `estimate-model-scale.sh` to capture larger-model gates, sequence sizes, and CPU-only model guidance.
+* Add `docs/model-scaling-requirements.md`; current real VLF rows are blocked, while the full synthetic 20000-step table can support only a tiny synthetic-only larger-model check.
+* Add deterministic regime-balanced split assignment and explicit split sequence evaluation.
+* Add and run `train-sequence-full-balanced.sh`; post-burn-in `sequence_full` reached calibrated balanced accuracy `0.650000` on the balanced synthetic split.
+* Refresh prospective labels to 23 matured rows per scope and rebuild real VLF-aligned model inputs; real training remains class-blocked.
 * Fix `refresh-prospective-labels.sh` so prospective combined INGV files exclude earlier historical backfill chunks.
 * Add and run `compare-real-synthetic-models.sh`, producing compact JSON/CSV real-vs-synthetic model comparisons.
 * Add `docs/model-comparison.md` with the current central-Italy seismic baseline, synthetic sequence, and post-burn-in regime interpretation.

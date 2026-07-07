@@ -107,6 +107,17 @@ Risks: synthetic-to-real transfer may fail; evaluate against no-pretraining and 
 5. Add candidate 3 only if unimodal sequence encoders beat tabular baselines.
 6. Explore candidates 4-6 as research branches, not first production models.
 
+## Scaling Requirements
+
+Before increasing model size, run `./estimate-model-scale.sh` and review [Model Scaling Requirements](model-scaling-requirements.md).
+
+Current reading:
+
+* real VLF-aligned supervised training is blocked because all-Italy and central-Italy each have one target class only
+* the full synthetic 20000-step table has enough rows for a tiny synthetic-only patch/Transformer engineering check
+* the post-burn-in balanced table is better for debugging split drift, but is below the larger-model row gate
+* no real Transformer training should start until there are thousands of labeled real rows with both classes
+
 ## Evaluation Rule
 
 Every candidate must be compared through the same time-based split:
@@ -153,6 +164,7 @@ Current scaffold:
 * `materialize-real-vlf-sequence.sh` - materializes current Cumiana VLF image features as a sequence manifest.
 * `sweep-synthetic-sequence-model.sh` - runs a bounded sequence GRU hyperparameter sweep.
 * `test-sequence-missing-modalities.sh` - exercises sequence training with VLF-only and no-VLF/piezo inputs.
+* `estimate-model-scale` - reports larger-model gates, sequence feature counts, class balance, and CPU-only size guidance.
 
 Initial artifacts:
 

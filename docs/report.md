@@ -41,9 +41,9 @@ Real prospective model rows:
 
 * `data/derived/models/all_italy.real_vlf_aligned_windows.csv`
 * `data/derived/models/central_italy.real_vlf_aligned_windows.csv`
-* each table has 247 rows and 22 labeled rows
-* all-Italy labels are currently 22 positive / 0 negative
-* central-Italy labels are currently 0 positive / 22 negative
+* each table has 247 rows and 23 labeled rows
+* all-Italy labels are currently 23 positive / 0 negative
+* central-Italy labels are currently 0 positive / 23 negative
 * both are `insufficient_class_variation`
 
 ## Method
@@ -68,6 +68,8 @@ Output files:
 * `data/derived/models/sequence_modality_diagnostic.json`
 * `data/derived/models/sequence_full_regime/sequence_full_model_run_summary.json`
 * `data/derived/models/sequence_full_regime/post_burn_in_temporal_split_diagnostics.json`
+* `data/derived/models/sequence_full_balanced/sequence_full_balanced_model_run_summary.json`
+* `data/derived/models/sequence_full_balanced/regime_balanced_split.json`
 * `data/derived/models/real_synthetic_compact_comparison.json`
 * `data/derived/models/all_italy.ingv_backfill_seismic_windows.temporal_holdout.json`
 * `data/derived/models/central_italy.ingv_backfill_seismic_windows.temporal_holdout.json`
@@ -93,6 +95,7 @@ Synthetic-model status:
 * The sequence diagnostic says not to change defaults yet: the prior best run used 20 epochs, the sweep used 10, temporal sequence rows stay near `0.5`, and mean group performance is highest for `sequence_full`.
 * A post-burn-in `sequence_full` regime run dropped the first 20 percent of each seed, evaluated 804 rows, and produced weak robustness scores: temporal calibrated balanced accuracy `0.509804`; regime-holdout mean `0.508413`, min `0.436111`, max `0.630037`.
 * Post-burn-in temporal split diagnostics show a large label/regime shift: train positive rate `0.398134`, test positive rate `0.645963`; the largest drift features include terrain height summaries and synthetic row/regime index.
+* A post-burn-in regime-balanced explicit split has matched train/test class rates and gives `sequence_full` calibrated balanced accuracy `0.650000`; use this as an engineering diagnostic, not as forecasting evidence.
 
 ## Shape Diagnostics
 
@@ -245,6 +248,7 @@ Compact model comparison:
 * synthetic default temporal sequence run: calibrated balanced accuracy `0.500000`
 * best synthetic seed-holdout row: `sequence_piezo_vlf_only`, held-out `seed42`, calibrated balanced accuracy `0.772558`
 * post-burn-in `sequence_full` regime holdouts: mean calibrated balanced accuracy `0.508413`
+* post-burn-in `sequence_full` regime-balanced split: calibrated balanced accuracy `0.650000`
 
 ## Limitations
 

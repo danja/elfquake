@@ -55,17 +55,22 @@ from elfquake.models.comparison import compare_model_run_summaries
 from elfquake.models.dataset_combine import combine_aligned_datasets
 from elfquake.models.interface_shape import audit_model_interfaces
 from elfquake.models.logistic_smoke import train_logistic_smoke
+from elfquake.models.model_scale import estimate_model_scale
 from elfquake.models.readiness import summarize_model_readiness
 from elfquake.models.report_summary import summarize_model_run_reports
 from elfquake.models.sequence_materializer import materialize_sequence_dataset
 from elfquake.models.sequence_comparison import diagnose_sequence_comparison
 from elfquake.models.sequence_selection import summarize_sequence_selection
 from elfquake.models.split_diagnostics import diagnose_temporal_split
-from elfquake.models.synthetic_regimes import annotate_synthetic_regimes
+from elfquake.models.synthetic_regimes import annotate_synthetic_regimes, assign_balanced_split
 from elfquake.models.tensor_materializer import materialize_tensor_dataset
 from elfquake.models.tensor_spec import build_tensor_spec
 from elfquake.models.temporal_holdout import evaluate_group_holdout, evaluate_temporal_holdout
-from elfquake.models.torch_sequence import evaluate_torch_sequence_group_holdout, evaluate_torch_sequence_holdout
+from elfquake.models.torch_sequence import (
+    evaluate_torch_sequence_group_holdout,
+    evaluate_torch_sequence_holdout,
+    evaluate_torch_sequence_split_holdout,
+)
 from elfquake.models.torch_tabular import evaluate_torch_tabular_group_holdout, evaluate_torch_tabular_holdout
 from elfquake.models.window_adapter import build_event_window_features
 from elfquake.normalize.events import combine_normalized_events
@@ -1884,6 +1889,44 @@ class AcquisitionScaffoldTests(unittest.TestCase):
             self.assertEqual(report["test_group"], "seed2")
             self.assertEqual(report["evaluations"]["sequence_direct_avalanche_piezo_vlf"]["status"], "evaluated")
 
+    @unittest.skipUnless(importlib.util.find_spec("torch"), "PyTorch optional dependency is not installed")
+    def test_torch_sequence_split_holdout_uses_explicit_split(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            aligned = root / "aligned.csv"
+            aligned.write_text(
+                "dataset_id,window_id,region_id,window_start_utc,window_end_utc,target_occurred,target_status,model_split\n"
+                "seed1,w0,r,2026-01-01T00:00:00Z,2026-01-01T00:02:00Z,0,labeled,train\n"
+                "seed1,w1,r,2026-01-01T00:02:00Z,2026-01-01T00:04:00Z,1,labeled,train\n"
+                "seed1,w2,r,2026-01-01T00:04:00Z,2026-01-01T00:06:00Z,0,labeled,train\n"
+                "seed1,w3,r,2026-01-01T00:06:00Z,2026-01-01T00:08:00Z,1,labeled,train\n"
+                "seed1,w4,r,2026-01-01T00:08:00Z,2026-01-01T00:10:00Z,0,labeled,test\n"
+                "seed1,w5,r,2026-01-01T00:10:00Z,2026-01-01T00:12:00Z,1,labeled,test\n",
+                encoding="utf-8",
+            )
+            manifests = [
+                self._write_sequence_fixture(root, "seed1", "synthetic_direct_avalanche", "avalanche_signal", [0, 0, 1, 1, 2, 2, 6, 7, 8, 2, 3, 9, 9]),
+                self._write_sequence_fixture(root, "seed1", "synthetic_piezo_vlf", "piezo_signal", [0, 0, 1, 2, 3, 4, 8, 8, 7, 3, 2, 9, 10]),
+                self._write_sequence_fixture(root, "seed1", "synthetic_summary", "topple_count", [1, 1, 2, 2, 3, 3, 8, 8, 8, 3, 3, 9, 9]),
+            ]
+
+            report = evaluate_torch_sequence_split_holdout(
+                input_csv=aligned,
+                sequence_manifest_paths=manifests,
+                out_path=root / "sequence_split.json",
+                lookback_steps=2,
+                epochs=2,
+                hidden_units=4,
+                batch_size=2,
+                evaluation_names=["sequence_full"],
+            )
+
+            self.assertEqual(report["schema"], "elfquake.torch_sequence_split_holdout.v1")
+            self.assertEqual(report["status"], "evaluated")
+            self.assertEqual(report["train_row_count"], 4)
+            self.assertEqual(report["test_row_count"], 2)
+            self.assertEqual(list(report["evaluations"]), ["sequence_full"])
+
     def test_synthetic_regime_annotation_can_drop_burn_in(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
@@ -1916,6 +1959,66 @@ class AcquisitionScaffoldTests(unittest.TestCase):
             self.assertIn("synthetic_regime_id", lines[0])
             self.assertNotIn(",w0,", "\n".join(lines[1:]))
             self.assertEqual(report["regime_ids"], ["seed1_r0", "seed1_r1", "seed2_r0", "seed2_r1"])
+
+    def test_balanced_split_assigns_test_rows_by_group_and_label(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            table = root / "regimes.csv"
+            table.write_text(
+                "synthetic_regime_id,window_id,window_start_utc,target_occurred\n"
+                "r1,w0,2026-01-01T00:00:00Z,0\n"
+                "r1,w1,2026-01-01T01:00:00Z,0\n"
+                "r1,w2,2026-01-01T02:00:00Z,1\n"
+                "r1,w3,2026-01-01T03:00:00Z,1\n"
+                "r2,w0,2026-01-01T00:00:00Z,0\n"
+                "r2,w1,2026-01-01T01:00:00Z,0\n"
+                "r2,w2,2026-01-01T02:00:00Z,1\n"
+                "r2,w3,2026-01-01T03:00:00Z,1\n",
+                encoding="utf-8",
+            )
+
+            report = assign_balanced_split(
+                input_csv=table,
+                out_csv=root / "split.csv",
+                report_path=root / "split.json",
+                test_fraction=0.5,
+            )
+
+            self.assertEqual(report["train_row_count"], 4)
+            self.assertEqual(report["test_row_count"], 4)
+            self.assertEqual(report["train_positive_count"], 2)
+            self.assertEqual(report["test_positive_count"], 2)
+            lines = (root / "split.csv").read_text(encoding="utf-8").splitlines()
+            self.assertTrue(lines[0].endswith(",model_split"))
+
+    def test_model_scale_estimate_reports_larger_model_gates(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            aligned = root / "aligned.csv"
+            aligned.write_text(
+                "dataset_id,window_id,region_id,window_start_utc,window_end_utc,target_occurred,feature_a\n"
+                "seed1,w0,r,2026-01-01T00:00:00Z,2026-01-01T00:02:00Z,0,1.0\n"
+                "seed1,w1,r,2026-01-01T00:02:00Z,2026-01-01T00:04:00Z,1,2.0\n"
+                "seed2,w0,r,2026-01-01T00:00:00Z,2026-01-01T00:02:00Z,0,3.0\n"
+                "seed2,w1,r,2026-01-01T00:02:00Z,2026-01-01T00:04:00Z,1,4.0\n",
+                encoding="utf-8",
+            )
+            manifest = self._write_sequence_fixture(root, "seed1", "synthetic_piezo_vlf", "piezo_signal", [0, 1, 2, 3])
+
+            report = estimate_model_scale(
+                input_csv=aligned,
+                out_path=root / "scale.json",
+                sequence_manifest_paths=[manifest],
+                lookback_steps=3,
+            )
+
+            self.assertEqual(report["schema"], "elfquake.model_scale_estimate.v1")
+            self.assertEqual(report["labeled_row_count"], 4)
+            self.assertEqual(report["positive_count"], 2)
+            self.assertEqual(report["negative_count"], 2)
+            self.assertEqual(report["sequence_feature_count"], 2)
+            self.assertEqual(report["bytes_per_sequence_sample_float32"], 24)
+            self.assertFalse(report["gates"]["small_transformer_synthetic"]["ready"])
 
     def test_temporal_split_diagnostics_reports_feature_drift(self) -> None:
         with tempfile.TemporaryDirectory() as directory:

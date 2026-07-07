@@ -23,6 +23,7 @@ Run from the repository root with the project virtual environment active. Keep m
 ./matched-sequence-comparison.sh
 ./repeat-sequence-training-seeds.sh
 ./train-sequence-full-regime.sh
+./train-sequence-full-balanced.sh
 ```
 
 3. Summarize and diagnose model outputs:
@@ -30,6 +31,7 @@ Run from the repository root with the project virtual environment active. Keep m
 ```sh
 ./compare-model-runs.sh
 ./compare-real-synthetic-models.sh
+./estimate-model-scale.sh
 ./diagnose-sequence-models.sh
 ./summarize-sequence-selection.sh
 ```

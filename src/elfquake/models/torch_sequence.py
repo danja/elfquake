@@ -146,6 +146,70 @@ def evaluate_torch_sequence_group_holdout(
     return _write_report(out_path, report)
 
 
+def evaluate_torch_sequence_split_holdout(
+    *,
+    input_csv: Path,
+    sequence_manifest_paths: list[Path],
+    out_path: Path,
+    split_field: str = "model_split",
+    train_value: str = "train",
+    test_value: str = "test",
+    lookback_steps: int = 60,
+    epochs: int = 40,
+    learning_rate: float = 0.001,
+    hidden_units: int = 24,
+    batch_size: int = 64,
+    seed: int = 42,
+    include_missing_masks: bool = True,
+    evaluation_names: list[str] | None = None,
+) -> dict[str, object]:
+    rows, _ = _read_rows_and_fields(input_csv)
+    labeled = [row for row in rows if row.get("target_occurred") in {"0", "1"}]
+    train_rows = [row for row in labeled if row.get(split_field, "") == train_value]
+    test_rows = [row for row in labeled if row.get(split_field, "") == test_value]
+    report = _base_report(
+        schema="elfquake.torch_sequence_split_holdout.v1",
+        input_csv=input_csv,
+        sequence_manifest_paths=sequence_manifest_paths,
+        row_count=len(rows),
+        labeled_count=len(labeled),
+        lookback_steps=lookback_steps,
+        epochs=epochs,
+        learning_rate=learning_rate,
+        hidden_units=hidden_units,
+        batch_size=batch_size,
+        seed=seed,
+        include_missing_masks=include_missing_masks,
+        evaluation_names=evaluation_names,
+    )
+    report["split_field"] = split_field
+    report["train_value"] = train_value
+    report["test_value"] = test_value
+    if len(train_rows) < 2 or len(test_rows) < 1:
+        report["status"] = "insufficient_split_rows"
+        return _write_report(out_path, report)
+
+    labels_train = [int(row["target_occurred"]) for row in train_rows]
+    labels_test = [int(row["target_occurred"]) for row in test_rows]
+    report.update(_split_counts(train_rows, test_rows, labels_train, labels_test))
+    sequences = load_sequence_datasets(sequence_manifest_paths, include_missing_masks=include_missing_masks)
+    _evaluate_all(
+        report=report,
+        sequences=sequences,
+        train_rows=train_rows,
+        test_rows=test_rows,
+        lookback_steps=lookback_steps,
+        epochs=epochs,
+        learning_rate=learning_rate,
+        hidden_units=hidden_units,
+        batch_size=batch_size,
+        seed=seed,
+        evaluation_names=evaluation_names,
+    )
+    report["status"] = _overall_status(report)
+    return _write_report(out_path, report)
+
+
 def _base_report(
     *,
     schema: str,

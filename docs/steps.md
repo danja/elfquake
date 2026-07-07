@@ -210,6 +210,10 @@ Measure target balance and feature drift between temporal train/test partitions.
 
 Add burn-in and regime identifiers to synthetic aligned rows. Use `--drop-burn-in` before regime holdout experiments when early simulation transients should not dominate the split.
 
+### `assign-balanced-split`
+
+Assign deterministic train/test labels within each group and target bucket. Use this for synthetic engineering checks that reduce seed/regime label drift, not for final forecasting validation.
+
 ### `evaluate-group-holdout`
 
 Evaluate a model by holding out one group, usually a synthetic seed or dataset ID. Use this to test whether synthetic patterns generalize across runs.
@@ -217,6 +221,14 @@ Evaluate a model by holding out one group, usually a synthetic seed or dataset I
 ### `summarize-model-run-reports`
 
 Compact multiple evaluation JSON reports into one summary. Use this after temporal and group-holdout evaluations.
+
+### `estimate-model-scale`
+
+Estimate row counts, class balance, sequence feature size, memory footprint, and larger-model readiness gates. Use this before increasing GRU size or adding a Transformer.
+
+### `estimate-model-scale.sh`
+
+Run the default scale estimates for current synthetic, post-burn-in balanced synthetic, and real VLF-aligned datasets.
 
 ### `compare-model-run-summaries`
 
@@ -265,6 +277,10 @@ Repeat the default sequence training with multiple PyTorch seeds and summarize s
 ### `train-sequence-full-regime.sh`
 
 Annotate post-burn-in synthetic regimes, train only `sequence_full`, hold out each remaining seed/regime block, and write one compact robustness summary.
+
+### `train-sequence-full-balanced.sh`
+
+Annotate post-burn-in synthetic regimes, assign a deterministic regime-balanced split, train only `sequence_full`, and write a compact explicit-split summary.
 
 ### `train-real-tabular-model.sh`
 

@@ -11,9 +11,9 @@ We wish to exploit more modern machine learning/AI techniques to create a predic
 
 ## Status
 
-Status: historical seismic-only baselines and synthetic CPU PyTorch sequence diagnostics are runnable, but real VLF-aligned training is still blocked by one-class labels; **no earthquake prediction capability is claimed**.
+Status: historical seismic-only baselines, synthetic CPU PyTorch sequence diagnostics, and regime-balanced synthetic split checks are runnable, but real VLF-aligned training is still blocked by one-class labels; **no earthquake prediction capability is claimed**.
 
-Right now, while awaiting further VLF-aligned labels, the focus is on real seismic baselines, synthetic regime diagnostics, and keeping the multimodal model interface stable. Evaluation of the current model can be found in [report.md](docs/report.md) and [model-comparison.md](docs/model-comparison.md).
+Right now, while awaiting further VLF-aligned labels, the focus is on real seismic baselines, synthetic regime diagnostics, and keeping the multimodal model interface stable. Evaluation of the current model can be found in [report.md](docs/report.md), [model-comparison.md](docs/model-comparison.md), and [model-scaling-requirements.md](docs/model-scaling-requirements.md).
 
 ### Simulated Earthquakes
 
@@ -38,6 +38,7 @@ This work was initially prompted by the tragedy of the [2009 L'Aquila earthquake
 * A first CPU PyTorch GRU sequence model over synthetic avalanche and piezo/VLF sensor tensors.
 * Summary comparison, sequence sweep, and missing-modality scripts for model diagnostics.
 * A compact real-vs-synthetic comparison wrapper for central-Italy seismic baselines and synthetic sequence reports.
+* Larger-model scale checks for row count, class balance, sequence size, and CPU-only model limits.
 * Real Cumiana VLF image features materialized into the same sequence shape as synthetic piezo/VLF inputs.
 * Real prospective aligned model inputs scaffolded for all-Italy and central-Italy rows; real training remains blocked by insufficient class variation.
 * VLF model feature roles that allow synthetic piezo/VLF analogue data to exercise the same PyTorch VLF path before real labels mature.
@@ -83,4 +84,5 @@ This is a simplified stress-and-release analogy, not a geological model. Its val
 * [Systemd Service](docs/systemd-service.md)
 * [Initial Model Trials](docs/initial-model-trials.md)
 * [Model Comparison](docs/model-comparison.md)
+* [Model Scaling Requirements](docs/model-scaling-requirements.md)
 * [Sandpile Simulation](docs/sandpile-simulation.md)

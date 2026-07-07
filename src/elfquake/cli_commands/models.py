@@ -12,15 +12,20 @@ from elfquake.models.candidates import write_model_candidates
 from elfquake.models.dataset_combine import combine_aligned_datasets
 from elfquake.models.interface_shape import audit_model_interfaces
 from elfquake.models.logistic_smoke import train_logistic_smoke
+from elfquake.models.model_scale import estimate_model_scale
 from elfquake.models.readiness import summarize_model_readiness
 from elfquake.models.report_summary import summarize_model_run_reports
 from elfquake.models.sequence_materializer import materialize_sequence_dataset
 from elfquake.models.split_diagnostics import diagnose_temporal_split
-from elfquake.models.synthetic_regimes import annotate_synthetic_regimes
+from elfquake.models.synthetic_regimes import annotate_synthetic_regimes, assign_balanced_split
 from elfquake.models.tensor_materializer import materialize_tensor_dataset
 from elfquake.models.tensor_spec import build_tensor_spec
 from elfquake.models.temporal_holdout import evaluate_group_holdout, evaluate_temporal_holdout
-from elfquake.models.torch_sequence import evaluate_torch_sequence_group_holdout, evaluate_torch_sequence_holdout
+from elfquake.models.torch_sequence import (
+    evaluate_torch_sequence_group_holdout,
+    evaluate_torch_sequence_holdout,
+    evaluate_torch_sequence_split_holdout,
+)
 from elfquake.models.torch_tabular import evaluate_torch_tabular_group_holdout, evaluate_torch_tabular_holdout
 from elfquake.models.window_adapter import build_event_window_features
 
@@ -114,6 +119,23 @@ def register_model_commands(subparsers: _SubParsersAction) -> None:
     torch_sequence_group.add_argument("--evaluation", action="append", default=[], help="Sequence evaluation name to run; repeatable")
     torch_sequence_group.set_defaults(func=_train_torch_sequence_group_holdout)
 
+    torch_sequence_split = subparsers.add_parser("train-torch-sequence-split-holdout")
+    torch_sequence_split.add_argument("--input", type=Path, required=True)
+    torch_sequence_split.add_argument("--sequence-manifest", type=Path, action="append", required=True)
+    torch_sequence_split.add_argument("--out", type=Path, required=True)
+    torch_sequence_split.add_argument("--split-field", default="model_split")
+    torch_sequence_split.add_argument("--train-value", default="train")
+    torch_sequence_split.add_argument("--test-value", default="test")
+    torch_sequence_split.add_argument("--lookback-steps", type=int, default=60)
+    torch_sequence_split.add_argument("--epochs", type=int, default=40)
+    torch_sequence_split.add_argument("--learning-rate", type=float, default=0.001)
+    torch_sequence_split.add_argument("--hidden-units", type=int, default=24)
+    torch_sequence_split.add_argument("--batch-size", type=int, default=64)
+    torch_sequence_split.add_argument("--seed", type=int, default=42)
+    torch_sequence_split.add_argument("--no-missing-masks", action="store_true")
+    torch_sequence_split.add_argument("--evaluation", action="append", default=[], help="Sequence evaluation name to run; repeatable")
+    torch_sequence_split.set_defaults(func=_train_torch_sequence_split_holdout)
+
     split_diagnostics = subparsers.add_parser("diagnose-temporal-split")
     split_diagnostics.add_argument("--input", type=Path, required=True)
     split_diagnostics.add_argument("--out", type=Path, required=True)
@@ -135,6 +157,17 @@ def register_model_commands(subparsers: _SubParsersAction) -> None:
     synthetic_regimes.add_argument("--drop-burn-in", action="store_true")
     synthetic_regimes.set_defaults(func=_annotate_synthetic_regimes)
 
+    balanced_split = subparsers.add_parser("assign-balanced-split")
+    balanced_split.add_argument("--input", type=Path, required=True)
+    balanced_split.add_argument("--out", type=Path, required=True)
+    balanced_split.add_argument("--report", type=Path, required=True)
+    balanced_split.add_argument("--group-field", default="synthetic_regime_id")
+    balanced_split.add_argument("--target-field", default="target_occurred")
+    balanced_split.add_argument("--time-field", default="window_start_utc")
+    balanced_split.add_argument("--split-field", default="model_split")
+    balanced_split.add_argument("--test-fraction", type=float, default=0.2)
+    balanced_split.set_defaults(func=_assign_balanced_split)
+
     group_holdout = subparsers.add_parser("evaluate-group-holdout")
     group_holdout.add_argument("--input", type=Path, required=True)
     group_holdout.add_argument("--out", type=Path, required=True)
@@ -153,6 +186,16 @@ def register_model_commands(subparsers: _SubParsersAction) -> None:
     model_candidates.add_argument("--out", type=Path, required=True)
     model_candidates.add_argument("--stage", choices=["baseline", "transformer", "research"])
     model_candidates.set_defaults(func=_list_model_candidates)
+
+    model_scale = subparsers.add_parser("estimate-model-scale")
+    model_scale.add_argument("--input", type=Path, required=True)
+    model_scale.add_argument("--out", type=Path, required=True)
+    model_scale.add_argument("--sequence-manifest", type=Path, action="append", default=[])
+    model_scale.add_argument("--target-field", default="target_occurred")
+    model_scale.add_argument("--group-field", default="dataset_id")
+    model_scale.add_argument("--lookback-steps", type=int, default=60)
+    model_scale.add_argument("--no-missing-masks", action="store_true")
+    model_scale.set_defaults(func=_estimate_model_scale)
 
     tensor_spec = subparsers.add_parser("build-tensor-spec")
     tensor_spec.add_argument("--input", type=Path, required=True)
@@ -344,6 +387,27 @@ def _train_torch_sequence_group_holdout(args: Namespace) -> int:
     return 0
 
 
+def _train_torch_sequence_split_holdout(args: Namespace) -> int:
+    report = evaluate_torch_sequence_split_holdout(
+        input_csv=args.input,
+        sequence_manifest_paths=args.sequence_manifest,
+        out_path=args.out,
+        split_field=args.split_field,
+        train_value=args.train_value,
+        test_value=args.test_value,
+        lookback_steps=args.lookback_steps,
+        epochs=args.epochs,
+        learning_rate=args.learning_rate,
+        hidden_units=args.hidden_units,
+        batch_size=args.batch_size,
+        seed=args.seed,
+        include_missing_masks=not args.no_missing_masks,
+        evaluation_names=args.evaluation or None,
+    )
+    _print_holdout_report(report, args.out)
+    return 0
+
+
 def _diagnose_temporal_split(args: Namespace) -> int:
     report = diagnose_temporal_split(
         input_csv=args.input,
@@ -388,6 +452,27 @@ def _annotate_synthetic_regimes(args: Namespace) -> int:
     return 0
 
 
+def _assign_balanced_split(args: Namespace) -> int:
+    report = assign_balanced_split(
+        input_csv=args.input,
+        out_csv=args.out,
+        report_path=args.report,
+        group_field=args.group_field,
+        target_field=args.target_field,
+        time_field=args.time_field,
+        split_field=args.split_field,
+        test_fraction=args.test_fraction,
+    )
+    print(f"rows: {report['row_count']}")
+    print(f"train rows: {report['train_row_count']}")
+    print(f"test rows: {report['test_row_count']}")
+    print(f"train positives: {report['train_positive_count']}")
+    print(f"test positives: {report['test_positive_count']}")
+    print(f"output: {args.out}")
+    print(f"report: {args.report}")
+    return 0
+
+
 def _evaluate_group_holdout(args: Namespace) -> int:
     report = evaluate_group_holdout(
         input_csv=args.input,
@@ -411,6 +496,25 @@ def _summarize_model_run_reports(args: Namespace) -> int:
 def _list_model_candidates(args: Namespace) -> int:
     rows = write_model_candidates(out_path=args.out, stage=args.stage)
     print(f"candidates: {len(rows)}")
+    print(f"output: {args.out}")
+    return 0
+
+
+def _estimate_model_scale(args: Namespace) -> int:
+    report = estimate_model_scale(
+        input_csv=args.input,
+        out_path=args.out,
+        sequence_manifest_paths=args.sequence_manifest,
+        target_field=args.target_field,
+        group_field=args.group_field,
+        lookback_steps=args.lookback_steps,
+        include_missing_masks=not args.no_missing_masks,
+    )
+    print(f"labeled rows: {report['labeled_row_count']}")
+    print(f"positives: {report['positive_count']}")
+    print(f"negatives: {report['negative_count']}")
+    print(f"sequence features: {report['sequence_feature_count']}")
+    print(f"recommended next model: {report['recommended_next_model']}")
     print(f"output: {args.out}")
     return 0
 
