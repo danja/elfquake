@@ -234,6 +234,26 @@ Run sequence group-holdout checks with VLF/piezo-only and no-piezo inputs. Use t
 
 Run the default sequence diagnostic over `data/derived/models/model_family_comparison.json`. Use this before changing sequence defaults, because it makes epoch and modality differences explicit.
 
+### `summarize-sequence-selection`
+
+Summarize a sequence diagnostic by best single row, mean group score, worst held-out seed score, and temporal score. Use this to avoid choosing a model from one lucky group split.
+
+### `summarize-sequence-selection.sh`
+
+Run the default selection summary over the matched 20-epoch sequence diagnostic.
+
+### `matched-sequence-comparison.sh`
+
+Run a matched 20-epoch sequence comparison over lookbacks `30`, `60`, and `120` with hidden size `24`, then compare it against the existing default sequence reports.
+
+### `repeat-sequence-training-seeds.sh`
+
+Repeat the default sequence training with multiple PyTorch seeds and summarize stability across training seeds and held-out synthetic seeds.
+
+### `train-real-tabular-model.sh`
+
+Train a real-data tabular PyTorch smoke model only when the chosen real aligned table has both positive and negative labels. The script refuses to train while readiness is insufficient.
+
 ### `list-model-candidates`
 
 Write the current model-candidate registry to JSON, optionally filtered by stage. Use this to track baseline, Transformer, and research candidates.

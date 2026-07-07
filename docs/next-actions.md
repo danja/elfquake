@@ -10,7 +10,8 @@
 6. Review the tabular-vs-sequence comparison and bounded sequence sweep outputs before changing the default GRU lookback.
 7. Use missing-modality reports to decide whether VLF/piezo, direct avalanche, or combined sequence inputs deserve the next model pass.
 8. Wait for real prospective rows to include both positive and negative labels before attempting real PyTorch training.
-9. Run a matched-epoch sequence comparison before changing the default sequence modality or lookback.
+9. Use `sequence_full` for the next robustness experiments, while keeping piezo/VLF-only noted as the strongest single synthetic group row.
+10. Add a regime-balanced or burn-in-aware synthetic split before spending more time on chronological sequence metrics.
 
 ## General
 
@@ -106,3 +107,8 @@
 * Generate `data/derived/models/model_family_comparison.json`; best calibrated row remains `0.772558` for sequence piezo/VLF-only on held-out `seed42`.
 * Add and run `prepare-real-model-inputs.sh`; real aligned VLF tables are scaffolded, but both still have insufficient class variation.
 * Add and run sequence modality diagnostics over `112` evaluation rows; the direct-only sweep result is not a sufficient reason to change defaults because epoch counts differ and temporal rows remain near `0.5`.
+* Add and run `matched-sequence-comparison.sh`; the matched 20-epoch comparison keeps `sequence_piezo_vlf_only`, `lookback=60`, `hidden=24` as the strongest single row at `0.772558`, while `sequence_full` has the best mean group score.
+* Add `summarize-sequence-selection` and run the matched sequence selection report.
+* Add and run `repeat-sequence-training-seeds.sh`; piezo/VLF-only remains the best single row, while `sequence_full` wins mean group and worst-held-out-seed stability.
+* Add `train-real-tabular-model.sh`; it correctly refuses to train while all-Italy has `18` positives and `0` negatives.
+* Refresh INGV labels and real aligned model inputs again; real training remains blocked by insufficient class variation.

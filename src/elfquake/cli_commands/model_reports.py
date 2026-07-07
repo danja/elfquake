@@ -7,6 +7,7 @@ from pathlib import Path
 
 from elfquake.models.comparison import compare_model_run_summaries
 from elfquake.models.sequence_comparison import diagnose_sequence_comparison
+from elfquake.models.sequence_selection import summarize_sequence_selection
 
 
 def register_model_report_commands(subparsers: _SubParsersAction) -> None:
@@ -22,6 +23,12 @@ def register_model_report_commands(subparsers: _SubParsersAction) -> None:
     sequence_diagnostic.add_argument("--csv-out", type=Path)
     sequence_diagnostic.set_defaults(func=_diagnose_sequence_comparison)
 
+    sequence_selection = subparsers.add_parser("summarize-sequence-selection")
+    sequence_selection.add_argument("--diagnostic", type=Path, required=True)
+    sequence_selection.add_argument("--out", type=Path, required=True)
+    sequence_selection.add_argument("--csv-out", type=Path)
+    sequence_selection.set_defaults(func=_summarize_sequence_selection)
+
 
 def _compare_model_run_summaries(args: Namespace) -> int:
     report = compare_model_run_summaries(
@@ -35,6 +42,23 @@ def _compare_model_run_summaries(args: Namespace) -> int:
     if best:
         print(f"best calibrated: {best.get('best_calibrated_balanced_accuracy')}")
         print(f"best model: {best.get('model_name')}")
+    print(f"output: {args.out}")
+    if args.csv_out:
+        print(f"csv output: {args.csv_out}")
+    return 0
+
+
+def _summarize_sequence_selection(args: Namespace) -> int:
+    report = summarize_sequence_selection(
+        diagnostic_path=args.diagnostic,
+        out_path=args.out,
+        csv_out_path=args.csv_out,
+    )
+    best = report.get("best_single_row", {})
+    print(f"evaluations: {report['evaluation_count']}")
+    if best:
+        print(f"best single: {best.get('evaluation_name')}")
+        print(f"best single score: {best.get('best_group_calibrated_balanced_accuracy')}")
     print(f"output: {args.out}")
     if args.csv_out:
         print(f"csv output: {args.csv_out}")

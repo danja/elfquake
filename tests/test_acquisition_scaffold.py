@@ -59,6 +59,7 @@ from elfquake.models.readiness import summarize_model_readiness
 from elfquake.models.report_summary import summarize_model_run_reports
 from elfquake.models.sequence_materializer import materialize_sequence_dataset
 from elfquake.models.sequence_comparison import diagnose_sequence_comparison
+from elfquake.models.sequence_selection import summarize_sequence_selection
 from elfquake.models.split_diagnostics import diagnose_temporal_split
 from elfquake.models.tensor_materializer import materialize_tensor_dataset
 from elfquake.models.tensor_spec import build_tensor_spec
@@ -281,6 +282,16 @@ class AcquisitionScaffoldTests(unittest.TestCase):
             self.assertIn("default_sequence", report["best_by_source"])
             self.assertTrue(any("matched epochs" in note for note in report["notes"]))
             self.assertTrue((root / "diagnostic.csv").exists())
+
+            selection = summarize_sequence_selection(
+                diagnostic_path=root / "diagnostic.json",
+                out_path=root / "selection.json",
+                csv_out_path=root / "selection.csv",
+            )
+
+            self.assertEqual(selection["evaluation_count"], 2)
+            self.assertEqual(selection["best_single_row"]["evaluation_name"], "sequence_piezo_vlf_only")
+            self.assertTrue((root / "selection.csv").exists())
 
     def test_astronomy_url_materializes_moon_placeholders(self) -> None:
         url = _materialize_url(
