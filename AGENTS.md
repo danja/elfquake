@@ -37,6 +37,10 @@ Start with:
 
 Update `docs/next-actions.md` whenever completing or changing the immediate work queue.
 
+## Repo-local Skills
+
+Use `.codex/skills/` for concise workflow skills that capture repeatable repository operations. Prefer skills for scripted data refresh, simulation, and model-training workflows so future agents can run commands in the expected order without rediscovery.
+
 ## Data Rules
 
 * Limit project data to Italy.

@@ -36,6 +36,7 @@
 
 ## Completed
 
+* Add repo-local Codex skills for source ingest, prospective data refresh, simulation pipeline runs, and synthetic model workflows.
 * Add naive baseline and threshold-calibrated metrics to temporal holdout reports.
 * Add a reproducible direct avalanche event-extraction tuning helper and run it on seeds `40`, `41`, and `42`.
 * Validate direct avalanche event quantile `0.99` on a longer seed `42`, `20000` step run and update pipeline defaults.
