@@ -1,0 +1,135 @@
+{
+  "events_out": "data/derived/models/trial_forecast/mag_gt2_weekly_trial_events.csv",
+  "forecast_end_utc": "2026-07-15T00:00:00Z",
+  "forecast_start_utc": "2026-07-08T00:00:00Z",
+  "horizon_days": 7,
+  "magnitude_condition": ">2",
+  "max_events": 25,
+  "model": {
+    "count_mix": "historical INGV weekly rate modulated by current VLF, astronomy, and synthetic stress context",
+    "downstream_contract": "CSV rows contain predicted event time, latitude, longitude, magnitude proxy, probability, and source contribution fields.",
+    "spatial_mix": "75% historical INGV density, 25% synthetic avalanche density when both are present",
+    "type": "deterministic_multimodal_trial_ensemble"
+  },
+  "predicted_event_count": 25,
+  "predictions_preview": [
+    {
+      "astronomy_context_score": 0.522525,
+      "expected_week_count": 33.411669,
+      "forecast_time_utc": "2026-07-08T02:12:39.261669Z",
+      "latitude": 41.78784,
+      "longitude": 15.77827,
+      "magnitude_proxy": 3.01,
+      "prediction_id": "trial_001",
+      "probability_proxy": 0.99,
+      "real_spatial_weight": 0.003519,
+      "synthetic_context_score": 1.0,
+      "synthetic_spatial_weight": 0.0,
+      "vlf_context_score": 0.317966,
+      "warning": "trial baseline; not validated prediction"
+    },
+    {
+      "astronomy_context_score": 0.522525,
+      "expected_week_count": 33.411669,
+      "forecast_time_utc": "2026-07-08T09:04:50.600726Z",
+      "latitude": 43.95498,
+      "longitude": 12.75086,
+      "magnitude_proxy": 3.08,
+      "prediction_id": "trial_002",
+      "probability_proxy": 0.666069,
+      "real_spatial_weight": 0.000768,
+      "synthetic_context_score": 1.0,
+      "synthetic_spatial_weight": 0.0,
+      "vlf_context_score": 0.317966,
+      "warning": "trial baseline; not validated prediction"
+    },
+    {
+      "astronomy_context_score": 0.522525,
+      "expected_week_count": 33.411669,
+      "forecast_time_utc": "2026-07-08T16:04:17.140960Z",
+      "latitude": 43.20527,
+      "longitude": 12.51428,
+      "magnitude_proxy": 3.17,
+      "prediction_id": "trial_003",
+      "probability_proxy": 0.99,
+      "real_spatial_weight": 0.001685,
+      "synthetic_context_score": 1.0,
+      "synthetic_spatial_weight": 0.219017,
+      "vlf_context_score": 0.317966,
+      "warning": "trial baseline; not validated prediction"
+    },
+    {
+      "astronomy_context_score": 0.522525,
+      "expected_week_count": 33.411669,
+      "forecast_time_utc": "2026-07-08T22:19:34.038478Z",
+      "latitude": 37.22444,
+      "longitude": 14.69488,
+      "magnitude_proxy": 3.32,
+      "prediction_id": "trial_004",
+      "probability_proxy": 0.754116,
+      "real_spatial_weight": 0.001313,
+      "synthetic_context_score": 1.0,
+      "synthetic_spatial_weight": 0.0,
+      "vlf_context_score": 0.317966,
+      "warning": "trial baseline; not validated prediction"
+    },
+    {
+      "astronomy_context_score": 0.522525,
+      "expected_week_count": 33.411669,
+      "forecast_time_utc": "2026-07-09T05:50:40.882285Z",
+      "latitude": 38.3056,
+      "longitude": 12.0166,
+      "magnitude_proxy": 2.93,
+      "prediction_id": "trial_005",
+      "probability_proxy": 0.55749,
+      "real_spatial_weight": 0.000372,
+      "synthetic_context_score": 1.0,
+      "synthetic_spatial_weight": 0.0,
+      "vlf_context_score": 0.317966,
+      "warning": "trial baseline; not validated prediction"
+    }
+  ],
+  "schema": "elfquake.trial_multimodal_weekly_event_forecast.v1",
+  "seed": 42,
+  "sources": {
+    "astronomy": {
+      "f107_value_count": 781,
+      "json_path_count": 19,
+      "latest_f107": 138.21,
+      "latest_time_utc": "2026-07-06T07:01:06Z",
+      "moon_phase_count": 24,
+      "row_count": 19,
+      "score": 0.522525
+    },
+    "ingv": {
+      "all_history_expected_event_count": 30.311691,
+      "event_count": 4836,
+      "expected_event_count": 27.899092,
+      "history_day_count": 917.963,
+      "history_start_utc": "2024-01-02T00:53:48.250000Z",
+      "path": "data/derived/ingv/events_italy_all_available.combined.normalized.csv",
+      "probability_at_least_one": 1.0,
+      "recent_expected_event_count": 26.6,
+      "target_event_count": 3975
+    },
+    "synthetic_avalanche": {
+      "max_magnitude": 5.85,
+      "mean_top_5pct_magnitude": 4.891606,
+      "path_count": 18,
+      "stress_context_score": 1.0,
+      "target_event_count": 92506
+    },
+    "vlf": {
+      "anomaly_report": "data/derived/models/self_supervised/real_vlf_anomaly_forecast.json",
+      "audio_path_count": 1,
+      "context_component_count": 3,
+      "latest_time_utc": "2026-07-06T06:50:50Z",
+      "row_count": 495,
+      "score": 0.317966,
+      "window_path_count": 2
+    }
+  },
+  "status": "trial_run",
+  "uncapped_expected_event_count": 33.411669,
+  "warning": "Engineering baseline only: not validated as earthquake prediction capability."
+}
