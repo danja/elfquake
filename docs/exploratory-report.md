@@ -18,7 +18,7 @@ The first report should validate data usability, not model performance.
 
 Save the report as a short Markdown or notebook artifact with generated tables and plots. Include enough metadata to reproduce the source pull and normalization run.
 
-Current report: [Smoke Exploratory Report](exploratory-report-smoke.md).
+Current report: [Smoke Exploratory Report](archive/exploratory-report-smoke.md).
 
 ## Pass Criteria
 

@@ -1,33 +1,33 @@
 # Baseline Targets
 
-Define simple targets before adding machine learning.
+This document defines the naive baseline targets and model metrics used as references before evaluating complex multimodal machine learning.
 
-## First Target
+## 1. Primary Baseline Target
 
-Predict whether at least one event with magnitude `>= 3.0` occurs in Central Italy within the next `7` days.
+Predict whether at least one seismic event with magnitude `>= 3.0` occurs in Central Italy within the next `7` days.
 
-Input table: [Baseline Input](baseline-input.md).
+*   **Input Schema**: Defined under [Multimodal Window Schema and Feature Extraction](multimodal-window-schema.md).
+*   **Historical Smoke Run Logs**: Relocated to the [archive/](archive/) directory for reference (such as `archive/baseline-run-smoke.md` and `archive/baseline-input.md`).
 
-Smoke run: [Smoke Baseline Run](baseline-run-smoke.md).
+## 2. Baseline Model Definition
 
-## Baseline Model
+We evaluate all features against a naive **Historical-Rate Baseline**:
+*   Train on past event frequency only.
+*   Group by region and time window.
+*   Output the observed positive window frequency (probability) from training data for each validation window.
+*   Avoid the use of VLF radio, space weather, or astronomical features.
 
-Use a historical-rate baseline:
+## 3. Evaluation Metrics
 
-* train on past event frequency only
-* group by region and time window
-* output an event probability for each window
-* avoid radio, waveform, or astronomical features
+Compare all candidate models against the historical-rate baseline using:
+*   Precision and recall.
+*   False positive and false negative rates.
+*   Probability calibration by bucket.
+*   Comparison against an always-negative baseline.
 
-## Metrics
+## 4. Chronological Validation Split
 
-* precision and recall
-* false positive and false negative rates
-* calibration by probability bucket
-* comparison against always-negative and historical-rate baselines
+All baseline and candidate models must use a time-based validation scheme:
+*   Training data must strictly occur before validation data.
+*   Ensure there is no overlap between lookback windows or target horizons between training and test sets.
 
-## Split
-
-Use time-based validation. Training data must occur before validation data.
-
-The current smoke dataset is only for table-shape validation. It is too small for meaningful baseline evaluation.
