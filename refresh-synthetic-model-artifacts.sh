@@ -20,7 +20,9 @@ Environment:
   WINDOW_SECONDS    default 3600
   EVENT_QUANTILE    default 0.99
   EVENT_WINDOW      default 30
+  EVENT_MAX         default 0, no cap
   SPATIAL_PROFILE   default italy_apennines
+  OUTPUT_TAG        optional suffix for parallel artifacts, e.g. _sparse
 
   RUN_EVENT_LISTS   default 1
   RUN_EVENT_MAPS    default 1
@@ -45,7 +47,9 @@ end_utc="${END_UTC:-2026-01-08T00:00:00Z}"
 window_seconds="${WINDOW_SECONDS:-3600}"
 event_quantile="${EVENT_QUANTILE:-0.99}"
 event_window="${EVENT_WINDOW:-30}"
+event_max="${EVENT_MAX:-0}"
 spatial_profile="${SPATIAL_PROFILE:-italy_apennines}"
+output_tag="${OUTPUT_TAG:-}"
 run_event_lists="${RUN_EVENT_LISTS:-1}"
 run_event_maps="${RUN_EVENT_MAPS:-1}"
 run_seed_models="${RUN_SEED_MODELS:-1}"
@@ -74,7 +78,8 @@ require_file() {
 for seed in $seeds; do
   prefix="mountain_${width}x${height}_seed${seed}_${steps}"
   sim_prefix="data/derived/sim/${prefix}"
-  model_prefix="data/derived/models/${prefix}"
+  event_file="${sim_prefix}.avalanche_events${output_tag}.csv"
+  model_prefix="data/derived/models/${prefix}${output_tag}"
   echo "refresh seed: $seed"
   require_file "${sim_prefix}.summary.csv"
   require_file "${sim_prefix}.sensors.csv"
@@ -97,18 +102,19 @@ for seed in $seeds; do
       --grid-height "$height" \
       --min-signal-quantile "$event_quantile" \
       --local-max-window "$event_window" \
+      --max-events "$event_max" \
       --spatial-profile "$spatial_profile" \
-      --out "${sim_prefix}.avalanche_events.csv"
+      --out "$event_file"
   fi
 
   if [[ "$run_event_maps" != "0" ]]; then
-    ./event-map.sh "${sim_prefix}.avalanche_events.csv"
+    ./event-map.sh "$event_file"
   fi
 
   if [[ "$run_seed_models" != "0" ]]; then
-    require_file "${sim_prefix}.avalanche_events.csv"
+    require_file "$event_file"
     run_cli build-event-window-features \
-      --events "${sim_prefix}.avalanche_events.csv" \
+      --events "$event_file" \
       --out "${model_prefix}.hourly_synthetic_seismic_windows.csv" \
       --region-id "$region_id" \
       --start-utc "$start_utc" \
@@ -185,11 +191,11 @@ for seed in $seeds; do
 done
 
 if [[ "$run_combined" != "0" ]]; then
-  combined_prefix="data/derived/models/mountain_${width}x${height}_seeds${seed_label}_${steps}"
+  combined_prefix="data/derived/models/mountain_${width}x${height}_seeds${seed_label}_${steps}${output_tag}"
   inputs=()
   gt1_inputs=()
   for seed in $seeds; do
-    prefix="data/derived/models/mountain_${width}x${height}_seed${seed}_${steps}"
+    prefix="data/derived/models/mountain_${width}x${height}_seed${seed}_${steps}${output_tag}"
     inputs+=(--input "${prefix}.aligned_hourly_synthetic_windows.csv" --dataset-id "seed${seed}")
     gt1_inputs+=(--input "${prefix}.aligned_hourly_synthetic_windows_gt1.csv" --dataset-id "seed${seed}")
   done
@@ -213,7 +219,7 @@ if [[ "$run_combined" != "0" ]]; then
 fi
 
 if [[ "$run_evaluations" != "0" ]]; then
-  combined_prefix="data/derived/models/mountain_${width}x${height}_seeds${seed_label}_${steps}"
+  combined_prefix="data/derived/models/mountain_${width}x${height}_seeds${seed_label}_${steps}${output_tag}"
   for suffix in "" "_gt1"; do
     base="${combined_prefix}.aligned_hourly_synthetic_windows${suffix}"
     run_cli summarize-model-readiness --input "${base}.csv" --out "${base}.readiness.json"

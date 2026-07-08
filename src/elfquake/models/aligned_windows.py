@@ -200,14 +200,18 @@ def _target_fields(
             for field in TARGET_FIELDS
             if field in base_rows[row_index]
         }
-    target_index = row_index + horizon_rows
-    if target_index >= len(base_rows):
+    first_future_index = row_index + 1
+    after_horizon_index = first_future_index + horizon_rows
+    if after_horizon_index > len(base_rows):
         return {
             "target_event_count": "",
             "target_occurred": "",
             "target_status": "unlabeled_no_future_window",
         }
-    value = float(base_rows[target_index].get(source_feature, "0") or "0")
+    value = sum(
+        float(row.get(source_feature, "0") or "0")
+        for row in base_rows[first_future_index:after_horizon_index]
+    )
     return {
         "target_event_count": f"{value:g}",
         "target_occurred": "1" if value > threshold else "0",

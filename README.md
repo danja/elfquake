@@ -78,6 +78,7 @@ This is a simplified stress-and-release analogy, not a geological model. Its val
 ## Key Docs
 
 * [Overview](docs/overview.md)
+* [Documentation Index](docs/README.md)
 * [Next Actions](docs/next-actions.md)
 * [Development Environment](docs/development-environment.md)
 * [Source Inventory](docs/source-inventory.md)

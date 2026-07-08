@@ -202,13 +202,13 @@ Chronological smoke evaluations use an `80/20` train/test split by default. For 
 
 The model feature registry now declares a `vlf` role. For real rows this covers `vlf_metadata` and `vlf_image`; for synthetic test rows it also covers `synthetic_piezo_vlf`, so the piezo analogue can stand in for VLF data without mixing it with direct avalanche/seismic features.
 
-Current CPU PyTorch result on `data/derived/models/mountain_256x256_seeds40-42_20000.aligned_hourly_synthetic_windows.csv`: `1005` labeled rows, `804/201` temporal split, best calibrated balanced accuracy `0.543076` for `synthetic_seismic_piezo_vlf`. The `synthetic_vlf_only` and `vlf_only` ablations both use the synthetic piezo/VLF analogue on this table.
+Current CPU PyTorch result on `data/derived/models/mountain_256x256_seeds40-42_20000.aligned_hourly_synthetic_windows.csv`: `501` relabeled rows, `400/101` temporal split, best calibrated balanced accuracy `0.507576`. The `synthetic_vlf_only` and `vlf_only` ablations both use the synthetic piezo/VLF analogue on this table.
 
-Current CPU PyTorch leave-one-seed-out results on the same table: best calibrated balanced accuracy `0.753501` for held-out seed `40`, `0.752810` for seed `41`, and `0.768286` for seed `42`. These results are more useful than the chronological split for checking synthetic transfer, but they remain synthetic-only.
+Current CPU PyTorch leave-one-seed-out results on the same table: best calibrated balanced accuracy `0.784169` for held-out seed `40`, `0.762832` for seed `41`, and `0.732602` for seed `42`. These results are more useful than the chronological split for checking synthetic transfer, but they remain synthetic-only.
 
-First CPU PyTorch sequence GRU results use materialized `synthetic_direct_avalanche`, `synthetic_piezo_vlf`, and `synthetic_summary` sequences with a `60` step lookback. Chronological balanced accuracy is flat at `0.500000`, matching the weak chronological regime split. Leave-one-seed-out calibrated balanced accuracy is `0.712754` for seed `40` with `sequence_full`, `0.746127` for seed `41` with `sequence_piezo_vlf_only`, and `0.772558` for seed `42` with `sequence_piezo_vlf_only`.
+Current CPU PyTorch sequence GRU results use materialized `synthetic_direct_avalanche`, `synthetic_piezo_vlf`, and `synthetic_summary` sequences with a `60` step lookback. Chronological balanced accuracy is flat at `0.500000`, matching the weak chronological regime split. Leave-one-seed-out calibrated balanced accuracy is `0.720690` for seed `40` with `sequence_full`, `0.821105` for seed `41` with `sequence_direct_avalanche_only`, and `0.768339` for seed `42` with `sequence_full`.
 
-Current next model checks are comparison-driven: compare tabular vs sequence reports, run a small sequence lookback sweep, test missing-modality behavior, and keep the real VLF sequence manifest in the same shape as the synthetic piezo/VLF path.
+Current next model checks are comparison-driven: rerun the sequence lookback sweep, missing-modality behavior, and tiny patch Transformer checks under corrected-label targets, and keep the real VLF sequence manifest in the same shape as the synthetic piezo/VLF path.
 
 Latest smoke artifacts:
 
@@ -225,10 +225,10 @@ Latest smoke artifacts:
 * `data/derived/models/all_italy.real_vlf_alignment_manifest.json`
 * `data/derived/models/central_italy.real_vlf_alignment_manifest.json`
 
-Full sequence sweep result: the best calibrated sweep row is `0.766942` for `sequence_direct_avalanche_only` with `lookback=60`, `hidden=24`, held-out `seed42`. The overall family comparison still prefers the earlier default sequence report at `0.772558` for `sequence_piezo_vlf_only` on held-out `seed42`. This is synthetic-only evidence and should not be interpreted as real predictive skill.
+Full sequence sweep result, pre-relabel: the best calibrated sweep row is `0.766942` for `sequence_direct_avalanche_only` with `lookback=60`, `hidden=24`, held-out `seed42`. The overall family comparison still prefers the earlier default sequence report at `0.772558` for `sequence_piezo_vlf_only` on held-out `seed42`. Rerun these before using them for model selection.
 
-The matched 20-epoch rerun keeps `lookback=60`, `hidden=24`, `sequence_piezo_vlf_only` as the strongest single group-holdout row at `0.772558`. Mean group performance is still strongest for `sequence_full`, and temporal sequence rows remain near `0.5`, so keep treating these as synthetic-transfer diagnostics rather than stable model-selection evidence.
+The matched 20-epoch rerun is also pre-relabel. It kept `lookback=60`, `hidden=24`, `sequence_piezo_vlf_only` as the strongest single group-holdout row at `0.772558`, but should now be rerun before choosing a default sequence configuration.
 
-Repeated training-seed runs reinforce that interpretation: `sequence_piezo_vlf_only` still wins the best-single-row metric, but `sequence_full` wins mean group score and worst held-out seed score. Prefer `sequence_full` for robustness experiments, but do not make real claims until real data has both classes and passes held-out evaluation.
+Repeated training-seed runs are pre-relabel too. They previously suggested `sequence_full` was more robust than the best single piezo/VLF-only row, but the corrected-label sequence reports should now drive the next comparison.
 
-The first tiny patch Transformer scaffold uses the post-burn-in regime-balanced split and CPU-only settings (`d_model=32`, 2 layers, 2 heads). It reaches calibrated balanced accuracy `0.637500` with `sequence_piezo_vlf_only`, below the balanced GRU `sequence_full` result of `0.650000`. Keep it as an interface and scaling diagnostic until it is tested on additional synthetic seeds.
+The first tiny patch Transformer scaffold uses the post-burn-in regime-balanced split and CPU-only settings (`d_model=32`, 2 layers, 2 heads). Its current result is pre-relabel; keep it as an interface and scaling diagnostic until it is rerun on corrected labels and additional synthetic seeds.

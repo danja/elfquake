@@ -330,7 +330,7 @@ Combine tensor and sequence manifests into a run-level alignment manifest. Use t
 
 ### `build-aligned-window-dataset`
 
-Aggregate sequence and tensor inputs onto base window rows. Use this to make a single aligned dataset suitable for smoke training and future Transformer experiments.
+Aggregate sequence and tensor inputs onto base window rows. When `--target-source-feature` is set, `--target-horizon-rows N` labels each row from the next `N` complete future rows. Use this to make aligned datasets for smoke training and future Transformer experiments.
 
 ### `combine-aligned-datasets`
 

@@ -2528,6 +2528,53 @@ class AcquisitionScaffoldTests(unittest.TestCase):
             self.assertEqual(preserved_rows[1]["target_occurred"], "0")
             self.assertEqual(preserved_rows[1]["target_status"], "labeled")
 
+    def test_aligned_window_dataset_labels_any_event_in_future_horizon(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            base_dir = root / "base"
+            base_dir.mkdir()
+            (base_dir / "index.csv").write_text(
+                "row_index,window_id,region_id,window_start_utc,window_end_utc\n"
+                "0,w0,r,2026-01-01T00:00:00Z,2026-01-01T01:00:00Z\n"
+                "1,w1,r,2026-01-01T01:00:00Z,2026-01-01T02:00:00Z\n"
+                "2,w2,r,2026-01-01T02:00:00Z,2026-01-01T03:00:00Z\n"
+                "3,w3,r,2026-01-01T03:00:00Z,2026-01-01T04:00:00Z\n",
+                encoding="utf-8",
+            )
+            (base_dir / "values.csv").write_text(
+                "row_index,synthetic_seismic_event_count\n"
+                "0,0\n"
+                "1,0\n"
+                "2,0\n"
+                "3,2\n",
+                encoding="utf-8",
+            )
+            base_manifest = base_dir / "manifest.json"
+            base_manifest.write_text(
+                json.dumps(
+                    {
+                        "schema": "elfquake.tensor_dataset.v1",
+                        "row_count": 4,
+                        "feature_count": 1,
+                        "values_csv": str(base_dir / "values.csv"),
+                        "index_csv": str(base_dir / "index.csv"),
+                        "feature_fields": ["synthetic_seismic_event_count"],
+                    }
+                ),
+                encoding="utf-8",
+            )
+
+            rows = build_aligned_window_dataset(
+                base_manifest_path=base_manifest,
+                out_path=root / "aligned.csv",
+                target_source_feature="synthetic_seismic_event_count",
+                target_horizon_rows=3,
+            )
+
+            self.assertEqual(rows[0]["target_event_count"], "2")
+            self.assertEqual(rows[0]["target_occurred"], "1")
+            self.assertEqual(rows[1]["target_status"], "unlabeled_no_future_window")
+
     def test_combine_aligned_datasets_adds_dataset_id(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)

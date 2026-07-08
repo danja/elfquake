@@ -1,47 +1,59 @@
 # Next Actions
 
+## Immediate Order
+
+1. Clean and rationalize `docs/` before adding more narrative files.
+2. Rerun corrected-label sequence sweep, missing-modality, and tiny patch Transformer checks.
+3. Keep refreshing prospective INGV labels and real VLF-aligned rows until both classes exist.
+4. Reduce sparse synthetic event-time clustering and synthetic regime drift before promoting sparse events or larger models.
+5. Validate Abelian raw VLF only after a reproducible nonempty pull is identified.
+
 ## Simulation
 
 1. Keep accumulating Cumiana VLF captures before real multimodal model training claims.
-2. Evaluate downstream target balance and model artifacts using the refined sparse avalanche profile before promoting it as the default.
+2. Reduce sparse synthetic event-time clustering before promoting the refined sparse avalanche profile; current temporal sparse holdouts have zero positive test rows.
 3. Reduce synthetic regime drift before expanding sequence model runs; regime-balanced evaluation helps debugging but is not a forecasting-style validation.
 4. Add a small grouped-sensor piezo scan only if single-receiver traces prove too local after multi-seed validation.
 5. Compare the tiny patch Transformer against the balanced GRU over additional synthetic seeds before increasing model size.
 6. Optimize or chunk sequence materialization further before attempting substantially larger runs.
-7. Review the tabular-vs-sequence comparison, bounded sequence sweep, and post-burn-in regime outputs before changing the default GRU lookback.
-8. Use missing-modality reports to decide whether VLF/piezo, direct avalanche, or combined sequence inputs deserve the next model pass.
+7. Rerun bounded sequence sweep, missing-modality, and tiny patch Transformer checks under corrected-label targets before changing the default GRU lookback.
+8. Use corrected-label missing-modality reports to decide whether VLF/piezo, direct avalanche, or combined sequence inputs deserve the next model pass.
 9. Wait for real prospective rows to include both positive and negative labels before attempting real PyTorch training.
 10. Use central-Italy historical seismic-only windows as the current real baseline smoke path.
 
 ## General
 
-1. Split `tests/test_acquisition_scaffold.py` by subsystem if test maintenance starts slowing down changes.
-2. Reinstall/reload the updated prospective systemd unit if timer-managed image features and summaries are desired.
-3. Keep the VLF capture and prospective timers running until the first target windows mature.
-4. Continue periodic INGV refresh and prospective labeling as more target windows mature; train only after both classes exist in one table.
-5. Add chunked sandpile snapshot storage only if larger pretraining runs outgrow `.npy` sanity snapshots.
-6. Add slope/erosion smoothing to mountain-mode synthetic terrain if ridgeline-like visuals are needed.
-7. Extend historical INGV backfill earlier than 2024 only if baseline windows need more class balance or longer seasonal coverage.
-8. Validate Abelian Cumiana with a reproducible nonempty live Ogg, archive WAV, or archive VT pull; recent archive probes still returned zero usable bytes.
-9. Add full rupture-mask outputs if synthetic event maps need spatial extent rather than centroid locations.
-10. Generate a longer synthetic aligned dataset to reduce time-split distribution drift.
-11. Use the piezo/Cumiana comparison report to tune only the piezo VLF mapping derived from `*.piezo.csv`.
-12. Shape direct avalanche signal events for INGV-like seismic event experiments without using the piezo/VLF path.
-13. Use the signal-shape comparison report to tune simulation parameters separately for VLF-like and seismic-like outputs.
-14. Add a small Markdown or CSV view over the compact model-run summary only if JSON becomes awkward to inspect.
-15. Decode Abelian live/archive audio into time-frequency features after confirming sampling metadata and file readability.
-16. Probe a wider Abelian archive range or alternate station only if a documented usable interval can be identified from the source pages.
-17. Keep refreshing prospective INGV labels as VLF target windows mature; use real labels only after both target classes are present.
-18. Add a real PyTorch training wrapper only after real aligned tables have both target classes.
+1. Clean and rationalize `docs/`: group overlapping notes, retire stale smoke-run documents, and keep a small index of current source, simulation, modeling, and operations docs.
+2. Split `tests/test_acquisition_scaffold.py` by subsystem if test maintenance starts slowing down changes.
+3. Reinstall/reload the updated prospective systemd unit if timer-managed image features and summaries are desired.
+4. Keep the VLF capture and prospective timers running until the first target windows mature.
+5. Continue periodic INGV refresh and prospective labeling as more target windows mature; train only after both classes exist in one table.
+6. Add chunked sandpile snapshot storage only if larger pretraining runs outgrow `.npy` sanity snapshots.
+7. Add slope/erosion smoothing to mountain-mode synthetic terrain if ridgeline-like visuals are needed.
+8. Extend historical INGV backfill earlier than 2024 only if baseline windows need more class balance or longer seasonal coverage.
+9. Validate Abelian Cumiana with a reproducible nonempty live Ogg, archive WAV, or archive VT pull; recent archive probes still returned zero usable bytes.
+10. Add full rupture-mask outputs if synthetic event maps need spatial extent rather than centroid locations.
+11. Generate a longer synthetic aligned dataset to reduce time-split distribution drift.
+12. Use the piezo/Cumiana comparison report to tune only the piezo VLF mapping derived from `*.piezo.csv`.
+13. Shape direct avalanche signal events for INGV-like seismic event experiments without using the piezo/VLF path.
+14. Use the signal-shape comparison report to tune simulation parameters separately for VLF-like and seismic-like outputs.
+15. Add a small Markdown or CSV view over the compact model-run summary only if JSON becomes awkward to inspect.
+16. Decode Abelian live/archive audio into time-frequency features after confirming sampling metadata and file readability.
+17. Probe a wider Abelian archive range or alternate station only if a documented usable interval can be identified from the source pages.
+18. Keep refreshing prospective INGV labels as VLF target windows mature; use real labels only after both target classes are present.
+19. Add a real PyTorch training wrapper only after real aligned tables have both target classes.
 
 ## Completed
 
 * Add `estimate-model-scale` and `estimate-model-scale.sh` to capture larger-model gates, sequence sizes, and CPU-only model guidance.
 * Add `max_events` to avalanche event-extraction tuning, add a stable sparse-event `shape_score`, and identify refined central-Italy sparse profiles.
+* Correct aligned synthetic target semantics so `target_horizon_rows` means the next `N` complete future rows, then rebuild default 20000-step model artifacts.
+* Add and run `sweep-sparse-target-horizon.sh`; sparse positive labels now scale from `3/501` at horizon `1` to `72/432` at horizon `24`, but temporal test splits still have no positives.
+* Rerun tabular PyTorch, sequence GRU, temporal diagnostics, and tabular-vs-sequence comparison under corrected-label targets.
 * Extend INGV historical backfill from `2024-01-01` through `2026-07-07`, producing 4836 all-Italy events, 594 central-Italy events, and 130 weekly labeled windows per scope.
 * Rebuild seismic-only temporal baselines and real-vs-synthetic signal-shape diagnostics from the extended INGV history.
 * Add `docs/model-scaling-requirements.md`; current real VLF rows are blocked, while the full synthetic 20000-step table can support only a tiny synthetic-only larger-model check.
-* Add and run a tiny CPU patch Transformer split-holdout path; best regime-balanced calibrated row is `0.637500` for `sequence_piezo_vlf_only`, below the balanced GRU `sequence_full` score.
+* Add and run a pre-relabel tiny CPU patch Transformer split-holdout path; best regime-balanced calibrated row was `0.637500` for `sequence_piezo_vlf_only`, below the balanced GRU `sequence_full` score.
 * Add deterministic regime-balanced split assignment and explicit split sequence evaluation.
 * Add and run `train-sequence-full-balanced.sh`; post-burn-in `sequence_full` reached calibrated balanced accuracy `0.650000` on the balanced synthetic split.
 * Refresh prospective labels to 23 matured rows per scope and rebuild real VLF-aligned model inputs; real training remains class-blocked.
@@ -101,18 +113,20 @@
 * Probe Abelian Cumiana archive availability across five additional timestamps from `2026-06-29` through `2026-07-05`; all ten `wav`/`vt` rows were HTTP 200 but zero usable bytes.
 * Refresh INGV through the July rollover, rebuild 247-row prospective VLF image tables for central Italy and all Italy, and confirm no missing VLF, VLF image, or astronomy coverage.
 * Label the first matured prospective VLF target window: central Italy was negative, all Italy was positive, with one labeled row per table.
-* Add and run a CPU PyTorch tabular MLP on the `20000`-step multi-seed synthetic aligned table; best calibrated chronological balanced accuracy is now `0.543076`.
-* Add and run CPU PyTorch leave-one-seed-out tabular MLP reports; best calibrated balanced accuracy now ranges from `0.752810` to `0.768286` across held-out seeds.
+* Rerun corrected-label CPU PyTorch tabular and sequence reports; temporal rows remain weak, while seed holdouts range from `0.720690` to `0.821105`.
+* Add and run a pre-relabel CPU PyTorch tabular MLP on the `20000`-step multi-seed synthetic aligned table; best calibrated chronological balanced accuracy was `0.543076`.
+* Add and run pre-relabel CPU PyTorch leave-one-seed-out tabular MLP reports; best calibrated balanced accuracy ranged from `0.752810` to `0.768286` across held-out seeds.
 * Add a demo map overlay for actual avalanche-derived events and PyTorch predicted-positive target-window event hits.
 * Add a shared model feature-role registry so real VLF fields and synthetic piezo/VLF analogue fields can feed the PyTorch VLF path.
 * Add a first CPU PyTorch GRU sequence model over materialized synthetic avalanche, piezo/VLF, and summary tensors.
-* Run temporal and leave-one-seed-out sequence GRU reports; chronological balanced accuracy is flat at `0.500000`, while seed holdouts reach `0.712754` to `0.772558`.
+* Run pre-relabel temporal and leave-one-seed-out sequence GRU reports; chronological balanced accuracy was flat at `0.500000`, while seed holdouts reached `0.712754` to `0.772558`.
 * Add a comparison command and wrapper script for tabular-vs-sequence model-run summaries.
 * Add a bounded sequence GRU sweep script for lookback and hidden-unit checks.
 * Add a missing-modality sequence smoke script for VLF/piezo-only and no-piezo sequence checks.
 * Add a real Cumiana VLF image sequence materialization script matching the synthetic sequence manifest shape.
 * Add a prospective INGV refresh-and-label script for matured VLF image windows.
-* Run the current tabular-vs-sequence comparison; best calibrated row is `0.772558` for sequence piezo/VLF-only on held-out `seed42`.
+* Run the corrected-label tabular-vs-sequence comparison; best calibrated row is `0.826389` for `seismic_vlf_unified` on held-out `seed41`.
+* Run the pre-relabel tabular-vs-sequence comparison; best calibrated row was `0.772558` for sequence piezo/VLF-only on held-out `seed42`.
 * Run a tiny sequence sweep smoke; best calibrated row is `0.709624` for `sequence_full` on held-out `seed41`.
 * Run a missing-modality seed42 smoke; no-piezo direct avalanche outperformed piezo-only in this short check.
 * Materialize current real Cumiana VLF image features into a `247 x 1 x 25` sequence manifest.
@@ -120,10 +134,10 @@
 * Split Abelian VLF acquisition into common, live-stream, archive/probe, and compatibility modules; no production Python file is now over 500 lines.
 * Run the full sequence sweep over lookbacks `30`, `60`, and `120`, hidden sizes `16` and `24`, and `10` epochs.
 * Add nested comparison support so sweep comparison rows can be included in family-level comparisons.
-* Generate `data/derived/models/model_family_comparison.json`; best calibrated row remains `0.772558` for sequence piezo/VLF-only on held-out `seed42`.
+* Generate pre-relabel `data/derived/models/model_family_comparison.json`; best calibrated row was `0.772558` for sequence piezo/VLF-only on held-out `seed42`.
 * Add and run `prepare-real-model-inputs.sh`; real aligned VLF tables are scaffolded, but both still have insufficient class variation.
 * Add and run sequence modality diagnostics over `112` evaluation rows; the direct-only sweep result is not a sufficient reason to change defaults because epoch counts differ and temporal rows remain near `0.5`.
-* Add and run `matched-sequence-comparison.sh`; the matched 20-epoch comparison keeps `sequence_piezo_vlf_only`, `lookback=60`, `hidden=24` as the strongest single row at `0.772558`, while `sequence_full` has the best mean group score.
+* Add and run pre-relabel `matched-sequence-comparison.sh`; the matched 20-epoch comparison kept `sequence_piezo_vlf_only`, `lookback=60`, `hidden=24` as the strongest single row at `0.772558`, while `sequence_full` had the best mean group score.
 * Add `summarize-sequence-selection` and run the matched sequence selection report.
 * Add and run `repeat-sequence-training-seeds.sh`; piezo/VLF-only remains the best single row, while `sequence_full` wins mean group and worst-held-out-seed stability.
 * Add `train-real-tabular-model.sh`; it correctly refuses to train while all-Italy has `18` positives and `0` negatives.

@@ -34,7 +34,7 @@ Real VLF:
 Synthetic:
 
 * current model training rows: `data/derived/models/mountain_256x256_seeds40-42_20000.aligned_hourly_synthetic_windows.csv`
-* 1005 combined hourly synthetic rows from seeds `40`, `41`, and `42`
+* 501 combined relabeled hourly synthetic rows from seeds `40`, `41`, and `42`
 * source simulation outputs include `*.piezo.csv`, `*.avalanche_signal.csv`, and `*.avalanche_events.csv`
 
 Real prospective model rows:
@@ -94,15 +94,14 @@ Real-data status:
 
 Synthetic-model status:
 
-* The current synthetic model table has 1005 rows and enough positive/negative labels for smoke modeling.
+* The current relabeled synthetic model table has 501 rows, with 67 positives and 434 negatives.
 * CPU PyTorch tabular and GRU sequence models are implemented and compared.
-* Best calibrated synthetic family row is `0.772558` balanced accuracy for `sequence_piezo_vlf_only` on held-out `seed42`.
-* Full sequence sweep best calibrated row is `0.766942` for `sequence_direct_avalanche_only`, `lookback=60`, `hidden=24`, held-out `seed42`.
-* The sequence diagnostic says not to change defaults yet: the prior best run used 20 epochs, the sweep used 10, temporal sequence rows stay near `0.5`, and mean group performance is highest for `sequence_full`.
-* A post-burn-in `sequence_full` regime run dropped the first 20 percent of each seed, evaluated 804 rows, and produced weak robustness scores: temporal calibrated balanced accuracy `0.509804`; regime-holdout mean `0.508413`, min `0.436111`, max `0.630037`.
-* Post-burn-in temporal split diagnostics show a large label/regime shift: train positive rate `0.398134`, test positive rate `0.645963`; the largest drift features include terrain height summaries and synthetic row/regime index.
+* Current corrected-label temporal smoke scores remain weak: tabular PyTorch calibrated balanced accuracy `0.507576`; sequence GRU calibrated balanced accuracy `0.500000`.
+* Current corrected-label seed holdouts are stronger but synthetic-only: tabular PyTorch ranges from `0.732602` to `0.784169`, while sequence GRU ranges from `0.720690` to `0.821105`.
+* Older sequence sweeps, matched comparisons, repeated training-seed runs, and tiny patch Transformer checks were produced before the target relabeling and should be rerun before model selection.
+* Corrected-label temporal split diagnostics still show a label/regime shift: `gt0` train positive rate `0.080000`, test positive rate `0.346535`; largest drift features are direct-avalanche active-topple and summary-topple aggregates.
 * A post-burn-in regime-balanced explicit split has matched train/test class rates and gives `sequence_full` calibrated balanced accuracy `0.650000`; use this as an engineering diagnostic, not as forecasting evidence.
-* A tiny CPU patch Transformer now runs on the same regime-balanced split. Its best calibrated row is `sequence_piezo_vlf_only` at `0.637500`, so it is a larger-model scaffold rather than a new default.
+* Aligned synthetic targets now use true future look-ahead semantics: `target_horizon_rows=N` labels an input row from the sum of direct avalanche events in the next `N` complete rows, not from the current row or a single offset row.
 
 ## Shape Diagnostics
 
@@ -191,6 +190,8 @@ Across the full-size seed check, seed `42` is still the best current default on 
 
 The old extraction tuning pass supported quantile `0.99` and local-max window `30` as a usable model-training default. The refined sparse profile uses far fewer events (`q=0.999`, window `240`, max events `5` on 20000-step runs) and better matches central-Italy sparsity, but it may make synthetic model targets too sparse if promoted without redesigning the target windows.
 
+The target-window redesign is now implemented. On the refined sparse seed `40`-`42`, `20000`-step profile, positive labels scale with the look-ahead horizon as expected: horizon `1` has `3/501` positives, horizon `3` has `9/495`, horizon `6` has `18/486`, horizon `12` has `36/468`, and horizon `24` has `72/432`. Temporal splits still have zero positive test rows because the sparse synthetic events occur too early in each run, so the sparse profile should not become the default until event timing is less clustered or substantially longer synthetic runs are available.
+
 The piezo/VLF image rendering is now much closer to Cumiana image statistics for brightness, high-intensity coverage, and vertical streaks. The underlying piezo time series is still too smooth in time, with very high autocorrelation, so later tuning should focus on signal dynamics rather than adding display artifacts.
 
 The per-sensor scan shows that summing all piezo sensors over-smooths the VLF-like channel. Single sensors are more plausible. Raw burst-run counts were misleading because the image-derived VLF trace has many more samples than the simulation trace, so comparisons now use burst-run rate.
@@ -199,16 +200,16 @@ The current tuned default uses thresholded accumulated-charge release plus a loc
 
 Piezo receiver locality is now separated from the direct avalanche signal range. Tuning the VLF-like piezo channel should not silently change the seismic-like avalanche channel.
 
-After that separation, seed `40`-`42` simulation CSVs, sparse avalanche event lists, event maps, aligned synthetic model rows, tensors, and smoke reports were refreshed. The combined `gt0` aligned table still has `501` rows with `160` positives and `341` negatives. The chronological holdout remains weak: best default balanced accuracy is `0.5333` for `synthetic_seismic_piezo_vlf`. Leave-one-seed-out checks remain stronger, with best default balanced accuracy from `0.7177` to `0.7947` depending on the held-out seed.
+After that separation and the target relabeling fix, seed `40`-`42` simulation CSVs, aligned synthetic model rows, tensors, temporal diagnostics, tabular PyTorch reports, sequence GRU reports, and the tabular-vs-sequence comparison were refreshed. The chronological holdout remains weak, while leave-one-seed-out checks remain stronger and should be treated as synthetic transfer diagnostics only.
 
 Longer synthetic run check:
 
 * regenerated seed `40`, `41`, and `42` at `20000` steps under current defaults
 * sparse event counts: seed `40` has `130`, seed `41` has `129`, seed `42` has `135`
-* combined `gt0` aligned table: `1005` rows, `364` positives, `641` negatives
-* combined `gt1` aligned table: `1005` rows, `30` positives, `975` negatives
-* `gt0` chronological best default balanced accuracy: `0.4833`
-* `gt0` leave-one-seed-out best default balanced accuracy range: `0.6054` to `0.6284`
+* combined `gt0` aligned table after future look-ahead relabeling: `501` rows, `67` positives, `434` negatives
+* combined `gt1` aligned table after future look-ahead relabeling: `501` rows, `2` positives, `499` negatives
+* `gt0` chronological best calibrated balanced accuracy: `0.507576`
+* `gt0` leave-one-seed-out best calibrated balanced accuracy range: `0.591536` to `0.826389`
 * `gt1` remains mostly a sparsity check
 
 Chronological split diagnostics:
@@ -218,10 +219,10 @@ Chronological split diagnostics:
   * `data/derived/models/mountain_256x256_seeds40-42_20000.aligned_hourly_synthetic_windows.temporal_diagnostics.csv`
   * `data/derived/models/mountain_256x256_seeds40-42_20000.aligned_hourly_synthetic_windows_gt1.temporal_diagnostics.json`
   * `data/derived/models/mountain_256x256_seeds40-42_20000.aligned_hourly_synthetic_windows_gt1.temporal_diagnostics.csv`
-* `gt0` train positive rate is `0.2935`; test positive rate is `0.6368`
-* `gt1` train positive rate is `0.0249`; test positive rate is `0.0498`
-* later test windows have much higher terrain/topple intensity: `synthetic_summary_max_height_mean`, `synthetic_direct_avalanche_active_topple_cell_count_*`, and `synthetic_summary_topple_count_*` all drift upward by about one training standard deviation
-* several synthetic seismic aggregate features flip their target correlation sign between train and test in the `gt0` split
+* `gt0` train positive rate is `0.080000`; test positive rate is `0.346535`
+* `gt1` train positive rate is `0.000000`; test positive rate is `0.019802`
+* later test windows have much higher avalanche/topple intensity: `synthetic_direct_avalanche_active_topple_cell_count_*` and `synthetic_summary_topple_count_*` drift upward by more than one training standard deviation
+* several direct avalanche and summary features still change target-correlation strength between train and test in the `gt0` split
 
 The longer run increases target support but does not improve chronological generalization. It should be used to stress-test the model interface and synthetic-transfer workflow, not as evidence of predictive value.
 
@@ -233,23 +234,30 @@ The direct avalanche signal should remain separate from the piezo/VLF channel. C
 
 Current CPU PyTorch tabular and sequence reports can now be compared directly with `compare-model-runs.sh`. The sequence path also has a bounded sweep script, a missing-modality smoke script, and a real Cumiana VLF image sequence materializer so synthetic piezo/VLF and real VLF inputs keep the same model-facing shape.
 
-Smoke outputs:
+Corrected-label smoke outputs:
 
 * tabular-vs-sequence comparison: `data/derived/models/mountain_256x256_seeds40-42_20000.tabular_vs_sequence_model_comparison.json`
-* best calibrated row in that comparison: `0.772558`, `sequence_piezo_vlf_only`, held-out `seed42`
-* tiny sequence sweep smoke: `data/derived/models/sequence_sweep_smoke/sequence_sweep_comparison.json`; best calibrated row `0.709624`, `sequence_full`, held-out `seed41`
-* missing-modality smoke: `data/derived/models/missing_modality/missing_modality_seed42_summary.json`; no-piezo direct avalanche scored higher than piezo-only in this short run
+* best calibrated row in that comparison: `0.826389`, `seismic_vlf_unified`, held-out `seed41`
+* tabular PyTorch temporal row: calibrated balanced accuracy `0.507576`
+* tabular PyTorch seed holdouts: calibrated balanced accuracy `0.784169`, `0.762832`, and `0.732602`
+* sequence GRU temporal row: calibrated balanced accuracy `0.500000`
+* sequence GRU seed holdouts: calibrated balanced accuracy `0.720690`, `0.821105`, and `0.768339`
 * real VLF image sequence manifest: `data/derived/models/cumiana_vlf_image_sequence/manifest.json`, with `247` time steps and `25` channels
 * prospective VLF-aligned labels currently have `23` all-Italy positives and `0` negatives, while central Italy has `0` positives and `23` negatives, so real VLF-aligned training still has insufficient class variation
+
+Pre-relabel sweep outputs that need rerunning before model selection:
+
+* tiny sequence sweep smoke: `data/derived/models/sequence_sweep_smoke/sequence_sweep_comparison.json`; best calibrated row `0.709624`, `sequence_full`, held-out `seed41`
+* missing-modality smoke: `data/derived/models/missing_modality/missing_modality_seed42_summary.json`; no-piezo direct avalanche scored higher than piezo-only in this short run
 * full sequence sweep: `data/derived/models/sequence_sweep/sequence_sweep_comparison.json`, `24` reports; best calibrated row `0.766942`, `sequence_direct_avalanche_only`, `lookback=60`, `hidden=24`, held-out `seed42`
-* combined family comparison: `data/derived/models/model_family_comparison.json`, `37` rows; best calibrated row remains `0.772558`, `sequence_piezo_vlf_only`, held-out `seed42`
+* combined family comparison: `data/derived/models/model_family_comparison.json`, `37` rows; pre-relabel best calibrated row `0.772558`, `sequence_piezo_vlf_only`, held-out `seed42`
 * sequence modality diagnostic: `data/derived/models/sequence_modality_diagnostic.json`, `112` evaluation rows; best default sequence row uses `20` epochs and piezo/VLF-only, while best sweep row uses `10` epochs and direct avalanche-only
-* matched 20-epoch sequence comparison: `data/derived/models/sequence_sweep_20epoch/default_vs_matched_sequence_diagnostic.json`, `64` evaluation rows; best row remains `sequence_piezo_vlf_only`, `lookback=60`, `hidden=24`, held-out `seed42`, calibrated balanced accuracy `0.772558`
-* repeated training-seed comparison: `data/derived/models/sequence_training_seed_repeat/sequence_training_seed_selection.json`; best single row is still `sequence_piezo_vlf_only` at `0.772558`, but `sequence_full` has the best mean group score (`0.741342`) and best worst-held-out-seed score (`0.712754`)
-* tiny patch Transformer scaffold: `data/derived/models/tiny_patch_transformer/tiny_patch_transformer_model_run_summary.json`; best calibrated row `0.637500`, `sequence_piezo_vlf_only`, explicit regime-balanced split
+* matched 20-epoch sequence comparison: `data/derived/models/sequence_sweep_20epoch/default_vs_matched_sequence_diagnostic.json`, `64` evaluation rows; pre-relabel best row `sequence_piezo_vlf_only`, `lookback=60`, `hidden=24`, held-out `seed42`, calibrated balanced accuracy `0.772558`
+* repeated training-seed comparison: `data/derived/models/sequence_training_seed_repeat/sequence_training_seed_selection.json`; pre-relabel best single row `sequence_piezo_vlf_only` at `0.772558`, with `sequence_full` best on mean group score (`0.741342`) and worst-held-out-seed score (`0.712754`)
+* tiny patch Transformer scaffold: `data/derived/models/tiny_patch_transformer/tiny_patch_transformer_model_run_summary.json`; pre-relabel best calibrated row `0.637500`, `sequence_piezo_vlf_only`, explicit regime-balanced split
 * real model-input scaffold: `data/derived/models/all_italy.real_vlf_aligned_windows.csv` and `data/derived/models/central_italy.real_vlf_aligned_windows.csv`; both have `247` rows and `23` labeled rows but still lack class variation
 
-Sequence diagnostic interpretation: do not change the default GRU lookback from `60` on current evidence. Repeated training seeds confirm the strongest single row is still piezo/VLF-only on held-out `seed42`; however, `sequence_full` is more stable across held-out seeds and training seeds. All temporal sequence rows remain near balanced accuracy `0.5`, so these are still synthetic-transfer diagnostics rather than evidence of real predictive skill.
+Sequence diagnostic interpretation: do not change the default GRU lookback from `60` on current evidence. The corrected-label temporal sequence row remains at balanced accuracy `0.5`; older sweep and missing-modality reports need rerunning before choosing between direct avalanche, piezo/VLF, and full sequence inputs.
 
 Post-burn-in regime interpretation: `sequence_full` does not yet show robust performance once the first 20 percent of each synthetic seed is removed and holdouts are made by seed/regime block. This supports the earlier concern that the current synthetic generator and split design still contain regime effects that should be understood before larger model runs.
 
@@ -258,11 +266,11 @@ Compact model comparison:
 * artifact: `data/derived/models/real_synthetic_compact_comparison.json`
 * CSV view: `data/derived/models/real_synthetic_compact_comparison.csv`
 * central-Italy historical seismic-only temporal baseline: calibrated balanced accuracy `0.441667`
-* synthetic default temporal sequence run: calibrated balanced accuracy `0.500000`
-* best synthetic seed-holdout row: `sequence_piezo_vlf_only`, held-out `seed42`, calibrated balanced accuracy `0.772558`
+* corrected-label synthetic temporal sequence run: calibrated balanced accuracy `0.500000`
+* corrected-label best synthetic seed-holdout row: `seismic_vlf_unified`, held-out `seed41`, calibrated balanced accuracy `0.826389`
 * post-burn-in `sequence_full` regime holdouts: mean calibrated balanced accuracy `0.508413`
 * post-burn-in `sequence_full` regime-balanced split: calibrated balanced accuracy `0.650000`
-* tiny patch Transformer regime-balanced split: `sequence_piezo_vlf_only`, calibrated balanced accuracy `0.637500`
+* pre-relabel tiny patch Transformer regime-balanced split: `sequence_piezo_vlf_only`, calibrated balanced accuracy `0.637500`
 
 ## Limitations
 
