@@ -101,11 +101,41 @@ Risks: synthetic-to-real transfer may fail; evaluate against no-pretraining and 
 ## Recommended Order
 
 1. Keep building labeled fixed-window tables.
-2. Add regular-cadence feature tensors with masks.
-3. Train candidate 1 only after classical baselines have enough positive and negative labels.
-4. Test candidate 2 for dense VLF/piezo/astronomy channels.
-5. Add candidate 3 only if unimodal sequence encoders beat tabular baselines.
-6. Explore candidates 4-6 as research branches, not first production models.
+2. Use a PatchTST-style patch Transformer as the next deeper model scaffold.
+3. Pretrain the patch Transformer on synthetic direct-avalanche, piezo/VLF, and summary sequences.
+4. Fine-tune on real VLF-aligned rows only after real labels contain both positive and negative examples.
+5. Add cross-modality attention only after unimodal and full-sequence ablations are stable.
+6. Explore frequency-biased, graph, and event-process Transformers as research branches, not first production models.
+
+## Selected Deeper Model
+
+The most suitable next deeper model is a CPU PatchTST-style patch Transformer with explicit modality ablations. It is preferable to a full Crossformer at this stage because current data are small, real labels are one-class, and patch tokens keep sequence length bounded while preserving the VLF/piezo time-series shape.
+
+Current implementation:
+
+* `train-deep-patch-transformer.sh` builds a post-burn-in regime-balanced synthetic split and runs a deeper patch Transformer (`d_model=64`, 3 layers, 4 heads).
+* `train-torch-patch-transformer-split-holdout` remains the backend command; the wrapper selects synthetic full, direct-avalanche-only, and piezo/VLF-only evaluations.
+* Synthetic pretraining now writes a reusable checkpoint: `data/derived/models/deep_patch_transformer/deep_patch_transformer_synthetic.pt`.
+* `train-real-deep-patch-transformer.sh` is the real fine-tune wrapper. It uses the synthetic checkpoint and exits with a blocked JSON report until labels contain both classes.
+* `sequence_real_vlf_image_only` is available for real VLF sequence probes.
+* Real sequence rows without `dataset_id` now use the single matching real sequence manifest, and sequence time lookup can use the nearest prior capture timestamp.
+
+Synthetic-to-real transfer strategy:
+
+1. Supervised synthetic pretraining on avalanche-derived labels using direct avalanche, piezo/VLF, and summary sequence manifests.
+2. Keep the encoder interface modality-aware: synthetic piezo/VLF exercises the same VLF path role as real Cumiana image features, while direct avalanche remains separate from VLF.
+3. When real labels contain both classes, fine-tune on `all_italy.real_vlf_aligned_windows.csv` and `central_italy.real_vlf_aligned_windows.csv` with `cumiana_vlf_image_sequence/manifest.json`.
+4. Compare fine-tuned models against no-pretraining, seismic-only, VLF-only, and multimodal ablations on held-out time periods.
+
+Current deeper-model smoke result:
+
+* synthetic artifact: `data/derived/models/deep_patch_transformer/deep_patch_transformer_synthetic.json`
+* synthetic checkpoint: `data/derived/models/deep_patch_transformer/deep_patch_transformer_synthetic.pt`
+* real fine-tune artifacts: `data/derived/models/deep_patch_transformer/all_italy.real_finetune.json` and `central_italy.real_finetune.json`
+* real VLF sequence probe: `data/derived/models/deep_patch_transformer/all_italy.real_vlf_sequence_probe.json`
+* best synthetic calibrated row: `sequence_piezo_vlf_only`, balanced accuracy `0.737879`
+* `sequence_full` calibrated balanced accuracy: `0.583333`
+* real fine-tuning is blocked: all-Italy has `54` positives and `0` negatives; central Italy has `0` positives and `54` negatives
 
 ## Scaling Requirements
 
@@ -167,6 +197,9 @@ Current scaffold:
 * `test-sequence-missing-modalities.sh` - exercises sequence training with VLF-only and no-VLF/piezo inputs.
 * `estimate-model-scale` - reports larger-model gates, sequence feature counts, class balance, and CPU-only size guidance.
 * `train-torch-patch-transformer-split-holdout` - trains a tiny CPU PyTorch patch Transformer on explicit train/test split rows.
+* `train-deep-patch-transformer.sh` - runs the selected deeper patch Transformer synthetic pretrain smoke and writes real fine-tune readiness.
+* `train-real-deep-patch-transformer.sh` - fine-tunes the patch Transformer from the synthetic checkpoint when real labels are ready; currently writes a blocked status report.
+* `run-synthetic-diversity-smoke.sh` - generates extra CPU-only synthetic seeds without image/video overhead and refreshes model artifacts for diversity checks.
 
 Initial artifacts:
 
@@ -208,7 +241,7 @@ Current CPU PyTorch leave-one-seed-out results on the same table: best calibrate
 
 Current CPU PyTorch sequence GRU results use materialized `synthetic_direct_avalanche`, `synthetic_piezo_vlf`, and `synthetic_summary` sequences with a `60` step lookback. Chronological balanced accuracy is flat at `0.500000`, matching the weak chronological regime split. Leave-one-seed-out calibrated balanced accuracy is `0.720690` for seed `40` with `sequence_full`, `0.821105` for seed `41` with `sequence_direct_avalanche_only`, and `0.768339` for seed `42` with `sequence_full`.
 
-Current next model checks are comparison-driven: rerun the sequence lookback sweep, missing-modality behavior, and tiny patch Transformer checks under corrected-label targets, and keep the real VLF sequence manifest in the same shape as the synthetic piezo/VLF path.
+Current next model checks are comparison-driven: keep the selected patch Transformer as the deeper scaffold, rerun missing-modality and lookback checks after material changes, and keep the real VLF sequence manifest in the same shape as the synthetic piezo/VLF path.
 
 Latest smoke artifacts:
 

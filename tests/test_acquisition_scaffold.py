@@ -59,6 +59,7 @@ from elfquake.models.model_scale import estimate_model_scale
 from elfquake.models.readiness import summarize_model_readiness
 from elfquake.models.report_summary import summarize_model_run_reports
 from elfquake.models.sequence_materializer import materialize_sequence_dataset
+from elfquake.models.torch_sequence_data import build_sequence_samples, load_sequence_datasets
 from elfquake.models.sequence_comparison import diagnose_sequence_comparison
 from elfquake.models.sequence_selection import summarize_sequence_selection
 from elfquake.models.split_diagnostics import diagnose_temporal_split
@@ -1889,6 +1890,34 @@ class AcquisitionScaffoldTests(unittest.TestCase):
             self.assertEqual(report["train_groups"], ["seed1"])
             self.assertEqual(report["test_group"], "seed2")
             self.assertEqual(report["evaluations"]["sequence_direct_avalanche_piezo_vlf"]["status"], "evaluated")
+
+    def test_sequence_loader_uses_single_matching_dataset_for_real_rows_without_dataset_id(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            manifest = self._write_sequence_fixture(
+                root,
+                "cumiana",
+                "real_vlf_image",
+                "vlf_intensity_mean",
+                [0, 1, 2, 3, 4],
+            )
+            sequences = load_sequence_datasets([manifest], include_missing_masks=True)
+
+            samples, feature_names = build_sequence_samples(
+                [
+                    {
+                        "window_end_utc": "2026-01-01T00:04:30Z",
+                        "target_occurred": "1",
+                    }
+                ],
+                sequences,
+                modalities=("real_vlf_image",),
+                lookback_steps=2,
+            )
+
+            self.assertEqual(len(samples), 1)
+            self.assertEqual(len(samples[0]), 2)
+            self.assertIn("real_vlf_image_vlf_intensity_mean", feature_names)
 
     @unittest.skipUnless(importlib.util.find_spec("torch"), "PyTorch optional dependency is not installed")
     def test_torch_sequence_split_holdout_uses_explicit_split(self) -> None:

@@ -9,7 +9,12 @@ import random
 from pathlib import Path
 
 from elfquake.models.temporal_holdout import _baselines, _best_threshold, _metrics, _predictions
-from elfquake.models.torch_sequence_data import SequenceDataset, build_sequence_samples, load_sequence_datasets
+from elfquake.models.torch_sequence_data import (
+    SequenceDataset,
+    build_sequence_samples,
+    load_sequence_datasets,
+    sequence_covers_time,
+)
 
 
 SEQUENCE_EVALUATIONS = {
@@ -17,6 +22,7 @@ SEQUENCE_EVALUATIONS = {
     "sequence_piezo_vlf_only": ("synthetic_piezo_vlf",),
     "sequence_direct_avalanche_piezo_vlf": ("synthetic_direct_avalanche", "synthetic_piezo_vlf"),
     "sequence_full": ("synthetic_direct_avalanche", "synthetic_piezo_vlf", "synthetic_summary"),
+    "sequence_real_vlf_image_only": ("real_vlf_image",),
 }
 
 
@@ -388,11 +394,7 @@ def _covered_rows(
     for row in rows:
         dataset_id = row.get("dataset_id", "")
         end_time = row.get("window_end_utc", "")
-        if all(
-            (dataset := sequences.get((dataset_id, modality))) is not None
-            and end_time in dataset.time_to_index
-            for modality in modalities
-        ):
+        if all(sequence_covers_time(sequences, dataset_id=dataset_id, modality=modality, time_utc=end_time) for modality in modalities):
             covered.append(row)
     return covered
 

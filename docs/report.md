@@ -1,6 +1,6 @@
 # Analysis Report
 
-Date: 2026-07-07
+Date: 2026-07-08
 
 ## Overview
 
@@ -17,7 +17,7 @@ The comparison is diagnostic only. It does not demonstrate earthquake prediction
 Real seismic:
 
 * `data/derived/ingv/events_italy_2026-06-01_2026-07-08.combined.normalized.csv`
-* 175 normalized all-Italy INGV event rows
+* 176 normalized all-Italy INGV event rows
 * `data/derived/ingv/events_central_italy_2026-06-01_2026-07-08.combined.normalized.csv`
 * 22 normalized central-Italy INGV event rows
 * `data/derived/ingv/events_italy_all_available.combined.normalized.csv`
@@ -41,9 +41,9 @@ Real prospective model rows:
 
 * `data/derived/models/all_italy.real_vlf_aligned_windows.csv`
 * `data/derived/models/central_italy.real_vlf_aligned_windows.csv`
-* each table has 247 rows and 23 labeled rows
-* all-Italy labels are currently 23 positive / 0 negative
-* central-Italy labels are currently 0 positive / 23 negative
+* each table has 247 rows and 54 labeled rows
+* all-Italy labels are currently 54 positive / 0 negative
+* central-Italy labels are currently 0 positive / 54 negative
 * both are `insufficient_class_variation`
 
 ## Method
@@ -69,13 +69,17 @@ Output files:
 * `data/derived/sim/mountain_256x256_seed42_10000.piezo_vlf_comparison.csv`
 * `data/derived/sim/mountain_256x256_seed42_10000.piezo_sensor_scan.csv`
 * `data/derived/models/model_family_comparison.json`
-* `data/derived/models/sequence_modality_diagnostic.json`
 * `data/derived/models/sequence_full_regime/sequence_full_model_run_summary.json`
 * `data/derived/models/sequence_full_regime/post_burn_in_temporal_split_diagnostics.json`
 * `data/derived/models/sequence_full_balanced/sequence_full_balanced_model_run_summary.json`
 * `data/derived/models/sequence_full_balanced/regime_balanced_split.json`
 * `data/derived/models/tiny_patch_transformer/tiny_patch_transformer_model_run_summary.json`
 * `data/derived/models/real_synthetic_compact_comparison.json`
+* `data/derived/models/deep_patch_transformer/deep_patch_transformer_synthetic.json`
+* `data/derived/models/deep_patch_transformer/all_italy.real_finetune.json`
+* `data/derived/models/deep_patch_transformer/central_italy.real_finetune.json`
+* `data/derived/models/missing_modality/missing_modality_seed42_summary.json`
+* `data/derived/models/sequence_modality_diagnostic.json`
 * `data/derived/models/all_italy.ingv_backfill_seismic_windows.temporal_holdout.json`
 * `data/derived/models/central_italy.ingv_backfill_seismic_windows.temporal_holdout.json`
 
@@ -83,10 +87,10 @@ Output files:
 
 Real-data status:
 
-* INGV refresh and historical backfill are working through `2026-07-07T00:00:00Z`.
+* INGV prospective refresh is working through `2026-07-08T00:00:00Z`; historical backfill currently runs through `2026-07-07T00:00:00Z`.
 * Cumiana VLF image capture and image-feature extraction are working.
 * Real VLF-aligned model tables are scaffolded for all-Italy and central Italy.
-* Real PyTorch training should not start yet, because each real table has only one target class.
+* Real PyTorch training should not start yet, because each real table has only one target class. The real deep patch Transformer wrapper records this blocker instead of training.
 * Historical seismic-only backfill for `2024-01-01` to `2026-07-07` produced 130 weekly training windows per scope.
 * Backfilled all-Italy seismic windows are ready but heavily positive-skewed: train 95 positive / 9 negative, test 25 positive / 1 negative.
 * Backfilled central-Italy seismic windows are more balanced: train 13 positive / 91 negative, test 6 positive / 20 negative.
@@ -101,6 +105,10 @@ Synthetic-model status:
 * Older sequence sweeps, matched comparisons, repeated training-seed runs, and tiny patch Transformer checks were produced before the target relabeling and should be rerun before model selection.
 * Corrected-label temporal split diagnostics still show a label/regime shift: `gt0` train positive rate `0.080000`, test positive rate `0.346535`; largest drift features are direct-avalanche active-topple and summary-topple aggregates.
 * A post-burn-in regime-balanced explicit split has matched train/test class rates and gives `sequence_full` calibrated balanced accuracy `0.650000`; use this as an engineering diagnostic, not as forecasting evidence.
+* The selected deeper patch Transformer pretrain now writes `deep_patch_transformer_synthetic.pt`; its latest synthetic calibrated scores are `0.737879` for piezo/VLF-only and `0.583333` for full sequence.
+* Refreshed missing-modality seed-42 checks give `0.632445` calibrated balanced accuracy for piezo/VLF-only and `0.722257` for direct-avalanche-only.
+* Refreshed sequence modality diagnostics still rank direct-avalanche-only highest on grouped synthetic checks (`0.8359` calibrated balanced accuracy), so direct seismic-like and piezo/VLF-like channels should remain separate.
+* A short diversity smoke run generated extra 128x128, 1000-step seeds `43` and `44` and refreshed aligned tensors with evaluations disabled; use larger runs before drawing model conclusions.
 * Aligned synthetic targets now use true future look-ahead semantics: `target_horizon_rows=N` labels an input row from the sum of direct avalanche events in the next `N` complete rows, not from the current row or a single offset row.
 
 ## Shape Diagnostics

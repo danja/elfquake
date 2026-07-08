@@ -39,6 +39,8 @@ def evaluate_torch_patch_transformer_split_holdout(
     seed: int = 42,
     include_missing_masks: bool = True,
     evaluation_names: list[str] | None = None,
+    checkpoint_in: Path | None = None,
+    checkpoint_out: Path | None = None,
 ) -> dict[str, object]:
     if patch_steps < 1:
         raise ValueError("patch_steps must be at least 1")
@@ -75,6 +77,8 @@ def evaluate_torch_patch_transformer_split_holdout(
         seed=seed,
         include_missing_masks=include_missing_masks,
         evaluation_names=evaluation_names,
+        checkpoint_in=checkpoint_in,
+        checkpoint_out=checkpoint_out,
     )
     if len(train_rows) < 2 or len(test_rows) < 1:
         report["status"] = "insufficient_split_rows"
@@ -100,6 +104,8 @@ def evaluate_torch_patch_transformer_split_holdout(
         batch_size=batch_size,
         seed=seed,
         evaluation_names=evaluation_names,
+        checkpoint_in=checkpoint_in,
+        checkpoint_out=checkpoint_out,
     )
     report["status"] = _overall_status(report)
     return _write_report(out_path, report)
@@ -126,6 +132,8 @@ def _base_report(
     seed: int,
     include_missing_masks: bool,
     evaluation_names: list[str] | None,
+    checkpoint_in: Path | None,
+    checkpoint_out: Path | None,
 ) -> dict[str, object]:
     selected = _selected_evaluations(evaluation_names)
     return {
@@ -150,6 +158,8 @@ def _base_report(
         "batch_size": batch_size,
         "seed": seed,
         "include_missing_masks": include_missing_masks,
+        "checkpoint_in": str(checkpoint_in) if checkpoint_in else "",
+        "checkpoint_out": str(checkpoint_out) if checkpoint_out else "",
         "selected_evaluations": list(selected),
         "evaluations": {},
     }
@@ -172,8 +182,12 @@ def _evaluate_all(
     batch_size: int,
     seed: int,
     evaluation_names: list[str] | None,
+    checkpoint_in: Path | None,
+    checkpoint_out: Path | None,
 ) -> None:
-    for name, modalities in _selected_evaluations(evaluation_names).items():
+    selected = _selected_evaluations(evaluation_names)
+    last_name = next(reversed(selected)) if selected else ""
+    for name, modalities in selected.items():
         report["evaluations"][name] = _evaluate_one(
             sequences=sequences,
             train_rows=train_rows,
@@ -189,6 +203,8 @@ def _evaluate_all(
             dropout=dropout,
             batch_size=batch_size,
             seed=seed,
+            checkpoint_in=checkpoint_in,
+            checkpoint_out=checkpoint_out if name == last_name else None,
         )
 
 
@@ -208,6 +224,8 @@ def _evaluate_one(
     dropout: float,
     batch_size: int,
     seed: int,
+    checkpoint_in: Path | None,
+    checkpoint_out: Path | None,
 ) -> dict[str, object]:
     original_train_count = len(train_rows)
     original_test_count = len(test_rows)
@@ -250,6 +268,8 @@ def _evaluate_one(
         dropout=dropout,
         batch_size=batch_size,
         seed=seed,
+        checkpoint_in=checkpoint_in,
+        checkpoint_out=checkpoint_out,
     )
     calibrated_threshold = _best_threshold(train_probabilities, labels_train)
     result.update(
@@ -287,7 +307,9 @@ def _fit_patch_transformer(
     dropout: float,
     batch_size: int,
     seed: int,
-) -> tuple[dict[str, float], list[float], list[float]]:
+    checkpoint_in: Path | None,
+    checkpoint_out: Path | None,
+) -> tuple[dict[str, object], list[float], list[float]]:
     torch = _import_torch()
     _set_deterministic_seed(torch, seed)
     x_train = _patchify(torch.tensor(train_x, dtype=torch.float32), patch_steps=patch_steps, torch=torch)
@@ -303,6 +325,7 @@ def _fit_patch_transformer(
         heads=heads,
         dropout=dropout,
     )
+    loaded_checkpoint = _load_checkpoint(model, checkpoint_in=checkpoint_in, torch=torch)
     positives = sum(train_labels)
     negatives = len(train_labels) - positives
     pos_weight = torch.tensor([negatives / positives], dtype=torch.float32) if positives else torch.tensor([1.0])
@@ -330,8 +353,26 @@ def _fit_patch_transformer(
         train_probabilities = torch.sigmoid(model(x_train)).squeeze(1).tolist()
         test_probabilities = torch.sigmoid(model(x_test)).squeeze(1).tolist()
         test_loss = float(criterion(model(x_test), y_test).item())
+    if checkpoint_out:
+        _save_checkpoint(
+            model,
+            checkpoint_out=checkpoint_out,
+            torch=torch,
+            patch_input_size=int(x_train.shape[2]),
+            patch_count=int(x_train.shape[1]),
+            d_model=d_model,
+            layers=layers,
+            heads=heads,
+            dropout=dropout,
+        )
     return (
-        {"first_train_loss": round(first_loss or 0.0, 8), "last_train_loss": round(last_loss, 8), "test_loss": round(test_loss, 8)},
+        {
+            "first_train_loss": round(first_loss or 0.0, 8),
+            "last_train_loss": round(last_loss, 8),
+            "test_loss": round(test_loss, 8),
+            "loaded_checkpoint": loaded_checkpoint,
+            "saved_checkpoint": str(checkpoint_out) if checkpoint_out else "",
+        },
         [float(value) for value in train_probabilities],
         [float(value) for value in test_probabilities],
     )
@@ -367,6 +408,32 @@ class _TinyPatchTransformer:
     def parameters(self):
         return [self.position, *self.projection.parameters(), *self.encoder.parameters(), *self.head.parameters()]
 
+    def state_dict(self) -> dict[str, object]:
+        return {
+            "position": self.position.detach().clone(),
+            "projection": self.projection.state_dict(),
+            "encoder": self.encoder.state_dict(),
+            "head": self.head.state_dict(),
+        }
+
+    def load_partial_state_dict(self, state: dict[str, object]) -> list[str]:
+        loaded: list[str] = []
+        position = state.get("position")
+        if position is not None and tuple(position.shape) == tuple(self.position.shape):
+            with self.torch.no_grad():
+                self.position.copy_(position)
+            loaded.append("position")
+        for name, module in (("projection", self.projection), ("encoder", self.encoder), ("head", self.head)):
+            module_state = state.get(name)
+            if not isinstance(module_state, dict):
+                continue
+            try:
+                module.load_state_dict(module_state)
+            except RuntimeError:
+                continue
+            loaded.append(name)
+        return loaded
+
     def train(self) -> None:
         self.projection.train()
         self.encoder.train()
@@ -398,6 +465,45 @@ def _import_torch() -> object:
     except ImportError as error:
         raise ValueError("PyTorch is required for train-torch-patch-transformer-split-holdout") from error
     return torch
+
+
+def _load_checkpoint(model: _TinyPatchTransformer, *, checkpoint_in: Path | None, torch: object) -> dict[str, object]:
+    if not checkpoint_in:
+        return {"path": "", "loaded_components": []}
+    if not checkpoint_in.exists():
+        return {"path": str(checkpoint_in), "loaded_components": [], "status": "missing"}
+    checkpoint = torch.load(checkpoint_in, map_location="cpu")
+    state = checkpoint.get("model_state", checkpoint) if isinstance(checkpoint, dict) else checkpoint
+    loaded = model.load_partial_state_dict(state if isinstance(state, dict) else {})
+    return {"path": str(checkpoint_in), "loaded_components": loaded, "status": "loaded" if loaded else "no_compatible_components"}
+
+
+def _save_checkpoint(
+    model: _TinyPatchTransformer,
+    *,
+    checkpoint_out: Path,
+    torch: object,
+    patch_input_size: int,
+    patch_count: int,
+    d_model: int,
+    layers: int,
+    heads: int,
+    dropout: float,
+) -> None:
+    checkpoint_out.parent.mkdir(parents=True, exist_ok=True)
+    torch.save(
+        {
+            "schema": "elfquake.patch_transformer_checkpoint.v1",
+            "model_state": model.state_dict(),
+            "patch_input_size": patch_input_size,
+            "patch_count": patch_count,
+            "d_model": d_model,
+            "layers": layers,
+            "heads": heads,
+            "dropout": dropout,
+        },
+        checkpoint_out,
+    )
 
 
 def _set_deterministic_seed(torch: object, seed: int) -> None:

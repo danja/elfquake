@@ -11,7 +11,7 @@ We wish to exploit more modern machine learning/AI techniques to create a predic
 
 ## Status
 
-Status: extended 2024-2026 seismic-only baselines, synthetic CPU PyTorch GRU and tiny patch Transformer diagnostics, and regime-balanced synthetic split checks are runnable, but real VLF-aligned training is still blocked by one-class labels; **no earthquake prediction capability is claimed**.
+Status: synthetic CPU PyTorch GRU and patch Transformer pretraining are runnable, real fine-tune wrappers are in place, and real VLF-aligned training is still blocked by one-class labels; **no earthquake prediction capability is claimed**.
 
 Right now, while awaiting further VLF-aligned labels, the focus is on real seismic baselines, synthetic regime diagnostics, and keeping the multimodal model interface stable. Evaluation of the current model can be found in [report.md](docs/report.md), [model-comparison.md](docs/model-comparison.md), and [model-scaling-requirements.md](docs/model-scaling-requirements.md).
 
@@ -41,7 +41,7 @@ This work was initially prompted by the tragedy of the [2009 L'Aquila earthquake
 * A compact real-vs-synthetic comparison wrapper for central-Italy seismic baselines and synthetic sequence reports.
 * Larger-model scale checks for row count, class balance, sequence size, and CPU-only model limits.
 * Real Cumiana VLF image features materialized into the same sequence shape as synthetic piezo/VLF inputs.
-* Real prospective aligned model inputs scaffolded for all-Italy and central-Italy rows; real training remains blocked by insufficient class variation.
+* Real prospective aligned model inputs scaffolded for all-Italy and central-Italy rows; real deep-model fine-tuning wrappers refuse to train until both target classes exist.
 * VLF model feature roles that allow synthetic piezo/VLF analogue data to exercise the same PyTorch VLF path before real labels mature.
 * Sandpile simulation with separate seismic-like avalanche outputs and piezo/VLF analogue outputs.
 
@@ -79,6 +79,7 @@ This is a simplified stress-and-release analogy, not a geological model. Its val
 
 * [Overview](docs/overview.md)
 * [Documentation Index](docs/README.md)
+* [Processing Graph](docs/processing-graph.md)
 * [Next Actions](docs/next-actions.md)
 * [Development Environment](docs/development-environment.md)
 * [Source Inventory](docs/source-inventory.md)

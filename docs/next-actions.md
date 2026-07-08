@@ -2,11 +2,11 @@
 
 ## Immediate Order
 
-1. Clean and rationalize `docs/` before adding more narrative files.
-2. Rerun corrected-label sequence sweep, missing-modality, and tiny patch Transformer checks.
-3. Keep refreshing prospective INGV labels and real VLF-aligned rows until both classes exist.
+1. Keep refreshing prospective INGV labels and real VLF-aligned rows until both classes exist.
+2. Run the real deep patch Transformer fine-tune wrapper after each label refresh; it should train only when readiness reaches both classes.
+3. Increase synthetic diversity with bounded multi-seed runs, then rerun patch Transformer and missing-modality diagnostics.
 4. Reduce sparse synthetic event-time clustering and synthetic regime drift before promoting sparse events or larger models.
-5. Validate Abelian raw VLF only after a reproducible nonempty pull is identified.
+5. Keep `docs/README.md`, `docs/report.md`, and `docs/next-actions.md` as the current entry points when retiring stale smoke-run notes.
 
 ## Simulation
 
@@ -16,7 +16,7 @@
 4. Add a small grouped-sensor piezo scan only if single-receiver traces prove too local after multi-seed validation.
 5. Compare the tiny patch Transformer against the balanced GRU over additional synthetic seeds before increasing model size.
 6. Optimize or chunk sequence materialization further before attempting substantially larger runs.
-7. Rerun bounded sequence sweep, missing-modality, and tiny patch Transformer checks under corrected-label targets before changing the default GRU lookback.
+7. Compare the selected deeper patch Transformer against corrected-label GRU and tabular baselines after any material data change.
 8. Use corrected-label missing-modality reports to decide whether VLF/piezo, direct avalanche, or combined sequence inputs deserve the next model pass.
 9. Wait for real prospective rows to include both positive and negative labels before attempting real PyTorch training.
 10. Use central-Italy historical seismic-only windows as the current real baseline smoke path.
@@ -41,7 +41,7 @@
 16. Decode Abelian live/archive audio into time-frequency features after confirming sampling metadata and file readability.
 17. Probe a wider Abelian archive range or alternate station only if a documented usable interval can be identified from the source pages.
 18. Keep refreshing prospective INGV labels as VLF target windows mature; use real labels only after both target classes are present.
-19. Add a real PyTorch training wrapper only after real aligned tables have both target classes.
+19. Run the selected deeper patch Transformer on the next larger synthetic diversity set after event sparsity and class balance look plausible.
 
 ## Completed
 
@@ -50,6 +50,7 @@
 * Correct aligned synthetic target semantics so `target_horizon_rows` means the next `N` complete future rows, then rebuild default 20000-step model artifacts.
 * Add and run `sweep-sparse-target-horizon.sh`; sparse positive labels now scale from `3/501` at horizon `1` to `72/432` at horizon `24`, but temporal test splits still have no positives.
 * Rerun tabular PyTorch, sequence GRU, temporal diagnostics, and tabular-vs-sequence comparison under corrected-label targets.
+* Add and run `train-deep-patch-transformer.sh`; selected deeper patch Transformer pretrains on synthetic sequence data and records real fine-tune readiness, currently blocked by one-class real labels.
 * Extend INGV historical backfill from `2024-01-01` through `2026-07-07`, producing 4836 all-Italy events, 594 central-Italy events, and 130 weekly labeled windows per scope.
 * Rebuild seismic-only temporal baselines and real-vs-synthetic signal-shape diagnostics from the extended INGV history.
 * Add `docs/model-scaling-requirements.md`; current real VLF rows are blocked, while the full synthetic 20000-step table can support only a tiny synthetic-only larger-model check.
@@ -142,3 +143,7 @@
 * Add and run `repeat-sequence-training-seeds.sh`; piezo/VLF-only remains the best single row, while `sequence_full` wins mean group and worst-held-out-seed stability.
 * Add `train-real-tabular-model.sh`; it correctly refuses to train while all-Italy has `18` positives and `0` negatives.
 * Refresh INGV labels and real aligned model inputs again; real training remains blocked by insufficient class variation.
+* Add `train-real-deep-patch-transformer.sh`; current all-Italy and central-Italy fine-tune reports correctly block on one-class labels.
+* Refresh prospective labels to 54 matured rows per scope and rebuild real VLF-aligned model inputs.
+* Rerun missing-modality and sequence diagnostics; direct avalanche remains strongest on grouped synthetic checks, while piezo/VLF-only still carries signal.
+* Add and smoke-test `run-synthetic-diversity-smoke.sh` on two 128x128, 1000-step seeds with evaluations disabled.

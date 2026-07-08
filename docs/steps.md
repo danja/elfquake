@@ -238,6 +238,18 @@ Run the default scale estimates for current synthetic, post-burn-in balanced syn
 
 Regenerate the post-burn-in regime-balanced synthetic split, train the tiny CPU patch Transformer, and write a compact model-run summary.
 
+### `train-deep-patch-transformer.sh`
+
+Run the selected deeper CPU patch Transformer on regime-balanced synthetic sequence data and write a reusable synthetic checkpoint.
+
+### `train-real-deep-patch-transformer.sh`
+
+Fine-tune the patch Transformer from the synthetic checkpoint on real VLF image sequences once real labels contain both classes. Until then it writes a blocked status report and exits without training.
+
+### `run-synthetic-diversity-smoke.sh`
+
+Generate extra synthetic seeds without heatmaps, video, or audio, then refresh event lists, aligned windows, tensors, and optional smoke reports for that seed set.
+
 ### `compare-model-run-summaries`
 
 Compare compact model-run summary JSON files and optionally write a CSV view. Use this to compare tabular, sequence, sweep, and missing-modality runs.

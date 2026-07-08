@@ -1,0 +1,64 @@
+# Processing Graph
+
+Latest high-level configuration, including synthetic pretraining and the real fine-tune gate.
+
+```mermaid
+flowchart TD
+  subgraph Synthetic["Synthetic simulation path"]
+    Sim["sandpile simulation<br/>summary/sensors/piezo/avalanche CSVs"]
+    SimEvents["direct avalanche event extraction<br/>*.avalanche_events.csv"]
+    SimWindows["hourly synthetic seismic windows<br/>synthetic_seismic_*"]
+    SimSeq["sequence manifests<br/>synthetic_direct_avalanche<br/>synthetic_piezo_vlf<br/>synthetic_summary"]
+    SimAligned["aligned synthetic rows<br/>gt0 future-lookahead target"]
+    Regimes["post-burn-in regimes<br/>regime-balanced split"]
+    DeepTrain["deep patch Transformer synthetic pretrain<br/>d_model=64, 3 layers, 4 heads"]
+    Checkpoint["synthetic checkpoint<br/>deep_patch_transformer_synthetic.pt"]
+
+    Sim --> SimEvents --> SimWindows
+    Sim --> SimSeq
+    SimWindows --> SimAligned
+    SimSeq --> SimAligned
+    SimAligned --> Regimes --> DeepTrain --> Checkpoint
+  end
+
+  subgraph Real["Real Italy-scoped data path"]
+    INGV["INGV seismic events<br/>Italy / Central Italy"]
+    VLF["Cumiana VLF image captures<br/>systemd service"]
+    Astro["astronomy / space-weather features"]
+    Norm["normalization and UTC provenance"]
+    Prospective["prospective VLF-anchored windows"]
+    RealSeq["real VLF image sequence manifest<br/>cumiana_vlf_image_sequence"]
+    RealAligned["real VLF-aligned rows<br/>all_italy / central_italy"]
+    Readiness{"real label readiness<br/>both classes?"}
+
+    INGV --> Norm
+    VLF --> Norm
+    Astro --> Norm
+    Norm --> Prospective
+    VLF --> RealSeq
+    Prospective --> RealAligned
+    RealSeq --> RealAligned
+    RealAligned --> Readiness
+  end
+
+  subgraph Modeling["Model evaluation and transfer"]
+    Baselines["baselines and ablations<br/>seismic-only, VLF-only, multimodal"]
+    Probe["real VLF sequence probe<br/>sequence_real_vlf_image_only"]
+    FineTune["future real fine-tune<br/>load synthetic checkpoint"]
+    Blocked["blocked now<br/>all-Italy: 54 positive / 0 negative<br/>central Italy: 0 positive / 54 negative"]
+    Reports["reports<br/>model summaries, readiness, docs/report.md"]
+
+    SimAligned --> Baselines
+    DeepTrain --> Baselines
+    RealAligned --> Probe
+    Readiness -- no --> Blocked --> Reports
+    Readiness -- yes --> FineTune
+    Checkpoint --> FineTune
+    RealAligned --> FineTune
+    FineTune --> Reports
+    Baselines --> Reports
+    Probe --> Reports
+  end
+```
+
+Key constraint: real fine-tuning is intentionally blocked until real VLF-aligned rows contain both positive and negative labels.

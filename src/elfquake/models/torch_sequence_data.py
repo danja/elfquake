@@ -5,6 +5,7 @@ from __future__ import annotations
 import csv
 import json
 import re
+from bisect import bisect_right
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -42,7 +43,7 @@ def build_sequence_samples(
         for modality in modalities:
             dataset = _required_dataset(sequences, dataset_id=row.get("dataset_id", ""), modality=modality)
             end_time = row.get("window_end_utc", "")
-            end_index = dataset.time_to_index.get(end_time)
+            end_index = sequence_index_at_or_before(dataset, end_time)
             if end_index is None:
                 raise ValueError(f"missing sequence time {end_time} for {dataset.dataset_id}/{modality}")
             parts.append(_slice_lookback(dataset.values, end_index=end_index, lookback_steps=lookback_steps))
@@ -69,7 +70,10 @@ def _load_one_sequence(path: Path, manifest: dict[str, object], *, include_missi
     return SequenceDataset(
         dataset_id=_infer_dataset_id(path, manifest),
         modality=modality,
-        time_to_index=_read_time_axis(Path(str(manifest["time_axis_csv"]))),
+        time_to_index=_read_time_axis(
+            Path(str(manifest["time_axis_csv"])),
+            time_field=str(manifest.get("time_field", "")),
+        ),
         values=_averaged_values(value_sums, mask_sums, counts, include_missing_masks=include_missing_masks),
         feature_names=_feature_names(modality, channel_fields, include_missing_masks=include_missing_masks),
     )
@@ -106,9 +110,37 @@ def _required_dataset(
     modality: str,
 ) -> SequenceDataset:
     dataset = sequences.get((dataset_id, modality))
+    if dataset is None and not dataset_id:
+        matches = [item for (candidate_id, candidate_modality), item in sequences.items() if candidate_modality == modality]
+        if len(matches) == 1:
+            return matches[0]
     if dataset is None:
         raise ValueError(f"missing sequence dataset for {dataset_id}/{modality}")
     return dataset
+
+
+def sequence_covers_time(
+    sequences: dict[tuple[str, str], SequenceDataset],
+    *,
+    dataset_id: str,
+    modality: str,
+    time_utc: str,
+) -> bool:
+    try:
+        dataset = _required_dataset(sequences, dataset_id=dataset_id, modality=modality)
+    except ValueError:
+        return False
+    return sequence_index_at_or_before(dataset, time_utc) is not None
+
+
+def sequence_index_at_or_before(dataset: SequenceDataset, time_utc: str) -> int | None:
+    if time_utc in dataset.time_to_index:
+        return dataset.time_to_index[time_utc]
+    times = sorted(dataset.time_to_index)
+    index = bisect_right(times, time_utc) - 1
+    if index < 0:
+        return None
+    return dataset.time_to_index[times[index]]
 
 
 def _slice_lookback(values: list[list[float]], *, end_index: int, lookback_steps: int) -> list[list[float]]:
@@ -122,6 +154,21 @@ def _infer_dataset_id(path: Path, manifest: dict[str, object]) -> str:
     return f"seed{match.group(1)}" if match else path.parent.name
 
 
-def _read_time_axis(path: Path) -> dict[str, int]:
+def _read_time_axis(path: Path, *, time_field: str = "") -> dict[str, int]:
     with path.open(newline="", encoding="utf-8") as handle:
-        return {row["time_utc"]: int(row["time_index"]) for row in csv.DictReader(handle)}
+        reader = csv.DictReader(handle)
+        if reader.fieldnames is None:
+            return {}
+        axis_field = _time_axis_field(reader.fieldnames, time_field=time_field)
+        return {row[axis_field]: int(row["time_index"]) for row in reader if row.get(axis_field, "")}
+
+
+def _time_axis_field(fieldnames: list[str], *, time_field: str = "") -> str:
+    if "time_utc" in fieldnames:
+        return "time_utc"
+    if time_field and time_field in fieldnames:
+        return time_field
+    utc_fields = [field for field in fieldnames if field.endswith("_utc")]
+    if len(utc_fields) == 1:
+        return utc_fields[0]
+    raise ValueError(f"time axis must contain time_utc or one UTC field, got: {', '.join(fieldnames)}")

@@ -2,11 +2,14 @@
 
 Use this as the current map for `docs/`. Prefer updating an existing document in the right group before adding another short note.
 
+Before adding a new document, check the sections below and update the closest existing page. Keep stale smoke-run notes out of the main reading path unless they still describe the current pipeline.
+
 ## Current Entry Points
 
 * [Overview](overview.md) - project scope and phase map.
 * [Next Actions](next-actions.md) - immediate work queue.
 * [Report](report.md) - current analysis status and caveats.
+* [Processing Graph](processing-graph.md) - current source-to-model data flow.
 * [Command Steps](steps.md) - runnable command reference.
 * [Development Environment](development-environment.md) - local setup.
 
