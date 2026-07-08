@@ -55,6 +55,7 @@ from elfquake.models.candidates import list_model_candidates, write_model_candid
 from elfquake.models.comparison import compare_model_run_summaries
 from elfquake.models.dataset_combine import combine_aligned_datasets
 from elfquake.models.interface_shape import audit_model_interfaces
+from elfquake.models.learned_forecast import generate_learned_weekly_event_forecast
 from elfquake.models.logistic_smoke import train_logistic_smoke
 from elfquake.models.model_scale import estimate_model_scale
 from elfquake.models.readiness import summarize_model_readiness
@@ -309,6 +310,60 @@ class AcquisitionScaffoldTests(unittest.TestCase):
             self.assertIn("latitude", rows[0])
             self.assertIn("longitude", rows[0])
             self.assertGreater(float(rows[0]["magnitude_proxy"]), 2.0)
+
+    def test_learned_weekly_event_forecast_writes_scorer_metadata(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            real_events = root / "real_events.csv"
+            real_events.write_text(
+                "event_id,source,event_time_utc,latitude,longitude,depth_km,magnitude,magnitude_type,italy_region,event_location_name,event_type,raw_file,ingested_at_utc,raw_uri\n"
+                "r1,ingv,2026-01-01T00:00:00Z,42.5,13.2,8,2.4,ML,central_italy,fixture,earthquake,,,\n"
+                "r2,ingv,2026-01-08T00:00:00Z,45.0,10.5,8,2.7,ML,unknown,fixture,earthquake,,,\n",
+                encoding="utf-8",
+            )
+            synthetic_events = root / "fixture.avalanche_events.csv"
+            synthetic_events.write_text(
+                "event_id,source,event_time_utc,latitude,longitude,depth_km,magnitude,magnitude_type,italy_region,event_location_name,event_type,raw_file,ingested_at_utc,raw_uri\n"
+                "s1,synthetic,2026-01-01T00:00:00Z,42.3,13.7,10,2.6,MLs,central_italy,fixture,earthquake,,,\n",
+                encoding="utf-8",
+            )
+            synthetic_windows = root / "windows.csv"
+            synthetic_windows.write_text(
+                "dataset_id,window_id,region_id,window_start_utc,window_end_utc,source_file,target_event_count,target_occurred,target_status,"
+                "synthetic_piezo_vlf_piezo_signal_mean,synthetic_direct_avalanche_avalanche_signal_mean,quality_missing_synthetic_piezo_vlf\n"
+                "s,w1,central,2026-01-01T00:00:00Z,2026-01-01T01:00:00Z,x,0,0,labeled,0.1,0.1,0\n"
+                "s,w2,central,2026-01-01T01:00:00Z,2026-01-01T02:00:00Z,x,1,1,labeled,2.0,3.0,0\n"
+                "s,w3,central,2026-01-01T02:00:00Z,2026-01-01T03:00:00Z,x,0,0,labeled,0.2,0.3,0\n"
+                "s,w4,central,2026-01-01T03:00:00Z,2026-01-01T04:00:00Z,x,1,1,labeled,2.5,3.4,0\n"
+                "s,w5,central,2026-01-01T04:00:00Z,2026-01-01T05:00:00Z,x,0,0,labeled,0.3,0.4,0\n"
+                "s,w6,central,2026-01-01T05:00:00Z,2026-01-01T06:00:00Z,x,1,1,labeled,2.8,3.8,0\n",
+                encoding="utf-8",
+            )
+            report_path = root / "learned.json"
+            events_out = root / "learned_events.csv"
+
+            report = generate_learned_weekly_event_forecast(
+                real_events_csv=real_events,
+                synthetic_windows_csv=synthetic_windows,
+                out_path=report_path,
+                events_out_path=events_out,
+                as_of_utc="2026-01-10T00:00:00Z",
+                max_events=4,
+                seed=7,
+                synthetic_event_globs=[str(synthetic_events)],
+                vlf_window_csvs=[root / "missing_vlf.csv"],
+                vlf_audio_globs=[str(root / "missing_audio_*.csv")],
+                astronomy_globs=[str(root / "missing_astro_*.json")],
+                epochs=20,
+            )
+
+            self.assertEqual(report["schema"], "elfquake.learned_multimodal_weekly_event_forecast.v1")
+            self.assertEqual(report["model"]["learned_scorer"]["status"], "evaluated")
+            self.assertGreaterEqual(report["predicted_event_count"], 1)
+            with events_out.open(newline="", encoding="utf-8") as handle:
+                rows = list(csv.DictReader(handle))
+            self.assertTrue(rows[0]["prediction_id"].startswith("learned_"))
+            self.assertIn("synthetic-trained", rows[0]["warning"])
 
     def test_sequence_comparison_diagnostic_reads_full_reports(self) -> None:
         with tempfile.TemporaryDirectory() as directory:

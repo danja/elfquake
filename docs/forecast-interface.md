@@ -1,6 +1,6 @@
 # Forecast Interface
 
-The trial forecast interface is the downstream contract for weekly event-list outputs. The current scorer is weak and heuristic; future learned scorers should preserve this shape.
+The forecast interface is the downstream contract for weekly event-list outputs. Both the heuristic trial scorer and the first synthetic-trained learned scorer preserve this shape; future model backends should do the same.
 
 ## Inputs
 
@@ -45,6 +45,8 @@ Required JSON report fields:
 ## Calibration
 
 Weekly count calibration should start from historical INGV `>M2` rates. Learned models may adjust spatial and count scores, but reports must keep historical-rate context so every run can be compared against a simple seismic baseline.
+
+The learned scorer report must include training source, split policy, class counts, held-out metrics, score threshold, latest-window score, and enough feature metadata to diagnose leakage or missing-modality behavior.
 
 ## Validation Rule
 

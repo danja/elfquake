@@ -13,6 +13,7 @@ from elfquake.models.alignment_manifest import build_alignment_manifest
 from elfquake.models.candidates import write_model_candidates
 from elfquake.models.dataset_combine import combine_aligned_datasets
 from elfquake.models.interface_shape import audit_model_interfaces
+from elfquake.models.learned_forecast import generate_learned_weekly_event_forecast
 from elfquake.models.logistic_smoke import train_logistic_smoke
 from elfquake.models.model_scale import estimate_model_scale
 from elfquake.models.readiness import summarize_model_readiness
@@ -199,6 +200,27 @@ def register_model_commands(subparsers: _SubParsersAction) -> None:
     trial_forecast.add_argument("--vlf-audio-glob", action="append", default=[])
     trial_forecast.add_argument("--astronomy-glob", action="append", default=[])
     trial_forecast.set_defaults(func=_generate_trial_weekly_event_forecast)
+
+    learned_forecast = subparsers.add_parser("generate-learned-weekly-event-forecast")
+    learned_forecast.add_argument("--real-events", type=Path, required=True)
+    learned_forecast.add_argument("--synthetic-windows", type=Path, required=True)
+    learned_forecast.add_argument("--out", type=Path, required=True)
+    learned_forecast.add_argument("--events-out", type=Path, required=True)
+    learned_forecast.add_argument("--as-of-utc", required=True)
+    learned_forecast.add_argument("--horizon-days", type=int, default=7)
+    learned_forecast.add_argument("--magnitude-threshold", type=float, default=2.0)
+    learned_forecast.add_argument("--max-events", type=int, default=25)
+    learned_forecast.add_argument("--seed", type=int, default=42)
+    learned_forecast.add_argument("--train-fraction", type=float, default=0.8)
+    learned_forecast.add_argument("--epochs", type=int, default=500)
+    learned_forecast.add_argument("--learning-rate", type=float, default=0.08)
+    learned_forecast.add_argument("--l2", type=float, default=0.001)
+    learned_forecast.add_argument("--synthetic-event-glob", action="append", default=[])
+    learned_forecast.add_argument("--vlf-window", type=Path, action="append", default=[])
+    learned_forecast.add_argument("--vlf-anomaly-report", type=Path)
+    learned_forecast.add_argument("--vlf-audio-glob", action="append", default=[])
+    learned_forecast.add_argument("--astronomy-glob", action="append", default=[])
+    learned_forecast.set_defaults(func=_generate_learned_weekly_event_forecast)
 
 
 def _train_logistic_smoke(args: Namespace) -> int:
@@ -481,6 +503,37 @@ def _generate_trial_weekly_event_forecast(args: Namespace) -> int:
     print(f"predicted events: {report['predicted_event_count']}")
     print(f"forecast start: {report['forecast_start_utc']}")
     print(f"forecast end: {report['forecast_end_utc']}")
+    print(f"events output: {args.events_out}")
+    print(f"report: {args.out}")
+    return 0
+
+
+def _generate_learned_weekly_event_forecast(args: Namespace) -> int:
+    report = generate_learned_weekly_event_forecast(
+        real_events_csv=args.real_events,
+        synthetic_windows_csv=args.synthetic_windows,
+        out_path=args.out,
+        events_out_path=args.events_out,
+        as_of_utc=args.as_of_utc,
+        horizon_days=args.horizon_days,
+        magnitude_threshold=args.magnitude_threshold,
+        max_events=args.max_events,
+        seed=args.seed,
+        train_fraction=args.train_fraction,
+        epochs=args.epochs,
+        learning_rate=args.learning_rate,
+        l2=args.l2,
+        synthetic_event_globs=args.synthetic_event_glob or None,
+        vlf_window_csvs=args.vlf_window or None,
+        vlf_anomaly_report=args.vlf_anomaly_report,
+        vlf_audio_globs=args.vlf_audio_glob or None,
+        astronomy_globs=args.astronomy_glob or None,
+    )
+    scorer = report["model"]["learned_scorer"]
+    print(f"status: {report['status']}")
+    print(f"predicted events: {report['predicted_event_count']}")
+    print(f"learned score: {scorer['latest_window_score']}")
+    print(f"test balanced accuracy: {scorer.get('test_metrics', {}).get('balanced_accuracy', '')}")
     print(f"events output: {args.events_out}")
     print(f"report: {args.out}")
     return 0

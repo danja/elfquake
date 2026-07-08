@@ -3,16 +3,16 @@
 ## Immediate Priority
 
 1. Treat `trial-weekly-event-forecast.sh` as the current end-to-end event-list contract smoke test, not as a validated predictor.
-2. Replace the trial forecast heuristics with a swappable learned scorer trained first on synthetic aligned rows, then calibrated against historical INGV rates.
-3. Build a synthetic-to-event-list training adapter so sequence/tabular model outputs can generate weekly coordinate rows, not only classification metrics.
+2. Improve the synthetic-trained learned scorer: current held-out balanced accuracy is only `0.507576`, with poor negative recall.
+3. Replace the shared event placement heuristics with model-informed spatial/event-count adapters while preserving the forecast CSV contract.
 4. Keep self-supervised real VLF pretraining as the default real-data modeling path while supervised VLF-aligned labels remain one-class or sparse.
-5. Continue periodic INGV refresh and prospective relabeling; compare learned multimodal forecasts against the trial baseline only after real labels contain both classes.
+5. Continue periodic INGV refresh and prospective relabeling; latest real aligned rows are still one-class (`69/0` all-Italy, `0/69` central Italy).
 
 ## Modeling
 
-1. Define the stable forecast interface: inputs, missing-modality masks, output event rows, calibration metadata, and warning fields.
-2. Calibrate weekly event counts against historical INGV `>M2` rates before trusting any neural score scale.
-3. Add learned-scorer metadata to the forecast report without changing the CSV event-row contract.
+1. Calibrate weekly event counts against historical INGV `>M2` rates before trusting any neural score scale.
+2. Add a model-informed spatial adapter so learned scores can alter event locations without breaking the event-list contract.
+3. Add a comparison report between heuristic trial forecasts and learned-scorer forecasts.
 4. Keep direct avalanche-derived seismic features separate from piezo/VLF-like features; use ablations to test their contribution independently.
 5. Rerun the selected deeper patch Transformer only after synthetic event sparsity and target balance are improved enough for meaningful temporal checks.
 
@@ -42,6 +42,9 @@
 ## Recent Completed
 
 * Added and ran `trial-weekly-event-forecast.sh`; the current `2026-07-08` trial emits 25 capped `>M2` event-coordinate rows for `2026-07-08` to `2026-07-15`.
+* Added and ran `learned-weekly-event-forecast.sh`; it trains a synthetic-window logistic scorer and emits the same weekly event-list CSV contract.
+* Added learned-scorer metadata to the forecast report without changing the CSV event-row contract.
+* Refreshed INGV prospective labels and rebuilt real model inputs; both scopes now have 69 labeled rows but remain class-blocked.
 * Added and ran `trial-forecast-map.sh`, rendering `data/derived/maps/mag_gt2_weekly_trial_forecast_map.png` from the trial forecast CSV.
 * Added `docs/forecast-interface.md` to define the stable weekly event-list output contract for trial and future learned scorers.
 * Added `docs/output-example.md` with the top three highest-magnitude trial rows and nearest mapped places.

@@ -41,9 +41,9 @@ Real prospective model rows:
 
 * `data/derived/models/all_italy.real_vlf_aligned_windows.csv`
 * `data/derived/models/central_italy.real_vlf_aligned_windows.csv`
-* each table has 247 rows and 54 labeled rows
-* all-Italy labels are currently 55 positive / 0 negative
-* central-Italy labels are currently 0 positive / 55 negative
+* each table has 247 rows and 69 labeled rows
+* all-Italy labels are currently 69 positive / 0 negative
+* central-Italy labels are currently 0 positive / 69 negative
 * both are `insufficient_class_variation`
 
 ## Method
@@ -84,6 +84,8 @@ Output files:
 * `data/derived/models/self_supervised/real_vlf_vs_synthetic_piezo_embeddings.csv`
 * `data/derived/models/trial_forecast/mag_gt2_weekly_trial_forecast.json`
 * `data/derived/models/trial_forecast/mag_gt2_weekly_trial_events.csv`
+* `data/derived/models/learned_forecast/mag_gt2_weekly_learned_forecast.json`
+* `data/derived/models/learned_forecast/mag_gt2_weekly_learned_events.csv`
 * `data/derived/models/missing_modality/missing_modality_seed42_summary.json`
 * `data/derived/models/sequence_modality_diagnostic.json`
 * `data/derived/models/all_italy.ingv_backfill_seismic_windows.temporal_holdout.json`
@@ -97,7 +99,7 @@ Real-data status:
 * Cumiana VLF image capture and image-feature extraction are working.
 * Real VLF-aligned model tables are scaffolded for all-Italy and central Italy.
 * Real PyTorch training should not start yet, because each real table has only one target class. The real deep patch Transformer wrapper records this blocker instead of training.
-* Current real VLF-aligned label counts are 55 positive / 0 negative for all-Italy and 0 positive / 55 negative for central Italy.
+* Current real VLF-aligned label counts are 69 positive / 0 negative for all-Italy and 0 positive / 69 negative for central Italy.
 * Self-supervised real VLF pretraining is available and is now the default model-development path until supervised labels have both classes.
 * Historical seismic-only backfill for `2024-01-01` to `2026-07-07` produced 130 weekly training windows per scope.
 * Backfilled all-Italy seismic windows are ready but heavily positive-skewed: train 95 positive / 9 negative, test 25 positive / 1 negative.
@@ -123,6 +125,8 @@ Synthetic-model status:
 * A mixed-domain alignment diagnostic now trains on real VLF plus 14,983 locally selected synthetic piezo/VLF windows with a CORAL embedding-alignment penalty. Held-out real masked reconstruction improves to `0.294475` versus a zero baseline of `0.588513`, and held-out embedding centroid distance improves to `1.033580`.
 * Mixed-domain controls remain important: centroid-inlier selection scored `1.011474`, random synthetic selection `1.142438`, and capped full-synthetic selection `1.617345` on held-out centroid distance. This means alignment training is useful, but the local inlier criterion is not yet clearly superior to centroid selection.
 * A first end-to-end trial weekly event-list forecast now combines current INGV history, VLF context, astronomy captures, and synthetic avalanche event artifacts. The `2026-07-08T00:00:00Z` run for the following week produced 25 capped `>M2` coordinate rows, with an uncapped expected count proxy of `33.411669`; this is a contract smoke test and not a validated prediction.
+* A first synthetic-trained learned weekly event-list forecast now preserves the same CSV contract. It trained a small logistic scorer on 501 aligned synthetic rows with 67 positives, produced a latest synthetic score of `0.899322`, and emitted 25 capped coordinate rows with an uncapped expected count proxy of `32.709463`.
+* The learned scorer is only a scaffold: its held-out synthetic balanced accuracy is `0.507576`, with 35/101 positives in the test split and very poor negative recall (`0.015152`).
 * A short piezo/VLF transform sweep added deterministic high-pass, burst, near-threshold, release-mix, and sensor-gain variants. The best transformed variant, `gain_burst`, improved short-run held-out embedding centroid distance to `1.757251` versus `1.841903` for the current signal, but worsened held-out masked reconstruction to `0.318687` versus `0.281600`.
 * Refreshed missing-modality seed-42 checks give `0.632445` calibrated balanced accuracy for piezo/VLF-only and `0.722257` for direct-avalanche-only.
 * Refreshed sequence modality diagnostics still rank direct-avalanche-only highest on grouped synthetic checks (`0.8359` calibrated balanced accuracy), so direct seismic-like and piezo/VLF-like channels should remain separate.

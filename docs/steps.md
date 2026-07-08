@@ -262,6 +262,14 @@ Generate a deterministic trial event-list forecast for the next week. It combine
 
 Run the default current-data `>M2` weekly trial forecast and write `data/derived/models/trial_forecast/mag_gt2_weekly_trial_forecast.json` plus `mag_gt2_weekly_trial_events.csv`. This is an end-to-end contract smoke test, not a validated prediction.
 
+### `generate-learned-weekly-event-forecast`
+
+Train a small synthetic-window scorer on aligned synthetic rows, inject its latest learned score into the weekly event-list forecast contract, and write learned-scorer metadata beside the event CSV.
+
+### `learned-weekly-event-forecast.sh`
+
+Run the default synthetic-trained learned weekly forecast. Outputs are written under `data/derived/models/learned_forecast/`; the current learned scorer is a scaffold and must be evaluated against baselines before use.
+
 ### `trial-forecast-map.sh`
 
 Render the current trial forecast event CSV on the offline Italy basemap. Use this for visual inspection of generated coordinates and magnitude-sized markers.
