@@ -4,7 +4,7 @@ Date: 2026-07-08
 
 ## Overview
 
-ELFQuake is currently a feasibility pipeline, not an earthquake prediction system. The project can collect Italy-scoped INGV seismic events, Cumiana VLF spectrogram images, and astronomy/space-weather context; it can also generate synthetic seismic-like and VLF-like signals from an avalanche simulation. Historical seismic-only backfill now covers 2024-2026 and gives usable smoke baselines, while real VLF-aligned model training remains blocked because the matured prospective VLF rows still contain only one target class per table.
+ELFQuake is currently a feasibility pipeline, not an earthquake prediction system. The project can collect Italy-scoped INGV seismic events, Cumiana VLF spectrogram images, and astronomy/space-weather context; it can also generate synthetic seismic-like and VLF-like signals from an avalanche simulation. Historical seismic-only backfill now covers 2024-2026 and gives usable smoke baselines. Supervised real VLF target training remains blocked because the matured prospective VLF rows still contain only one target class per table, so the default modeling path is now self-supervised real VLF pretraining.
 
 ## Scope
 
@@ -42,8 +42,8 @@ Real prospective model rows:
 * `data/derived/models/all_italy.real_vlf_aligned_windows.csv`
 * `data/derived/models/central_italy.real_vlf_aligned_windows.csv`
 * each table has 247 rows and 54 labeled rows
-* all-Italy labels are currently 54 positive / 0 negative
-* central-Italy labels are currently 0 positive / 54 negative
+* all-Italy labels are currently 55 positive / 0 negative
+* central-Italy labels are currently 0 positive / 55 negative
 * both are `insufficient_class_variation`
 
 ## Method
@@ -78,6 +78,10 @@ Output files:
 * `data/derived/models/deep_patch_transformer/deep_patch_transformer_synthetic.json`
 * `data/derived/models/deep_patch_transformer/all_italy.real_finetune.json`
 * `data/derived/models/deep_patch_transformer/central_italy.real_finetune.json`
+* `data/derived/models/self_supervised/real_vlf_image_autoencoder.json`
+* `data/derived/models/self_supervised/real_vlf_image_embeddings.csv`
+* `data/derived/models/self_supervised/real_vlf_vs_synthetic_piezo_embedding_domain.json`
+* `data/derived/models/self_supervised/real_vlf_vs_synthetic_piezo_embeddings.csv`
 * `data/derived/models/missing_modality/missing_modality_seed42_summary.json`
 * `data/derived/models/sequence_modality_diagnostic.json`
 * `data/derived/models/all_italy.ingv_backfill_seismic_windows.temporal_holdout.json`
@@ -91,6 +95,8 @@ Real-data status:
 * Cumiana VLF image capture and image-feature extraction are working.
 * Real VLF-aligned model tables are scaffolded for all-Italy and central Italy.
 * Real PyTorch training should not start yet, because each real table has only one target class. The real deep patch Transformer wrapper records this blocker instead of training.
+* Current real VLF-aligned label counts are 55 positive / 0 negative for all-Italy and 0 positive / 55 negative for central Italy.
+* Self-supervised real VLF pretraining is available and is now the default model-development path until supervised labels have both classes.
 * Historical seismic-only backfill for `2024-01-01` to `2026-07-07` produced 130 weekly training windows per scope.
 * Backfilled all-Italy seismic windows are ready but heavily positive-skewed: train 95 positive / 9 negative, test 25 positive / 1 negative.
 * Backfilled central-Italy seismic windows are more balanced: train 13 positive / 91 negative, test 6 positive / 20 negative.
@@ -106,6 +112,9 @@ Synthetic-model status:
 * Corrected-label temporal split diagnostics still show a label/regime shift: `gt0` train positive rate `0.080000`, test positive rate `0.346535`; largest drift features are direct-avalanche active-topple and summary-topple aggregates.
 * A post-burn-in regime-balanced explicit split has matched train/test class rates and gives `sequence_full` calibrated balanced accuracy `0.650000`; use this as an engineering diagnostic, not as forecasting evidence.
 * The selected deeper patch Transformer pretrain now writes `deep_patch_transformer_synthetic.pt`; its latest synthetic calibrated scores are `0.737879` for piezo/VLF-only and `0.583333` for full sequence.
+* The first self-supervised real VLF autoencoder smoke used 247 Cumiana VLF rows and 224 windows. Test masked reconstruction MSE was `0.835488`, better than the zero baseline `1.074356`.
+* The first synthetic-to-real embedding-domain diagnostic encoded 59,931 synthetic piezo/VLF windows through a descriptor autoencoder trained on real VLF windows. Synthetic centroid distance was `1.688474` and synthetic-to-real nearest mean distance was `4.025585`.
+* The same diagnostic is a baseline to improve, not evidence of alignment: held-out real full reconstruction MSE was `14.803974` versus a zero baseline of `14.660792`.
 * Refreshed missing-modality seed-42 checks give `0.632445` calibrated balanced accuracy for piezo/VLF-only and `0.722257` for direct-avalanche-only.
 * Refreshed sequence modality diagnostics still rank direct-avalanche-only highest on grouped synthetic checks (`0.8359` calibrated balanced accuracy), so direct seismic-like and piezo/VLF-like channels should remain separate.
 * A short diversity smoke run generated extra 128x128, 1000-step seeds `43` and `44` and refreshed aligned tensors with evaluations disabled; use larger runs before drawing model conclusions.

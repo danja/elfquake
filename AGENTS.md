@@ -62,9 +62,13 @@ For astronomical and geomagnetic data, NOAA SWPC live JSON and USNO moon phase J
 
 ## Modeling Rules
 
-Start with naive and historical-rate seismic baselines, then compare against multimodal models. Do not claim value from VLF or astronomical features without ablation tests on held-out data.
+Start with naive and historical-rate seismic baselines, then compare against multimodal models. While supervised real VLF labels are one-class or sparse, use self-supervised real VLF representation learning as the default model-development path.
+
+Do not claim value from VLF or astronomical features without ablation tests on held-out data.
 
 Use time-based validation first. Training data must occur before validation data.
+
+Supervised synthetic pretraining and synthetic-to-real diagnostics are useful engineering checks, but the preferred long-term route is label-free real VLF pretraining followed by supervised fine-tuning only after real target labels contain both classes.
 
 ## Python Environment
 

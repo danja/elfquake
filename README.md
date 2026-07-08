@@ -11,9 +11,9 @@ We wish to exploit more modern machine learning/AI techniques to create a predic
 
 ## Status
 
-Status: synthetic CPU PyTorch GRU and patch Transformer pretraining are runnable, real fine-tune wrappers are in place, and real VLF-aligned training is still blocked by one-class labels; **no earthquake prediction capability is claimed**.
+Status: self-supervised real VLF pretraining is now the default model path while supervised real VLF target training remains blocked by one-class labels; **no earthquake prediction capability is claimed**.
 
-Right now, while awaiting further VLF-aligned labels, the focus is on real seismic baselines, synthetic regime diagnostics, and keeping the multimodal model interface stable. Evaluation of the current model can be found in [report.md](docs/report.md), [model-comparison.md](docs/model-comparison.md), and [model-scaling-requirements.md](docs/model-scaling-requirements.md).
+Right now, while awaiting further VLF-aligned labels, the focus is on label-free real VLF representation learning, real seismic baselines, synthetic regime diagnostics, and keeping the multimodal model interface stable. Evaluation of the current model can be found in [report.md](docs/report.md), [model-comparison.md](docs/model-comparison.md), and [model-scaling-requirements.md](docs/model-scaling-requirements.md).
 
 ### Simulated Earthquakes
 
@@ -34,6 +34,7 @@ This work was initially prompted by the tragedy of the [2009 L'Aquila earthquake
 * Cumiana VLF live spectrogram capture through systemd, with pixel-derived image features.
 * Astronomical and space-weather archive connectors and normalization.
 * Prospective VLF-anchored feature rows with pending target labels.
+* A CPU PyTorch self-supervised autoencoder over real Cumiana VLF image sequences.
 * Dependency-light logistic checks and a CPU PyTorch tabular MLP for synthetic aligned rows.
 * A first CPU PyTorch GRU sequence model over synthetic avalanche and piezo/VLF sensor tensors.
 * A tiny CPU PyTorch patch Transformer scaffold for synthetic sequence engineering checks.
@@ -44,6 +45,18 @@ This work was initially prompted by the tragedy of the [2009 L'Aquila earthquake
 * Real prospective aligned model inputs scaffolded for all-Italy and central-Italy rows; real deep-model fine-tuning wrappers refuse to train until both target classes exist.
 * VLF model feature roles that allow synthetic piezo/VLF analogue data to exercise the same PyTorch VLF path before real labels mature.
 * Sandpile simulation with separate seismic-like avalanche outputs and piezo/VLF analogue outputs.
+
+Run the default label-free real VLF pretraining path with:
+
+```sh
+./pretrain-real-vlf-self-supervised.sh
+```
+
+Compare the current real VLF embedding domain against synthetic piezo/VLF analogues with:
+
+```sh
+./compare-vlf-embedding-domains.sh
+```
 
 ## Simulation
 

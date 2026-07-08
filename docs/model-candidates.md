@@ -101,15 +101,35 @@ Risks: synthetic-to-real transfer may fail; evaluate against no-pretraining and 
 ## Recommended Order
 
 1. Keep building labeled fixed-window tables.
-2. Use a PatchTST-style patch Transformer as the next deeper model scaffold.
-3. Pretrain the patch Transformer on synthetic direct-avalanche, piezo/VLF, and summary sequences.
+2. Default to self-supervised real VLF pretraining while supervised real labels are one-class or sparse.
+3. Use synthetic supervised pretraining as a secondary engineering check, not the default real-data path.
 4. Fine-tune on real VLF-aligned rows only after real labels contain both positive and negative examples.
 5. Add cross-modality attention only after unimodal and full-sequence ablations are stable.
 6. Explore frequency-biased, graph, and event-process Transformers as research branches, not first production models.
 
+## Default Self-Supervised Path
+
+The default modeling path is now a CPU self-supervised real VLF sequence autoencoder. It learns an embedding from Cumiana spectrogram image features without earthquake target labels, so it can improve as captures accumulate even while supervised target tables are blocked.
+
+Current implementation:
+
+* `pretrain-sequence-autoencoder` trains a masked reconstruction model on any materialized sequence manifest.
+* `pretrain-real-vlf-self-supervised.sh` runs that command on `data/derived/models/cumiana_vlf_image_sequence/manifest.json`.
+* Current smoke artifact: `data/derived/models/self_supervised/real_vlf_image_autoencoder.json`.
+* Current checkpoint: `data/derived/models/self_supervised/real_vlf_image_autoencoder.pt`.
+* Current embeddings: `data/derived/models/self_supervised/real_vlf_image_embeddings.csv`.
+* First smoke run used 247 real VLF rows, 224 windows, and a chronological 179/45 train/test split. Test masked MSE was `0.835488` against a zero baseline of `1.074356`.
+* `compare-vlf-embedding-domains.sh` trains a descriptor autoencoder on real VLF windows and encodes synthetic piezo/VLF windows through that same model.
+* Current domain diagnostic: `data/derived/models/self_supervised/real_vlf_vs_synthetic_piezo_embedding_domain.json`.
+* First domain diagnostic used 224 real VLF windows and 59,931 synthetic piezo/VLF windows. The synthetic centroid distance was `1.688474`; the synthetic-to-real nearest mean distance was `4.025585`.
+
+Interpret the first domain diagnostic as a baseline to improve. The held-out real reconstruction was slightly worse than the zero baseline, so the descriptor encoder needs more real captures, better descriptors, or a longer training pass before it should guide transfer decisions.
+
+Next use of these embeddings should be descriptor tuning, longer self-supervised runs, and later supervised fine-tuning once target labels contain both classes.
+
 ## Selected Deeper Model
 
-The most suitable next deeper model is a CPU PatchTST-style patch Transformer with explicit modality ablations. It is preferable to a full Crossformer at this stage because current data are small, real labels are one-class, and patch tokens keep sequence length bounded while preserving the VLF/piezo time-series shape.
+The selected supervised deeper model remains a CPU PatchTST-style patch Transformer with explicit modality ablations, but it is no longer the default path while real labels are one-class. Use it after self-supervised VLF pretraining and after real supervised labels become usable.
 
 Current implementation:
 
@@ -135,7 +155,7 @@ Current deeper-model smoke result:
 * real VLF sequence probe: `data/derived/models/deep_patch_transformer/all_italy.real_vlf_sequence_probe.json`
 * best synthetic calibrated row: `sequence_piezo_vlf_only`, balanced accuracy `0.737879`
 * `sequence_full` calibrated balanced accuracy: `0.583333`
-* real fine-tuning is blocked: all-Italy has `54` positives and `0` negatives; central Italy has `0` positives and `54` negatives
+* real fine-tuning is blocked: all-Italy has `55` positives and `0` negatives; central Italy has `0` positives and `55` negatives
 
 ## Scaling Requirements
 

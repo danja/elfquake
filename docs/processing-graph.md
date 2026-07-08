@@ -1,6 +1,6 @@
 # Processing Graph
 
-Latest high-level configuration, including synthetic pretraining and the real fine-tune gate.
+Latest high-level configuration, including default self-supervised real VLF pretraining and the supervised real fine-tune gate.
 
 ```mermaid
 flowchart TD
@@ -28,6 +28,9 @@ flowchart TD
     Norm["normalization and UTC provenance"]
     Prospective["prospective VLF-anchored windows"]
     RealSeq["real VLF image sequence manifest<br/>cumiana_vlf_image_sequence"]
+    SelfSup["default self-supervised VLF pretrain<br/>masked sequence autoencoder"]
+    VLFEmbedding["real VLF embeddings<br/>self_supervised/*.csv"]
+    DomainDiag["synthetic-to-real embedding diagnostic<br/>compare-vlf-embedding-domains.sh"]
     RealAligned["real VLF-aligned rows<br/>all_italy / central_italy"]
     Readiness{"real label readiness<br/>both classes?"}
 
@@ -36,6 +39,8 @@ flowchart TD
     Astro --> Norm
     Norm --> Prospective
     VLF --> RealSeq
+    RealSeq --> SelfSup --> VLFEmbedding
+    RealSeq --> DomainDiag
     Prospective --> RealAligned
     RealSeq --> RealAligned
     RealAligned --> Readiness
@@ -44,16 +49,20 @@ flowchart TD
   subgraph Modeling["Model evaluation and transfer"]
     Baselines["baselines and ablations<br/>seismic-only, VLF-only, multimodal"]
     Probe["real VLF sequence probe<br/>sequence_real_vlf_image_only"]
-    FineTune["future real fine-tune<br/>load synthetic checkpoint"]
-    Blocked["blocked now<br/>all-Italy: 54 positive / 0 negative<br/>central Italy: 0 positive / 54 negative"]
+    FineTune["future real fine-tune<br/>load VLF encoder / synthetic checkpoint"]
+    Blocked["blocked now<br/>all-Italy: 55 positive / 0 negative<br/>central Italy: 0 positive / 55 negative"]
     Reports["reports<br/>model summaries, readiness, docs/report.md"]
 
     SimAligned --> Baselines
+    SimSeq --> DomainDiag
     DeepTrain --> Baselines
+    VLFEmbedding --> Reports
+    DomainDiag --> Reports
     RealAligned --> Probe
     Readiness -- no --> Blocked --> Reports
     Readiness -- yes --> FineTune
     Checkpoint --> FineTune
+    VLFEmbedding --> FineTune
     RealAligned --> FineTune
     FineTune --> Reports
     Baselines --> Reports
@@ -61,4 +70,6 @@ flowchart TD
   end
 ```
 
-Key constraint: real fine-tuning is intentionally blocked until real VLF-aligned rows contain both positive and negative labels.
+Default path: self-supervised real VLF pretraining can run now without target labels.
+
+Key constraint: supervised real fine-tuning is intentionally blocked until real VLF-aligned rows contain both positive and negative labels.

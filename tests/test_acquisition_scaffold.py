@@ -73,6 +73,7 @@ from elfquake.models.torch_sequence import (
     evaluate_torch_sequence_split_holdout,
 )
 from elfquake.models.torch_patch_transformer import evaluate_torch_patch_transformer_split_holdout
+from elfquake.models.torch_self_supervised import compare_sequence_embedding_domains, pretrain_sequence_autoencoder
 from elfquake.models.torch_tabular import evaluate_torch_tabular_group_holdout, evaluate_torch_tabular_holdout
 from elfquake.models.window_adapter import build_event_window_features
 from elfquake.normalize.events import combine_normalized_events
@@ -1997,6 +1998,79 @@ class AcquisitionScaffoldTests(unittest.TestCase):
             self.assertEqual(report["d_model"], 8)
             self.assertEqual(report["patch_steps"], 1)
             self.assertEqual(list(report["evaluations"]), ["sequence_full"])
+
+    @unittest.skipUnless(importlib.util.find_spec("torch"), "PyTorch optional dependency is not installed")
+    def test_sequence_autoencoder_pretraining_writes_checkpoint_and_embeddings(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            manifest = self._write_sequence_fixture(
+                root,
+                "real",
+                "real_vlf_image",
+                "vlf_intensity_mean",
+                [0, 1, 2, 3, 5, 8, 13, 21],
+            )
+            checkpoint = root / "autoencoder.pt"
+            embeddings = root / "embeddings.csv"
+
+            report = pretrain_sequence_autoencoder(
+                sequence_manifest_path=manifest,
+                out_path=root / "autoencoder.json",
+                modality="real_vlf_image",
+                lookback_steps=3,
+                epochs=2,
+                hidden_units=8,
+                embedding_units=3,
+                batch_size=2,
+                checkpoint_out=checkpoint,
+                embeddings_out=embeddings,
+            )
+
+            self.assertEqual(report["schema"], "elfquake.sequence_autoencoder_pretrain.v1")
+            self.assertEqual(report["status"], "evaluated")
+            self.assertEqual(report["modality"], "real_vlf_image")
+            self.assertEqual(report["window_count"], 6)
+            self.assertTrue(checkpoint.exists())
+            self.assertTrue(embeddings.exists())
+
+    @unittest.skipUnless(importlib.util.find_spec("torch"), "PyTorch optional dependency is not installed")
+    def test_sequence_embedding_domain_comparison_uses_shared_real_encoder(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            real_manifest = self._write_sequence_fixture(
+                root,
+                "real",
+                "real_vlf_image",
+                "vlf_intensity_mean",
+                [0, 1, 2, 3, 5, 8, 13, 21],
+            )
+            synthetic_manifest = self._write_sequence_fixture(
+                root,
+                "seed1",
+                "synthetic_piezo_vlf",
+                "piezo_signal",
+                [0, 0, 1, 1, 2, 3, 5, 8],
+            )
+            embeddings = root / "domain_embeddings.csv"
+
+            report = compare_sequence_embedding_domains(
+                real_sequence_manifest_path=real_manifest,
+                synthetic_sequence_manifest_paths=[synthetic_manifest],
+                out_path=root / "domain.json",
+                lookback_steps=3,
+                epochs=2,
+                hidden_units=8,
+                embedding_units=3,
+                batch_size=2,
+                embeddings_out=embeddings,
+            )
+
+            self.assertEqual(report["schema"], "elfquake.sequence_embedding_domain_comparison.v1")
+            self.assertEqual(report["status"], "evaluated")
+            self.assertEqual(report["real_window_count"], 6)
+            self.assertEqual(report["synthetic_window_count"], 6)
+            self.assertEqual(report["embedding_comparison"]["status"], "evaluated")
+            self.assertTrue(embeddings.exists())
 
     def test_synthetic_regime_annotation_can_drop_burn_in(self) -> None:
         with tempfile.TemporaryDirectory() as directory:

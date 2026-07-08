@@ -238,6 +238,22 @@ Run the default scale estimates for current synthetic, post-burn-in balanced syn
 
 Regenerate the post-burn-in regime-balanced synthetic split, train the tiny CPU patch Transformer, and write a compact model-run summary.
 
+### `pretrain-sequence-autoencoder`
+
+Train a CPU PyTorch masked reconstruction autoencoder over a materialized sequence manifest. Use this for label-free VLF representation learning before supervised real labels are usable.
+
+### `pretrain-real-vlf-self-supervised.sh`
+
+Run the default self-supervised path on the real Cumiana VLF image sequence manifest, writing a report, checkpoint, and embedding CSV under `data/derived/models/self_supervised/`.
+
+### `compare-sequence-embedding-domains`
+
+Train a descriptor autoencoder on real VLF sequence windows, encode synthetic piezo/VLF windows through the same model, and write an embedding-domain diagnostic. This is a label-free shape comparison, not a prediction result.
+
+### `compare-vlf-embedding-domains.sh`
+
+Run the default real Cumiana VLF versus synthetic piezo/VLF embedding-domain diagnostic for the current seed `40`-`42`, `20000`-step synthetic manifests.
+
 ### `train-deep-patch-transformer.sh`
 
 Run the selected deeper CPU patch Transformer on regime-balanced synthetic sequence data and write a reusable synthetic checkpoint.
