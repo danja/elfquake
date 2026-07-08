@@ -33,10 +33,10 @@ PYTHONDONTWRITEBYTECODE=1 PYTHONPATH=src "$PYTHON_BIN" -m elfquake.cli compare-s
   --stride "${STRIDE:-1}" \
   --train-fraction "${TRAIN_FRACTION:-0.8}" \
   --mask-probability "${MASK_PROBABILITY:-0.15}" \
-  --epochs "${EPOCHS:-40}" \
-  --learning-rate "${LEARNING_RATE:-0.001}" \
-  --hidden-units "${HIDDEN_UNITS:-64}" \
-  --embedding-units "${EMBEDDING_UNITS:-16}" \
+  --epochs "${EPOCHS:-30}" \
+  --learning-rate "${LEARNING_RATE:-0.0003}" \
+  --hidden-units "${HIDDEN_UNITS:-32}" \
+  --embedding-units "${EMBEDDING_UNITS:-8}" \
   --batch-size "${BATCH_SIZE:-32}" \
   --seed "${SEED:-42}" \
   --embeddings-out "$EMBEDDINGS_OUT"

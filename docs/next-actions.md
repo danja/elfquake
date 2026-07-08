@@ -3,7 +3,7 @@
 ## Immediate Order
 
 1. Keep self-supervised real VLF pretraining as the default modeling path while supervised labels are blocked.
-2. Improve the real VLF descriptor autoencoder so held-out real reconstruction beats the zero baseline before using it for transfer decisions.
+2. Improve the real VLF descriptor autoencoder so the held-out reconstruction margin is materially above the zero baseline before using it for transfer decisions.
 3. Keep refreshing prospective INGV labels and real VLF-aligned rows until both classes exist.
 4. Run the real deep patch Transformer fine-tune wrapper after each label refresh; it should train only when readiness reaches both classes.
 5. Keep `docs/README.md`, `docs/report.md`, and `docs/next-actions.md` as the current entry points when retiring stale smoke-run notes.
@@ -48,7 +48,7 @@
 * Make self-supervised real VLF pretraining the default modeling path while supervised labels are one-class.
 * Add `pretrain-sequence-autoencoder` and `pretrain-real-vlf-self-supervised.sh` for CPU masked sequence autoencoder pretraining.
 * Run the first real Cumiana VLF self-supervised smoke: 247 rows, 224 windows, test masked MSE `0.835488` versus zero baseline `1.074356`.
-* Add and run `compare-vlf-embedding-domains.sh`; first diagnostic compares 224 real VLF windows against 59,931 synthetic piezo/VLF windows, but held-out real reconstruction is not yet better than baseline.
+* Add and run `compare-vlf-embedding-domains.sh`; tuned diagnostic compares 224 real VLF windows against 59,931 synthetic piezo/VLF windows and now edges the zero baseline on held-out real masked reconstruction.
 * Refresh prospective labels to 55 matured rows per scope and rebuild real VLF-aligned model inputs; all-Italy remains 55 positive / 0 negative and central Italy remains 0 positive / 55 negative.
 * Add `estimate-model-scale` and `estimate-model-scale.sh` to capture larger-model gates, sequence sizes, and CPU-only model guidance.
 * Add `max_events` to avalanche event-extraction tuning, add a stable sparse-event `shape_score`, and identify refined central-Italy sparse profiles.

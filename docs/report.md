@@ -113,8 +113,8 @@ Synthetic-model status:
 * A post-burn-in regime-balanced explicit split has matched train/test class rates and gives `sequence_full` calibrated balanced accuracy `0.650000`; use this as an engineering diagnostic, not as forecasting evidence.
 * The selected deeper patch Transformer pretrain now writes `deep_patch_transformer_synthetic.pt`; its latest synthetic calibrated scores are `0.737879` for piezo/VLF-only and `0.583333` for full sequence.
 * The first self-supervised real VLF autoencoder smoke used 247 Cumiana VLF rows and 224 windows. Test masked reconstruction MSE was `0.835488`, better than the zero baseline `1.074356`.
-* The first synthetic-to-real embedding-domain diagnostic encoded 59,931 synthetic piezo/VLF windows through a descriptor autoencoder trained on real VLF windows. Synthetic centroid distance was `1.688474` and synthetic-to-real nearest mean distance was `4.025585`.
-* The same diagnostic is a baseline to improve, not evidence of alignment: held-out real full reconstruction MSE was `14.803974` versus a zero baseline of `14.660792`.
+* The tuned synthetic-to-real embedding-domain diagnostic encoded 59,931 synthetic piezo/VLF windows through a descriptor autoencoder trained on real VLF windows. Synthetic centroid distance was `0.905680` and synthetic-to-real nearest mean distance was `2.508815`.
+* The same diagnostic is still only a baseline: held-out real masked reconstruction MSE is `10.650269` versus a zero baseline of `10.663048`. That is a narrow win, not a transfer-ready result.
 * Refreshed missing-modality seed-42 checks give `0.632445` calibrated balanced accuracy for piezo/VLF-only and `0.722257` for direct-avalanche-only.
 * Refreshed sequence modality diagnostics still rank direct-avalanche-only highest on grouped synthetic checks (`0.8359` calibrated balanced accuracy), so direct seismic-like and piezo/VLF-like channels should remain separate.
 * A short diversity smoke run generated extra 128x128, 1000-step seeds `43` and `44` and refreshed aligned tensors with evaluations disabled; use larger runs before drawing model conclusions.
