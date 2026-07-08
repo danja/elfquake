@@ -19,6 +19,7 @@ from elfquake.sim.piezo_spectrogram import (
     render_piezo_strain_vlf_summary,
     render_piezo_timeseries_spectrogram,
 )
+from elfquake.sim.piezo_transform import transform_piezo_signal_csv
 
 
 def register_piezo_commands(subparsers: _SubParsersAction) -> None:
@@ -104,6 +105,21 @@ def register_piezo_commands(subparsers: _SubParsersAction) -> None:
     _add_vlf_crop_args(piezo_sensor_scan)
     piezo_sensor_scan.add_argument("--out", type=Path, required=True)
     piezo_sensor_scan.set_defaults(func=_scan_piezo_sensors)
+
+    piezo_transform = subparsers.add_parser("transform-piezo-signal")
+    piezo_transform.add_argument("--input", type=Path, required=True)
+    piezo_transform.add_argument("--out", type=Path, required=True)
+    piezo_transform.add_argument("--report", type=Path)
+    piezo_transform.add_argument("--signal-field", default="piezo_signal")
+    piezo_transform.add_argument("--highpass-decay", type=float, default=0.9)
+    piezo_transform.add_argument("--envelope-decay", type=float, default=0.15)
+    piezo_transform.add_argument("--envelope-mix", type=float, default=0.25)
+    piezo_transform.add_argument("--burst-power", type=float, default=1.35)
+    piezo_transform.add_argument("--near-threshold-weight", type=float, default=1.0)
+    piezo_transform.add_argument("--near-threshold-floor", type=float, default=0.75)
+    piezo_transform.add_argument("--release-mix", type=float, default=0.0)
+    piezo_transform.add_argument("--gain-contrast", type=float, default=0.0)
+    piezo_transform.set_defaults(func=_transform_piezo_signal)
 
 
 def _render_piezo_spectrogram(args: Namespace) -> int:
@@ -257,6 +273,29 @@ def _scan_piezo_sensors(args: Namespace) -> int:
         print(f"best sensor: {rows[0]['sensor_id']}")
         print(f"best shape score: {rows[0]['shape_score']}")
     print(f"output: {args.out}")
+    return 0
+
+
+def _transform_piezo_signal(args: Namespace) -> int:
+    report = transform_piezo_signal_csv(
+        input_csv=args.input,
+        out_csv=args.out,
+        report_path=args.report,
+        signal_field=args.signal_field,
+        highpass_decay=args.highpass_decay,
+        envelope_decay=args.envelope_decay,
+        envelope_mix=args.envelope_mix,
+        burst_power=args.burst_power,
+        near_threshold_weight=args.near_threshold_weight,
+        near_threshold_floor=args.near_threshold_floor,
+        release_mix=args.release_mix,
+        gain_contrast=args.gain_contrast,
+    )
+    print(f"rows: {report['row_count']}")
+    print(f"sensors: {report['sensor_count']}")
+    print(f"output: {args.out}")
+    if args.report:
+        print(f"report: {args.report}")
     return 0
 
 

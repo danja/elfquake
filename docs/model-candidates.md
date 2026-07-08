@@ -119,15 +119,46 @@ Current implementation:
 * Current checkpoint: `data/derived/models/self_supervised/real_vlf_image_autoencoder.pt`.
 * Current embeddings: `data/derived/models/self_supervised/real_vlf_image_embeddings.csv`.
 * Tuned smoke run used 247 real VLF rows, 224 windows, and a chronological 179/45 train/test split. Test masked MSE was `0.835488` against a zero baseline of `1.074356`.
+* `score-real-vlf-anomaly-forecast.sh` adds a second label-free layer: a real VLF descriptor autoencoder that scores reconstruction and embedding novelty by window, then emits a 7-day smoke forecast artifact from the latest VLF window.
+* Current anomaly forecast: `data/derived/models/self_supervised/real_vlf_anomaly_forecast.json`.
+* Current anomaly scores: `data/derived/models/self_supervised/real_vlf_anomaly_scores.csv`.
+* Latest label-free smoke forecast window is `2026-07-06T06:50:50Z` to `2026-07-13T06:50:50Z`, with demo probability `0.952514` and demo predicted event `1`. This is an anomaly score, not a label-trained earthquake forecast.
 * `compare-vlf-embedding-domains.sh` trains a shape-descriptor autoencoder on real VLF windows and encodes synthetic piezo/VLF windows through that same model.
 * Current domain diagnostic: `data/derived/models/self_supervised/real_vlf_vs_synthetic_piezo_embedding_domain.json`.
 * Tuned shape-profile diagnostic used 224 real VLF windows and 59,931 synthetic piezo/VLF windows. The synthetic centroid distance was `1.291640`; the synthetic-to-real nearest mean distance was `1.846295`.
 * The diagnostic now marks the closest 25% synthetic descriptor windows as `is_synthetic_inlier` in `real_vlf_vs_synthetic_piezo_embeddings.csv`.
 * Current inlier subset: 14,983 synthetic windows, nearest mean distance `1.162097`, scale mean absolute delta `0.057490`.
+* `evaluate-vlf-synthetic-inlier-transfer.sh` trains a masked descriptor autoencoder only on that synthetic inlier subset, then evaluates reconstruction on held-out real Cumiana VLF descriptor windows.
+* Current transfer diagnostic: `data/derived/models/self_supervised/real_vlf_synthetic_inlier_transfer.json`.
+* Synthetic-inlier transfer used 14,983 synthetic training windows and 45 held-out real VLF windows. Held-out real masked reconstruction MSE was `0.688280` versus a zero baseline of `0.759011`; embedding centroid distance remained high at `4.281796`.
+* `evaluate-vlf-mixed-domain-alignment.sh` trains a mixed real/synthetic descriptor autoencoder with local synthetic inliers, a CORAL embedding-alignment penalty, descriptor-gap reporting, and centroid/random/full controls.
+* Current mixed-domain diagnostic: `data/derived/models/self_supervised/real_vlf_mixed_domain_alignment.json`.
+* Mixed-domain local-inlier alignment used 14,983 balanced synthetic windows. Held-out real masked reconstruction MSE improved to `0.294475` versus a zero baseline of `0.588513`, and held-out real-to-synthetic embedding centroid distance improved to `1.033580`.
+* Controls were close enough to keep pressure on the inlier method: centroid-inlier distance was `1.011474`, random was `1.142438`, and capped full-synthetic was worse at `1.617345`.
 
-Interpret the tuned domain diagnostic as a baseline to continue improving. Held-out real masked reconstruction now beats the zero baseline by a clearer margin, and synthetic masked reconstruction also edges its zero baseline. The full synthetic domain is still too broad, but the inlier subset is much closer in scale to held-out real VLF embeddings.
+Interpret the tuned domain, transfer, and mixed-alignment diagnostics as baselines to continue improving. Held-out real masked reconstruction now beats the zero baseline in the real-trained, synthetic-inlier-trained, and mixed-domain checks. The full synthetic domain is still too broad, and close centroid/random controls mean the synthetic VLF analogue is not yet a proven real VLF substitute.
 
-Next use of these embeddings should be descriptor tuning, longer self-supervised runs, and later supervised fine-tuning once target labels contain both classes.
+Embedding-match improvement plan:
+
+1. Train a mixed real VLF plus synthetic piezo/VLF descriptor autoencoder instead of relying on a synthetic-only latent space.
+2. Add a CPU-friendly CORAL penalty that directly aligns real and synthetic embedding means/covariances.
+3. Select synthetic inliers by local nearest-neighbour distance to real VLF training windows, with per-seed caps, rather than by global centroid alone.
+4. Report descriptor-level shape gaps, especially persistence and differencing statistics, so simulation-side piezo/VLF tuning can target the mismatch.
+5. Keep full, centroid-inlier, and random synthetic controls beside the local-inlier run.
+
+This first mixed-domain alignment run substantially improves the old synthetic-only transfer embedding distance, but the random and centroid controls are close enough that selection quality still needs validation on future captures. Descriptor gaps now point most strongly at `global_std`, `global_robust_range`, `feature_mean_std`, `step_diff_std`, and `step_mean_std`.
+
+Piezo/VLF transform sweep:
+
+* `transform-piezo-signal` creates derived piezo/VLF CSVs using deterministic high-pass filtering, short envelope decay, burst contrast, near-threshold weighting, release mixing, and sensor-gain contrast.
+* `sweep-piezo-vlf-alignment.sh` materializes those variants and ranks them with a short mixed-domain alignment run.
+* Current sweep artifact: `data/derived/models/piezo_vlf_alignment_sweep/piezo_vlf_alignment_sweep.csv`.
+* Under the fair short-run settings, transformed variants improved held-out embedding centroid distance versus current signal: `gain_burst` `1.757251`, `fast_burst` `1.763860`, `threshold_burst` `1.790333`, current signal `1.841903`.
+* Reconstruction moved the other way: current signal held-out masked MSE was `0.281600`, while the best transformed variant was `0.318687`.
+
+Interpretation: burst/high-pass transforms can move synthetic embeddings toward real VLF, but the present variants lose useful reconstruction structure. Do not promote a transformed variant as default until it improves both embedding distance and held-out real reconstruction, or until a downstream validation shows the tradeoff is useful.
+
+Next use of these embeddings should be descriptor tuning, transfer checks across future captures, and later supervised fine-tuning once target labels contain both classes.
 
 ## Selected Deeper Model
 

@@ -3,10 +3,10 @@
 ## Immediate Order
 
 1. Keep self-supervised real VLF pretraining as the default modeling path while supervised labels are blocked.
-2. Validate whether the marked synthetic VLF inlier subset is stable across future captures and useful for synthetic-to-real pretraining experiments.
-3. Keep refreshing prospective INGV labels and real VLF-aligned rows until both classes exist.
-4. Run the real deep patch Transformer fine-tune wrapper after each label refresh; it should train only when readiness reaches both classes.
-5. Keep `docs/README.md`, `docs/report.md`, and `docs/next-actions.md` as the current entry points when retiring stale smoke-run notes.
+2. Include the label-free real VLF anomaly forecast as the current end-to-end smoke output while supervised real labels are blocked.
+3. Tune piezo/VLF transforms toward improving both embedding distance and held-out real reconstruction; the first burst/high-pass sweep improved distance but worsened reconstruction.
+4. Keep refreshing prospective INGV labels and real VLF-aligned rows until both classes exist.
+5. Run the real deep patch Transformer fine-tune wrapper after each label refresh; it should train only when readiness reaches both classes.
 
 ## Simulation
 
@@ -35,21 +35,26 @@
 10. Add full rupture-mask outputs if synthetic event maps need spatial extent rather than centroid locations.
 11. Generate a longer synthetic aligned dataset to reduce time-split distribution drift.
 12. Use the piezo/Cumiana comparison report to tune only the piezo VLF mapping derived from `*.piezo.csv`.
-13. Shape direct avalanche signal events for INGV-like seismic event experiments without using the piezo/VLF path.
-14. Use the signal-shape comparison report to tune simulation parameters separately for VLF-like and seismic-like outputs.
-15. Add a small Markdown or CSV view over the compact model-run summary only if JSON becomes awkward to inspect.
-16. Decode Abelian live/archive audio into time-frequency features after confirming sampling metadata and file readability.
-17. Probe a wider Abelian archive range or alternate station only if a documented usable interval can be identified from the source pages.
-18. Keep refreshing prospective INGV labels as VLF target windows mature; use real labels only after both target classes are present.
-19. Run the selected deeper patch Transformer on the next larger synthetic diversity set after event sparsity and class balance look plausible.
+13. Repeat mixed-domain VLF alignment after future Cumiana captures; require local-inlier selection to beat centroid and random controls before relying on it.
+14. Shape direct avalanche signal events for INGV-like seismic event experiments without using the piezo/VLF path.
+15. Use the signal-shape comparison report to tune simulation parameters separately for VLF-like and seismic-like outputs.
+16. Add a small Markdown or CSV view over the compact model-run summary only if JSON becomes awkward to inspect.
+17. Decode Abelian live/archive audio into time-frequency features after confirming sampling metadata and file readability.
+18. Probe a wider Abelian archive range or alternate station only if a documented usable interval can be identified from the source pages.
+19. Keep refreshing prospective INGV labels as VLF target windows mature; use real labels only after both target classes are present.
+20. Run the selected deeper patch Transformer on the next larger synthetic diversity set after event sparsity and class balance look plausible.
 
 ## Completed
 
 * Make self-supervised real VLF pretraining the default modeling path while supervised labels are one-class.
 * Add `pretrain-sequence-autoencoder` and `pretrain-real-vlf-self-supervised.sh` for CPU masked sequence autoencoder pretraining.
 * Run the first real Cumiana VLF self-supervised smoke: 247 rows, 224 windows, test masked MSE `0.835488` versus zero baseline `1.074356`.
+* Add and run `score-real-vlf-anomaly-forecast.sh`; current label-free 7-day smoke forecast has demo probability `0.952514` for `2026-07-06T06:50:50Z` to `2026-07-13T06:50:50Z`.
 * Switch `compare-vlf-embedding-domains.sh` to shape-profile descriptors; held-out real masked reconstruction now beats baseline by about `6.8%`, and synthetic masked reconstruction also edges baseline.
 * Add synthetic VLF inlier marking to the embedding-domain diagnostic; the current 25% inlier subset keeps 14,983 windows and sharply reduces embedding scale mismatch.
+* Add and run `evaluate-vlf-synthetic-inlier-transfer.sh`; synthetic-inlier pretraining reconstructs held-out real VLF descriptors better than the zero baseline, but transfer embedding centroids remain far apart.
+* Add and run `evaluate-vlf-mixed-domain-alignment.sh`; CORAL-aligned mixed real/synthetic training improves held-out embedding centroid distance to `1.033580`, with centroid and random controls close enough to require further validation.
+* Add `transform-piezo-signal` and run `sweep-piezo-vlf-alignment.sh`; burst/high-pass variants improve short-run embedding distance but currently worsen held-out real reconstruction.
 * Refresh prospective labels to 55 matured rows per scope and rebuild real VLF-aligned model inputs; all-Italy remains 55 positive / 0 negative and central Italy remains 0 positive / 55 negative.
 * Add `estimate-model-scale` and `estimate-model-scale.sh` to capture larger-model gates, sequence sizes, and CPU-only model guidance.
 * Add `max_events` to avalanche event-extraction tuning, add a stable sparse-event `shape_score`, and identify refined central-Italy sparse profiles.

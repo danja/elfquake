@@ -5,7 +5,13 @@ from __future__ import annotations
 from argparse import Namespace, _SubParsersAction
 from pathlib import Path
 
-from elfquake.models.torch_self_supervised import compare_sequence_embedding_domains, pretrain_sequence_autoencoder
+from elfquake.models.torch_self_supervised import (
+    compare_sequence_embedding_domains,
+    evaluate_mixed_domain_alignment,
+    evaluate_synthetic_inlier_transfer,
+    pretrain_sequence_autoencoder,
+    score_sequence_anomalies,
+)
 
 
 def register_self_supervised_commands(subparsers: _SubParsersAction) -> None:
@@ -52,6 +58,79 @@ def register_self_supervised_commands(subparsers: _SubParsersAction) -> None:
     domain_compare.add_argument("--embeddings-out", type=Path)
     domain_compare.set_defaults(func=_compare_sequence_embedding_domains)
 
+    transfer = subparsers.add_parser("evaluate-synthetic-inlier-transfer")
+    transfer.add_argument("--real-sequence-manifest", type=Path, required=True)
+    transfer.add_argument("--synthetic-sequence-manifest", type=Path, action="append", required=True)
+    transfer.add_argument("--out", type=Path, required=True)
+    transfer.add_argument("--real-modality", default="real_vlf_image")
+    transfer.add_argument("--synthetic-modality", default="synthetic_piezo_vlf")
+    transfer.add_argument("--descriptor-profile", default="shape", choices=["shape", "full"])
+    transfer.add_argument("--lookback-steps", type=int, default=24)
+    transfer.add_argument("--stride", type=int, default=1)
+    transfer.add_argument("--train-fraction", type=float, default=0.8)
+    transfer.add_argument("--mask-probability", type=float, default=0.15)
+    transfer.add_argument("--clean-loss-weight", type=float, default=0.0)
+    transfer.add_argument("--inlier-fraction", type=float, default=0.25)
+    transfer.add_argument("--epochs", type=int, default=30)
+    transfer.add_argument("--learning-rate", type=float, default=0.0003)
+    transfer.add_argument("--hidden-units", type=int, default=32)
+    transfer.add_argument("--embedding-units", type=int, default=8)
+    transfer.add_argument("--batch-size", type=int, default=32)
+    transfer.add_argument("--seed", type=int, default=42)
+    transfer.add_argument("--no-missing-masks", action="store_true")
+    transfer.add_argument("--embeddings-out", type=Path)
+    transfer.set_defaults(func=_evaluate_synthetic_inlier_transfer)
+
+    mixed_alignment = subparsers.add_parser("evaluate-mixed-domain-alignment")
+    mixed_alignment.add_argument("--real-sequence-manifest", type=Path, required=True)
+    mixed_alignment.add_argument("--synthetic-sequence-manifest", type=Path, action="append", required=True)
+    mixed_alignment.add_argument("--out", type=Path, required=True)
+    mixed_alignment.add_argument("--real-modality", default="real_vlf_image")
+    mixed_alignment.add_argument("--synthetic-modality", default="synthetic_piezo_vlf")
+    mixed_alignment.add_argument("--descriptor-profile", default="shape", choices=["shape", "full"])
+    mixed_alignment.add_argument("--lookback-steps", type=int, default=24)
+    mixed_alignment.add_argument("--stride", type=int, default=1)
+    mixed_alignment.add_argument("--train-fraction", type=float, default=0.8)
+    mixed_alignment.add_argument("--mask-probability", type=float, default=0.15)
+    mixed_alignment.add_argument("--clean-loss-weight", type=float, default=0.0)
+    mixed_alignment.add_argument("--inlier-fraction", type=float, default=0.25)
+    mixed_alignment.add_argument("--inlier-method", default="local", choices=["local", "centroid", "random", "full"])
+    mixed_alignment.add_argument("--control-method", action="append", choices=["local", "centroid", "random", "full"])
+    mixed_alignment.add_argument("--max-synthetic-train-windows", type=int, default=15000)
+    mixed_alignment.add_argument("--no-balance-synthetic-sources", action="store_true")
+    mixed_alignment.add_argument("--coral-weight", type=float, default=0.1)
+    mixed_alignment.add_argument("--epochs", type=int, default=30)
+    mixed_alignment.add_argument("--learning-rate", type=float, default=0.0003)
+    mixed_alignment.add_argument("--hidden-units", type=int, default=32)
+    mixed_alignment.add_argument("--embedding-units", type=int, default=8)
+    mixed_alignment.add_argument("--batch-size", type=int, default=32)
+    mixed_alignment.add_argument("--seed", type=int, default=42)
+    mixed_alignment.add_argument("--no-missing-masks", action="store_true")
+    mixed_alignment.add_argument("--embeddings-out", type=Path)
+    mixed_alignment.set_defaults(func=_evaluate_mixed_domain_alignment)
+
+    anomaly = subparsers.add_parser("score-sequence-anomalies")
+    anomaly.add_argument("--sequence-manifest", type=Path, required=True)
+    anomaly.add_argument("--out", type=Path, required=True)
+    anomaly.add_argument("--scores-out", type=Path, required=True)
+    anomaly.add_argument("--modality", default="real_vlf_image")
+    anomaly.add_argument("--descriptor-profile", default="shape", choices=["shape", "full"])
+    anomaly.add_argument("--lookback-steps", type=int, default=24)
+    anomaly.add_argument("--stride", type=int, default=1)
+    anomaly.add_argument("--train-fraction", type=float, default=0.8)
+    anomaly.add_argument("--forecast-horizon-days", type=int, default=7)
+    anomaly.add_argument("--alert-threshold", type=float, default=0.8)
+    anomaly.add_argument("--mask-probability", type=float, default=0.15)
+    anomaly.add_argument("--clean-loss-weight", type=float, default=0.0)
+    anomaly.add_argument("--epochs", type=int, default=30)
+    anomaly.add_argument("--learning-rate", type=float, default=0.0003)
+    anomaly.add_argument("--hidden-units", type=int, default=32)
+    anomaly.add_argument("--embedding-units", type=int, default=8)
+    anomaly.add_argument("--batch-size", type=int, default=32)
+    anomaly.add_argument("--seed", type=int, default=42)
+    anomaly.add_argument("--no-missing-masks", action="store_true")
+    anomaly.set_defaults(func=_score_sequence_anomalies)
+
 
 def _pretrain_sequence_autoencoder(args: Namespace) -> int:
     report = pretrain_sequence_autoencoder(
@@ -63,7 +142,6 @@ def _pretrain_sequence_autoencoder(args: Namespace) -> int:
         train_fraction=args.train_fraction,
         mask_probability=args.mask_probability,
         clean_loss_weight=args.clean_loss_weight,
-        inlier_fraction=args.inlier_fraction,
         epochs=args.epochs,
         learning_rate=args.learning_rate,
         hidden_units=args.hidden_units,
@@ -97,6 +175,7 @@ def _compare_sequence_embedding_domains(args: Namespace) -> int:
         train_fraction=args.train_fraction,
         mask_probability=args.mask_probability,
         clean_loss_weight=args.clean_loss_weight,
+        inlier_fraction=args.inlier_fraction,
         epochs=args.epochs,
         learning_rate=args.learning_rate,
         hidden_units=args.hidden_units,
@@ -112,5 +191,119 @@ def _compare_sequence_embedding_domains(args: Namespace) -> int:
     if report.get("embedding_comparison"):
         comparison = report["embedding_comparison"]
         print(f"centroid distance: {comparison.get('centroid_euclidean_distance', '')}")
+    print(f"output: {args.out}")
+    return 0
+
+
+def _evaluate_synthetic_inlier_transfer(args: Namespace) -> int:
+    report = evaluate_synthetic_inlier_transfer(
+        real_sequence_manifest_path=args.real_sequence_manifest,
+        synthetic_sequence_manifest_paths=args.synthetic_sequence_manifest,
+        out_path=args.out,
+        real_modality=args.real_modality,
+        synthetic_modality=args.synthetic_modality,
+        descriptor_profile=args.descriptor_profile,
+        lookback_steps=args.lookback_steps,
+        stride=args.stride,
+        train_fraction=args.train_fraction,
+        mask_probability=args.mask_probability,
+        clean_loss_weight=args.clean_loss_weight,
+        inlier_fraction=args.inlier_fraction,
+        epochs=args.epochs,
+        learning_rate=args.learning_rate,
+        hidden_units=args.hidden_units,
+        embedding_units=args.embedding_units,
+        batch_size=args.batch_size,
+        seed=args.seed,
+        include_missing_masks=not args.no_missing_masks,
+        embeddings_out=args.embeddings_out,
+    )
+    print(f"status: {report['status']}")
+    print(f"real windows: {report['real_window_count']}")
+    print(f"synthetic windows: {report['synthetic_window_count']}")
+    if "synthetic_inlier_count" in report:
+        print(f"synthetic inliers: {report['synthetic_inlier_count']}")
+    if report.get("real_test_reconstruction"):
+        metrics = report["real_test_reconstruction"]
+        print(f"real test masked mse: {metrics.get('masked_mse', '')}")
+        print(f"real test zero baseline: {metrics.get('zero_baseline_masked_mse', '')}")
+    print(f"output: {args.out}")
+    return 0
+
+
+def _evaluate_mixed_domain_alignment(args: Namespace) -> int:
+    report = evaluate_mixed_domain_alignment(
+        real_sequence_manifest_path=args.real_sequence_manifest,
+        synthetic_sequence_manifest_paths=args.synthetic_sequence_manifest,
+        out_path=args.out,
+        real_modality=args.real_modality,
+        synthetic_modality=args.synthetic_modality,
+        descriptor_profile=args.descriptor_profile,
+        lookback_steps=args.lookback_steps,
+        stride=args.stride,
+        train_fraction=args.train_fraction,
+        mask_probability=args.mask_probability,
+        clean_loss_weight=args.clean_loss_weight,
+        inlier_fraction=args.inlier_fraction,
+        inlier_method=args.inlier_method,
+        control_methods=args.control_method,
+        max_synthetic_train_windows=args.max_synthetic_train_windows,
+        balance_synthetic_sources=not args.no_balance_synthetic_sources,
+        coral_weight=args.coral_weight,
+        epochs=args.epochs,
+        learning_rate=args.learning_rate,
+        hidden_units=args.hidden_units,
+        embedding_units=args.embedding_units,
+        batch_size=args.batch_size,
+        seed=args.seed,
+        include_missing_masks=not args.no_missing_masks,
+        embeddings_out=args.embeddings_out,
+    )
+    print(f"status: {report['status']}")
+    print(f"real windows: {report['real_window_count']}")
+    print(f"synthetic windows: {report['synthetic_window_count']}")
+    if report.get("primary"):
+        primary = report["primary"]
+        comparison = primary.get("embedding_comparison", {})
+        metrics = primary.get("real_test_reconstruction", {})
+        print(f"selection: {report.get('selection_method', '')}")
+        print(f"synthetic train windows: {report.get('synthetic_train_count', '')}")
+        print(f"centroid distance: {comparison.get('centroid_euclidean_distance', '')}")
+        print(f"real test masked mse: {metrics.get('masked_mse', '')}")
+        print(f"real test zero baseline: {metrics.get('zero_baseline_masked_mse', '')}")
+    print(f"output: {args.out}")
+    return 0
+
+
+def _score_sequence_anomalies(args: Namespace) -> int:
+    report = score_sequence_anomalies(
+        sequence_manifest_path=args.sequence_manifest,
+        out_path=args.out,
+        scores_out=args.scores_out,
+        modality=args.modality,
+        descriptor_profile=args.descriptor_profile,
+        lookback_steps=args.lookback_steps,
+        stride=args.stride,
+        train_fraction=args.train_fraction,
+        forecast_horizon_days=args.forecast_horizon_days,
+        alert_threshold=args.alert_threshold,
+        mask_probability=args.mask_probability,
+        clean_loss_weight=args.clean_loss_weight,
+        epochs=args.epochs,
+        learning_rate=args.learning_rate,
+        hidden_units=args.hidden_units,
+        embedding_units=args.embedding_units,
+        batch_size=args.batch_size,
+        seed=args.seed,
+        include_missing_masks=not args.no_missing_masks,
+    )
+    print(f"status: {report['status']}")
+    print(f"windows: {report['window_count']}")
+    if report.get("forecast"):
+        forecast = report["forecast"]
+        print(f"forecast target: {forecast.get('target_start_utc', '')}..{forecast.get('target_end_utc', '')}")
+        print(f"demo probability: {forecast.get('demo_probability', '')}")
+        print(f"demo predicted event: {forecast.get('demo_predicted_event', '')}")
+    print(f"scores: {args.scores_out}")
     print(f"output: {args.out}")
     return 0

@@ -6,9 +6,11 @@ import csv
 import json
 import math
 import random
+from datetime import timedelta
 from pathlib import Path
 
 from elfquake.models.torch_sequence_data import SequenceDataset, load_sequence_datasets
+from elfquake.features.common import format_utc, parse_utc
 
 
 def pretrain_sequence_autoencoder(
@@ -200,6 +202,315 @@ def compare_sequence_embedding_domains(
     return _write_report(out_path, report)
 
 
+def evaluate_synthetic_inlier_transfer(
+    *,
+    real_sequence_manifest_path: Path,
+    synthetic_sequence_manifest_paths: list[Path],
+    out_path: Path,
+    real_modality: str = "real_vlf_image",
+    synthetic_modality: str = "synthetic_piezo_vlf",
+    descriptor_profile: str = "shape",
+    lookback_steps: int = 24,
+    stride: int = 1,
+    train_fraction: float = 0.8,
+    mask_probability: float = 0.15,
+    clean_loss_weight: float = 0.0,
+    inlier_fraction: float = 0.25,
+    epochs: int = 40,
+    learning_rate: float = 0.001,
+    hidden_units: int = 64,
+    embedding_units: int = 16,
+    batch_size: int = 32,
+    seed: int = 42,
+    include_missing_masks: bool = True,
+    embeddings_out: Path | None = None,
+) -> dict[str, object]:
+    if not synthetic_sequence_manifest_paths:
+        raise ValueError("at least one synthetic sequence manifest is required")
+    if not 0 < train_fraction < 1:
+        raise ValueError("train_fraction must be between 0 and 1")
+    if not 0 < inlier_fraction <= 1:
+        raise ValueError("inlier_fraction must be in (0, 1]")
+    real_sequences = load_sequence_datasets([real_sequence_manifest_path], include_missing_masks=include_missing_masks)
+    synthetic_sequences = load_sequence_datasets(synthetic_sequence_manifest_paths, include_missing_masks=include_missing_masks)
+    real_dataset = _select_dataset(real_sequences, modality=real_modality)
+    synthetic_datasets = [
+        dataset
+        for dataset in synthetic_sequences.values()
+        if dataset.modality == synthetic_modality
+    ]
+    if not synthetic_datasets:
+        raise ValueError(f"no synthetic sequence datasets found for modality {synthetic_modality}")
+
+    descriptor_names = _descriptor_names(descriptor_profile)
+    real_descriptors = _descriptor_windows(real_dataset, lookback_steps=lookback_steps, stride=stride, descriptor_profile=descriptor_profile)
+    synthetic_descriptors_by_dataset = {
+        dataset.dataset_id: _descriptor_windows(dataset, lookback_steps=lookback_steps, stride=stride, descriptor_profile=descriptor_profile)
+        for dataset in synthetic_datasets
+    }
+    synthetic_window_count = sum(len(descriptors) for descriptors in synthetic_descriptors_by_dataset.values())
+    report: dict[str, object] = {
+        "schema": "elfquake.synthetic_inlier_transfer_reconstruction.v1",
+        "backend": "torch",
+        "device": "cpu",
+        "real_sequence_manifest": str(real_sequence_manifest_path),
+        "synthetic_sequence_manifests": [str(path) for path in synthetic_sequence_manifest_paths],
+        "real_modality": real_modality,
+        "synthetic_modality": synthetic_modality,
+        "descriptor_profile": descriptor_profile,
+        "real_dataset_id": real_dataset.dataset_id,
+        "synthetic_dataset_ids": [dataset.dataset_id for dataset in synthetic_datasets],
+        "lookback_steps": lookback_steps,
+        "stride": stride,
+        "train_fraction": train_fraction,
+        "mask_probability": mask_probability,
+        "clean_loss_weight": clean_loss_weight,
+        "inlier_fraction": inlier_fraction,
+        "epochs": epochs,
+        "learning_rate": learning_rate,
+        "hidden_units": hidden_units,
+        "embedding_units": embedding_units,
+        "batch_size": batch_size,
+        "seed": seed,
+        "include_missing_masks": include_missing_masks,
+        "descriptor_names": descriptor_names,
+        "real_window_count": len(real_descriptors),
+        "synthetic_window_count": synthetic_window_count,
+        "embeddings_out": str(embeddings_out) if embeddings_out else "",
+        "note": "The model is trained only on synthetic piezo/VLF descriptor windows selected as real-like inliers, then evaluated on held-out real VLF descriptors.",
+    }
+    if len(real_descriptors) < 3 or synthetic_window_count < 1:
+        report["status"] = "insufficient_windows"
+        return _write_report(out_path, report)
+    result = _fit_synthetic_inlier_transfer_autoencoder(
+        real_descriptors=real_descriptors,
+        synthetic_descriptors_by_dataset=synthetic_descriptors_by_dataset,
+        train_fraction=train_fraction,
+        mask_probability=mask_probability,
+        clean_loss_weight=clean_loss_weight,
+        inlier_fraction=inlier_fraction,
+        epochs=epochs,
+        learning_rate=learning_rate,
+        hidden_units=hidden_units,
+        embedding_units=embedding_units,
+        batch_size=batch_size,
+        seed=seed,
+        embeddings_out=embeddings_out,
+    )
+    report.update(result)
+    report["status"] = "evaluated"
+    return _write_report(out_path, report)
+
+
+def evaluate_mixed_domain_alignment(
+    *,
+    real_sequence_manifest_path: Path,
+    synthetic_sequence_manifest_paths: list[Path],
+    out_path: Path,
+    real_modality: str = "real_vlf_image",
+    synthetic_modality: str = "synthetic_piezo_vlf",
+    descriptor_profile: str = "shape",
+    lookback_steps: int = 24,
+    stride: int = 1,
+    train_fraction: float = 0.8,
+    mask_probability: float = 0.15,
+    clean_loss_weight: float = 0.0,
+    inlier_fraction: float = 0.25,
+    inlier_method: str = "local",
+    control_methods: list[str] | None = None,
+    max_synthetic_train_windows: int = 15000,
+    balance_synthetic_sources: bool = True,
+    coral_weight: float = 0.1,
+    epochs: int = 40,
+    learning_rate: float = 0.001,
+    hidden_units: int = 64,
+    embedding_units: int = 16,
+    batch_size: int = 32,
+    seed: int = 42,
+    include_missing_masks: bool = True,
+    embeddings_out: Path | None = None,
+) -> dict[str, object]:
+    if not synthetic_sequence_manifest_paths:
+        raise ValueError("at least one synthetic sequence manifest is required")
+    if not 0 < train_fraction < 1:
+        raise ValueError("train_fraction must be between 0 and 1")
+    if not 0 < inlier_fraction <= 1:
+        raise ValueError("inlier_fraction must be in (0, 1]")
+    if coral_weight < 0:
+        raise ValueError("coral_weight must be non-negative")
+    real_sequences = load_sequence_datasets([real_sequence_manifest_path], include_missing_masks=include_missing_masks)
+    synthetic_sequences = load_sequence_datasets(synthetic_sequence_manifest_paths, include_missing_masks=include_missing_masks)
+    real_dataset = _select_dataset(real_sequences, modality=real_modality)
+    synthetic_datasets = [
+        dataset
+        for dataset in synthetic_sequences.values()
+        if dataset.modality == synthetic_modality
+    ]
+    if not synthetic_datasets:
+        raise ValueError(f"no synthetic sequence datasets found for modality {synthetic_modality}")
+
+    descriptor_names = _descriptor_names(descriptor_profile)
+    real_descriptors = _descriptor_windows(real_dataset, lookback_steps=lookback_steps, stride=stride, descriptor_profile=descriptor_profile)
+    synthetic_descriptors_by_dataset = {
+        dataset.dataset_id: _descriptor_windows(dataset, lookback_steps=lookback_steps, stride=stride, descriptor_profile=descriptor_profile)
+        for dataset in synthetic_datasets
+    }
+    synthetic_window_count = sum(len(descriptors) for descriptors in synthetic_descriptors_by_dataset.values())
+    report: dict[str, object] = {
+        "schema": "elfquake.mixed_domain_alignment.v1",
+        "backend": "torch",
+        "device": "cpu",
+        "real_sequence_manifest": str(real_sequence_manifest_path),
+        "synthetic_sequence_manifests": [str(path) for path in synthetic_sequence_manifest_paths],
+        "real_modality": real_modality,
+        "synthetic_modality": synthetic_modality,
+        "descriptor_profile": descriptor_profile,
+        "real_dataset_id": real_dataset.dataset_id,
+        "synthetic_dataset_ids": [dataset.dataset_id for dataset in synthetic_datasets],
+        "lookback_steps": lookback_steps,
+        "stride": stride,
+        "train_fraction": train_fraction,
+        "mask_probability": mask_probability,
+        "clean_loss_weight": clean_loss_weight,
+        "inlier_fraction": inlier_fraction,
+        "inlier_method": inlier_method,
+        "control_methods": control_methods or ["centroid", "random", "full"],
+        "max_synthetic_train_windows": max_synthetic_train_windows,
+        "balance_synthetic_sources": balance_synthetic_sources,
+        "coral_weight": coral_weight,
+        "epochs": epochs,
+        "learning_rate": learning_rate,
+        "hidden_units": hidden_units,
+        "embedding_units": embedding_units,
+        "batch_size": batch_size,
+        "seed": seed,
+        "include_missing_masks": include_missing_masks,
+        "descriptor_names": descriptor_names,
+        "real_window_count": len(real_descriptors),
+        "synthetic_window_count": synthetic_window_count,
+        "embeddings_out": str(embeddings_out) if embeddings_out else "",
+        "note": "Mixed real/synthetic self-supervised descriptor alignment with local inliers, CORAL loss, descriptor-gap reporting, and synthetic selection controls.",
+    }
+    if len(real_descriptors) < 3 or synthetic_window_count < 1:
+        report["status"] = "insufficient_windows"
+        return _write_report(out_path, report)
+    result = _fit_mixed_domain_alignment(
+        real_descriptors=real_descriptors,
+        synthetic_descriptors_by_dataset=synthetic_descriptors_by_dataset,
+        descriptor_names=descriptor_names,
+        train_fraction=train_fraction,
+        mask_probability=mask_probability,
+        clean_loss_weight=clean_loss_weight,
+        inlier_fraction=inlier_fraction,
+        inlier_method=inlier_method,
+        control_methods=control_methods or ["centroid", "random", "full"],
+        max_synthetic_train_windows=max_synthetic_train_windows,
+        balance_synthetic_sources=balance_synthetic_sources,
+        coral_weight=coral_weight,
+        epochs=epochs,
+        learning_rate=learning_rate,
+        hidden_units=hidden_units,
+        embedding_units=embedding_units,
+        batch_size=batch_size,
+        seed=seed,
+        embeddings_out=embeddings_out,
+    )
+    report.update(result)
+    report["status"] = "evaluated"
+    return _write_report(out_path, report)
+
+
+def score_sequence_anomalies(
+    *,
+    sequence_manifest_path: Path,
+    out_path: Path,
+    scores_out: Path,
+    modality: str = "real_vlf_image",
+    descriptor_profile: str = "shape",
+    lookback_steps: int = 24,
+    stride: int = 1,
+    train_fraction: float = 0.8,
+    forecast_horizon_days: int = 7,
+    alert_threshold: float = 0.8,
+    mask_probability: float = 0.15,
+    clean_loss_weight: float = 0.0,
+    epochs: int = 30,
+    learning_rate: float = 0.0003,
+    hidden_units: int = 32,
+    embedding_units: int = 8,
+    batch_size: int = 32,
+    seed: int = 42,
+    include_missing_masks: bool = True,
+) -> dict[str, object]:
+    if lookback_steps < 1:
+        raise ValueError("lookback_steps must be at least 1")
+    if stride < 1:
+        raise ValueError("stride must be at least 1")
+    if not 0 < train_fraction < 1:
+        raise ValueError("train_fraction must be between 0 and 1")
+    if forecast_horizon_days < 1:
+        raise ValueError("forecast_horizon_days must be at least 1")
+    if not 0 <= alert_threshold <= 1:
+        raise ValueError("alert_threshold must be between 0 and 1")
+
+    sequences = load_sequence_datasets([sequence_manifest_path], include_missing_masks=include_missing_masks)
+    dataset = _select_dataset(sequences, modality=modality)
+    descriptors = _descriptor_windows(dataset, lookback_steps=lookback_steps, stride=stride, descriptor_profile=descriptor_profile)
+    descriptor_names = _descriptor_names(descriptor_profile)
+    window_times = _descriptor_window_times(dataset, lookback_steps=lookback_steps, stride=stride)
+    report: dict[str, object] = {
+        "schema": "elfquake.sequence_anomaly_forecast.v1",
+        "backend": "torch",
+        "device": "cpu",
+        "sequence_manifest": str(sequence_manifest_path),
+        "dataset_id": dataset.dataset_id,
+        "modality": dataset.modality,
+        "descriptor_profile": descriptor_profile,
+        "descriptor_names": descriptor_names,
+        "lookback_steps": lookback_steps,
+        "stride": stride,
+        "train_fraction": train_fraction,
+        "forecast_horizon_days": forecast_horizon_days,
+        "alert_threshold": alert_threshold,
+        "mask_probability": mask_probability,
+        "clean_loss_weight": clean_loss_weight,
+        "epochs": epochs,
+        "learning_rate": learning_rate,
+        "hidden_units": hidden_units,
+        "embedding_units": embedding_units,
+        "batch_size": batch_size,
+        "seed": seed,
+        "include_missing_masks": include_missing_masks,
+        "row_count": len(dataset.values),
+        "window_count": len(descriptors),
+        "scores_out": str(scores_out),
+        "note": "Label-free VLF anomaly smoke forecast. The score is not trained on earthquake labels and is not an earthquake prediction claim.",
+    }
+    if len(descriptors) < 3:
+        report["status"] = "insufficient_windows"
+        return _write_report(out_path, report)
+
+    result = _fit_descriptor_anomaly_autoencoder(
+        descriptors=descriptors,
+        window_times=window_times,
+        train_fraction=train_fraction,
+        forecast_horizon_days=forecast_horizon_days,
+        alert_threshold=alert_threshold,
+        mask_probability=mask_probability,
+        clean_loss_weight=clean_loss_weight,
+        epochs=epochs,
+        learning_rate=learning_rate,
+        hidden_units=hidden_units,
+        embedding_units=embedding_units,
+        batch_size=batch_size,
+        seed=seed,
+        scores_out=scores_out,
+    )
+    report.update(result)
+    report["status"] = "evaluated"
+    return _write_report(out_path, report)
+
+
 def _select_dataset(
     sequences: dict[tuple[str, str], SequenceDataset],
     *,
@@ -275,6 +586,19 @@ def _descriptor_windows(
     for window in _window_values(values, lookback_steps=lookback_steps, stride=stride):
         descriptors.append(_window_descriptor(window, descriptor_profile=descriptor_profile))
     return descriptors
+
+
+def _descriptor_window_times(
+    dataset: SequenceDataset,
+    *,
+    lookback_steps: int,
+    stride: int,
+) -> list[str]:
+    times_by_index = {index: time_utc for time_utc, index in dataset.time_to_index.items()}
+    return [
+        times_by_index.get(end_index - 1, str(end_index - 1))
+        for end_index in range(lookback_steps, len(dataset.values) + 1, stride)
+    ]
 
 
 def _standardize_value_rows(values: list[list[float]]) -> list[list[float]]:
@@ -590,6 +914,614 @@ def _fit_descriptor_domain_autoencoder(
         "synthetic_inlier_fraction": inlier_fraction,
         "descriptor_standardization_mean": _rounded_vector(mean.tolist()),
         "descriptor_standardization_std": _rounded_vector(std.tolist()),
+    }
+
+
+def _fit_synthetic_inlier_transfer_autoencoder(
+    *,
+    real_descriptors: list[list[float]],
+    synthetic_descriptors_by_dataset: dict[str, list[list[float]]],
+    train_fraction: float,
+    mask_probability: float,
+    clean_loss_weight: float,
+    inlier_fraction: float,
+    epochs: int,
+    learning_rate: float,
+    hidden_units: int,
+    embedding_units: int,
+    batch_size: int,
+    seed: int,
+    embeddings_out: Path | None,
+) -> dict[str, object]:
+    torch = _import_torch()
+    _set_deterministic_seed(torch, seed)
+    split_at = max(1, min(len(real_descriptors) - 1, int(len(real_descriptors) * train_fraction)))
+    real_train = torch.tensor(real_descriptors[:split_at], dtype=torch.float32)
+    real_test = torch.tensor(real_descriptors[split_at:], dtype=torch.float32)
+    synthetic_rows = [
+        (dataset_id, window_index, descriptor)
+        for dataset_id, descriptors in synthetic_descriptors_by_dataset.items()
+        for window_index, descriptor in enumerate(descriptors)
+    ]
+    synthetic = torch.tensor([row[2] for row in synthetic_rows], dtype=torch.float32)
+    real_train, real_test, synthetic, mean, std = _standardize_vectors(real_train, real_test, synthetic, torch=torch)
+    synthetic_inlier_indices = _synthetic_inlier_indices(
+        synthetic_descriptors=synthetic.tolist(),
+        real_descriptors=real_train.tolist(),
+        fraction=inlier_fraction,
+    )
+    if not synthetic_inlier_indices:
+        return {
+            "status": "insufficient_synthetic_inliers",
+            "real_train_window_count": len(real_train),
+            "real_test_window_count": len(real_test),
+            "synthetic_inlier_count": 0,
+            "synthetic_inlier_fraction": inlier_fraction,
+        }
+    synthetic_inliers = synthetic[synthetic_inlier_indices]
+    synthetic_inlier_rows = [synthetic_rows[index] for index in synthetic_inlier_indices]
+    model = _SequenceAutoencoder(
+        torch,
+        input_units=int(real_train.shape[1]),
+        hidden_units=hidden_units,
+        embedding_units=embedding_units,
+    )
+    optimizer = torch.optim.AdamW(model.parameters(), lr=learning_rate)
+    generator = torch.Generator().manual_seed(seed)
+    first_loss = None
+    last_loss = 0.0
+    model.train()
+    for _ in range(epochs):
+        permutation = torch.randperm(len(synthetic_inliers), generator=generator)
+        epoch_loss = 0.0
+        for start in range(0, len(synthetic_inliers), batch_size):
+            indices = permutation[start:start + batch_size]
+            batch = synthetic_inliers[indices]
+            masked, mask = _masked_input(batch, mask_probability=mask_probability, generator=generator, torch=torch)
+            optimizer.zero_grad()
+            reconstruction = model(masked)
+            loss = _masked_mse(reconstruction, batch, mask, torch=torch)
+            if clean_loss_weight:
+                loss = loss + clean_loss_weight * torch.nn.functional.mse_loss(model(batch), batch)
+            loss.backward()
+            optimizer.step()
+            epoch_loss += float(loss.item()) * len(indices)
+        last_loss = epoch_loss / len(synthetic_inliers)
+        if first_loss is None:
+            first_loss = last_loss
+    model.eval()
+    with torch.no_grad():
+        synthetic_inlier_metrics = _reconstruction_metrics(model, synthetic_inliers, mask_probability=mask_probability, generator=generator, torch=torch)
+        real_train_metrics = _reconstruction_metrics(model, real_train, mask_probability=mask_probability, generator=generator, torch=torch)
+        real_test_metrics = _reconstruction_metrics(model, real_test, mask_probability=mask_probability, generator=generator, torch=torch)
+        real_train_embeddings = model.encode(real_train)
+        real_test_embeddings = model.encode(real_test)
+        synthetic_inlier_embeddings = model.encode(synthetic_inliers)
+    if embeddings_out:
+        _write_domain_embeddings(
+            embeddings_out,
+            real_train_embeddings=real_train_embeddings.tolist(),
+            real_test_embeddings=real_test_embeddings.tolist(),
+            synthetic_embeddings=synthetic_inlier_embeddings.tolist(),
+            synthetic_rows=synthetic_inlier_rows,
+            synthetic_inlier_indices=set(range(len(synthetic_inlier_rows))),
+        )
+    return {
+        "real_train_window_count": len(real_train),
+        "real_test_window_count": len(real_test),
+        "synthetic_inlier_count": len(synthetic_inlier_indices),
+        "synthetic_inlier_fraction": inlier_fraction,
+        "first_train_loss": round(first_loss or 0.0, 8),
+        "last_train_loss": round(last_loss, 8),
+        "synthetic_inlier_train_reconstruction": synthetic_inlier_metrics,
+        "real_train_reconstruction": real_train_metrics,
+        "real_test_reconstruction": real_test_metrics,
+        "embedding_comparison": _embedding_comparison(
+            real_embeddings=real_test_embeddings.tolist(),
+            synthetic_embeddings=synthetic_inlier_embeddings.tolist(),
+        ),
+        "descriptor_standardization_mean": _rounded_vector(mean.tolist()),
+        "descriptor_standardization_std": _rounded_vector(std.tolist()),
+    }
+
+
+def _fit_mixed_domain_alignment(
+    *,
+    real_descriptors: list[list[float]],
+    synthetic_descriptors_by_dataset: dict[str, list[list[float]]],
+    descriptor_names: list[str],
+    train_fraction: float,
+    mask_probability: float,
+    clean_loss_weight: float,
+    inlier_fraction: float,
+    inlier_method: str,
+    control_methods: list[str],
+    max_synthetic_train_windows: int,
+    balance_synthetic_sources: bool,
+    coral_weight: float,
+    epochs: int,
+    learning_rate: float,
+    hidden_units: int,
+    embedding_units: int,
+    batch_size: int,
+    seed: int,
+    embeddings_out: Path | None,
+) -> dict[str, object]:
+    torch = _import_torch()
+    _set_deterministic_seed(torch, seed)
+    split_at = max(1, min(len(real_descriptors) - 1, int(len(real_descriptors) * train_fraction)))
+    real_train = torch.tensor(real_descriptors[:split_at], dtype=torch.float32)
+    real_test = torch.tensor(real_descriptors[split_at:], dtype=torch.float32)
+    synthetic_rows = [
+        (dataset_id, window_index, descriptor)
+        for dataset_id, descriptors in synthetic_descriptors_by_dataset.items()
+        for window_index, descriptor in enumerate(descriptors)
+    ]
+    synthetic = torch.tensor([row[2] for row in synthetic_rows], dtype=torch.float32)
+    real_train, real_test, synthetic, mean, std = _standardize_vectors(real_train, real_test, synthetic, torch=torch)
+    primary_indices = _select_synthetic_training_indices(
+        torch=torch,
+        synthetic=synthetic,
+        real_train=real_train,
+        synthetic_rows=synthetic_rows,
+        method=inlier_method,
+        fraction=inlier_fraction,
+        max_count=max_synthetic_train_windows,
+        balance_synthetic_sources=balance_synthetic_sources,
+        seed=seed,
+    )
+    if not primary_indices:
+        return {
+            "status": "insufficient_synthetic_inliers",
+            "real_train_window_count": len(real_train),
+            "real_test_window_count": len(real_test),
+            "synthetic_train_count": 0,
+        }
+    primary_result = _train_mixed_alignment_model(
+        torch=torch,
+        real_train=real_train,
+        real_test=real_test,
+        synthetic_train=synthetic[primary_indices],
+        mask_probability=mask_probability,
+        clean_loss_weight=clean_loss_weight,
+        coral_weight=coral_weight,
+        epochs=epochs,
+        learning_rate=learning_rate,
+        hidden_units=hidden_units,
+        embedding_units=embedding_units,
+        batch_size=batch_size,
+        seed=seed,
+    )
+    selected_rows = [synthetic_rows[index] for index in primary_indices]
+    if embeddings_out:
+        _write_domain_embeddings(
+            embeddings_out,
+            real_train_embeddings=primary_result["real_train_embeddings"],
+            real_test_embeddings=primary_result["real_test_embeddings"],
+            synthetic_embeddings=primary_result["synthetic_embeddings"],
+            synthetic_rows=selected_rows,
+            synthetic_inlier_indices=set(range(len(selected_rows))),
+        )
+    control_runs = {}
+    for offset, method in enumerate(control_methods):
+        if method == inlier_method:
+            continue
+        control_indices = _select_synthetic_training_indices(
+            torch=torch,
+            synthetic=synthetic,
+            real_train=real_train,
+            synthetic_rows=synthetic_rows,
+            method=method,
+            fraction=inlier_fraction,
+            max_count=len(primary_indices),
+            balance_synthetic_sources=balance_synthetic_sources,
+            seed=seed + offset + 1,
+        )
+        if not control_indices:
+            control_runs[method] = {"status": "insufficient_synthetic_windows"}
+            continue
+        control = _train_mixed_alignment_model(
+            torch=torch,
+            real_train=real_train,
+            real_test=real_test,
+            synthetic_train=synthetic[control_indices],
+            mask_probability=mask_probability,
+            clean_loss_weight=clean_loss_weight,
+            coral_weight=coral_weight,
+            epochs=epochs,
+            learning_rate=learning_rate,
+            hidden_units=hidden_units,
+            embedding_units=embedding_units,
+            batch_size=batch_size,
+            seed=seed + offset + 1,
+        )
+        control_runs[method] = _public_alignment_result(control, synthetic_train_count=len(control_indices))
+    public_primary = _public_alignment_result(primary_result, synthetic_train_count=len(primary_indices))
+    synthetic_selected = synthetic[primary_indices]
+    return {
+        "real_train_window_count": len(real_train),
+        "real_test_window_count": len(real_test),
+        "synthetic_train_count": len(primary_indices),
+        "synthetic_selection_counts": _selection_counts(primary_indices, synthetic_rows),
+        "selection_method": inlier_method,
+        "primary": public_primary,
+        "control_runs": control_runs,
+        "descriptor_gap": _descriptor_gap(
+            real_rows=real_train.tolist(),
+            synthetic_rows=synthetic_selected.tolist(),
+            descriptor_names=descriptor_names,
+        ),
+        "descriptor_standardization_mean": _rounded_vector(mean.tolist()),
+        "descriptor_standardization_std": _rounded_vector(std.tolist()),
+    }
+
+
+def _fit_descriptor_anomaly_autoencoder(
+    *,
+    descriptors: list[list[float]],
+    window_times: list[str],
+    train_fraction: float,
+    forecast_horizon_days: int,
+    alert_threshold: float,
+    mask_probability: float,
+    clean_loss_weight: float,
+    epochs: int,
+    learning_rate: float,
+    hidden_units: int,
+    embedding_units: int,
+    batch_size: int,
+    seed: int,
+    scores_out: Path,
+) -> dict[str, object]:
+    torch = _import_torch()
+    _set_deterministic_seed(torch, seed)
+    split_at = max(1, min(len(descriptors) - 1, int(len(descriptors) * train_fraction)))
+    train = torch.tensor(descriptors[:split_at], dtype=torch.float32)
+    test = torch.tensor(descriptors[split_at:], dtype=torch.float32)
+    all_rows = torch.tensor(descriptors, dtype=torch.float32)
+    train, test, all_rows, mean, std = _standardize_vectors(train, test, all_rows, torch=torch)
+    model = _SequenceAutoencoder(
+        torch,
+        input_units=int(train.shape[1]),
+        hidden_units=hidden_units,
+        embedding_units=embedding_units,
+    )
+    optimizer = torch.optim.AdamW(model.parameters(), lr=learning_rate)
+    generator = torch.Generator().manual_seed(seed)
+    first_loss = None
+    last_loss = 0.0
+    model.train()
+    for _ in range(epochs):
+        permutation = torch.randperm(len(train), generator=generator)
+        epoch_loss = 0.0
+        for start in range(0, len(train), batch_size):
+            indices = permutation[start:start + batch_size]
+            batch = train[indices]
+            masked, mask = _masked_input(batch, mask_probability=mask_probability, generator=generator, torch=torch)
+            optimizer.zero_grad()
+            reconstruction = model(masked)
+            loss = _masked_mse(reconstruction, batch, mask, torch=torch)
+            if clean_loss_weight:
+                loss = loss + clean_loss_weight * torch.nn.functional.mse_loss(model(batch), batch)
+            loss.backward()
+            optimizer.step()
+            epoch_loss += float(loss.item()) * len(indices)
+        last_loss = epoch_loss / len(train)
+        if first_loss is None:
+            first_loss = last_loss
+    model.eval()
+    with torch.no_grad():
+        train_metrics = _reconstruction_metrics(model, train, mask_probability=mask_probability, generator=generator, torch=torch)
+        test_metrics = _reconstruction_metrics(model, test, mask_probability=mask_probability, generator=generator, torch=torch)
+        reconstruction = model(all_rows)
+        row_mse = ((reconstruction - all_rows) ** 2).mean(dim=1).tolist()
+        embeddings = model.encode(all_rows)
+        train_embeddings = embeddings[:split_at]
+        novelty = _embedding_novelty(embeddings, train_embeddings, train_count=split_at, torch=torch)
+    train_mse = row_mse[:split_at]
+    train_novelty = novelty[:split_at]
+    score_rows = []
+    for index, (time_utc, mse, novelty_value) in enumerate(zip(window_times, row_mse, novelty)):
+        reconstruction_percentile = _empirical_percentile(float(mse), train_mse)
+        novelty_percentile = _empirical_percentile(float(novelty_value), train_novelty)
+        anomaly_score = (reconstruction_percentile + novelty_percentile) / 2
+        score_rows.append(
+            {
+                "window_index": index,
+                "window_end_utc": time_utc,
+                "split": "train" if index < split_at else "test",
+                "reconstruction_mse": round(float(mse), 8),
+                "reconstruction_percentile": round(reconstruction_percentile, 8),
+                "embedding_novelty": round(float(novelty_value), 8),
+                "embedding_novelty_percentile": round(novelty_percentile, 8),
+                "anomaly_score": round(anomaly_score, 8),
+                "demo_probability": round(anomaly_score, 8),
+                "demo_predicted_event": 1 if anomaly_score >= alert_threshold else 0,
+            }
+        )
+    _write_anomaly_scores(scores_out, score_rows)
+    latest = score_rows[-1]
+    target_start = parse_utc(str(latest["window_end_utc"]))
+    target_end = target_start + timedelta(days=forecast_horizon_days)
+    forecast = {
+        "schema": "elfquake.label_free_vlf_anomaly_forecast.v1",
+        "status": "label_free_smoke_forecast",
+        "window_end_utc": latest["window_end_utc"],
+        "target_start_utc": format_utc(target_start),
+        "target_end_utc": format_utc(target_end),
+        "horizon_days": forecast_horizon_days,
+        "demo_probability": latest["demo_probability"],
+        "demo_predicted_event": latest["demo_predicted_event"],
+        "alert_threshold": alert_threshold,
+        "basis": "mean(reconstruction_error_percentile, embedding_novelty_percentile) from a real VLF self-supervised descriptor autoencoder",
+        "warning": "Not trained on earthquake labels; use only as an end-to-end smoke forecast artifact.",
+    }
+    return {
+        "train_window_count": split_at,
+        "test_window_count": len(descriptors) - split_at,
+        "first_train_loss": round(first_loss or 0.0, 8),
+        "last_train_loss": round(last_loss, 8),
+        "train_reconstruction": train_metrics,
+        "test_reconstruction": test_metrics,
+        "latest_window": latest,
+        "forecast": forecast,
+        "descriptor_standardization_mean": _rounded_vector(mean.tolist()),
+        "descriptor_standardization_std": _rounded_vector(std.tolist()),
+    }
+
+
+def _embedding_novelty(embeddings, train_embeddings, *, train_count: int, torch: object) -> list[float]:
+    distances = torch.cdist(embeddings, train_embeddings)
+    if train_count > 1:
+        for index in range(min(train_count, distances.shape[0], distances.shape[1])):
+            distances[index, index] = float("inf")
+    return distances.min(dim=1).values.tolist()
+
+
+def _empirical_percentile(value: float, reference_values: list[float]) -> float:
+    if not reference_values:
+        return 0.0
+    return sum(1 for item in reference_values if item <= value) / len(reference_values)
+
+
+def _write_anomaly_scores(out_path: Path, rows: list[dict[str, object]]) -> None:
+    out_path.parent.mkdir(parents=True, exist_ok=True)
+    fieldnames = [
+        "window_index",
+        "window_end_utc",
+        "split",
+        "reconstruction_mse",
+        "reconstruction_percentile",
+        "embedding_novelty",
+        "embedding_novelty_percentile",
+        "anomaly_score",
+        "demo_probability",
+        "demo_predicted_event",
+    ]
+    with out_path.open("w", newline="", encoding="utf-8") as handle:
+        writer = csv.DictWriter(handle, fieldnames=fieldnames, lineterminator="\n")
+        writer.writeheader()
+        writer.writerows(rows)
+
+
+def _train_mixed_alignment_model(
+    *,
+    torch: object,
+    real_train,
+    real_test,
+    synthetic_train,
+    mask_probability: float,
+    clean_loss_weight: float,
+    coral_weight: float,
+    epochs: int,
+    learning_rate: float,
+    hidden_units: int,
+    embedding_units: int,
+    batch_size: int,
+    seed: int,
+) -> dict[str, object]:
+    model = _SequenceAutoencoder(
+        torch,
+        input_units=int(real_train.shape[1]),
+        hidden_units=hidden_units,
+        embedding_units=embedding_units,
+    )
+    optimizer = torch.optim.AdamW(model.parameters(), lr=learning_rate)
+    generator = torch.Generator().manual_seed(seed)
+    steps_per_epoch = max(1, math.ceil(max(len(real_train), len(synthetic_train)) / batch_size))
+    first_loss = None
+    last_loss = 0.0
+    model.train()
+    for _ in range(epochs):
+        epoch_loss = 0.0
+        for _step in range(steps_per_epoch):
+            real_indices = torch.randint(len(real_train), (min(batch_size, len(real_train)),), generator=generator)
+            synthetic_indices = torch.randint(len(synthetic_train), (min(batch_size, len(synthetic_train)),), generator=generator)
+            real_batch = real_train[real_indices]
+            synthetic_batch = synthetic_train[synthetic_indices]
+            real_masked, real_mask = _masked_input(real_batch, mask_probability=mask_probability, generator=generator, torch=torch)
+            synthetic_masked, synthetic_mask = _masked_input(synthetic_batch, mask_probability=mask_probability, generator=generator, torch=torch)
+            optimizer.zero_grad()
+            real_reconstruction = model(real_masked)
+            synthetic_reconstruction = model(synthetic_masked)
+            loss = (
+                _masked_mse(real_reconstruction, real_batch, real_mask, torch=torch)
+                + _masked_mse(synthetic_reconstruction, synthetic_batch, synthetic_mask, torch=torch)
+            ) / 2
+            if clean_loss_weight:
+                loss = loss + clean_loss_weight * (
+                    torch.nn.functional.mse_loss(model(real_batch), real_batch)
+                    + torch.nn.functional.mse_loss(model(synthetic_batch), synthetic_batch)
+                ) / 2
+            if coral_weight:
+                loss = loss + coral_weight * _coral_loss(model.encode(real_batch), model.encode(synthetic_batch), torch=torch)
+            loss.backward()
+            optimizer.step()
+            epoch_loss += float(loss.item())
+        last_loss = epoch_loss / steps_per_epoch
+        if first_loss is None:
+            first_loss = last_loss
+    model.eval()
+    with torch.no_grad():
+        real_train_metrics = _reconstruction_metrics(model, real_train, mask_probability=mask_probability, generator=generator, torch=torch)
+        real_test_metrics = _reconstruction_metrics(model, real_test, mask_probability=mask_probability, generator=generator, torch=torch)
+        synthetic_metrics = _reconstruction_metrics(model, synthetic_train, mask_probability=mask_probability, generator=generator, torch=torch)
+        real_train_embeddings = model.encode(real_train)
+        real_test_embeddings = model.encode(real_test)
+        synthetic_embeddings = model.encode(synthetic_train)
+        alignment_loss = _coral_loss(real_train_embeddings, synthetic_embeddings, torch=torch)
+    return {
+        "first_train_loss": round(first_loss or 0.0, 8),
+        "last_train_loss": round(last_loss, 8),
+        "real_train_reconstruction": real_train_metrics,
+        "real_test_reconstruction": real_test_metrics,
+        "synthetic_train_reconstruction": synthetic_metrics,
+        "embedding_comparison": _embedding_comparison(
+            real_embeddings=real_test_embeddings.tolist(),
+            synthetic_embeddings=synthetic_embeddings.tolist(),
+        ),
+        "train_embedding_comparison": _embedding_comparison(
+            real_embeddings=real_train_embeddings.tolist(),
+            synthetic_embeddings=synthetic_embeddings.tolist(),
+        ),
+        "coral_alignment_loss": round(float(alignment_loss.item()), 8),
+        "real_train_embeddings": real_train_embeddings.tolist(),
+        "real_test_embeddings": real_test_embeddings.tolist(),
+        "synthetic_embeddings": synthetic_embeddings.tolist(),
+    }
+
+
+def _public_alignment_result(result: dict[str, object], *, synthetic_train_count: int) -> dict[str, object]:
+    return {
+        "synthetic_train_count": synthetic_train_count,
+        "first_train_loss": result["first_train_loss"],
+        "last_train_loss": result["last_train_loss"],
+        "real_train_reconstruction": result["real_train_reconstruction"],
+        "real_test_reconstruction": result["real_test_reconstruction"],
+        "synthetic_train_reconstruction": result["synthetic_train_reconstruction"],
+        "embedding_comparison": result["embedding_comparison"],
+        "train_embedding_comparison": result["train_embedding_comparison"],
+        "coral_alignment_loss": result["coral_alignment_loss"],
+    }
+
+
+def _select_synthetic_training_indices(
+    *,
+    torch: object,
+    synthetic,
+    real_train,
+    synthetic_rows: list[tuple[str, int, list[float]]],
+    method: str,
+    fraction: float,
+    max_count: int,
+    balance_synthetic_sources: bool,
+    seed: int,
+) -> list[int]:
+    requested = max(1, int(round(len(synthetic_rows) * fraction)))
+    if max_count > 0:
+        requested = min(requested, max_count)
+    per_source_cap = math.ceil(requested / len({row[0] for row in synthetic_rows})) if balance_synthetic_sources else 0
+    if method == "local":
+        distances = torch.cdist(synthetic, real_train).min(dim=1).values.tolist()
+        ranked = [index for index, _ in sorted(enumerate(distances), key=lambda item: item[1])]
+    elif method == "centroid":
+        centroid = real_train.mean(dim=0)
+        distances = torch.linalg.vector_norm(synthetic - centroid, dim=1).tolist()
+        ranked = [index for index, _ in sorted(enumerate(distances), key=lambda item: item[1])]
+    elif method == "random":
+        rng = random.Random(seed)
+        ranked = list(range(len(synthetic_rows)))
+        rng.shuffle(ranked)
+    elif method == "full":
+        ranked = list(range(len(synthetic_rows)))
+    else:
+        raise ValueError(f"unknown synthetic selection method: {method}")
+    return _apply_selection_cap(
+        ranked,
+        synthetic_rows=synthetic_rows,
+        requested=requested,
+        per_source_cap=per_source_cap,
+    )
+
+
+def _apply_selection_cap(
+    ranked: list[int],
+    *,
+    synthetic_rows: list[tuple[str, int, list[float]]],
+    requested: int,
+    per_source_cap: int,
+) -> list[int]:
+    selected = []
+    counts: dict[str, int] = {}
+    for index in ranked:
+        dataset_id = synthetic_rows[index][0]
+        if per_source_cap and counts.get(dataset_id, 0) >= per_source_cap:
+            continue
+        selected.append(index)
+        counts[dataset_id] = counts.get(dataset_id, 0) + 1
+        if len(selected) >= requested:
+            break
+    if len(selected) < requested and per_source_cap:
+        selected_set = set(selected)
+        for index in ranked:
+            if index in selected_set:
+                continue
+            selected.append(index)
+            if len(selected) >= requested:
+                break
+    return selected
+
+
+def _selection_counts(indices: list[int], synthetic_rows: list[tuple[str, int, list[float]]]) -> dict[str, int]:
+    counts: dict[str, int] = {}
+    for index in indices:
+        dataset_id = synthetic_rows[index][0]
+        counts[dataset_id] = counts.get(dataset_id, 0) + 1
+    return counts
+
+
+def _coral_loss(real_embeddings, synthetic_embeddings, *, torch: object):
+    if len(real_embeddings) < 2 or len(synthetic_embeddings) < 2:
+        return torch.tensor(0.0)
+    real_mean = real_embeddings.mean(dim=0)
+    synthetic_mean = synthetic_embeddings.mean(dim=0)
+    real_centered = real_embeddings - real_mean
+    synthetic_centered = synthetic_embeddings - synthetic_mean
+    real_cov = real_centered.T.matmul(real_centered) / (len(real_embeddings) - 1)
+    synthetic_cov = synthetic_centered.T.matmul(synthetic_centered) / (len(synthetic_embeddings) - 1)
+    mean_loss = torch.mean((real_mean - synthetic_mean) ** 2)
+    covariance_loss = torch.mean((real_cov - synthetic_cov) ** 2)
+    return mean_loss + covariance_loss
+
+
+def _descriptor_gap(
+    *,
+    real_rows: list[list[float]],
+    synthetic_rows: list[list[float]],
+    descriptor_names: list[str],
+) -> dict[str, object]:
+    real_centroid = _centroid(real_rows)
+    synthetic_centroid = _centroid(synthetic_rows)
+    real_std = _column_std(real_rows, real_centroid)
+    synthetic_std = _column_std(synthetic_rows, synthetic_centroid)
+    rows = []
+    for index, name in enumerate(descriptor_names):
+        rows.append(
+            {
+                "descriptor": name,
+                "real_mean": round(real_centroid[index], 8),
+                "synthetic_mean": round(synthetic_centroid[index], 8),
+                "mean_delta": round(synthetic_centroid[index] - real_centroid[index], 8),
+                "real_std": round(real_std[index], 8),
+                "synthetic_std": round(synthetic_std[index], 8),
+                "std_delta": round(synthetic_std[index] - real_std[index], 8),
+            }
+        )
+    ranked = sorted(rows, key=lambda row: abs(float(row["mean_delta"])) + abs(float(row["std_delta"])), reverse=True)
+    return {
+        "mean_absolute_mean_delta": round(sum(abs(float(row["mean_delta"])) for row in rows) / len(rows), 8),
+        "mean_absolute_std_delta": round(sum(abs(float(row["std_delta"])) for row in rows) / len(rows), 8),
+        "largest_descriptor_gaps": ranked[:5],
     }
 
 

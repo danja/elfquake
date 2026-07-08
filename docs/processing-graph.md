@@ -31,6 +31,8 @@ flowchart TD
     SelfSup["default self-supervised VLF pretrain<br/>masked sequence autoencoder"]
     VLFEmbedding["real VLF embeddings<br/>self_supervised/*.csv"]
     DomainDiag["synthetic-to-real embedding diagnostic<br/>compare-vlf-embedding-domains.sh"]
+    TransferDiag["synthetic-inlier transfer diagnostic<br/>evaluate-vlf-synthetic-inlier-transfer.sh"]
+    MixedAlign["mixed-domain alignment diagnostic<br/>evaluate-vlf-mixed-domain-alignment.sh"]
     RealAligned["real VLF-aligned rows<br/>all_italy / central_italy"]
     Readiness{"real label readiness<br/>both classes?"}
 
@@ -41,6 +43,8 @@ flowchart TD
     VLF --> RealSeq
     RealSeq --> SelfSup --> VLFEmbedding
     RealSeq --> DomainDiag
+    DomainDiag --> TransferDiag
+    TransferDiag --> MixedAlign
     Prospective --> RealAligned
     RealSeq --> RealAligned
     RealAligned --> Readiness
@@ -55,9 +59,13 @@ flowchart TD
 
     SimAligned --> Baselines
     SimSeq --> DomainDiag
+    SimSeq --> TransferDiag
+    SimSeq --> MixedAlign
     DeepTrain --> Baselines
     VLFEmbedding --> Reports
     DomainDiag --> Reports
+    TransferDiag --> Reports
+    MixedAlign --> Reports
     RealAligned --> Probe
     Readiness -- no --> Blocked --> Reports
     Readiness -- yes --> FineTune

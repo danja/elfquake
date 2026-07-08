@@ -73,7 +73,13 @@ from elfquake.models.torch_sequence import (
     evaluate_torch_sequence_split_holdout,
 )
 from elfquake.models.torch_patch_transformer import evaluate_torch_patch_transformer_split_holdout
-from elfquake.models.torch_self_supervised import compare_sequence_embedding_domains, pretrain_sequence_autoencoder
+from elfquake.models.torch_self_supervised import (
+    compare_sequence_embedding_domains,
+    evaluate_mixed_domain_alignment,
+    evaluate_synthetic_inlier_transfer,
+    pretrain_sequence_autoencoder,
+    score_sequence_anomalies,
+)
 from elfquake.models.torch_tabular import evaluate_torch_tabular_group_holdout, evaluate_torch_tabular_holdout
 from elfquake.models.window_adapter import build_event_window_features
 from elfquake.normalize.events import combine_normalized_events
@@ -88,6 +94,7 @@ from elfquake.normalize.space_weather import (
 )
 from elfquake.sim.avalanche_tuning import tune_avalanche_event_extraction
 from elfquake.sim.heatmap import render_sandpile_heatmap, render_sandpile_heatmaps_from_manifest
+from elfquake.sim.piezo_transform import transform_piezo_signal_csv
 from elfquake.sim.report import benchmark_sandpile_simulation, summarize_sandpile_outputs
 from elfquake.storage import write_capture
 
@@ -2076,6 +2083,125 @@ class AcquisitionScaffoldTests(unittest.TestCase):
             self.assertTrue(embeddings.exists())
             self.assertIn("is_synthetic_inlier", embeddings.read_text(encoding="utf-8"))
 
+    @unittest.skipUnless(importlib.util.find_spec("torch"), "PyTorch optional dependency is not installed")
+    def test_synthetic_inlier_transfer_evaluates_held_out_real_vlf(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            real_manifest = self._write_sequence_fixture(
+                root,
+                "real",
+                "real_vlf_image",
+                "vlf_intensity_mean",
+                [0, 1, 2, 3, 5, 8, 13, 21],
+            )
+            synthetic_manifest = self._write_sequence_fixture(
+                root,
+                "seed1",
+                "synthetic_piezo_vlf",
+                "piezo_signal",
+                [0, 0, 1, 1, 2, 3, 5, 8],
+            )
+            embeddings = root / "transfer_embeddings.csv"
+
+            report = evaluate_synthetic_inlier_transfer(
+                real_sequence_manifest_path=real_manifest,
+                synthetic_sequence_manifest_paths=[synthetic_manifest],
+                out_path=root / "transfer.json",
+                lookback_steps=3,
+                epochs=2,
+                hidden_units=8,
+                embedding_units=3,
+                batch_size=2,
+                embeddings_out=embeddings,
+            )
+
+            self.assertEqual(report["schema"], "elfquake.synthetic_inlier_transfer_reconstruction.v1")
+            self.assertEqual(report["status"], "evaluated")
+            self.assertEqual(report["real_window_count"], 6)
+            self.assertEqual(report["synthetic_window_count"], 6)
+            self.assertGreater(report["synthetic_inlier_count"], 0)
+            self.assertIn("real_test_reconstruction", report)
+            self.assertEqual(report["embedding_comparison"]["status"], "evaluated")
+            self.assertTrue(embeddings.exists())
+            self.assertIn("is_synthetic_inlier", embeddings.read_text(encoding="utf-8"))
+
+    @unittest.skipUnless(importlib.util.find_spec("torch"), "PyTorch optional dependency is not installed")
+    def test_mixed_domain_alignment_reports_controls_and_descriptor_gaps(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            real_manifest = self._write_sequence_fixture(
+                root,
+                "real",
+                "real_vlf_image",
+                "vlf_intensity_mean",
+                [0, 1, 2, 3, 5, 8, 13, 21],
+            )
+            synthetic_manifest = self._write_sequence_fixture(
+                root,
+                "seed1",
+                "synthetic_piezo_vlf",
+                "piezo_signal",
+                [0, 0, 1, 1, 2, 3, 5, 8],
+            )
+            embeddings = root / "mixed_embeddings.csv"
+
+            report = evaluate_mixed_domain_alignment(
+                real_sequence_manifest_path=real_manifest,
+                synthetic_sequence_manifest_paths=[synthetic_manifest],
+                out_path=root / "mixed.json",
+                lookback_steps=3,
+                inlier_method="local",
+                control_methods=["random"],
+                epochs=2,
+                hidden_units=8,
+                embedding_units=3,
+                batch_size=2,
+                embeddings_out=embeddings,
+            )
+
+            self.assertEqual(report["schema"], "elfquake.mixed_domain_alignment.v1")
+            self.assertEqual(report["status"], "evaluated")
+            self.assertEqual(report["selection_method"], "local")
+            self.assertGreater(report["synthetic_train_count"], 0)
+            self.assertIn("primary", report)
+            self.assertIn("random", report["control_runs"])
+            self.assertEqual(report["primary"]["embedding_comparison"]["status"], "evaluated")
+            self.assertIn("largest_descriptor_gaps", report["descriptor_gap"])
+            self.assertTrue(embeddings.exists())
+            self.assertIn("is_synthetic_inlier", embeddings.read_text(encoding="utf-8"))
+
+    @unittest.skipUnless(importlib.util.find_spec("torch"), "PyTorch optional dependency is not installed")
+    def test_sequence_anomaly_scoring_writes_label_free_forecast(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            manifest = self._write_sequence_fixture(
+                root,
+                "real",
+                "real_vlf_image",
+                "vlf_intensity_mean",
+                [0, 1, 1, 2, 3, 5, 8, 13, 21],
+            )
+
+            report = score_sequence_anomalies(
+                sequence_manifest_path=manifest,
+                out_path=root / "anomaly.json",
+                scores_out=root / "anomaly_scores.csv",
+                modality="real_vlf_image",
+                lookback_steps=3,
+                epochs=2,
+                hidden_units=8,
+                embedding_units=3,
+                batch_size=2,
+            )
+
+            self.assertEqual(report["schema"], "elfquake.sequence_anomaly_forecast.v1")
+            self.assertEqual(report["status"], "evaluated")
+            self.assertEqual(report["forecast"]["status"], "label_free_smoke_forecast")
+            self.assertEqual(report["forecast"]["horizon_days"], 7)
+            self.assertIn("demo_probability", report["forecast"])
+            self.assertTrue((root / "anomaly_scores.csv").exists())
+            self.assertIn("anomaly_score", (root / "anomaly_scores.csv").read_text(encoding="utf-8").splitlines()[0])
+
     def test_synthetic_regime_annotation_can_drop_burn_in(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
@@ -2108,6 +2234,42 @@ class AcquisitionScaffoldTests(unittest.TestCase):
             self.assertIn("synthetic_regime_id", lines[0])
             self.assertNotIn(",w0,", "\n".join(lines[1:]))
             self.assertEqual(report["regime_ids"], ["seed1_r0", "seed1_r1", "seed2_r0", "seed2_r1"])
+
+    def test_piezo_signal_transform_writes_derived_signal_csv(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            source = root / "piezo.csv"
+            source.write_text(
+                "step,sensor_id,x,y,piezo_signal,piezo_release_total,max_stress_ratio\n"
+                "0,0,1,1,0.0,0.0,0.70\n"
+                "1,0,1,1,1.0,0.1,0.85\n"
+                "2,0,1,1,1.5,0.2,0.95\n"
+                "0,1,2,2,0.0,0.0,0.70\n"
+                "1,1,2,2,0.5,0.1,0.90\n"
+                "2,1,2,2,0.2,0.2,0.98\n",
+                encoding="utf-8",
+            )
+
+            report = transform_piezo_signal_csv(
+                input_csv=source,
+                out_csv=root / "piezo_transformed.csv",
+                report_path=root / "piezo_transformed.json",
+                highpass_decay=0.8,
+                envelope_decay=0.1,
+                envelope_mix=0.2,
+                burst_power=1.2,
+                near_threshold_weight=1.0,
+                release_mix=0.1,
+                gain_contrast=0.1,
+            )
+
+            self.assertEqual(report["schema"], "elfquake.piezo_signal_transform.v1")
+            self.assertEqual(report["row_count"], 6)
+            self.assertEqual(report["sensor_count"], 2)
+            transformed = (root / "piezo_transformed.csv").read_text(encoding="utf-8")
+            self.assertIn("piezo_signal", transformed.splitlines()[0])
+            self.assertNotEqual(source.read_text(encoding="utf-8"), transformed)
+            self.assertTrue((root / "piezo_transformed.json").exists())
 
     def test_balanced_split_assigns_test_rows_by_group_and_label(self) -> None:
         with tempfile.TemporaryDirectory() as directory:

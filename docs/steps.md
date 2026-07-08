@@ -246,6 +246,14 @@ Train a CPU PyTorch masked reconstruction autoencoder over a materialized sequen
 
 Run the default self-supervised path on the real Cumiana VLF image sequence manifest, writing a report, checkpoint, and embedding CSV under `data/derived/models/self_supervised/`.
 
+### `score-sequence-anomalies`
+
+Train a label-free descriptor autoencoder on a materialized sequence manifest, score reconstruction and embedding novelty by window, and write a smoke forecast artifact for the configured horizon.
+
+### `score-real-vlf-anomaly-forecast.sh`
+
+Run the default real Cumiana VLF anomaly scorer and emit a 7-day label-free smoke forecast under `data/derived/models/self_supervised/`.
+
 ### `compare-sequence-embedding-domains`
 
 Train a descriptor autoencoder on real VLF sequence windows, encode synthetic piezo/VLF windows through the same model, and write an embedding-domain diagnostic. This is a label-free shape comparison, not a prediction result.
@@ -253,6 +261,30 @@ Train a descriptor autoencoder on real VLF sequence windows, encode synthetic pi
 ### `compare-vlf-embedding-domains.sh`
 
 Run the default real Cumiana VLF versus synthetic piezo/VLF embedding-domain diagnostic for the current seed `40`-`42`, `20000`-step synthetic manifests.
+
+### `evaluate-synthetic-inlier-transfer`
+
+Train a masked descriptor autoencoder on synthetic piezo/VLF windows selected as real-like inliers, then evaluate reconstruction on held-out real VLF descriptor windows.
+
+### `evaluate-vlf-synthetic-inlier-transfer.sh`
+
+Run the default synthetic-inlier transfer diagnostic for current Cumiana VLF captures and seed `40`-`42`, `20000`-step synthetic piezo/VLF manifests.
+
+### `evaluate-mixed-domain-alignment`
+
+Train a mixed real/synthetic descriptor autoencoder with local synthetic inlier selection, a CORAL embedding-alignment penalty, descriptor-gap reporting, and synthetic selection controls.
+
+### `evaluate-vlf-mixed-domain-alignment.sh`
+
+Run the default mixed-domain VLF alignment diagnostic for current Cumiana VLF captures and seed `40`-`42`, `20000`-step synthetic piezo/VLF manifests.
+
+### `transform-piezo-signal`
+
+Create a derived piezo/VLF CSV from an existing simulation CSV using deterministic high-pass, burst-shaping, near-threshold weighting, release mixing, and sensor-gain transforms.
+
+### `sweep-piezo-vlf-alignment.sh`
+
+Generate piezo/VLF transform variants, materialize sequence manifests, run short mixed-domain alignment diagnostics, and write a ranked CSV under `data/derived/models/piezo_vlf_alignment_sweep/`.
 
 ### `train-deep-patch-transformer.sh`
 

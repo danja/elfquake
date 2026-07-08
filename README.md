@@ -46,6 +46,9 @@ This work was initially prompted by the tragedy of the [2009 L'Aquila earthquake
 * Real Cumiana VLF image features materialized into the same sequence shape as synthetic piezo/VLF inputs.
 * Real prospective aligned model inputs scaffolded for all-Italy and central-Italy rows; real deep-model fine-tuning wrappers refuse to train until both target classes exist.
 * VLF model feature roles that allow synthetic piezo/VLF analogue data to exercise the same PyTorch VLF path before real labels mature.
+* Synthetic-inlier transfer diagnostics that train on real-like synthetic piezo/VLF descriptors and evaluate reconstruction against held-out real VLF descriptors.
+* Mixed real/synthetic VLF descriptor alignment with CORAL loss and centroid/random/full synthetic controls.
+* Label-free real VLF anomaly smoke forecasts while supervised real labels remain blocked.
 * Sandpile simulation with separate seismic-like avalanche outputs and piezo/VLF analogue outputs.
 
 Run the default label-free real VLF pretraining path with:
@@ -54,10 +57,28 @@ Run the default label-free real VLF pretraining path with:
 ./pretrain-real-vlf-self-supervised.sh
 ```
 
+Run the current label-free 7-day VLF anomaly smoke forecast with:
+
+```sh
+./score-real-vlf-anomaly-forecast.sh
+```
+
 Compare the current real VLF embedding domain against synthetic piezo/VLF analogues with:
 
 ```sh
 ./compare-vlf-embedding-domains.sh
+```
+
+Run the synthetic-inlier transfer diagnostic with:
+
+```sh
+./evaluate-vlf-synthetic-inlier-transfer.sh
+```
+
+Run the mixed-domain VLF alignment diagnostic with:
+
+```sh
+./evaluate-vlf-mixed-domain-alignment.sh
 ```
 
 ## Simulation

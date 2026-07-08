@@ -43,6 +43,9 @@ Questo lavoro è stato inizialmente ispirato dalla tragedia del terremoto dell�
 * Feature VLF reali di Cumiana materializzate nella stessa forma sequenziale dei dati sintetici piezo/VLF.
 * Input reali allineati per il modello scaffoldati per righe all-Italy e central-Italy; i wrapper per il fine-tuning di modelli profondi reali rifiutano l’addestramento finché entrambe le classi non esistono.
 * Ruoli di feature VLF che permettono ai dati sintetici analoghi piezo/VLF di esercitare lo stesso percorso VLF del modello PyTorch prima che maturino le etichette reali.
+* Diagnostica di transfer da inlier sintetici che addestra su descrittori piezo/VLF sintetici simili al reale e valuta la ricostruzione su descrittori VLF reali held-out.
+* Allineamento di descrittori VLF reali/sintetici misti con loss CORAL e controlli sintetici centroid/random/full.
+* Smoke forecast VLF reali senza etichette basati su anomalie, finché le etichette reali supervisionate restano bloccate.
 * Simulazione sandpile con uscite separate simili a eventi sismici e uscite analoghe piezo/VLF.
 
 Esegui il percorso predefinito di pretraining self-supervised su VLF reale con:
@@ -51,10 +54,28 @@ Esegui il percorso predefinito di pretraining self-supervised su VLF reale con:
 ./pretrain-real-vlf-self-supervised.sh
 ```
 
+Esegui lo smoke forecast VLF a 7 giorni, senza etichette, con:
+
+```sh
+./score-real-vlf-anomaly-forecast.sh
+```
+
 Confronta il dominio di embedding VLF reale con gli analoghi piezo/VLF sintetici con:
 
 ```sh
 ./compare-vlf-embedding-domains.sh
+```
+
+Esegui la diagnostica di transfer da inlier sintetici con:
+
+```sh
+./evaluate-vlf-synthetic-inlier-transfer.sh
+```
+
+Esegui la diagnostica di allineamento VLF mixed-domain con:
+
+```sh
+./evaluate-vlf-mixed-domain-alignment.sh
 ```
 
 ## Simulazione
