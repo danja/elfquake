@@ -124,6 +124,7 @@ This is a simplified stress-and-release analogy, not a geological model. Its val
 * [Documentation Index](docs/README.md)
 * [Processing Graph](docs/processing-graph.md)
 * [Next Actions](docs/next-actions.md)
+* [Forecast Interface](docs/forecast-interface.md)
 * [Development Environment](docs/development-environment.md)
 * [Source Inventory](docs/source-inventory.md)
 * [Multimodal Feasibility](docs/multimodal-feasibility.md)

@@ -3628,6 +3628,30 @@ class AcquisitionScaffoldTests(unittest.TestCase):
             self.assertEqual(report["event_count"], "1")
 
     @unittest.skipIf(importlib.util.find_spec("matplotlib") is None, "matplotlib not installed")
+    def test_render_event_map_accepts_trial_forecast_magnitude_proxy(self) -> None:
+        from elfquake.visualization.event_map import render_event_map
+
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            events = root / "trial.csv"
+            events.write_text(
+                "prediction_id,forecast_time_utc,latitude,longitude,magnitude_proxy,probability_proxy\n"
+                "trial_001,2026-07-08T00:00:00Z,42.5,13.1,3.2,0.8\n",
+                encoding="utf-8",
+            )
+
+            report = render_event_map(
+                events_csv=events,
+                out_path=root / "map.png",
+                metadata_out=root / "map.json",
+                min_magnitude=3.0,
+                basemap_geojson=None,
+            )
+
+            self.assertEqual((root / "map.png").read_bytes()[:8], b"\x89PNG\r\n\x1a\n")
+            self.assertEqual(report["event_count"], "1")
+
+    @unittest.skipIf(importlib.util.find_spec("matplotlib") is None, "matplotlib not installed")
     def test_render_prediction_event_map_writes_actual_and_predicted_layers(self) -> None:
         from elfquake.visualization.prediction_map import render_prediction_event_map
 

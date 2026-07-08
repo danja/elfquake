@@ -168,8 +168,9 @@ def _event_point(row: dict[str, str]) -> EventPoint | None:
         longitude = float(row.get("longitude", ""))
     except ValueError:
         return None
+    magnitude_value = row.get("magnitude", "") or row.get("magnitude_proxy", "") or "0"
     try:
-        magnitude = float(row.get("magnitude", "0") or "0")
+        magnitude = float(magnitude_value)
     except ValueError:
         magnitude = 0.0
     if not (math.isfinite(latitude) and math.isfinite(longitude) and math.isfinite(magnitude)):

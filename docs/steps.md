@@ -262,6 +262,10 @@ Generate a deterministic trial event-list forecast for the next week. It combine
 
 Run the default current-data `>M2` weekly trial forecast and write `data/derived/models/trial_forecast/mag_gt2_weekly_trial_forecast.json` plus `mag_gt2_weekly_trial_events.csv`. This is an end-to-end contract smoke test, not a validated prediction.
 
+### `trial-forecast-map.sh`
+
+Render the current trial forecast event CSV on the offline Italy basemap. Use this for visual inspection of generated coordinates and magnitude-sized markers.
+
 ### `compare-sequence-embedding-domains`
 
 Train a descriptor autoencoder on real VLF sequence windows, encode synthetic piezo/VLF windows through the same model, and write an embedding-domain diagnostic. This is a label-free shape comparison, not a prediction result.
