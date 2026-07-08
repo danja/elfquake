@@ -2069,8 +2069,12 @@ class AcquisitionScaffoldTests(unittest.TestCase):
             self.assertEqual(report["status"], "evaluated")
             self.assertEqual(report["real_window_count"], 6)
             self.assertEqual(report["synthetic_window_count"], 6)
+            self.assertEqual(report["descriptor_profile"], "shape")
             self.assertEqual(report["embedding_comparison"]["status"], "evaluated")
+            self.assertGreater(report["synthetic_inlier_count"], 0)
+            self.assertEqual(report["synthetic_inlier_embedding_comparison"]["status"], "evaluated")
             self.assertTrue(embeddings.exists())
+            self.assertIn("is_synthetic_inlier", embeddings.read_text(encoding="utf-8"))
 
     def test_synthetic_regime_annotation_can_drop_burn_in(self) -> None:
         with tempfile.TemporaryDirectory() as directory:

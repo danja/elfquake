@@ -29,10 +29,13 @@ PYTHONDONTWRITEBYTECODE=1 PYTHONPATH=src "$PYTHON_BIN" -m elfquake.cli compare-s
   --out "$OUT" \
   --real-modality "${REAL_MODALITY:-real_vlf_image}" \
   --synthetic-modality "${SYNTHETIC_MODALITY:-synthetic_piezo_vlf}" \
+  --descriptor-profile "${DESCRIPTOR_PROFILE:-shape}" \
   --lookback-steps "${LOOKBACK_STEPS:-24}" \
   --stride "${STRIDE:-1}" \
   --train-fraction "${TRAIN_FRACTION:-0.8}" \
   --mask-probability "${MASK_PROBABILITY:-0.15}" \
+  --clean-loss-weight "${CLEAN_LOSS_WEIGHT:-0.0}" \
+  --inlier-fraction "${INLIER_FRACTION:-0.25}" \
   --epochs "${EPOCHS:-30}" \
   --learning-rate "${LEARNING_RATE:-0.0003}" \
   --hidden-units "${HIDDEN_UNITS:-32}" \

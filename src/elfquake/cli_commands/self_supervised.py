@@ -17,10 +17,11 @@ def register_self_supervised_commands(subparsers: _SubParsersAction) -> None:
     sequence_autoencoder.add_argument("--stride", type=int, default=1)
     sequence_autoencoder.add_argument("--train-fraction", type=float, default=0.8)
     sequence_autoencoder.add_argument("--mask-probability", type=float, default=0.15)
-    sequence_autoencoder.add_argument("--epochs", type=int, default=40)
-    sequence_autoencoder.add_argument("--learning-rate", type=float, default=0.001)
-    sequence_autoencoder.add_argument("--hidden-units", type=int, default=64)
-    sequence_autoencoder.add_argument("--embedding-units", type=int, default=16)
+    sequence_autoencoder.add_argument("--clean-loss-weight", type=float, default=0.0)
+    sequence_autoencoder.add_argument("--epochs", type=int, default=30)
+    sequence_autoencoder.add_argument("--learning-rate", type=float, default=0.0003)
+    sequence_autoencoder.add_argument("--hidden-units", type=int, default=32)
+    sequence_autoencoder.add_argument("--embedding-units", type=int, default=8)
     sequence_autoencoder.add_argument("--batch-size", type=int, default=32)
     sequence_autoencoder.add_argument("--seed", type=int, default=42)
     sequence_autoencoder.add_argument("--no-missing-masks", action="store_true")
@@ -34,14 +35,17 @@ def register_self_supervised_commands(subparsers: _SubParsersAction) -> None:
     domain_compare.add_argument("--out", type=Path, required=True)
     domain_compare.add_argument("--real-modality", default="real_vlf_image")
     domain_compare.add_argument("--synthetic-modality", default="synthetic_piezo_vlf")
+    domain_compare.add_argument("--descriptor-profile", default="shape", choices=["shape", "full"])
     domain_compare.add_argument("--lookback-steps", type=int, default=24)
     domain_compare.add_argument("--stride", type=int, default=1)
     domain_compare.add_argument("--train-fraction", type=float, default=0.8)
     domain_compare.add_argument("--mask-probability", type=float, default=0.15)
-    domain_compare.add_argument("--epochs", type=int, default=40)
-    domain_compare.add_argument("--learning-rate", type=float, default=0.001)
-    domain_compare.add_argument("--hidden-units", type=int, default=64)
-    domain_compare.add_argument("--embedding-units", type=int, default=16)
+    domain_compare.add_argument("--clean-loss-weight", type=float, default=0.0)
+    domain_compare.add_argument("--inlier-fraction", type=float, default=0.25)
+    domain_compare.add_argument("--epochs", type=int, default=30)
+    domain_compare.add_argument("--learning-rate", type=float, default=0.0003)
+    domain_compare.add_argument("--hidden-units", type=int, default=32)
+    domain_compare.add_argument("--embedding-units", type=int, default=8)
     domain_compare.add_argument("--batch-size", type=int, default=32)
     domain_compare.add_argument("--seed", type=int, default=42)
     domain_compare.add_argument("--no-missing-masks", action="store_true")
@@ -58,6 +62,8 @@ def _pretrain_sequence_autoencoder(args: Namespace) -> int:
         stride=args.stride,
         train_fraction=args.train_fraction,
         mask_probability=args.mask_probability,
+        clean_loss_weight=args.clean_loss_weight,
+        inlier_fraction=args.inlier_fraction,
         epochs=args.epochs,
         learning_rate=args.learning_rate,
         hidden_units=args.hidden_units,
@@ -85,10 +91,12 @@ def _compare_sequence_embedding_domains(args: Namespace) -> int:
         out_path=args.out,
         real_modality=args.real_modality,
         synthetic_modality=args.synthetic_modality,
+        descriptor_profile=args.descriptor_profile,
         lookback_steps=args.lookback_steps,
         stride=args.stride,
         train_fraction=args.train_fraction,
         mask_probability=args.mask_probability,
+        clean_loss_weight=args.clean_loss_weight,
         epochs=args.epochs,
         learning_rate=args.learning_rate,
         hidden_units=args.hidden_units,

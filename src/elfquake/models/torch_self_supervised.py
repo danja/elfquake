@@ -20,6 +20,7 @@ def pretrain_sequence_autoencoder(
     stride: int = 1,
     train_fraction: float = 0.8,
     mask_probability: float = 0.15,
+    clean_loss_weight: float = 0.0,
     epochs: int = 40,
     learning_rate: float = 0.001,
     hidden_units: int = 64,
@@ -38,6 +39,8 @@ def pretrain_sequence_autoencoder(
         raise ValueError("train_fraction must be between 0 and 1")
     if not 0 <= mask_probability < 1:
         raise ValueError("mask_probability must be in [0, 1)")
+    if clean_loss_weight < 0:
+        raise ValueError("clean_loss_weight must be non-negative")
     if hidden_units < 1 or embedding_units < 1:
         raise ValueError("hidden_units and embedding_units must be at least 1")
 
@@ -54,6 +57,7 @@ def pretrain_sequence_autoencoder(
         stride=stride,
         train_fraction=train_fraction,
         mask_probability=mask_probability,
+        clean_loss_weight=clean_loss_weight,
         epochs=epochs,
         learning_rate=learning_rate,
         hidden_units=hidden_units,
@@ -80,6 +84,7 @@ def pretrain_sequence_autoencoder(
         all_windows=windows,
         lookback_steps=lookback_steps,
         mask_probability=mask_probability,
+        clean_loss_weight=clean_loss_weight,
         epochs=epochs,
         learning_rate=learning_rate,
         hidden_units=hidden_units,
@@ -102,10 +107,13 @@ def compare_sequence_embedding_domains(
     out_path: Path,
     real_modality: str = "real_vlf_image",
     synthetic_modality: str = "synthetic_piezo_vlf",
+    descriptor_profile: str = "shape",
     lookback_steps: int = 24,
     stride: int = 1,
     train_fraction: float = 0.8,
     mask_probability: float = 0.15,
+    clean_loss_weight: float = 0.0,
+    inlier_fraction: float = 0.25,
     epochs: int = 40,
     learning_rate: float = 0.001,
     hidden_units: int = 64,
@@ -128,9 +136,10 @@ def compare_sequence_embedding_domains(
     if not synthetic_datasets:
         raise ValueError(f"no synthetic sequence datasets found for modality {synthetic_modality}")
 
-    real_descriptors = _descriptor_windows(real_dataset, lookback_steps=lookback_steps, stride=stride)
+    descriptor_names = _descriptor_names(descriptor_profile)
+    real_descriptors = _descriptor_windows(real_dataset, lookback_steps=lookback_steps, stride=stride, descriptor_profile=descriptor_profile)
     synthetic_descriptors_by_dataset = {
-        dataset.dataset_id: _descriptor_windows(dataset, lookback_steps=lookback_steps, stride=stride)
+        dataset.dataset_id: _descriptor_windows(dataset, lookback_steps=lookback_steps, stride=stride, descriptor_profile=descriptor_profile)
         for dataset in synthetic_datasets
     }
     synthetic_descriptors = [
@@ -146,12 +155,15 @@ def compare_sequence_embedding_domains(
         "synthetic_sequence_manifests": [str(path) for path in synthetic_sequence_manifest_paths],
         "real_modality": real_modality,
         "synthetic_modality": synthetic_modality,
+        "descriptor_profile": descriptor_profile,
         "real_dataset_id": real_dataset.dataset_id,
         "synthetic_dataset_ids": [dataset.dataset_id for dataset in synthetic_datasets],
         "lookback_steps": lookback_steps,
         "stride": stride,
         "train_fraction": train_fraction,
         "mask_probability": mask_probability,
+        "clean_loss_weight": clean_loss_weight,
+        "inlier_fraction": inlier_fraction,
         "epochs": epochs,
         "learning_rate": learning_rate,
         "hidden_units": hidden_units,
@@ -159,7 +171,7 @@ def compare_sequence_embedding_domains(
         "batch_size": batch_size,
         "seed": seed,
         "include_missing_masks": include_missing_masks,
-        "descriptor_names": _descriptor_names(),
+        "descriptor_names": descriptor_names,
         "real_window_count": len(real_descriptors),
         "synthetic_window_count": len(synthetic_descriptors),
         "embeddings_out": str(embeddings_out) if embeddings_out else "",
@@ -173,6 +185,8 @@ def compare_sequence_embedding_domains(
         synthetic_descriptors_by_dataset=synthetic_descriptors_by_dataset,
         train_fraction=train_fraction,
         mask_probability=mask_probability,
+        clean_loss_weight=clean_loss_weight,
+        inlier_fraction=inlier_fraction,
         epochs=epochs,
         learning_rate=learning_rate,
         hidden_units=hidden_units,
@@ -210,8 +224,8 @@ def _window_values(
     return windows
 
 
-def _descriptor_names() -> list[str]:
-    return [
+def _descriptor_names(descriptor_profile: str) -> list[str]:
+    names = [
         "global_mean",
         "global_std",
         "global_min",
@@ -231,6 +245,22 @@ def _descriptor_names() -> list[str]:
         "feature_std_mean",
         "feature_std_std",
     ]
+    if descriptor_profile == "full":
+        return names
+    if descriptor_profile == "shape":
+        return [
+            "global_std",
+            "global_iqr",
+            "global_robust_range",
+            "step_mean_std",
+            "step_diff_mean",
+            "step_diff_std",
+            "step_diff_max_abs",
+            "feature_mean_std",
+            "feature_std_mean",
+            "feature_std_std",
+        ]
+    raise ValueError(f"unknown descriptor profile: {descriptor_profile}")
 
 
 def _descriptor_windows(
@@ -238,11 +268,12 @@ def _descriptor_windows(
     *,
     lookback_steps: int,
     stride: int,
+    descriptor_profile: str,
 ) -> list[list[float]]:
     values = _standardize_value_rows(dataset.values)
     descriptors = []
     for window in _window_values(values, lookback_steps=lookback_steps, stride=stride):
-        descriptors.append(_window_descriptor(window))
+        descriptors.append(_window_descriptor(window, descriptor_profile=descriptor_profile))
     return descriptors
 
 
@@ -261,7 +292,7 @@ def _standardize_value_rows(values: list[list[float]]) -> list[list[float]]:
     return [[(value - means[index]) / stds[index] for index, value in enumerate(row)] for row in values]
 
 
-def _window_descriptor(window: list[list[float]]) -> list[float]:
+def _window_descriptor(window: list[list[float]], *, descriptor_profile: str) -> list[float]:
     flattened = [value for row in window for value in row]
     step_means = [sum(row) / len(row) if row else 0.0 for row in window]
     step_diffs = [step_means[index] - step_means[index - 1] for index in range(1, len(step_means))]
@@ -269,7 +300,7 @@ def _window_descriptor(window: list[list[float]]) -> list[float]:
     feature_means = [sum(column) / len(column) for column in feature_columns]
     feature_stds = [_std(list(column), mean=sum(column) / len(column)) for column in feature_columns]
     global_mean = sum(flattened) / len(flattened) if flattened else 0.0
-    return [
+    full = [
         global_mean,
         _std(flattened, mean=global_mean),
         min(flattened) if flattened else 0.0,
@@ -289,6 +320,22 @@ def _window_descriptor(window: list[list[float]]) -> list[float]:
         sum(feature_stds) / len(feature_stds) if feature_stds else 0.0,
         _std(feature_stds, mean=sum(feature_stds) / len(feature_stds)) if feature_stds else 0.0,
     ]
+    if descriptor_profile == "full":
+        return full
+    if descriptor_profile == "shape":
+        return [
+            full[1],
+            full[7] - full[5],
+            full[8] - full[4],
+            full[9],
+            full[12],
+            full[13],
+            full[14],
+            full[15],
+            full[16],
+            full[17],
+        ]
+    raise ValueError(f"unknown descriptor profile: {descriptor_profile}")
 
 
 def _quantile(values: list[float], fraction: float) -> float:
@@ -316,6 +363,7 @@ def _base_report(
     stride: int,
     train_fraction: float,
     mask_probability: float,
+    clean_loss_weight: float,
     epochs: int,
     learning_rate: float,
     hidden_units: int,
@@ -341,6 +389,7 @@ def _base_report(
         "stride": stride,
         "train_fraction": train_fraction,
         "mask_probability": mask_probability,
+        "clean_loss_weight": clean_loss_weight,
         "epochs": epochs,
         "learning_rate": learning_rate,
         "hidden_units": hidden_units,
@@ -362,6 +411,7 @@ def _fit_autoencoder(
     all_windows: list[list[list[float]]],
     lookback_steps: int,
     mask_probability: float,
+    clean_loss_weight: float,
     epochs: int,
     learning_rate: float,
     hidden_units: int,
@@ -398,6 +448,8 @@ def _fit_autoencoder(
             optimizer.zero_grad()
             reconstruction = model(masked)
             loss = _masked_mse(reconstruction, batch, mask, torch=torch)
+            if clean_loss_weight:
+                loss = loss + clean_loss_weight * torch.nn.functional.mse_loss(model(batch), batch)
             loss.backward()
             optimizer.step()
             epoch_loss += float(loss.item()) * len(indices)
@@ -443,6 +495,8 @@ def _fit_descriptor_domain_autoencoder(
     synthetic_descriptors_by_dataset: dict[str, list[list[float]]],
     train_fraction: float,
     mask_probability: float,
+    clean_loss_weight: float,
+    inlier_fraction: float,
     epochs: int,
     learning_rate: float,
     hidden_units: int,
@@ -484,6 +538,8 @@ def _fit_descriptor_domain_autoencoder(
             optimizer.zero_grad()
             reconstruction = model(masked)
             loss = _masked_mse(reconstruction, batch, mask, torch=torch)
+            if clean_loss_weight:
+                loss = loss + clean_loss_weight * torch.nn.functional.mse_loss(model(batch), batch)
             loss.backward()
             optimizer.step()
             epoch_loss += float(loss.item()) * len(indices)
@@ -498,6 +554,12 @@ def _fit_descriptor_domain_autoencoder(
         real_train_embeddings = model.encode(real_train)
         real_test_embeddings = model.encode(real_test)
         synthetic_embeddings = model.encode(synthetic)
+    synthetic_inlier_indices = _synthetic_inlier_indices(
+        synthetic_descriptors=synthetic.tolist(),
+        real_descriptors=real_train.tolist(),
+        fraction=inlier_fraction,
+    )
+    synthetic_inlier_embeddings = [synthetic_embeddings[index].tolist() for index in synthetic_inlier_indices]
     if embeddings_out:
         _write_domain_embeddings(
             embeddings_out,
@@ -505,6 +567,7 @@ def _fit_descriptor_domain_autoencoder(
             real_test_embeddings=real_test_embeddings.tolist(),
             synthetic_embeddings=synthetic_embeddings.tolist(),
             synthetic_rows=synthetic_rows,
+            synthetic_inlier_indices=set(synthetic_inlier_indices),
         )
     return {
         "train_window_count": len(real_train),
@@ -519,6 +582,12 @@ def _fit_descriptor_domain_autoencoder(
             real_embeddings=real_test_embeddings.tolist(),
             synthetic_embeddings=synthetic_embeddings.tolist(),
         ),
+        "synthetic_inlier_embedding_comparison": _embedding_comparison(
+            real_embeddings=real_test_embeddings.tolist(),
+            synthetic_embeddings=synthetic_inlier_embeddings,
+        ),
+        "synthetic_inlier_count": len(synthetic_inlier_indices),
+        "synthetic_inlier_fraction": inlier_fraction,
         "descriptor_standardization_mean": _rounded_vector(mean.tolist()),
         "descriptor_standardization_std": _rounded_vector(std.tolist()),
     }
@@ -675,29 +744,51 @@ def _write_domain_embeddings(
     real_test_embeddings: list[list[float]],
     synthetic_embeddings: list[list[float]],
     synthetic_rows: list[tuple[str, int, list[float]]],
+    synthetic_inlier_indices: set[int],
 ) -> None:
     out_path.parent.mkdir(parents=True, exist_ok=True)
     embedding_count = len(real_train_embeddings[0]) if real_train_embeddings else len(synthetic_embeddings[0]) if synthetic_embeddings else 0
-    fieldnames = ["source", "dataset_id", "window_index", "split"] + [f"embedding_{index}" for index in range(embedding_count)]
+    fieldnames = ["source", "dataset_id", "window_index", "split", "is_synthetic_inlier"] + [f"embedding_{index}" for index in range(embedding_count)]
     with out_path.open("w", newline="", encoding="utf-8") as handle:
         writer = csv.DictWriter(handle, fieldnames=fieldnames)
         writer.writeheader()
         for index, row in enumerate(real_train_embeddings):
-            writer.writerow(_embedding_row("real", "real_train", index, "train", row))
+            writer.writerow(_embedding_row("real", "real_train", index, "train", row, is_synthetic_inlier=False))
         for index, row in enumerate(real_test_embeddings):
-            writer.writerow(_embedding_row("real", "real_test", index, "test", row))
-        for embedding, (dataset_id, window_index, _) in zip(synthetic_embeddings, synthetic_rows):
-            writer.writerow(_embedding_row("synthetic", dataset_id, window_index, "synthetic", embedding))
+            writer.writerow(_embedding_row("real", "real_test", index, "test", row, is_synthetic_inlier=False))
+        for index, (embedding, (dataset_id, window_index, _)) in enumerate(zip(synthetic_embeddings, synthetic_rows)):
+            writer.writerow(_embedding_row("synthetic", dataset_id, window_index, "synthetic", embedding, is_synthetic_inlier=index in synthetic_inlier_indices))
 
 
-def _embedding_row(source: str, dataset_id: str, window_index: int, split: str, embedding: list[float]) -> dict[str, str | int]:
+def _embedding_row(source: str, dataset_id: str, window_index: int, split: str, embedding: list[float], *, is_synthetic_inlier: bool) -> dict[str, str | int]:
     return {
         "source": source,
         "dataset_id": dataset_id,
         "window_index": window_index,
         "split": split,
+        "is_synthetic_inlier": "1" if is_synthetic_inlier else "0",
         **{f"embedding_{index}": f"{value:.9f}" for index, value in enumerate(embedding)},
     }
+
+
+def _synthetic_inlier_indices(
+    *,
+    synthetic_descriptors: list[list[float]],
+    real_descriptors: list[list[float]],
+    fraction: float,
+) -> list[int]:
+    if not synthetic_descriptors or not real_descriptors:
+        return []
+    fraction = min(1.0, max(0.0, fraction))
+    if fraction == 0:
+        return []
+    real_centroid = _centroid(real_descriptors)
+    distances = [
+        (index, _euclidean(descriptor, real_centroid))
+        for index, descriptor in enumerate(synthetic_descriptors)
+    ]
+    keep_count = max(1, int(round(len(distances) * fraction)))
+    return [index for index, _ in sorted(distances, key=lambda item: item[1])[:keep_count]]
 
 
 def _embedding_comparison(

@@ -119,11 +119,13 @@ Current implementation:
 * Current checkpoint: `data/derived/models/self_supervised/real_vlf_image_autoencoder.pt`.
 * Current embeddings: `data/derived/models/self_supervised/real_vlf_image_embeddings.csv`.
 * Tuned smoke run used 247 real VLF rows, 224 windows, and a chronological 179/45 train/test split. Test masked MSE was `0.835488` against a zero baseline of `1.074356`.
-* `compare-vlf-embedding-domains.sh` trains a descriptor autoencoder on real VLF windows and encodes synthetic piezo/VLF windows through that same model.
+* `compare-vlf-embedding-domains.sh` trains a shape-descriptor autoencoder on real VLF windows and encodes synthetic piezo/VLF windows through that same model.
 * Current domain diagnostic: `data/derived/models/self_supervised/real_vlf_vs_synthetic_piezo_embedding_domain.json`.
-* Tuned domain diagnostic used 224 real VLF windows and 59,931 synthetic piezo/VLF windows. The synthetic centroid distance was `0.905680`; the synthetic-to-real nearest mean distance was `2.508815`.
+* Tuned shape-profile diagnostic used 224 real VLF windows and 59,931 synthetic piezo/VLF windows. The synthetic centroid distance was `1.291640`; the synthetic-to-real nearest mean distance was `1.846295`.
+* The diagnostic now marks the closest 25% synthetic descriptor windows as `is_synthetic_inlier` in `real_vlf_vs_synthetic_piezo_embeddings.csv`.
+* Current inlier subset: 14,983 synthetic windows, nearest mean distance `1.162097`, scale mean absolute delta `0.057490`.
 
-Interpret the tuned domain diagnostic as a baseline to continue improving. Held-out real masked reconstruction now beats the zero baseline, but the margin is small and the synthetic reconstruction still lags the zero baseline on full MSE, so the descriptor encoder is not yet a transfer-quality model.
+Interpret the tuned domain diagnostic as a baseline to continue improving. Held-out real masked reconstruction now beats the zero baseline by a clearer margin, and synthetic masked reconstruction also edges its zero baseline. The full synthetic domain is still too broad, but the inlier subset is much closer in scale to held-out real VLF embeddings.
 
 Next use of these embeddings should be descriptor tuning, longer self-supervised runs, and later supervised fine-tuning once target labels contain both classes.
 
