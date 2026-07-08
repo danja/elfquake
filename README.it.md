@@ -11,7 +11,7 @@ Vogliamo sfruttare tecniche più moderne di machine learning/AI per creare un mo
 
 ## Stato
 
-Stato: il pretraining self-supervised su VLF reale è ora il percorso modello predefinito, mentre l’addestramento supervisionato sui target VLF reali resta bloccato da etichette di una sola classe; **non si rivendica alcuna capacità di previsione dei terremoti**.
+Stato: uno smoke test end-to-end debole ora emette coordinate di eventi `>M2` per la prossima settimana usando artefatti reali e sintetici correnti; **non si rivendica alcuna capacità di previsione dei terremoti**.
 
 In questo momento, in attesa di ulteriori etichette VLF allineate, il focus è sull’apprendimento di rappresentazioni VLF reali senza etichette, sulle baseline sismiche reali, sulla diagnostica dei regimi sintetici e sul mantenimento stabile dell’interfaccia multimodale del modello. La valutazione del modello corrente si trova in [report.md](docs/report.md), [model-comparison.md](docs/model-comparison.md) e [model-scaling-requirements.md](docs/model-scaling-requirements.md).
 
@@ -46,6 +46,7 @@ Questo lavoro è stato inizialmente ispirato dalla tragedia del terremoto dell�
 * Diagnostica di transfer da inlier sintetici che addestra su descrittori piezo/VLF sintetici simili al reale e valuta la ricostruzione su descrittori VLF reali held-out.
 * Allineamento di descrittori VLF reali/sintetici misti con loss CORAL e controlli sintetici centroid/random/full.
 * Smoke forecast VLF reali senza etichette basati su anomalie, finché le etichette reali supervisionate restano bloccate.
+* Uno smoke forecast settimanale deterministico che combina tassi/posizioni storiche INGV, contesto VLF reale, contesto astronomico e prior spaziali sintetici da avalanga in un contratto CSV/JSON pronto per il downstream.
 * Simulazione sandpile con uscite separate simili a eventi sismici e uscite analoghe piezo/VLF.
 
 Esegui il percorso predefinito di pretraining self-supervised su VLF reale con:
@@ -58,6 +59,12 @@ Esegui lo smoke forecast VLF a 7 giorni, senza etichette, con:
 
 ```sh
 ./score-real-vlf-anomaly-forecast.sh
+```
+
+Esegui lo smoke forecast end-to-end settimanale `>M2` con lista eventi:
+
+```sh
+./trial-weekly-event-forecast.sh
 ```
 
 Confronta il dominio di embedding VLF reale con gli analoghi piezo/VLF sintetici con:

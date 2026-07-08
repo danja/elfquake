@@ -3,10 +3,10 @@
 ## Immediate Order
 
 1. Keep self-supervised real VLF pretraining as the default modeling path while supervised labels are blocked.
-2. Include the label-free real VLF anomaly forecast as the current end-to-end smoke output while supervised real labels are blocked.
-3. Tune piezo/VLF transforms toward improving both embedding distance and held-out real reconstruction; the first burst/high-pass sweep improved distance but worsened reconstruction.
-4. Keep refreshing prospective INGV labels and real VLF-aligned rows until both classes exist.
-5. Run the real deep patch Transformer fine-tune wrapper after each label refresh; it should train only when readiness reaches both classes.
+2. Treat `trial-weekly-event-forecast.sh` as the current end-to-end event-list contract smoke test, not as a validated predictor.
+3. Replace the trial forecast count/location heuristics with a swappable learned scorer trained first on synthetic aligned rows and calibrated against historical INGV rates.
+4. Add a trial forecast map overlay showing current generated event coordinates over Italy for inspection.
+5. Keep refreshing prospective INGV labels and real VLF-aligned rows until both classes exist, then compare learned multimodal forecasts against the trial baseline.
 
 ## Simulation
 
@@ -50,6 +50,7 @@
 * Add `pretrain-sequence-autoencoder` and `pretrain-real-vlf-self-supervised.sh` for CPU masked sequence autoencoder pretraining.
 * Run the first real Cumiana VLF self-supervised smoke: 247 rows, 224 windows, test masked MSE `0.835488` versus zero baseline `1.074356`.
 * Add and run `score-real-vlf-anomaly-forecast.sh`; current label-free 7-day smoke forecast has demo probability `0.952514` for `2026-07-06T06:50:50Z` to `2026-07-13T06:50:50Z`.
+* Add and run `trial-weekly-event-forecast.sh`; the current `2026-07-08` trial emits 25 capped `>M2` event-coordinate rows for `2026-07-08` to `2026-07-15`, using INGV history, real VLF context, astronomy captures, and synthetic avalanche artifacts.
 * Switch `compare-vlf-embedding-domains.sh` to shape-profile descriptors; held-out real masked reconstruction now beats baseline by about `6.8%`, and synthetic masked reconstruction also edges baseline.
 * Add synthetic VLF inlier marking to the embedding-domain diagnostic; the current 25% inlier subset keeps 14,983 windows and sharply reduces embedding scale mismatch.
 * Add and run `evaluate-vlf-synthetic-inlier-transfer.sh`; synthetic-inlier pretraining reconstructs held-out real VLF descriptors better than the zero baseline, but transfer embedding centroids remain far apart.

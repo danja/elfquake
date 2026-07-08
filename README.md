@@ -13,7 +13,7 @@ We wish to exploit more modern machine learning/AI techniques to create a predic
 
 ## Status
 
-Status: self-supervised real VLF pretraining is now the default model path while supervised real VLF target training remains blocked by one-class labels; **no earthquake prediction capability is claimed**.
+Status: a weak end-to-end trial forecast now emits next-week `>M2` event coordinates from current real and synthetic artifacts; **no earthquake prediction capability is claimed**.
 
 Right now, while awaiting further VLF-aligned labels, the focus is on label-free real VLF representation learning, real seismic baselines, synthetic regime diagnostics, and keeping the multimodal model interface stable. Evaluation of the current model can be found in [report.md](docs/report.md), [model-comparison.md](docs/model-comparison.md), and [model-scaling-requirements.md](docs/model-scaling-requirements.md).
 
@@ -49,6 +49,7 @@ This work was initially prompted by the tragedy of the [2009 L'Aquila earthquake
 * Synthetic-inlier transfer diagnostics that train on real-like synthetic piezo/VLF descriptors and evaluate reconstruction against held-out real VLF descriptors.
 * Mixed real/synthetic VLF descriptor alignment with CORAL loss and centroid/random/full synthetic controls.
 * Label-free real VLF anomaly smoke forecasts while supervised real labels remain blocked.
+* A deterministic trial weekly event-list forecast that combines historical INGV rates/locations, real VLF context, astronomy context, and synthetic avalanche spatial priors into a downstream-ready CSV/JSON contract.
 * Sandpile simulation with separate seismic-like avalanche outputs and piezo/VLF analogue outputs.
 
 Run the default label-free real VLF pretraining path with:
@@ -61,6 +62,12 @@ Run the current label-free 7-day VLF anomaly smoke forecast with:
 
 ```sh
 ./score-real-vlf-anomaly-forecast.sh
+```
+
+Run the current end-to-end trial `>M2` weekly event-list forecast with:
+
+```sh
+./trial-weekly-event-forecast.sh
 ```
 
 Compare the current real VLF embedding domain against synthetic piezo/VLF analogues with:

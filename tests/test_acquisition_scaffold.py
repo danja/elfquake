@@ -3,6 +3,7 @@ from __future__ import annotations
 import json
 import io
 import importlib.util
+import csv
 import tempfile
 import unittest
 from datetime import datetime, timezone
@@ -81,6 +82,7 @@ from elfquake.models.torch_self_supervised import (
     score_sequence_anomalies,
 )
 from elfquake.models.torch_tabular import evaluate_torch_tabular_group_holdout, evaluate_torch_tabular_holdout
+from elfquake.models.trial_forecast import generate_trial_weekly_event_forecast
 from elfquake.models.window_adapter import build_event_window_features
 from elfquake.normalize.events import combine_normalized_events
 from elfquake.http import HttpCapture
@@ -249,6 +251,64 @@ class AcquisitionScaffoldTests(unittest.TestCase):
 
             self.assertEqual(nested["report_count"], 2)
             self.assertEqual(nested["best_calibrated_balanced_accuracy"]["test_group"], "seed42")
+
+    def test_trial_weekly_event_forecast_writes_event_coordinates(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            real_events = root / "real_events.csv"
+            real_events.write_text(
+                "event_id,source,event_time_utc,latitude,longitude,depth_km,magnitude,magnitude_type,italy_region,event_location_name,event_type,raw_file,ingested_at_utc,raw_uri\n"
+                "r1,ingv,2026-01-01T00:00:00Z,42.5,13.2,8,2.4,ML,central_italy,fixture,earthquake,,,\n"
+                "r2,ingv,2026-01-03T00:00:00Z,43.0,12.5,8,2.0,ML,central_italy,fixture,earthquake,,,\n"
+                "r3,ingv,2026-01-08T00:00:00Z,45.0,10.5,8,2.7,ML,unknown,fixture,earthquake,,,\n",
+                encoding="utf-8",
+            )
+            synthetic = root / "fixture.synthetic_events.csv"
+            synthetic.write_text(
+                "event_id,source,event_time_utc,latitude,longitude,depth_km,magnitude,magnitude_type,italy_region,event_location_name,event_type,raw_file,ingested_at_utc,raw_uri\n"
+                "s1,synthetic,2026-01-01T00:00:00Z,42.3,13.7,10,2.6,MLs,central_italy,fixture,earthquake,,,\n",
+                encoding="utf-8",
+            )
+            vlf_window = root / "vlf.csv"
+            vlf_window.write_text(
+                "window_end_utc,vlf_capture_count,real_vlf_image_vlf_intensity_mean_mean,quality_missing_vlf\n"
+                "2026-01-09T00:00:00Z,3,0.4,0\n",
+                encoding="utf-8",
+            )
+            anomaly = root / "anomaly.json"
+            anomaly.write_text(
+                json.dumps({"forecast": {"demo_probability": 0.8, "forecast_start_utc": "2026-01-09T00:00:00Z"}}),
+                encoding="utf-8",
+            )
+            astronomy = root / "astronomy.json"
+            astronomy.write_text(
+                json.dumps([{"time-tag": "2026-01", "f10.7": 100.0}, {"time-tag": "2026-02", "f10.7": 140.0}]),
+                encoding="utf-8",
+            )
+            report_path = root / "forecast.json"
+            events_out = root / "events.csv"
+
+            report = generate_trial_weekly_event_forecast(
+                real_events_csv=real_events,
+                out_path=report_path,
+                events_out_path=events_out,
+                as_of_utc="2026-01-10T00:00:00Z",
+                max_events=5,
+                seed=7,
+                synthetic_event_globs=[str(synthetic)],
+                vlf_window_csvs=[vlf_window],
+                vlf_anomaly_report=anomaly,
+                astronomy_globs=[str(astronomy)],
+            )
+
+            self.assertEqual(report["status"], "trial_run")
+            self.assertGreaterEqual(report["predicted_event_count"], 1)
+            with events_out.open(newline="", encoding="utf-8") as handle:
+                rows = list(csv.DictReader(handle))
+            self.assertEqual(len(rows), report["predicted_event_count"])
+            self.assertIn("latitude", rows[0])
+            self.assertIn("longitude", rows[0])
+            self.assertGreater(float(rows[0]["magnitude_proxy"]), 2.0)
 
     def test_sequence_comparison_diagnostic_reads_full_reports(self) -> None:
         with tempfile.TemporaryDirectory() as directory:

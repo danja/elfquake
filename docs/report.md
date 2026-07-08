@@ -4,7 +4,7 @@ Date: 2026-07-08
 
 ## Overview
 
-ELFQuake is currently a feasibility pipeline, not an earthquake prediction system. The project can collect Italy-scoped INGV seismic events, Cumiana VLF spectrogram images, and astronomy/space-weather context; it can also generate synthetic seismic-like and VLF-like signals from an avalanche simulation. Historical seismic-only backfill now covers 2024-2026 and gives usable smoke baselines. Supervised real VLF target training remains blocked because the matured prospective VLF rows still contain only one target class per table, so the default modeling path is now self-supervised real VLF pretraining.
+ELFQuake is currently a feasibility pipeline, not an earthquake prediction system. The project can collect Italy-scoped INGV seismic events, Cumiana VLF spectrogram images, and astronomy/space-weather context; it can also generate synthetic seismic-like and VLF-like signals from an avalanche simulation. Historical seismic-only backfill now covers 2024-2026 and gives usable smoke baselines. Supervised real VLF target training remains blocked because the matured prospective VLF rows still contain only one target class per table, so the default modeling path is self-supervised real VLF pretraining plus a weak end-to-end trial forecast artifact that establishes the downstream event-list shape.
 
 ## Scope
 
@@ -82,6 +82,8 @@ Output files:
 * `data/derived/models/self_supervised/real_vlf_image_embeddings.csv`
 * `data/derived/models/self_supervised/real_vlf_vs_synthetic_piezo_embedding_domain.json`
 * `data/derived/models/self_supervised/real_vlf_vs_synthetic_piezo_embeddings.csv`
+* `data/derived/models/trial_forecast/mag_gt2_weekly_trial_forecast.json`
+* `data/derived/models/trial_forecast/mag_gt2_weekly_trial_events.csv`
 * `data/derived/models/missing_modality/missing_modality_seed42_summary.json`
 * `data/derived/models/sequence_modality_diagnostic.json`
 * `data/derived/models/all_italy.ingv_backfill_seismic_windows.temporal_holdout.json`
@@ -120,6 +122,7 @@ Synthetic-model status:
 * A synthetic-inlier transfer diagnostic now trains the masked descriptor autoencoder only on those 14,983 synthetic windows and evaluates on held-out real VLF descriptors. Held-out real masked reconstruction MSE is `0.688280` versus a zero baseline of `0.759011`, but the transfer embedding centroid distance remains high at `4.281796`.
 * A mixed-domain alignment diagnostic now trains on real VLF plus 14,983 locally selected synthetic piezo/VLF windows with a CORAL embedding-alignment penalty. Held-out real masked reconstruction improves to `0.294475` versus a zero baseline of `0.588513`, and held-out embedding centroid distance improves to `1.033580`.
 * Mixed-domain controls remain important: centroid-inlier selection scored `1.011474`, random synthetic selection `1.142438`, and capped full-synthetic selection `1.617345` on held-out centroid distance. This means alignment training is useful, but the local inlier criterion is not yet clearly superior to centroid selection.
+* A first end-to-end trial weekly event-list forecast now combines current INGV history, VLF context, astronomy captures, and synthetic avalanche event artifacts. The `2026-07-08T00:00:00Z` run for the following week produced 25 capped `>M2` coordinate rows, with an uncapped expected count proxy of `33.411669`; this is a contract smoke test and not a validated prediction.
 * A short piezo/VLF transform sweep added deterministic high-pass, burst, near-threshold, release-mix, and sensor-gain variants. The best transformed variant, `gain_burst`, improved short-run held-out embedding centroid distance to `1.757251` versus `1.841903` for the current signal, but worsened held-out masked reconstruction to `0.318687` versus `0.281600`.
 * Refreshed missing-modality seed-42 checks give `0.632445` calibrated balanced accuracy for piezo/VLF-only and `0.722257` for direct-avalanche-only.
 * Refreshed sequence modality diagnostics still rank direct-avalanche-only highest on grouped synthetic checks (`0.8359` calibrated balanced accuracy), so direct seismic-like and piezo/VLF-like channels should remain separate.

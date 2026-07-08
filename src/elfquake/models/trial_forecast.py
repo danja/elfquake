@@ -12,6 +12,7 @@ import glob
 import json
 import math
 import random
+import re
 from collections import defaultdict
 from dataclasses import dataclass
 from datetime import timedelta
@@ -504,9 +505,10 @@ def _quantile(values: list[float], fraction: float) -> float:
 
 
 def _path_capture_time(path: Path) -> str:
-    for part in reversed(path.stem.split("_")):
-        if "T" in part and part.endswith("Z"):
-            return part.replace("-", ":")
+    match = re.search(r"(\d{4}-\d{2}-\d{2}T\d{2}-\d{2}-\d{2}Z)", path.name)
+    if match:
+        date_part, time_part = match.group(1).split("T", 1)
+        return f"{date_part}T{time_part.replace('-', ':')}"
     return ""
 
 

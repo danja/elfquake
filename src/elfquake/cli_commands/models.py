@@ -23,6 +23,7 @@ from elfquake.models.synthetic_regimes import annotate_synthetic_regimes, assign
 from elfquake.models.tensor_materializer import materialize_tensor_dataset
 from elfquake.models.tensor_spec import build_tensor_spec
 from elfquake.models.temporal_holdout import evaluate_group_holdout, evaluate_temporal_holdout
+from elfquake.models.trial_forecast import generate_trial_weekly_event_forecast
 from elfquake.models.window_adapter import build_event_window_features
 
 
@@ -182,6 +183,22 @@ def register_model_commands(subparsers: _SubParsersAction) -> None:
     combine_aligned.add_argument("--dataset-id", action="append")
     combine_aligned.add_argument("--out", type=Path, required=True)
     combine_aligned.set_defaults(func=_combine_aligned_datasets)
+
+    trial_forecast = subparsers.add_parser("generate-trial-weekly-event-forecast")
+    trial_forecast.add_argument("--real-events", type=Path, required=True)
+    trial_forecast.add_argument("--out", type=Path, required=True)
+    trial_forecast.add_argument("--events-out", type=Path, required=True)
+    trial_forecast.add_argument("--as-of-utc", required=True)
+    trial_forecast.add_argument("--horizon-days", type=int, default=7)
+    trial_forecast.add_argument("--magnitude-threshold", type=float, default=2.0)
+    trial_forecast.add_argument("--max-events", type=int, default=25)
+    trial_forecast.add_argument("--seed", type=int, default=42)
+    trial_forecast.add_argument("--synthetic-event-glob", action="append", default=[])
+    trial_forecast.add_argument("--vlf-window", type=Path, action="append", default=[])
+    trial_forecast.add_argument("--vlf-anomaly-report", type=Path)
+    trial_forecast.add_argument("--vlf-audio-glob", action="append", default=[])
+    trial_forecast.add_argument("--astronomy-glob", action="append", default=[])
+    trial_forecast.set_defaults(func=_generate_trial_weekly_event_forecast)
 
 
 def _train_logistic_smoke(args: Namespace) -> int:
@@ -441,4 +458,29 @@ def _combine_aligned_datasets(args: Namespace) -> int:
     print(f"rows: {len(rows)}")
     print(f"datasets: {len(args.input)}")
     print(f"output: {args.out}")
+    return 0
+
+
+def _generate_trial_weekly_event_forecast(args: Namespace) -> int:
+    report = generate_trial_weekly_event_forecast(
+        real_events_csv=args.real_events,
+        out_path=args.out,
+        events_out_path=args.events_out,
+        as_of_utc=args.as_of_utc,
+        horizon_days=args.horizon_days,
+        magnitude_threshold=args.magnitude_threshold,
+        max_events=args.max_events,
+        seed=args.seed,
+        synthetic_event_globs=args.synthetic_event_glob or None,
+        vlf_window_csvs=args.vlf_window or None,
+        vlf_anomaly_report=args.vlf_anomaly_report,
+        vlf_audio_globs=args.vlf_audio_glob or None,
+        astronomy_globs=args.astronomy_glob or None,
+    )
+    print(f"status: {report['status']}")
+    print(f"predicted events: {report['predicted_event_count']}")
+    print(f"forecast start: {report['forecast_start_utc']}")
+    print(f"forecast end: {report['forecast_end_utc']}")
+    print(f"events output: {args.events_out}")
+    print(f"report: {args.out}")
     return 0
