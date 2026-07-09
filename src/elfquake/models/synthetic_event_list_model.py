@@ -46,6 +46,23 @@ DIAGNOSTIC_PREFIXES = (
     "synthetic_episode_group_count",
 )
 
+EVENT_SHAPE_TARGETS = [
+    "eventlist_target_log10_magnitude_energy",
+    "eventlist_target_event_rate_per_hour",
+    "eventlist_target_count_first_third",
+    "eventlist_target_count_middle_third",
+    "eventlist_target_count_final_third",
+    "eventlist_target_spatial_spread_km",
+    "eventlist_target_time_to_peak_event_seconds",
+    "eventlist_target_event_duration_seconds",
+]
+
+POSITIVE_ONLY_SHAPE_TARGETS = {
+    "eventlist_target_spatial_spread_km",
+    "eventlist_target_time_to_peak_event_seconds",
+    "eventlist_target_event_duration_seconds",
+}
+
 
 def train_synthetic_event_list_model(
     *,
@@ -59,17 +76,23 @@ def train_synthetic_event_list_model(
     l2: float = 0.001,
     seed: int = 42,
     max_feature_count: int = 0,
+    occurrence_model_type: str = "logistic_ensemble",
     occurrence_ensemble_count: int = 1,
     occurrence_feature_bag_fraction: float = 1.0,
+    occurrence_stump_count: int = 24,
 ) -> dict[str, object]:
     if not 0 < train_fraction < 1:
         raise ValueError("train_fraction must be between 0 and 1")
     if max_feature_count < 0:
         raise ValueError("max_feature_count must be non-negative")
+    if occurrence_model_type not in {"logistic_ensemble", "boosted_stumps"}:
+        raise ValueError("occurrence_model_type must be 'logistic_ensemble' or 'boosted_stumps'")
     if occurrence_ensemble_count < 1:
         raise ValueError("occurrence_ensemble_count must be at least 1")
     if not 0 < occurrence_feature_bag_fraction <= 1:
         raise ValueError("occurrence_feature_bag_fraction must be in (0, 1]")
+    if occurrence_stump_count < 1:
+        raise ValueError("occurrence_stump_count must be at least 1")
 
     rows = _read_labeled_rows(input_csv)
     if len(rows) < 4:
@@ -109,15 +132,17 @@ def train_synthetic_event_list_model(
     x_train = [_standardize(row, means=means, scales=scales) for row in train_matrix]
     x_test = [_standardize(row, means=means, scales=scales) for row in test_matrix]
 
-    occurrence_model = _fit_occurrence_ensemble(
+    occurrence_model = _fit_occurrence_model(
         x_train=x_train,
         labels=train_occurrence,
         epochs=epochs,
         learning_rate=learning_rate,
         l2=l2,
         seed=seed,
+        model_type=occurrence_model_type,
         ensemble_count=occurrence_ensemble_count,
         feature_bag_fraction=occurrence_feature_bag_fraction,
+        stump_count=occurrence_stump_count,
     )
     train_probabilities = [_predict_occurrence_probability(occurrence_model, row) for row in x_train]
     test_probabilities = [_predict_occurrence_probability(occurrence_model, row) for row in x_test]
@@ -158,6 +183,14 @@ def train_synthetic_event_list_model(
         l2=l2,
         seed=seed + 404,
     )
+    shape_models = _fit_shape_heads(
+        x_train,
+        train_rows,
+        epochs=epochs,
+        learning_rate=learning_rate,
+        l2=l2,
+        seed=seed + 505,
+    )
 
     prediction_rows = _prediction_rows(
         rows=test_rows,
@@ -168,6 +201,7 @@ def train_synthetic_event_list_model(
         magnitude_model=magnitude_model,
         latitude_model=latitude_model,
         longitude_model=longitude_model,
+        shape_models=shape_models,
     )
     if predictions_out:
         _write_prediction_csv(predictions_out, prediction_rows)
@@ -186,6 +220,7 @@ def train_synthetic_event_list_model(
         for row in positive_prediction_rows
         if row.get("location_error_km", "") != ""
     ]
+    shape_report = _shape_report(prediction_rows)
     report: dict[str, object] = {
         "schema": "elfquake.synthetic_event_list_model.v1",
         "status": "evaluated",
@@ -208,9 +243,11 @@ def train_synthetic_event_list_model(
         "learning_rate": learning_rate,
         "l2": l2,
         "occurrence_ensemble": {
+            "model_type": occurrence_model_type,
             "ensemble_count": occurrence_ensemble_count,
             "feature_bag_fraction": occurrence_feature_bag_fraction,
-            "member_count": len(occurrence_model),
+            "member_count": _occurrence_member_count(occurrence_model),
+            "stump_count": occurrence_stump_count,
         },
         "target_positive_count": sum(train_occurrence) + sum(test_occurrence),
         "train_positive_count": sum(train_occurrence),
@@ -235,7 +272,8 @@ def train_synthetic_event_list_model(
             "positive_test_mean_error_km": _mean(location_errors),
             "positive_test_median_error_km": _median(location_errors),
         },
-        "top_occurrence_features": _top_ensemble_features(feature_names, occurrence_model, limit=12),
+        "event_shape": shape_report,
+        "top_occurrence_features": _top_occurrence_model_features(feature_names, occurrence_model, limit=12),
         "note": "Synthetic event-list heads are engineering adapters for count/location/magnitude targets, not real prediction evidence.",
     }
     out_path.parent.mkdir(parents=True, exist_ok=True)
@@ -295,7 +333,78 @@ def _fit_positive_head(
     )
 
 
+def _fit_shape_heads(
+    x_rows: list[list[float]],
+    rows: list[dict[str, str]],
+    *,
+    epochs: int,
+    learning_rate: float,
+    l2: float,
+    seed: int,
+) -> dict[str, tuple[list[float], float] | None]:
+    models: dict[str, tuple[list[float], float] | None] = {}
+    for index, target_field in enumerate(EVENT_SHAPE_TARGETS):
+        if target_field in POSITIVE_ONLY_SHAPE_TARGETS:
+            models[target_field] = _fit_positive_head(
+                x_rows,
+                rows,
+                target_field,
+                epochs=epochs,
+                learning_rate=learning_rate,
+                l2=l2,
+                seed=seed + index,
+            )
+        else:
+            models[target_field] = _fit_linear_head(
+                x_rows,
+                [_number(row.get(target_field, "")) for row in rows],
+                epochs=epochs,
+                learning_rate=learning_rate,
+                l2=l2,
+                seed=seed + index,
+            )
+    return models
+
+
 OccurrenceMember = tuple[list[int], list[float], float]
+OccurrenceModel = dict[str, object]
+
+
+def _fit_occurrence_model(
+    *,
+    x_train: list[list[float]],
+    labels: list[int],
+    epochs: int,
+    learning_rate: float,
+    l2: float,
+    seed: int,
+    model_type: str,
+    ensemble_count: int,
+    feature_bag_fraction: float,
+    stump_count: int,
+) -> OccurrenceModel:
+    if model_type == "boosted_stumps":
+        return {
+            "type": "boosted_stumps",
+            "members": _fit_boosted_stumps(
+                x_train=x_train,
+                labels=labels,
+                stump_count=stump_count,
+            ),
+        }
+    return {
+        "type": "logistic_ensemble",
+        "members": _fit_occurrence_ensemble(
+            x_train=x_train,
+            labels=labels,
+            epochs=epochs,
+            learning_rate=learning_rate,
+            l2=l2,
+            seed=seed,
+            ensemble_count=ensemble_count,
+            feature_bag_fraction=feature_bag_fraction,
+        ),
+    }
 
 
 def _fit_occurrence_ensemble(
@@ -332,6 +441,79 @@ def _fit_occurrence_ensemble(
     return models
 
 
+def _fit_boosted_stumps(
+    *,
+    x_train: list[list[float]],
+    labels: list[int],
+    stump_count: int,
+) -> list[dict[str, float | int]]:
+    signed_labels = [1 if label else -1 for label in labels]
+    weights = _balanced_initial_weights(labels)
+    stumps: list[dict[str, float | int]] = []
+    for _ in range(stump_count):
+        stump = _best_stump(x_train, signed_labels, weights)
+        if stump is None:
+            break
+        predictions = [
+            _stump_signed_prediction(row[int(stump["feature_index"])], float(stump["threshold"]), int(stump["polarity"]))
+            for row in x_train
+        ]
+        error = sum(weight for weight, prediction, label in zip(weights, predictions, signed_labels) if prediction != label)
+        error = min(0.499999, max(1e-9, error))
+        alpha = 0.5 * math.log((1.0 - error) / error)
+        stump["alpha"] = alpha
+        stumps.append(stump)
+        weights = [
+            weight * math.exp(-alpha * label * prediction)
+            for weight, label, prediction in zip(weights, signed_labels, predictions)
+        ]
+        total = sum(weights) or 1.0
+        weights = [weight / total for weight in weights]
+    return stumps
+
+
+def _balanced_initial_weights(labels: list[int]) -> list[float]:
+    positives = sum(labels)
+    negatives = len(labels) - positives
+    pos_weight = 0.5 / positives if positives else 1.0 / max(1, len(labels))
+    neg_weight = 0.5 / negatives if negatives else 1.0 / max(1, len(labels))
+    return [pos_weight if label else neg_weight for label in labels]
+
+
+def _best_stump(
+    x_train: list[list[float]],
+    signed_labels: list[int],
+    weights: list[float],
+) -> dict[str, float | int] | None:
+    best: dict[str, float | int] | None = None
+    best_error = math.inf
+    for feature_index in range(len(x_train[0])):
+        thresholds = _stump_thresholds([row[feature_index] for row in x_train])
+        for threshold in thresholds:
+            for polarity in (-1, 1):
+                error = 0.0
+                for row, label, weight in zip(x_train, signed_labels, weights):
+                    prediction = _stump_signed_prediction(row[feature_index], threshold, polarity)
+                    if prediction != label:
+                        error += weight
+                if error < best_error:
+                    best_error = error
+                    best = {"feature_index": feature_index, "threshold": threshold, "polarity": polarity}
+    return best
+
+
+def _stump_thresholds(values: list[float]) -> list[float]:
+    ordered = sorted(set(values))
+    if len(ordered) <= 12:
+        return ordered
+    return [ordered[int((len(ordered) - 1) * quantile / 10)] for quantile in range(1, 10)]
+
+
+def _stump_signed_prediction(value: float, threshold: float, polarity: int) -> int:
+    prediction = 1 if value >= threshold else -1
+    return prediction * polarity
+
+
 def _occurrence_feature_bag(*, feature_count: int, bag_size: int, seed: int, use_all: bool) -> list[int]:
     if use_all:
         return list(range(feature_count))
@@ -339,12 +521,30 @@ def _occurrence_feature_bag(*, feature_count: int, bag_size: int, seed: int, use
     return sorted(rng.sample(range(feature_count), bag_size))
 
 
-def _predict_occurrence_probability(model: list[OccurrenceMember], x_row: list[float]) -> float:
+def _predict_occurrence_probability(model: OccurrenceModel, x_row: list[float]) -> float:
+    if model["type"] == "boosted_stumps":
+        score = 0.0
+        alpha_total = 0.0
+        for stump in model["members"]:
+            assert isinstance(stump, dict)
+            alpha = float(stump["alpha"])
+            score += alpha * _stump_signed_prediction(
+                x_row[int(stump["feature_index"])],
+                float(stump["threshold"]),
+                int(stump["polarity"]),
+            )
+            alpha_total += abs(alpha)
+        normalized_score = score / max(1.0, alpha_total)
+        return _sigmoid(2.0 * normalized_score)
     probabilities = []
-    for indexes, weights, bias in model:
+    for indexes, weights, bias in model["members"]:
         values = [x_row[index] for index in indexes]
         probabilities.append(_sigmoid(_dot(weights, values) + bias))
     return sum(probabilities) / max(1, len(probabilities))
+
+
+def _occurrence_member_count(model: OccurrenceModel) -> int:
+    return len(model["members"])
 
 
 def _selected_feature_indexes(
@@ -431,12 +631,13 @@ def _prediction_rows(
     *,
     rows: list[dict[str, str]],
     x_rows: list[list[float]],
-    probability_model: list[OccurrenceMember],
+    probability_model: OccurrenceModel,
     threshold: float,
     count_model: tuple[list[float], float],
     magnitude_model: tuple[list[float], float] | None,
     latitude_model: tuple[list[float], float] | None,
     longitude_model: tuple[list[float], float] | None,
+    shape_models: dict[str, tuple[list[float], float] | None],
 ) -> list[dict[str, str]]:
     output: list[dict[str, str]] = []
     for index, (row, x_row) in enumerate(zip(rows, x_rows), start=1):
@@ -453,26 +654,29 @@ def _prediction_rows(
             and predicted_longitude is not None
         ):
             location_error = f"{_haversine_km(_number(row['eventlist_target_centroid_latitude']), _number(row['eventlist_target_centroid_longitude']), predicted_latitude, predicted_longitude):.6f}"
-        output.append(
-            {
-                "row_index": str(index),
-                "dataset_id": row.get("dataset_id", ""),
-                "window_id": row.get("window_id", ""),
-                "window_start_utc": row.get("window_start_utc", ""),
-                "target_occurred": row.get("eventlist_target_occurred", ""),
-                "predicted_probability": f"{probability:.6f}",
-                "predicted_occurred": "1" if probability >= threshold else "0",
-                "target_event_count": row.get("eventlist_target_count", ""),
-                "predicted_event_count": f"{predicted_count:.6f}",
-                "target_max_magnitude": row.get("eventlist_target_max_magnitude", ""),
-                "predicted_max_magnitude": _fmt_optional(predicted_magnitude),
-                "target_centroid_latitude": row.get("eventlist_target_centroid_latitude", ""),
-                "target_centroid_longitude": row.get("eventlist_target_centroid_longitude", ""),
-                "predicted_centroid_latitude": _fmt_optional(predicted_latitude),
-                "predicted_centroid_longitude": _fmt_optional(predicted_longitude),
-                "location_error_km": location_error,
-            }
-        )
+        output_row = {
+            "row_index": str(index),
+            "dataset_id": row.get("dataset_id", ""),
+            "window_id": row.get("window_id", ""),
+            "window_start_utc": row.get("window_start_utc", ""),
+            "target_occurred": row.get("eventlist_target_occurred", ""),
+            "predicted_probability": f"{probability:.6f}",
+            "predicted_occurred": "1" if probability >= threshold else "0",
+            "target_event_count": row.get("eventlist_target_count", ""),
+            "predicted_event_count": f"{predicted_count:.6f}",
+            "target_max_magnitude": row.get("eventlist_target_max_magnitude", ""),
+            "predicted_max_magnitude": _fmt_optional(predicted_magnitude),
+            "target_centroid_latitude": row.get("eventlist_target_centroid_latitude", ""),
+            "target_centroid_longitude": row.get("eventlist_target_centroid_longitude", ""),
+            "predicted_centroid_latitude": _fmt_optional(predicted_latitude),
+            "predicted_centroid_longitude": _fmt_optional(predicted_longitude),
+            "location_error_km": location_error,
+        }
+        for target_field, model in shape_models.items():
+            short_name = target_field.removeprefix("eventlist_target_")
+            output_row[f"target_{short_name}"] = row.get(target_field, "")
+            output_row[f"predicted_{short_name}"] = _fmt_optional(_predict_optional(model, x_row))
+        output.append(output_row)
     return output
 
 
@@ -514,15 +718,29 @@ def _top_features(feature_names: list[str], weights: list[float], *, limit: int)
     )[:limit]
 
 
-def _top_ensemble_features(
+def _top_occurrence_model_features(
     feature_names: list[str],
-    model: list[OccurrenceMember],
+    model: OccurrenceModel,
     *,
     limit: int,
 ) -> list[dict[str, object]]:
+    if model["type"] == "boosted_stumps":
+        totals = [0.0 for _ in feature_names]
+        for stump in model["members"]:
+            assert isinstance(stump, dict)
+            totals[int(stump["feature_index"])] += abs(float(stump["alpha"]))
+        return sorted(
+            [
+                {"name": name, "weight": round(totals[index], 6)}
+                for index, name in enumerate(feature_names)
+                if totals[index] > 0
+            ],
+            key=lambda item: abs(float(item["weight"])),
+            reverse=True,
+        )[:limit]
     totals = [0.0 for _ in feature_names]
     counts = [0 for _ in feature_names]
-    for indexes, weights, _bias in model:
+    for indexes, weights, _bias in model["members"]:
         for index, weight in zip(indexes, weights):
             totals[index] += weight
             counts[index] += 1
@@ -532,6 +750,26 @@ def _top_ensemble_features(
             continue
         rows.append({"name": name, "weight": round(totals[index] / counts[index], 6)})
     return sorted(rows, key=lambda item: abs(float(item["weight"])), reverse=True)[:limit]
+
+
+def _shape_report(prediction_rows: list[dict[str, str]]) -> dict[str, object]:
+    report: dict[str, object] = {}
+    for target_field in EVENT_SHAPE_TARGETS:
+        short_name = target_field.removeprefix("eventlist_target_")
+        target_name = f"target_{short_name}"
+        predicted_name = f"predicted_{short_name}"
+        errors = [
+            abs(_number(row.get(predicted_name, "")) - _number(row.get(target_name, "")))
+            for row in prediction_rows
+            if row.get(target_name, "") != "" and row.get(predicted_name, "") != ""
+        ]
+        report[short_name] = {
+            "target": target_field,
+            "test_mae": _mean(errors),
+            "test_rmse": _rmse(errors),
+            "test_count": len(errors),
+        }
+    return report
 
 
 def _mean(values: list[float]) -> float | None:

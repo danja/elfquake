@@ -18,10 +18,20 @@ TARGET_FIELDS = [
     "eventlist_target_occurred",
     "eventlist_target_max_magnitude",
     "eventlist_target_mean_magnitude",
+    "eventlist_target_log10_magnitude_energy",
+    "eventlist_target_event_rate_per_hour",
+    "eventlist_target_count_first_third",
+    "eventlist_target_count_middle_third",
+    "eventlist_target_count_final_third",
     "eventlist_target_centroid_latitude",
     "eventlist_target_centroid_longitude",
+    "eventlist_target_spatial_spread_km",
     "eventlist_target_first_event_time_utc",
+    "eventlist_target_last_event_time_utc",
+    "eventlist_target_peak_event_time_utc",
     "eventlist_target_time_to_first_event_seconds",
+    "eventlist_target_time_to_peak_event_seconds",
+    "eventlist_target_event_duration_seconds",
     "quality_missing_eventlist_target_location",
 ]
 
@@ -107,26 +117,57 @@ def _target_for_row(
             "eventlist_target_occurred": "0",
             "eventlist_target_max_magnitude": "0",
             "eventlist_target_mean_magnitude": "0",
+            "eventlist_target_log10_magnitude_energy": "0",
+            "eventlist_target_event_rate_per_hour": "0",
+            "eventlist_target_count_first_third": "0",
+            "eventlist_target_count_middle_third": "0",
+            "eventlist_target_count_final_third": "0",
             "eventlist_target_centroid_latitude": "",
             "eventlist_target_centroid_longitude": "",
+            "eventlist_target_spatial_spread_km": "",
             "eventlist_target_first_event_time_utc": "",
+            "eventlist_target_last_event_time_utc": "",
+            "eventlist_target_peak_event_time_utc": "",
             "eventlist_target_time_to_first_event_seconds": "",
+            "eventlist_target_time_to_peak_event_seconds": "",
+            "eventlist_target_event_duration_seconds": "",
             "quality_missing_eventlist_target_location": "1",
         }
     magnitudes = [float(event["magnitude"]) for event in target_events]
     latitudes = [float(event["latitude"]) for event in target_events]
     longitudes = [float(event["longitude"]) for event in target_events]
     first_time = min(event["parsed_time"] for event in target_events)
+    last_time = max(event["parsed_time"] for event in target_events)
+    peak_event = max(target_events, key=lambda event: (float(event["magnitude"]), -abs((event["parsed_time"] - start).total_seconds())))
+    peak_time = peak_event["parsed_time"]
+    horizon_seconds = max(1.0, (end - start).total_seconds())
+    third_seconds = horizon_seconds / 3.0
+    bin_counts = [0, 0, 0]
+    for event in target_events:
+        offset_seconds = max(0.0, min(horizon_seconds - 1e-9, (event["parsed_time"] - start).total_seconds()))
+        bin_counts[min(2, int(offset_seconds // third_seconds))] += 1
+    centroid_latitude = sum(latitudes) / len(latitudes)
+    centroid_longitude = sum(longitudes) / len(longitudes)
     return {
         "eventlist_target_status": "labeled",
         "eventlist_target_count": str(len(target_events)),
         "eventlist_target_occurred": "1",
         "eventlist_target_max_magnitude": _fmt(max(magnitudes)),
         "eventlist_target_mean_magnitude": _fmt(sum(magnitudes) / len(magnitudes)),
-        "eventlist_target_centroid_latitude": _fmt(sum(latitudes) / len(latitudes)),
-        "eventlist_target_centroid_longitude": _fmt(sum(longitudes) / len(longitudes)),
+        "eventlist_target_log10_magnitude_energy": _fmt(math.log10(sum(10 ** (1.5 * magnitude) for magnitude in magnitudes))),
+        "eventlist_target_event_rate_per_hour": _fmt(len(target_events) / (horizon_seconds / 3600.0)),
+        "eventlist_target_count_first_third": str(bin_counts[0]),
+        "eventlist_target_count_middle_third": str(bin_counts[1]),
+        "eventlist_target_count_final_third": str(bin_counts[2]),
+        "eventlist_target_centroid_latitude": _fmt(centroid_latitude),
+        "eventlist_target_centroid_longitude": _fmt(centroid_longitude),
+        "eventlist_target_spatial_spread_km": _fmt(_spatial_spread_km(target_events, centroid_latitude, centroid_longitude)),
         "eventlist_target_first_event_time_utc": format_utc(first_time),
+        "eventlist_target_last_event_time_utc": format_utc(last_time),
+        "eventlist_target_peak_event_time_utc": format_utc(peak_time),
         "eventlist_target_time_to_first_event_seconds": _fmt((first_time - start).total_seconds()),
+        "eventlist_target_time_to_peak_event_seconds": _fmt((peak_time - start).total_seconds()),
+        "eventlist_target_event_duration_seconds": _fmt((last_time - first_time).total_seconds()),
         "quality_missing_eventlist_target_location": "0",
     }
 
@@ -138,10 +179,20 @@ def _empty_target(status: str) -> dict[str, str]:
         "eventlist_target_occurred": "",
         "eventlist_target_max_magnitude": "",
         "eventlist_target_mean_magnitude": "",
+        "eventlist_target_log10_magnitude_energy": "",
+        "eventlist_target_event_rate_per_hour": "",
+        "eventlist_target_count_first_third": "",
+        "eventlist_target_count_middle_third": "",
+        "eventlist_target_count_final_third": "",
         "eventlist_target_centroid_latitude": "",
         "eventlist_target_centroid_longitude": "",
+        "eventlist_target_spatial_spread_km": "",
         "eventlist_target_first_event_time_utc": "",
+        "eventlist_target_last_event_time_utc": "",
+        "eventlist_target_peak_event_time_utc": "",
         "eventlist_target_time_to_first_event_seconds": "",
+        "eventlist_target_time_to_peak_event_seconds": "",
+        "eventlist_target_event_duration_seconds": "",
         "quality_missing_eventlist_target_location": "1",
     }
 
@@ -238,6 +289,26 @@ def _number(value: str) -> float | None:
 
 def _fmt(value: float) -> str:
     return f"{value:.9f}"
+
+
+def _spatial_spread_km(events: list[dict[str, object]], centroid_latitude: float, centroid_longitude: float) -> float:
+    if len(events) < 2:
+        return 0.0
+    distances = [
+        _haversine_km(float(event["latitude"]), float(event["longitude"]), centroid_latitude, centroid_longitude)
+        for event in events
+    ]
+    return sum(distances) / len(distances)
+
+
+def _haversine_km(lat1: float, lon1: float, lat2: float, lon2: float) -> float:
+    radius_km = 6371.0
+    phi1 = math.radians(lat1)
+    phi2 = math.radians(lat2)
+    d_phi = math.radians(lat2 - lat1)
+    d_lambda = math.radians(lon2 - lon1)
+    a = math.sin(d_phi / 2.0) ** 2 + math.cos(phi1) * math.cos(phi2) * math.sin(d_lambda / 2.0) ** 2
+    return radius_km * 2.0 * math.atan2(math.sqrt(a), math.sqrt(1.0 - a))
 
 
 def _mean(values: list[float]) -> float | None:

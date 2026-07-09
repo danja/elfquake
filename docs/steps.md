@@ -272,7 +272,7 @@ Run the default synthetic-trained learned weekly forecast. Outputs are written u
 
 ### `build-synthetic-event-list-targets`
 
-Build forecast-shaped synthetic targets from avalanche event CSVs. It adds future event count, occurrence, max/mean magnitude, centroid, first-event time, and time-to-first-event fields without deriving targets from piezo/VLF channels.
+Build forecast-shaped synthetic targets from avalanche event CSVs. It adds future event count, occurrence, max/mean magnitude, centroid, first-event time, time-to-first-event, event-rate, log magnitude energy, within-horizon count bins, peak timing, duration, and spatial-spread fields without deriving targets from piezo/VLF channels.
 
 ### `build-synthetic-event-list-targets.sh`
 
@@ -304,11 +304,11 @@ Run the current drift-aware validation sequence: build h6 targets, diagnose drif
 
 ### `train-synthetic-event-list-model`
 
-Train dependency-light synthetic event-list heads for occurrence, count, max magnitude, and centroid. Use `--split-field model_split` with a balanced split for engineering checks, and omit it for the stricter temporal split. The occurrence head can use deterministic feature-bag ensembles.
+Train dependency-light synthetic event-list heads for occurrence, count, magnitude, centroid, timing, rate, and spread. Use `--split-field model_split` with a balanced split for engineering checks, and omit it for the stricter temporal split. The default occurrence head uses deterministic feature-bag ensembles; `--occurrence-model-type boosted_stumps` enables a nonlinear diagnostic head.
 
 ### `train-synthetic-event-list-model.sh`
 
-Run the default h6 synthetic event-list model. The wrapper defaults to an 8-member, 50% feature-bag occurrence ensemble. Override `INPUT`, `OUT`, `PREDICTIONS_OUT`, and `SPLIT_FIELD=model_split` to train on the balanced split.
+Run the default h6 synthetic event-list model. The wrapper defaults to an 8-member, 50% feature-bag occurrence ensemble. Override `INPUT`, `OUT`, `PREDICTIONS_OUT`, and `SPLIT_FIELD=model_split` to train on the balanced split; set `OCCURRENCE_MODEL_TYPE=boosted_stumps` for the optional nonlinear occurrence diagnostic.
 
 ### `compare-weekly-forecasts`
 

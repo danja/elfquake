@@ -3,8 +3,8 @@
 ## Immediate Priority
 
 1. Treat `./scripts/trial-weekly-event-forecast.sh` as the current end-to-end event-list contract smoke test, not as a validated predictor.
-2. Improve synthetic event-list targets or stronger model heads before forecast promotion: the feature-bag ensemble helped, but temporal utility is still below the `0.60` synthetic gate.
-3. Promote synthetic event-list heads from engineering check to forecast adapter only after occurrence, count, magnitude, and centroid heads beat the current ensemble sparse-profile smoke metrics.
+2. Improve temporal generalization before forecast promotion: richer event-list targets and stronger heads are now in place, but temporal utility is still below the `0.60` synthetic gate.
+3. Promote synthetic event-list heads from engineering check to forecast adapter only after occurrence, count, magnitude, centroid, timing, rate, and spatial-spread heads beat the current ensemble sparse-profile smoke metrics.
 4. Keep self-supervised real VLF pretraining as the default real-data modeling path while supervised VLF-aligned labels remain one-class or sparse.
 5. Continue periodic INGV refresh and prospective relabeling; latest real aligned rows are still one-class (`69/0` all-Italy, `0/69` central Italy).
 
@@ -27,7 +27,7 @@
 ## Simulation
 
 1. Run `./scripts/run-synthetic-episode-batch.sh` with the warmed aggressive defaults over more episodes and validate with `./scripts/validate-synthetic-event-list-drift.sh`.
-2. Improve event-list target construction or model weighting; denser direct-event extraction alone made labels healthier but did not improve model smoke metrics.
+2. Improve event-list weighting, sequence context, or temporal validation strategy; denser direct-event extraction alone made labels healthier but did not improve model smoke metrics.
 3. Compare future episode-batch h6 drift against the current scaled `WARMUP_STEPS=3000` delta `0.187025`.
 4. Revisit structured initial fill only with delayed bottom-layer removal; the first fill probe drifted at `0.307937`.
 5. Tune the piezo/VLF mapping only from `*.piezo.csv` and compare against Cumiana VLF shape reports.
@@ -53,6 +53,9 @@
 * Scaled `WARMUP_STEPS=3000` to nine episodes. The run stayed drift-ok (`0.187025` delta) with 396 labeled rows, but temporal model balanced accuracy was only `0.468045`.
 * Tested denser direct avalanche extraction on the same nine episodes. `_q099_w60_m10` saturated h6 labels (`0.828283` positive rate), while `_q0995_w120_m5` improved class balance (`0.512626`) but did not beat the sparse default model checks.
 * Added deterministic feature-bag ensembles to the dependency-light event-list occurrence head. The default script now uses 8 members with 50% feature bags, improving the scaled sparse temporal/balanced/episode-balanced checks to `0.498120`, `0.616473`, and `0.607551`.
+* Added richer synthetic event-list targets for event-rate, log magnitude energy, early/middle/final horizon counts, peak timing, event duration, and spatial spread.
+* Added regression shape heads for the richer event-list targets and report metrics for each head. On the balanced split, event-rate MAE is `0.068936`, early/middle/final count MAE is `0.180167`/`0.246829`/`0.194170`, and spatial-spread MAE is `20.317859 km`.
+* Added an optional boosted-stump occurrence head. It improves the balanced engineering split to `0.629173` balanced accuracy, but fails the chronological split at `0.347744`; keep the feature-bag logistic ensemble as the default.
 * Added and ran `./scripts/trial-weekly-event-forecast.sh`; the current `2026-07-08` trial emits 25 capped `>M2` event-coordinate rows for `2026-07-08` to `2026-07-15`.
 * Added and ran `./scripts/learned-weekly-event-forecast.sh`; it trains a synthetic-window logistic scorer and emits the same weekly event-list CSV contract.
 * Added learned-scorer metadata to the forecast report without changing the CSV event-row contract.

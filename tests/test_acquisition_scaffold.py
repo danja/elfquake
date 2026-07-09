@@ -473,6 +473,18 @@ class AcquisitionScaffoldTests(unittest.TestCase):
             self.assertEqual(rows[0]["eventlist_target_count"], "1")
             self.assertEqual(rows[0]["eventlist_target_occurred"], "1")
             self.assertEqual(rows[0]["eventlist_target_centroid_latitude"], "42.100000000")
+            self.assertEqual(
+                sum(
+                    int(rows[0][name])
+                    for name in [
+                        "eventlist_target_count_first_third",
+                        "eventlist_target_count_middle_third",
+                        "eventlist_target_count_final_third",
+                    ]
+                ),
+                1,
+            )
+            self.assertIn("eventlist_target_log10_magnitude_energy", rows[0])
             self.assertEqual(rows[1]["eventlist_target_max_magnitude"], "3.100000000")
             self.assertEqual(rows[-1]["eventlist_target_status"], "unlabeled_no_future_window")
             self.assertEqual(report["positive_count"], 2)
@@ -513,6 +525,7 @@ class AcquisitionScaffoldTests(unittest.TestCase):
             self.assertEqual(len(rows), 1)
             self.assertIn("predicted_event_count", rows[0])
             self.assertIn("predicted_centroid_latitude", rows[0])
+            self.assertIn("predicted_event_rate_per_hour", rows[0])
 
     def test_synthetic_drift_reports_temporal_positive_shift(self) -> None:
         with tempfile.TemporaryDirectory() as directory:

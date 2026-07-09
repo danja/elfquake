@@ -11,8 +11,10 @@ LEARNING_RATE="${LEARNING_RATE:-0.05}"
 L2="${L2:-0.001}"
 SEED="${SEED:-42}"
 MAX_FEATURE_COUNT="${MAX_FEATURE_COUNT:-0}"
+OCCURRENCE_MODEL_TYPE="${OCCURRENCE_MODEL_TYPE:-logistic_ensemble}"
 OCCURRENCE_ENSEMBLE_COUNT="${OCCURRENCE_ENSEMBLE_COUNT:-8}"
 OCCURRENCE_FEATURE_BAG_FRACTION="${OCCURRENCE_FEATURE_BAG_FRACTION:-0.5}"
+OCCURRENCE_STUMP_COUNT="${OCCURRENCE_STUMP_COUNT:-24}"
 
 PYTHONDONTWRITEBYTECODE=1 PYTHONPATH=src python3 -m elfquake.cli train-synthetic-event-list-model \
   --input "$INPUT" \
@@ -25,5 +27,7 @@ PYTHONDONTWRITEBYTECODE=1 PYTHONPATH=src python3 -m elfquake.cli train-synthetic
   --l2 "$L2" \
   --seed "$SEED" \
   --max-feature-count "$MAX_FEATURE_COUNT" \
+  --occurrence-model-type "$OCCURRENCE_MODEL_TYPE" \
   --occurrence-ensemble-count "$OCCURRENCE_ENSEMBLE_COUNT" \
-  --occurrence-feature-bag-fraction "$OCCURRENCE_FEATURE_BAG_FRACTION"
+  --occurrence-feature-bag-fraction "$OCCURRENCE_FEATURE_BAG_FRACTION" \
+  --occurrence-stump-count "$OCCURRENCE_STUMP_COUNT"

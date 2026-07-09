@@ -102,13 +102,15 @@ Risks: synthetic-to-real transfer may fail; evaluate against no-pretraining and 
 
 1. Keep building labeled fixed-window tables.
 2. Default to self-supervised real VLF pretraining while supervised real labels are one-class or sparse.
-3. Use synthetic event-list heads to exercise forecast-shaped occurrence, count, magnitude, and centroid outputs before real labels mature.
+3. Use synthetic event-list heads to exercise forecast-shaped occurrence, count, magnitude, centroid, timing, rate, and spread outputs before real labels mature.
 4. Use synthetic supervised pretraining as a secondary engineering check, not the default real-data path.
 5. Fine-tune on real VLF-aligned rows only after real labels contain both positive and negative examples.
 6. Add cross-modality attention only after unimodal and full-sequence ablations are stable.
 7. Explore frequency-biased, graph, and event-process Transformers as research branches, not first production models.
 
-Current event-list adapter: dependency-light heads with an 8-member feature-bag occurrence ensemble. This improves the latest scaled synthetic checks modestly, but temporal utility remains below the synthetic gate, so do not promote it to a forecast adapter yet.
+Current event-list adapter: dependency-light heads with an 8-member feature-bag occurrence ensemble. It now predicts occurrence, count, max/mean magnitude, centroid, event-rate, log magnitude energy, within-horizon count bins, peak timing, duration, and spatial spread. This improves the latest scaled synthetic checks modestly, but temporal utility remains below the synthetic gate, so do not promote it to a forecast adapter yet.
+
+Optional stronger head: a boosted-stump occurrence head is available for nonlinear tabular checks. It improved the balanced engineering split but failed the chronological split, so it remains a diagnostic branch rather than the default.
 
 ## Default Self-Supervised Path
 

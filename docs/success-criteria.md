@@ -21,7 +21,7 @@ Success means synthetic training is better than trivial synthetic baselines.
 * Learned scorer balanced accuracy exceeds `0.60` on held-out synthetic temporal or seed splits.
 * Positive and negative recall are both at least `0.40`; a model that predicts almost everything positive does not pass.
 * Synthetic event-list targets have both classes, location targets, and a positive rate between `0.10` and `0.90`.
-* Event-list adapters report occurrence, count, magnitude, and centroid metrics, not only a binary score.
+* Event-list adapters report occurrence, count, magnitude, centroid, timing, rate, and spatial-spread metrics, not only a binary score.
 * Temporal train/test positive-rate drift is small enough for a meaningful chronological check; target positive-rate delta should be below `0.25` before promoting synthetic temporal scores.
 * Forecast count calibration is within `25%` of the synthetic held-out weekly event rate.
 * Ablations show whether direct avalanche, piezo/VLF-like, and combined features each add or remove value.
