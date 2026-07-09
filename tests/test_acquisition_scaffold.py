@@ -3288,6 +3288,35 @@ class AcquisitionScaffoldTests(unittest.TestCase):
             self.assertGreater(int(summary_rows[0]["max_height"]), 0)
 
     @unittest.skipIf(importlib.util.find_spec("numba") is None, "numba not installed")
+    def test_sandpile_warmup_evolves_before_recording(self) -> None:
+        from elfquake.sim.sandpile import SandpileConfig, run_sandpile_simulation
+
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            summary_rows, sensor_rows = run_sandpile_simulation(
+                config=SandpileConfig(
+                    width=8,
+                    height=8,
+                    steps=2,
+                    threshold=16,
+                    source_count=4,
+                    sensor_count=2,
+                    deposition_probability=1.0,
+                    seed=11,
+                    target_mean_height=4.0,
+                    target_fill_limit=8,
+                    warmup_steps=5,
+                ),
+                summary_out=root / "summary.csv",
+                sensors_out=root / "sensors.csv",
+            )
+
+            self.assertEqual(len(summary_rows), 2)
+            self.assertEqual(len(sensor_rows), 4)
+            self.assertEqual(summary_rows[0]["step"], "0")
+            self.assertGreater(float(summary_rows[0]["mean_height"]), 0.5)
+
+    @unittest.skipIf(importlib.util.find_spec("numba") is None, "numba not installed")
     def test_sandpile_mountain_mode_refills_target_and_removes_bottom_layer(self) -> None:
         from elfquake.sim.sandpile import SandpileConfig, run_sandpile_simulation
 

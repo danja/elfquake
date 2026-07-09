@@ -69,6 +69,7 @@ class SandpileConfig:
     initial_fill_mean_height: float = 0.0
     initial_fill_variation: float = 0.0
     initial_fill_smooth_passes: int = 0
+    warmup_steps: int = 0
 
 
 def run_sandpile_simulation(
@@ -137,9 +138,12 @@ def run_sandpile_simulation(
     summary_rows = []
     sensor_rows = []
     snapshot_rows = []
+    for warmup_step in range(config.warmup_steps):
+        _advance_unrecorded_step(grid=grid, rng=rng, config=config, sources=sources, absolute_step=warmup_step)
     previous_grid = grid.copy()
 
     for step in range(config.steps):
+        absolute_step = config.warmup_steps + step
         deposition_count = _apply_deposition(
             grid=grid,
             rng=rng,
@@ -198,10 +202,7 @@ def run_sandpile_simulation(
                 )
             )
         bottom_layer_removed_mass = 0
-        if (
-            config.bottom_layer_removal_interval > 0
-            and (step + 1) % config.bottom_layer_removal_interval == 0
-        ):
+        if _should_remove_bottom_layer(config, absolute_step):
             bottom_layer_removed_mass = _remove_bottom_layer(grid)
             released_mass += bottom_layer_removed_mass
         summary_row = {
@@ -271,6 +272,28 @@ def validate_config(config: SandpileConfig) -> None:
         raise ValueError("initial_fill_variation must be non-negative")
     if config.initial_fill_smooth_passes < 0:
         raise ValueError("initial_fill_smooth_passes must be non-negative")
+    if config.warmup_steps < 0:
+        raise ValueError("warmup_steps must be non-negative")
+
+
+def _advance_unrecorded_step(
+    *,
+    grid: np.ndarray,
+    rng,
+    config: SandpileConfig,
+    sources: np.ndarray,
+    absolute_step: int,
+) -> None:
+    _apply_deposition(grid=grid, rng=rng, config=config, sources=sources)
+    _fill_to_target_mean(grid, rng, config)
+    topple_counts = np.zeros_like(grid)
+    _relax(grid, topple_counts, config.threshold, config.max_relaxation_sweeps)
+    if _should_remove_bottom_layer(config, absolute_step):
+        _remove_bottom_layer(grid)
+
+
+def _should_remove_bottom_layer(config: SandpileConfig, absolute_step: int) -> bool:
+    return config.bottom_layer_removal_interval > 0 and (absolute_step + 1) % config.bottom_layer_removal_interval == 0
 
 
 def _apply_initial_fill(grid: np.ndarray, config: SandpileConfig) -> None:

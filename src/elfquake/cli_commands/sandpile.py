@@ -29,6 +29,7 @@ def register_sandpile_commands(subparsers: _SubParsersAction) -> None:
     sandpile.add_argument("--initial-fill-mean-height", type=float, default=0.0)
     sandpile.add_argument("--initial-fill-variation", type=float, default=0.0)
     sandpile.add_argument("--initial-fill-smooth-passes", type=int, default=0)
+    sandpile.add_argument("--warmup-steps", type=int, default=0)
     sandpile.add_argument("--mountain-mode", action="store_true")
     sandpile.add_argument("--summary-out", type=Path, required=True)
     sandpile.add_argument("--sensors-out", type=Path, required=True)
@@ -141,6 +142,7 @@ def _run_sandpile_sim(args: Namespace) -> int:
             initial_fill_mean_height=args.initial_fill_mean_height,
             initial_fill_variation=args.initial_fill_variation,
             initial_fill_smooth_passes=args.initial_fill_smooth_passes,
+            warmup_steps=args.warmup_steps,
         ),
         summary_out=args.summary_out,
         sensors_out=args.sensors_out,

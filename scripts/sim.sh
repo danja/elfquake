@@ -14,6 +14,7 @@ initial_fill_mode="${INITIAL_FILL_MODE:-none}"
 initial_fill_mean_height="${INITIAL_FILL_MEAN_HEIGHT:-0}"
 initial_fill_variation="${INITIAL_FILL_VARIATION:-0}"
 initial_fill_smooth_passes="${INITIAL_FILL_SMOOTH_PASSES:-0}"
+warmup_steps="${WARMUP_STEPS:-0}"
 target_fill_limit="${TARGET_FILL_LIMIT:-$(( width * height / 16 ))}"
 if [[ "$target_fill_limit" -lt 1 ]]; then
   target_fill_limit=1
@@ -65,6 +66,7 @@ args=(
   --initial-fill-mean-height "$initial_fill_mean_height" \
   --initial-fill-variation "$initial_fill_variation" \
   --initial-fill-smooth-passes "$initial_fill_smooth_passes" \
+  --warmup-steps "$warmup_steps" \
   --summary-out "${prefix}.summary.csv" \
   --sensors-out "${prefix}.sensors.csv" \
   --piezo-out "${prefix}.piezo.csv" \
