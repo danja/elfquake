@@ -26,7 +26,7 @@ Success means synthetic training is better than trivial synthetic baselines.
 * Forecast count calibration is within `25%` of the synthetic held-out weekly event rate.
 * Ablations show whether direct avalanche, piezo/VLF-like, and combined features each add or remove value.
 
-Current status: partly satisfied only as an engineering check. The original synthetic h6 table still fails with temporal positive-rate delta `0.609182`. A small aggressive 3000-step stationarity probe passes the drift gate with delta `0.065608`, but it has only 132 labeled rows and must be scaled before model metrics matter.
+Current status: partly satisfied only as an engineering check. The original synthetic h6 table still fails with temporal positive-rate delta `0.609182`. The warmed aggressive profile with `WARMUP_STEPS=3000` now passes the drift gate on a nine-episode run with delta `0.187025` and 396 labeled rows, but temporal model utility remains weak. A nine-episode `WARMUP_STEPS=1000` run failed the same gate with delta `0.294146`.
 
 ## Stage 3: Real Supervised Readiness
 

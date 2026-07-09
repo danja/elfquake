@@ -39,8 +39,12 @@ PYTHONDONTWRITEBYTECODE=1 PYTHONPATH=src .venv/bin/python -m elfquake.cli tune-a
   --activity "${prefix}.avalanche_activity.csv" \
   --grid-width "$width" \
   --grid-height "$height" \
+  --quantile 0.975 \
+  --quantile 0.99 \
+  --quantile 0.995 \
   --quantile 0.999 \
-  --quantile 0.9995 \
+  --local-max-window 60 \
+  --local-max-window 120 \
   --local-max-window 240 \
   --local-max-window 480 \
   --max-events 0 \

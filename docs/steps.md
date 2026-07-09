@@ -368,7 +368,7 @@ Generate extra synthetic seeds without heatmaps, video, or audio, then refresh e
 
 ### `run-synthetic-episode-batch.sh`
 
-Generate multiple shorter synthetic simulation episodes with localized sources, slower background fill, more frequent bottom-layer removal, and sparse event extraction defaults. Use this when replacing one long drifting trajectory with a more diverse episode dataset.
+Generate multiple shorter synthetic simulation episodes with localized sources, slower background fill, more frequent bottom-layer removal, `3000` unrecorded warm-up steps, and sparse event extraction defaults. Use this when replacing one long drifting trajectory with a more diverse episode dataset.
 
 ### `compare-model-run-summaries`
 

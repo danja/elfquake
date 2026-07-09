@@ -366,7 +366,11 @@ For the next synthetic data pass, prefer multiple shorter stationarity-oriented 
 
 That wrapper preserves localized point-source deposition, reduces background fill, removes bottom layers more frequently, and uses sparse event extraction defaults. Its purpose is to reduce simulation lifecycle bias while keeping systematic localized stress.
 
-Current episode-batch defaults are intentionally conservative for mass balance: `TARGET_FILL_LIMIT=WIDTH * HEIGHT / 128`, `BOTTOM_LAYER_INTERVAL=25`, and `DEPOSITION_PROBABILITY=0.45`. A three-episode, 3000-step probe kept final mean height near `3.2` and reduced h6 train/test positive-rate drift to `0.065608`. A previous 5000-step profile still accumulated mass to mean height about `111` and failed drift validation.
+Current episode-batch defaults are intentionally conservative for mass balance: `TARGET_FILL_LIMIT=WIDTH * HEIGHT / 128`, `BOTTOM_LAYER_INTERVAL=25`, `DEPOSITION_PROBABILITY=0.45`, and `WARMUP_STEPS=3000`. The warm-up evolves each pile before recording rows, which better approximates using the tail of a longer run without storing cold-start data.
+
+A three-episode, 3000-step recorded probe with `WARMUP_STEPS=3000` kept final mean height near `3.8` and reduced h6 train/test positive-rate drift to `0.048677`. A smaller `WARMUP_STEPS=1000` probe reached `0.017989` but failed when scaled to nine episodes (`0.294146`), so the longer warm-up is now preferred. The `WARMUP_STEPS=3000` profile scaled to nine episodes with acceptable h6 drift (`0.187025`). The earlier no-warm-up aggressive probe reached `0.065608`, and a previous 5000-step profile still accumulated mass to mean height about `111` and failed drift validation.
+
+Sparse direct-event extraction remains the default. Denser profiles were tested on the nine-episode warmed run: `_q099_w60_m10` over-saturated h6 targets, and `_q0995_w120_m5` improved class balance but did not improve model smoke metrics.
 
 Initial fill is available for cold-start experiments:
 
@@ -374,7 +378,7 @@ Initial fill is available for cold-start experiments:
 INITIAL_FILL_MODE=structured INITIAL_FILL_MEAN_HEIGHT=3 INITIAL_FILL_VARIATION=1.5 INITIAL_FILL_SMOOTH_PASSES=3 ./scripts/sim.sh
 ```
 
-The first structured-fill probe did not beat the no-prefill aggressive profile: h6 positive-rate drift was `0.307937`. The likely issue is that bottom-layer removal starts immediately and strips much of the initial low terrain, while the event process still organizes later. Revisit initial fill with delayed removal or an explicit unrecorded warm-up before using it as the default.
+The first structured-fill probe did not beat the warmed aggressive profile: h6 positive-rate drift was `0.307937`. The likely issue is that bottom-layer removal starts immediately and strips much of the initial low terrain, while the event process still organizes later. Prefer unrecorded warm-up over structured initial fill unless delayed-removal experiments improve the result.
 
 Run the full local demo pipeline:
 

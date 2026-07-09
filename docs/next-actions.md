@@ -3,8 +3,8 @@
 ## Immediate Priority
 
 1. Treat `./scripts/trial-weekly-event-forecast.sh` as the current end-to-end event-list contract smoke test, not as a validated predictor.
-2. Promote synthetic event-list heads from engineering check to forecast adapter: connect predicted count, magnitude, and centroid to the learned weekly event CSV without reusing heuristic coordinates.
-3. Scale the aggressive 3000-step stationarity profile to more episodes; the small probe fixed target-rate drift but is too small for model selection.
+2. Improve synthetic event-list heads before forecast promotion: current nine-episode warmed data is drift-ok, but temporal model utility is still weak.
+3. Promote synthetic event-list heads from engineering check to forecast adapter only after count, magnitude, and centroid heads beat the current sparse-profile smoke metrics.
 4. Keep self-supervised real VLF pretraining as the default real-data modeling path while supervised VLF-aligned labels remain one-class or sparse.
 5. Continue periodic INGV refresh and prospective relabeling; latest real aligned rows are still one-class (`69/0` all-Italy, `0/69` central Italy).
 
@@ -26,10 +26,10 @@
 
 ## Simulation
 
-1. Run `./scripts/run-synthetic-episode-batch.sh` with the aggressive defaults over more episodes and validate with `./scripts/validate-synthetic-event-list-drift.sh`.
-2. Tune direct avalanche event extraction to increase useful event density while keeping h6 positive-rate drift below `0.25`.
-3. Compare new episode-batch h6 drift against the current successful probe delta `0.065608`.
-4. Revisit structured initial fill only with delayed bottom-layer removal or unrecorded warm-up; the first fill probe drifted at `0.307937`.
+1. Run `./scripts/run-synthetic-episode-batch.sh` with the warmed aggressive defaults over more episodes and validate with `./scripts/validate-synthetic-event-list-drift.sh`.
+2. Improve event-list target construction or model weighting; denser direct-event extraction alone made labels healthier but did not improve model smoke metrics.
+3. Compare future episode-batch h6 drift against the current scaled `WARMUP_STEPS=3000` delta `0.187025`.
+4. Revisit structured initial fill only with delayed bottom-layer removal; the first fill probe drifted at `0.307937`.
 5. Tune the piezo/VLF mapping only from `*.piezo.csv` and compare against Cumiana VLF shape reports.
 
 ## Maintenance
@@ -47,6 +47,11 @@
 * Added `./scripts/run-synthetic-episode-batch.sh` for shorter stationarity-tuned synthetic episodes with localized sources preserved.
 * Ran two stationarity profiles. The first six-episode 5000-step batch still drifted badly (`0.652766` positive-rate delta). The aggressive three-episode 3000-step probe fixed drift (`0.065608` delta, warning `ok`) but is too small for model selection.
 * Added structured initial fill and ran a three-seed probe. It started loaded and stayed near mean height `3.2`, but h6 drift was `0.307937`, worse than the no-prefill aggressive profile.
+* Added unrecorded sandpile warm-up. The first three-seed `WARMUP_STEPS=1000` probe improved h6 drift to `0.017989` with warning `ok`.
+* Scaled `WARMUP_STEPS=1000` to nine episodes; drift failed again (`0.294146` delta), showing the small result did not scale.
+* Tested `WARMUP_STEPS=3000` on three seeds. It passed h6 drift (`0.048677`, warning `ok`) and the temporal event-list smoke model reached balanced accuracy `0.674342`; this is the new episode-batch default but still needs scaling.
+* Scaled `WARMUP_STEPS=3000` to nine episodes. The run stayed drift-ok (`0.187025` delta) with 396 labeled rows, but temporal model balanced accuracy was only `0.468045`.
+* Tested denser direct avalanche extraction on the same nine episodes. `_q099_w60_m10` saturated h6 labels (`0.828283` positive rate), while `_q0995_w120_m5` improved class balance (`0.512626`) but did not beat the sparse default model checks.
 * Added and ran `./scripts/trial-weekly-event-forecast.sh`; the current `2026-07-08` trial emits 25 capped `>M2` event-coordinate rows for `2026-07-08` to `2026-07-15`.
 * Added and ran `./scripts/learned-weekly-event-forecast.sh`; it trains a synthetic-window logistic scorer and emits the same weekly event-list CSV contract.
 * Added learned-scorer metadata to the forecast report without changing the CSV event-row contract.
