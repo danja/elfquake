@@ -4,7 +4,7 @@ set -euo pipefail
 usage() {
   cat <<'USAGE'
 Usage:
-  ./piezo-validate-seeds.sh
+  ./scripts/piezo-validate-seeds.sh
 
 Validates the current tuned piezo defaults across multiple seeds.
 
@@ -39,7 +39,7 @@ for seed in $seeds; do
   piezo_csv="${prefix}.piezo.csv"
   echo "piezo seed validation: seed $seed"
   if [[ "$run_sim" == "1" || ( "$run_sim" == "missing" && ! -f "$piezo_csv" ) ]]; then
-    WIDTH="$width" HEIGHT="$height" STEPS="$steps" SEED="$seed" RUN_HEATMAPS=0 ./sim.sh
+    WIDTH="$width" HEIGHT="$height" STEPS="$steps" SEED="$seed" RUN_HEATMAPS=0 ./scripts/sim.sh
   elif [[ "$run_sim" == "0" || "$run_sim" == "missing" ]]; then
     if [[ ! -f "$piezo_csv" ]]; then
       echo "error: missing piezo CSV for seed $seed: $piezo_csv" >&2
@@ -51,7 +51,7 @@ for seed in $seeds; do
     exit 2
   fi
 
-  VLF_IMAGE_ROOT="$real_image_root" ./piezo-sensor-scan.sh \
+  VLF_IMAGE_ROOT="$real_image_root" ./scripts/piezo-sensor-scan.sh \
     "$piezo_csv" \
     "${prefix}.piezo_sensor_scan.csv"
   scan_files+=("${prefix}.piezo_sensor_scan.csv")

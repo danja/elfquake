@@ -86,7 +86,7 @@ Aligned window datasets:
 
 The synthetic aligned table uses next-window synthetic event count as a smoke target. The current real aligned table is unlabeled and waits for target maturation.
 
-Use `./refresh-synthetic-model-artifacts.sh` to rebuild synthetic event lists, maps, per-seed aligned rows, combined tensors, and smoke reports from existing simulation CSVs.
+Use `./scripts/refresh-synthetic-model-artifacts.sh` to rebuild synthetic event lists, maps, per-seed aligned rows, combined tensors, and smoke reports from existing simulation CSVs.
 
 Longer-run synthetic artifacts:
 

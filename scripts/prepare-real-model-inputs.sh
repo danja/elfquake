@@ -6,7 +6,7 @@ SCOPES="${SCOPES:-all_italy central_italy}"
 REAL_VLF_SEQUENCE="${REAL_VLF_SEQUENCE:-data/derived/models/cumiana_vlf_image_sequence/manifest.json}"
 
 if [[ ! -f "$REAL_VLF_SEQUENCE" ]]; then
-  ./materialize-real-vlf-sequence.sh
+  ./scripts/materialize-real-vlf-sequence.sh
 fi
 
 for SCOPE in $SCOPES; do

@@ -4,7 +4,7 @@ set -euo pipefail
 usage() {
   cat <<'USAGE'
 Usage:
-  ./tune-avalanche-events.sh
+  ./scripts/tune-avalanche-events.sh
 
 Ranks direct avalanche event-extraction settings against the extended
 central-Italy INGV event shape.

@@ -12,7 +12,7 @@ PYTHON_BIN="$PYTHON_BIN" \
   HIDDEN_UNITS_LIST="$HIDDEN_UNITS_LIST" \
   EPOCHS="$EPOCHS" \
   ROOT="$ROOT" \
-  ./sweep-synthetic-sequence-model.sh
+  ./scripts/sweep-synthetic-sequence-model.sh
 
 PYTHONDONTWRITEBYTECODE=1 PYTHONPATH=src "$PYTHON_BIN" -m elfquake.cli compare-model-run-summaries \
   --summary data/derived/models/mountain_256x256_seeds40-42_20000.sequence_model_run_summary.json \

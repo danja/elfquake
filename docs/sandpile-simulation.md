@@ -249,7 +249,7 @@ The spectrogram treats piezo sensor amplitudes as receiver time series and compu
 Render a combined time-series and spectrogram PNG:
 
 ```sh
-./piezo-summary.sh
+./scripts/piezo-summary.sh
 ```
 
 This is an FFT diagnostic of the simulated receiver envelope. It is useful for checking drift, bursts, and rough spectral slope, but it is not expected to look like a real VLF receiver spectrogram because the simulation timestep is much slower than VLF carrier sampling.
@@ -259,7 +259,7 @@ By default the helper renders one receiver (`SENSOR_ID=5`) with a one-pole DC-bl
 Render a VLF-shaped analogue summary:
 
 ```sh
-./piezo-vlf-summary.sh
+./scripts/piezo-vlf-summary.sh
 ```
 
 This maps the piezo strain envelope onto carrier-like bands from `0` to `24000` Hz. It is a display analogue for sanity checking the piezo-strain hypothesis, not a physical RF waveform or FFT of the simulation timestep.
@@ -269,7 +269,7 @@ Use `DISPLAY_COLOR_QUANTILE` to adjust display scaling when comparing against Cu
 Compare multiple seeds with:
 
 ```sh
-REAL_EVENTS=data/derived/ingv/events_italy_2026-06-01_2026-06-29.normalized.csv ./compare-simulation-grid.sh
+REAL_EVENTS=data/derived/ingv/events_italy_2026-06-01_2026-06-29.normalized.csv ./scripts/compare-simulation-grid.sh
 ```
 
 `compare-simulation-grid.sh` defaults to metrics-only runs with `RUN_HEATMAPS=0`, `RUN_VIDEO=0`, and `RUN_AUDIO=0`.
@@ -277,7 +277,7 @@ REAL_EVENTS=data/derived/ingv/events_italy_2026-06-01_2026-06-29.normalized.csv 
 Tune piezo VLF-like sensor settings with:
 
 ```sh
-./piezo-tune-grid.sh
+./scripts/piezo-tune-grid.sh
 ```
 
 Use `burst_run_rate`, not raw `burst_run_count`, when comparing VLF image-column traces with simulation traces of different lengths.
@@ -287,7 +287,7 @@ See [Simulation Time Scale](simulation-time-scale.md) before interpreting PSD me
 Render a WAV sonification of the summed piezo signal:
 
 ```sh
-./piezo-audio.sh
+./scripts/piezo-audio.sh
 ```
 
 The WAV is a time-compressed audio rendering for inspection, not a physical radio waveform. The default `SMOOTH_STEPS=64` suppresses step-to-step jitter before resampling to audio rate; reduce it to hear more high-frequency simulation jitter.
@@ -295,10 +295,10 @@ The WAV is a time-compressed audio rendering for inspection, not a physical radi
 Render avalanche-derived seismic-like events over an offline Italy map:
 
 ```sh
-./event-map.sh
+./scripts/event-map.sh
 ```
 
-The helper prefers the newest `*.avalanche_events.csv`, then falls back to `*.synthetic_events.csv` and normalized INGV CSVs. By default it uses a packaged Natural Earth 1:10m Italy GeoJSON as a realistic offline line basemap and still works without `geopandas`, `shapely`, or web tiles. Use `BASEMAP_GEOJSON=/path/to/map.geojson ./event-map.sh` to override the outline.
+The helper prefers the newest `*.avalanche_events.csv`, then falls back to `*.synthetic_events.csv` and normalized INGV CSVs. By default it uses a packaged Natural Earth 1:10m Italy GeoJSON as a realistic offline line basemap and still works without `geopandas`, `shapely`, or web tiles. Use `BASEMAP_GEOJSON=/path/to/map.geojson ./scripts/event-map.sh` to override the outline.
 
 Current synthetic event locations use the weighted centroid from direct avalanche toppling activity when `*.avalanche_activity.csv` is available, falling back to direct avalanche-signal sensor locations for older runs. The default event-map projection scales those synthetic centroids over an Apennine-like belt and uses point size for synthetic magnitude. This is suitable for a demo overlay, but not yet for evaluating spatial realism. Add full rupture-mask output before using synthetic maps as spatial training data.
 
@@ -344,10 +344,10 @@ PYTHONDONTWRITEBYTECODE=1 PYTHONPATH=src .venv/bin/python -m elfquake.cli run-sa
 
 Use `--heatmap-color-min` and `--heatmap-color-max` to keep colors comparable across frames. For mountain mode, set the max to the grid width unless you have a specific z-axis range. `--heatmap-gamma` adjusts visual contrast without changing the underlying values.
 
-The root helper `./sim.sh` runs a parameterized mountain-mode simulation with fixed heatmap scaling:
+The root helper `./scripts/sim.sh` runs a parameterized mountain-mode simulation with fixed heatmap scaling:
 
 ```sh
-./sim.sh
+./scripts/sim.sh
 ```
 
 `sim.sh` defaults to `STEPS=10000`, `SNAPSHOT_INTERVAL=10`, `PROGRESS_INTERVAL=100`, `DEPOSITION_MODE=sources`, `SOURCE_COUNT=WIDTH * HEIGHT / 64`, `TARGET_FILL_LIMIT=WIDTH * HEIGHT / 16`, `PIEZO_SENSOR_COUNT=16`, `PIEZO_ACTIVATION_RATIO=0.75`, `HEATMAP_WORKERS=4`, `HEATMAP_PROGRESS_INTERVAL=50`, and `HEATMAP_GAMMA=0.85`, producing 1001 heatmap frames: steps `0, 10, ..., 9990, 9999`.
@@ -356,10 +356,30 @@ The default target fill limit adds at most one sixteenth of a full layer per ste
 
 `sim.sh` sets `SLOPE_THRESHOLD` to `max(WIDTH / 16, 4)` unless overridden.
 
+The current long-run h6 event-list targets show temporal drift: late rows are much more avalanche-positive than early rows. `diagnose-synthetic-event-list-drift.sh` should be run after target generation to measure this. Balanced and episode-balanced splits are useful learnability checks, but conservative validation still requires chronological splits.
+
+For the next synthetic data pass, prefer multiple shorter stationarity-oriented episodes over a single longer run:
+
+```sh
+./scripts/run-synthetic-episode-batch.sh
+```
+
+That wrapper preserves localized point-source deposition, reduces background fill, removes bottom layers more frequently, and uses sparse event extraction defaults. Its purpose is to reduce simulation lifecycle bias while keeping systematic localized stress.
+
+Current episode-batch defaults are intentionally conservative for mass balance: `TARGET_FILL_LIMIT=WIDTH * HEIGHT / 128`, `BOTTOM_LAYER_INTERVAL=25`, and `DEPOSITION_PROBABILITY=0.45`. A three-episode, 3000-step probe kept final mean height near `3.2` and reduced h6 train/test positive-rate drift to `0.065608`. A previous 5000-step profile still accumulated mass to mean height about `111` and failed drift validation.
+
+Initial fill is available for cold-start experiments:
+
+```sh
+INITIAL_FILL_MODE=structured INITIAL_FILL_MEAN_HEIGHT=3 INITIAL_FILL_VARIATION=1.5 INITIAL_FILL_SMOOTH_PASSES=3 ./scripts/sim.sh
+```
+
+The first structured-fill probe did not beat the no-prefill aggressive profile: h6 positive-rate drift was `0.307937`. The likely issue is that bottom-layer removal starts immediately and strips much of the initial low terrain, while the event process still organizes later. Revisit initial fill with delayed removal or an explicit unrecorded warm-up before using it as the default.
+
 Run the full local demo pipeline:
 
 ```sh
-./run-all.sh
+./scripts/run-all.sh
 ```
 
 This runs `sim.sh`, builds direct seismic synthetic events, renders the VLF-shaped piezo analogue, writes the piezo WAV sonification, builds the heatmap video, and renders the synthetic event map. It defaults to `mountain_256x256_seed42_10000`. Set `RUN_SIM=0` to reuse existing simulation files, `RUN_HEATMAPS=0` to skip snapshot and heatmap PNG generation, `RUN_VIDEO=0` to skip MP4 generation, `RUN_AUDIO=0` to skip WAV output, or `RUN_FFT=1` to also render the older FFT diagnostic PNG.
@@ -367,7 +387,7 @@ This runs `sim.sh`, builds direct seismic synthetic events, renders the VLF-shap
 Create a video from generated PNG heatmaps:
 
 ```sh
-./make-video.sh
+./scripts/make-video.sh
 ```
 
 ## Install Notes
@@ -449,7 +469,7 @@ PYTHONDONTWRITEBYTECODE=1 PYTHONPATH=src .venv/bin/python -m elfquake.cli run-sa
 Create an MP4 from generated heatmaps:
 
 ```sh
-./make-video.sh \
+./scripts/make-video.sh \
   data/derived/sim/sandpile_128x128_seed42_1000.heatmaps \
   data/derived/sim/sandpile_128x128_seed42_1000.mp4 \
   4

@@ -4,7 +4,7 @@ set -euo pipefail
 usage() {
   cat <<'USAGE'
 Usage:
-  ./piezo-tune-grid.sh
+  ./scripts/piezo-tune-grid.sh
 
 Runs a small piezo-parameter grid without overwriting default simulation files.
 
@@ -139,7 +139,7 @@ for variant in $variants; do
       --progress-interval 1000
   fi
 
-  VLF_IMAGE_ROOT="$real_image_root" ./piezo-sensor-scan.sh \
+  VLF_IMAGE_ROOT="$real_image_root" ./scripts/piezo-sensor-scan.sh \
     "${prefix}.piezo.csv" \
     "${prefix}.piezo_sensor_scan.csv"
   scan_files+=("${prefix}.piezo_sensor_scan.csv")

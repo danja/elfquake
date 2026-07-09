@@ -4,7 +4,7 @@ set -euo pipefail
 usage() {
   cat <<'USAGE'
 Usage:
-  ./refresh-synthetic-model-artifacts.sh
+  ./scripts/refresh-synthetic-model-artifacts.sh
 
 Refreshes derived synthetic event, map, aligned model, tensor, and smoke-report
 artifacts from existing simulation CSVs.
@@ -108,7 +108,7 @@ for seed in $seeds; do
   fi
 
   if [[ "$run_event_maps" != "0" ]]; then
-    ./event-map.sh "$event_file"
+    ./scripts/event-map.sh "$event_file"
   fi
 
   if [[ "$run_seed_models" != "0" ]]; then

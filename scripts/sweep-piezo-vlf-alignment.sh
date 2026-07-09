@@ -4,7 +4,7 @@ set -euo pipefail
 usage() {
   cat <<'USAGE'
 Usage:
-  ./sweep-piezo-vlf-alignment.sh
+  ./scripts/sweep-piezo-vlf-alignment.sh
 
 Creates derived piezo/VLF transform variants from existing simulation CSVs,
 materializes sequence manifests, and ranks each variant with the mixed-domain

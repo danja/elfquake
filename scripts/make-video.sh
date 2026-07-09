@@ -4,7 +4,7 @@ set -euo pipefail
 usage() {
   cat <<'USAGE'
 Usage:
-  ./make-video.sh [input_dir] [output_mp4] [fps]
+  ./scripts/make-video.sh [input_dir] [output_mp4] [fps]
 
 Defaults:
   input_dir  data/derived/sim/mountain_256x256_seed42_10000.heatmaps
@@ -12,7 +12,7 @@ Defaults:
   fps        20
 
 Example:
-  ./make-video.sh \
+  ./scripts/make-video.sh \
     data/derived/sim/mountain_256x256_seed42_10000.heatmaps \
     data/derived/sim/mountain_256x256_seed42_10000.mp4 \
     20

@@ -27,6 +27,7 @@ Use this as the master directory map for the `docs/` folder. Prefer updating an 
 *   **[Modeling and Evaluation Strategy](modeling-strategy.md)**: Principles, dynamic target labeling, model readiness checks, validation splits, and metrics.
 *   **[Baseline Targets](baseline-targets.md)**: Reference targets, metrics, and chronological split rules for the naive historical-rate baseline.
 *   **[Forecast Interface](forecast-interface.md)**: Stable weekly event-list input/output contract for trial and future learned scorers.
+*   **[Success Criteria](success-criteria.md)**: Staged pass/fail criteria for scaffold, synthetic utility, real readiness, and prediction claims.
 *   **[Model Candidates](model-candidates.md)**: Tabular, GRU, and Transformer neural candidate architectures.
 *   **[Model Interface Shape](model-interface-shape.md)**: Tensor layouts, mask configurations, and dataset constraints.
 *   **[Model Comparison](model-comparison.md)**: Diagnostic comparisons of baselines against synthetic/real sequence model runs.

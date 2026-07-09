@@ -24,6 +24,7 @@ We define prediction targets before choosing algorithms. The target labels are a
 ### Target Specifications
 *   **Primary Real Target**: Predict whether at least one seismic event with magnitude `>= 3.0` occurs in a given region (e.g. `central_italy`) within the next `7` days.
 *   **Synthetic Target (`gt0`)**: For synthetic sandpile simulations, the target is defined as a next-hour avalanche event count greater than `0`. (The `gt1` target is kept only as a sparsity diagnostic due to event sparsity).
+*   **Synthetic Event-List Target**: For forecast-shape engineering, derive future event count, occurrence, max magnitude, centroid, and time-to-first-event directly from avalanche event CSVs. Keep these targets separate from piezo/VLF analogue features so the VLF path cannot define the seismic target.
 
 ### Labeling Rules
 *   **Temporal Bounds**: Count seismic events in the target interval `[target_start_utc, target_end_utc)`.
@@ -53,5 +54,6 @@ To prove the system adds value beyond simple historical baselines, models must r
 
 ### Validation Scheme
 *   **Time-Based Backtesting**: Training data must strictly occur chronologically before validation data.
+*   **Balanced Synthetic Engineering Splits**: Use only to test whether a synthetic target shape is learnable. A balanced split passing does not replace time-based validation.
 *   **Seed Holdouts**: For synthetic datasets, evaluate models using leave-one-seed-out group holdouts.
 *   **Geographic Holdouts**: Implement regional splits once spatial data density permits.

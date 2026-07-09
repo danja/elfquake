@@ -2,19 +2,19 @@
 
 ## Immediate Priority
 
-1. Treat `trial-weekly-event-forecast.sh` as the current end-to-end event-list contract smoke test, not as a validated predictor.
-2. Improve the synthetic-trained learned scorer: current held-out balanced accuracy is only `0.507576`, with poor negative recall.
-3. Replace the shared event placement heuristics with model-informed spatial/event-count adapters while preserving the forecast CSV contract.
+1. Treat `./scripts/trial-weekly-event-forecast.sh` as the current end-to-end event-list contract smoke test, not as a validated predictor.
+2. Promote synthetic event-list heads from engineering check to forecast adapter: connect predicted count, magnitude, and centroid to the learned weekly event CSV without reusing heuristic coordinates.
+3. Scale the aggressive 3000-step stationarity profile to more episodes; the small probe fixed target-rate drift but is too small for model selection.
 4. Keep self-supervised real VLF pretraining as the default real-data modeling path while supervised VLF-aligned labels remain one-class or sparse.
 5. Continue periodic INGV refresh and prospective relabeling; latest real aligned rows are still one-class (`69/0` all-Italy, `0/69` central Italy).
 
 ## Modeling
 
-1. Calibrate weekly event counts against historical INGV `>M2` rates before trusting any neural score scale.
-2. Add a model-informed spatial adapter so learned scores can alter event locations without breaking the event-list contract.
-3. Add a comparison report between heuristic trial forecasts and learned-scorer forecasts.
+1. Use `./scripts/validate-synthetic-event-list-drift.sh` as the current synthetic event-list validation path.
+2. Calibrate weekly event counts against historical INGV `>M2` rates before trusting any neural score scale.
+3. Compare every weekly forecast run with `./scripts/compare-weekly-forecasts.sh` and track Stage 1/Stage 2 pass/fail status.
 4. Keep direct avalanche-derived seismic features separate from piezo/VLF-like features; use ablations to test their contribution independently.
-5. Rerun the selected deeper patch Transformer only after synthetic event sparsity and target balance are improved enough for meaningful temporal checks.
+5. Rerun the selected deeper patch Transformer only after synthetic event sparsity and temporal target drift are improved enough for meaningful checks.
 
 ## Data
 
@@ -26,11 +26,11 @@
 
 ## Simulation
 
-1. Reduce sparse synthetic event-time clustering before promoting the refined sparse avalanche profile.
-2. Generate a longer and more diverse synthetic aligned dataset once event sparsity and class balance look plausible.
-3. Tune direct avalanche event extraction for INGV-like seismic event shapes without using the piezo/VLF path.
-4. Tune the piezo/VLF mapping only from `*.piezo.csv` and compare against Cumiana VLF shape reports.
-5. Add full rupture-mask outputs only if map demos need spatial extent rather than centroid locations.
+1. Run `./scripts/run-synthetic-episode-batch.sh` with the aggressive defaults over more episodes and validate with `./scripts/validate-synthetic-event-list-drift.sh`.
+2. Tune direct avalanche event extraction to increase useful event density while keeping h6 positive-rate drift below `0.25`.
+3. Compare new episode-batch h6 drift against the current successful probe delta `0.065608`.
+4. Revisit structured initial fill only with delayed bottom-layer removal or unrecorded warm-up; the first fill probe drifted at `0.307937`.
+5. Tune the piezo/VLF mapping only from `*.piezo.csv` and compare against Cumiana VLF shape reports.
 
 ## Maintenance
 
@@ -41,11 +41,19 @@
 
 ## Recent Completed
 
-* Added and ran `trial-weekly-event-forecast.sh`; the current `2026-07-08` trial emits 25 capped `>M2` event-coordinate rows for `2026-07-08` to `2026-07-15`.
-* Added and ran `learned-weekly-event-forecast.sh`; it trains a synthetic-window logistic scorer and emits the same weekly event-list CSV contract.
+* Added synthetic event-list target generation from avalanche event CSVs, including future count, occurrence, magnitude, centroid, and time-to-first-event fields.
+* Added dependency-light synthetic event-list heads for occurrence, count, max magnitude, and centroid. The h6 balanced split reaches balanced accuracy `0.887566`, count MAE `0.506783`, and centroid median error `145.585806 km`; the temporal split still fails with balanced accuracy `0.500000`.
+* Added drift diagnostics, episode annotation, and a validation wrapper. Current h6 temporal split has train positive rate `0.318653` and test positive rate `0.927835`; episode-balanced validation reaches balanced accuracy `0.878079`.
+* Added `./scripts/run-synthetic-episode-batch.sh` for shorter stationarity-tuned synthetic episodes with localized sources preserved.
+* Ran two stationarity profiles. The first six-episode 5000-step batch still drifted badly (`0.652766` positive-rate delta). The aggressive three-episode 3000-step probe fixed drift (`0.065608` delta, warning `ok`) but is too small for model selection.
+* Added structured initial fill and ran a three-seed probe. It started loaded and stayed near mean height `3.2`, but h6 drift was `0.307937`, worse than the no-prefill aggressive profile.
+* Added and ran `./scripts/trial-weekly-event-forecast.sh`; the current `2026-07-08` trial emits 25 capped `>M2` event-coordinate rows for `2026-07-08` to `2026-07-15`.
+* Added and ran `./scripts/learned-weekly-event-forecast.sh`; it trains a synthetic-window logistic scorer and emits the same weekly event-list CSV contract.
 * Added learned-scorer metadata to the forecast report without changing the CSV event-row contract.
+* Added `docs/success-criteria.md` with staged scaffold, synthetic utility, real readiness, and prediction-claim gates.
+* Added and ran `./scripts/compare-weekly-forecasts.sh`; Stage 1 event-contract criteria pass, Stage 2 synthetic-model criteria fail.
 * Refreshed INGV prospective labels and rebuilt real model inputs; both scopes now have 69 labeled rows but remain class-blocked.
-* Added and ran `trial-forecast-map.sh`, rendering `data/derived/maps/mag_gt2_weekly_trial_forecast_map.png` from the trial forecast CSV.
+* Added and ran `./scripts/trial-forecast-map.sh`, rendering `data/derived/maps/mag_gt2_weekly_trial_forecast_map.png` from the trial forecast CSV.
 * Added `docs/forecast-interface.md` to define the stable weekly event-list output contract for trial and future learned scorers.
 * Added `docs/output-example.md` with the top three highest-magnitude trial rows and nearest mapped places.
 * Added self-supervised real VLF pretraining and label-free anomaly scoring as the default real-data development path while labels are sparse.

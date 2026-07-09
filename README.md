@@ -13,7 +13,7 @@ We wish to exploit more modern machine learning/AI techniques to create a predic
 
 ## Status
 
-Status: weak end-to-end trial and synthetic-trained learned forecasts now emit next-week `>M2` event coordinates from current artifacts; **no earthquake prediction capability is claimed**.
+Status: weak end-to-end trial and synthetic-trained learned forecasts now emit next-week `>M2` event coordinates; synthetic event-list heads are learnable on balanced/episode splits, but drift diagnostics show temporal validation still fails, so **no earthquake prediction capability is claimed**.
 
 Right now, while awaiting further VLF-aligned labels, the focus is on label-free real VLF representation learning, real seismic baselines, synthetic regime diagnostics, and keeping the multimodal model interface stable. Evaluation of the current model can be found in [report.md](docs/report.md), [model-comparison.md](docs/model-comparison.md), and [model-scaling-requirements.md](docs/model-scaling-requirements.md).
 
@@ -51,48 +51,50 @@ This work was initially prompted by the tragedy of the [2009 L'Aquila earthquake
 * Label-free real VLF anomaly smoke forecasts while supervised real labels remain blocked.
 * A deterministic trial weekly event-list forecast that combines historical INGV rates/locations, real VLF context, astronomy context, and synthetic avalanche spatial priors into a downstream-ready CSV/JSON contract.
 * A first swappable learned scorer trained on synthetic aligned rows, with the same weekly event-list CSV contract and historical INGV rate calibration metadata.
+* Synthetic event-list target and model heads for occurrence, count, magnitude, and centroid, currently useful as an engineering adapter but not yet temporally robust.
+* Drift-aware synthetic validation and shorter-episode simulation scaffolding to reduce one-run lifecycle bias; the first aggressive 3000-step profile fixes target-rate drift in a small probe.
 * Sandpile simulation with separate seismic-like avalanche outputs and piezo/VLF analogue outputs.
 
 Run the default label-free real VLF pretraining path with:
 
 ```sh
-./pretrain-real-vlf-self-supervised.sh
+./scripts/pretrain-real-vlf-self-supervised.sh
 ```
 
 Run the current label-free 7-day VLF anomaly smoke forecast with:
 
 ```sh
-./score-real-vlf-anomaly-forecast.sh
+./scripts/score-real-vlf-anomaly-forecast.sh
 ```
 
 Run the current end-to-end trial `>M2` weekly event-list forecast with:
 
 ```sh
-./trial-weekly-event-forecast.sh
+./scripts/trial-weekly-event-forecast.sh
 ```
 
 Run the synthetic-trained learned weekly event-list forecast with:
 
 ```sh
-./learned-weekly-event-forecast.sh
+./scripts/learned-weekly-event-forecast.sh
 ```
 
 Compare the current real VLF embedding domain against synthetic piezo/VLF analogues with:
 
 ```sh
-./compare-vlf-embedding-domains.sh
+./scripts/compare-vlf-embedding-domains.sh
 ```
 
 Run the synthetic-inlier transfer diagnostic with:
 
 ```sh
-./evaluate-vlf-synthetic-inlier-transfer.sh
+./scripts/evaluate-vlf-synthetic-inlier-transfer.sh
 ```
 
 Run the mixed-domain VLF alignment diagnostic with:
 
 ```sh
-./evaluate-vlf-mixed-domain-alignment.sh
+./scripts/evaluate-vlf-mixed-domain-alignment.sh
 ```
 
 ## Simulation
@@ -104,7 +106,7 @@ It also includes piezo-like sensors that watch quartz-like susceptible regions n
 Run the local simulation demo pipeline with:
 
 ```sh
-./run-all.sh
+./scripts/run-all.sh
 ```
 
 Default outputs use `data/derived/sim/mountain_256x256_seed42_10000` as the prefix. The normal piezo image is `*.piezo_vlf_summary.png` from `*.piezo.csv`; the direct seismic event analogue is `*.avalanche_events.csv`. The older FFT diagnostic is opt-in with `RUN_FFT=1`.
@@ -114,13 +116,13 @@ The event-map demo projects avalanche-derived locations over an Apennine-style I
 Render a demo overlay of actual synthetic avalanche events and PyTorch predicted-positive target-window hits with:
 
 ```sh
-./prediction-event-map.sh
+./scripts/prediction-event-map.sh
 ```
 
 Compare the simulated VLF analogue image against captured Cumiana VLF spectrograms with:
 
 ```sh
-./compare-piezo-vlf.sh
+./scripts/compare-piezo-vlf.sh
 ```
 
 This is a simplified stress-and-release analogy, not a geological model. Its value depends on whether the generated data has useful structural similarity to real observations. Good performance on simulated avalanches would only show that the tooling can learn synthetic patterns; real claims still require held-out seismic, VLF, and astronomical data.
@@ -132,6 +134,7 @@ This is a simplified stress-and-release analogy, not a geological model. Its val
 * [Processing Graph](docs/processing-graph.md)
 * [Next Actions](docs/next-actions.md)
 * [Forecast Interface](docs/forecast-interface.md)
+* [Success Criteria](docs/success-criteria.md)
 * [Development Environment](docs/development-environment.md)
 * [Source Inventory](docs/source-inventory.md)
 * [Multimodal Feasibility](docs/multimodal-feasibility.md)

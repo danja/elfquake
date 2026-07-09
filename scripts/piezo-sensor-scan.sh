@@ -4,7 +4,7 @@ set -euo pipefail
 usage() {
   cat <<'USAGE'
 Usage:
-  ./piezo-sensor-scan.sh [piezo_csv] [output_csv]
+  ./scripts/piezo-sensor-scan.sh [piezo_csv] [output_csv]
 
 Defaults:
   piezo_csv  data/derived/sim/mountain_${WIDTH}x${HEIGHT}_seed${SEED}_${STEPS}.piezo.csv
@@ -40,7 +40,7 @@ fi
 
 if [[ -z "$input" || ! -f "$input" ]]; then
   echo "error: piezo CSV not found: $input" >&2
-  echo "Run ./sim.sh with matching WIDTH/HEIGHT/STEPS/SEED, or pass a .piezo.csv path explicitly." >&2
+  echo "Run ./scripts/sim.sh with matching WIDTH/HEIGHT/STEPS/SEED, or pass a .piezo.csv path explicitly." >&2
   exit 2
 fi
 

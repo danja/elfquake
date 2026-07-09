@@ -10,7 +10,7 @@ list="false"
 
 usage() {
   cat <<'USAGE'
-Usage: ./tidy.sh [--apply] [--days N] [--all] [--sim-only] [--include-manifests] [--list]
+Usage: ./scripts/tidy.sh [--apply] [--days N] [--all] [--sim-only] [--include-manifests] [--list]
 
 Delete generated files under data/derived. Raw captures under data/raw are never touched.
 

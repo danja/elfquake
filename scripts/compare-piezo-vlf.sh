@@ -4,7 +4,7 @@ set -euo pipefail
 usage() {
   cat <<'USAGE'
 Usage:
-  ./compare-piezo-vlf.sh [sim_png] [output_csv]
+  ./scripts/compare-piezo-vlf.sh [sim_png] [output_csv]
 
 Defaults:
   sim_png    data/derived/sim/mountain_${WIDTH}x${HEIGHT}_seed${SEED}_${STEPS}.piezo_vlf_summary.png
@@ -37,7 +37,7 @@ filename_prefix="${FILENAME_PREFIX:-last_E_VLF}"
 
 if [[ ! -f "$sim_png" ]]; then
   echo "error: simulated VLF PNG not found: $sim_png" >&2
-  echo "Run ./run-all.sh first, or pass a simulated PNG explicitly." >&2
+  echo "Run ./scripts/run-all.sh first, or pass a simulated PNG explicitly." >&2
   exit 2
 fi
 

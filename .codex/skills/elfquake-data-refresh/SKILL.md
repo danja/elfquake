@@ -12,13 +12,13 @@ Run from the repository root. Keep data Italy-scoped, preserve raw records, norm
 1. Refresh real captures and prospective labels:
 
 ```sh
-./refresh-prospective-labels.sh
+./scripts/refresh-prospective-labels.sh
 ```
 
 2. Rebuild real model inputs:
 
 ```sh
-./prepare-real-model-inputs.sh
+./scripts/prepare-real-model-inputs.sh
 ```
 
 3. Check readiness JSON before training real models:
@@ -34,8 +34,8 @@ Only run real training when readiness shows both positive and negative examples.
 Use these only when relevant:
 
 ```sh
-./materialize-real-vlf-sequence.sh
-./train-real-tabular-model.sh
+./scripts/materialize-real-vlf-sequence.sh
+./scripts/train-real-tabular-model.sh
 ```
 
 After meaningful count or status changes, update `docs/report.md` and `docs/next-actions.md` concisely.

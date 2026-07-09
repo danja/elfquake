@@ -12,21 +12,21 @@ Run from the repository root with the project virtual environment active when op
 1. Generate the default synthetic simulation bundle:
 
 ```sh
-./run-all.sh
+./scripts/run-all.sh
 ```
 
 2. Refresh synthetic model artifacts after simulation output changes:
 
 ```sh
-./refresh-synthetic-model-artifacts.sh
+./scripts/refresh-synthetic-model-artifacts.sh
 ```
 
 3. Create demo media when needed:
 
 ```sh
-./sim.sh
-./make-video.sh
-./prediction-event-map.sh
+./scripts/sim.sh
+./scripts/make-video.sh
+./scripts/prediction-event-map.sh
 ```
 
 ## Validation Scripts
@@ -34,12 +34,12 @@ Run from the repository root with the project virtual environment active when op
 Use these to check whether synthetic signals remain plausible and comparable:
 
 ```sh
-./compare-simulation-grid.sh
-./compare-piezo-vlf.sh
-./compare-signal-shapes.sh
-./piezo-sensor-scan.sh
+./scripts/compare-simulation-grid.sh
+./scripts/compare-piezo-vlf.sh
+./scripts/compare-signal-shapes.sh
+./scripts/piezo-sensor-scan.sh
 ```
 
 Keep piezo/VLF-like precursor signals separate from direct avalanche/seismic-like event signals. Optional sensors must not change the core sandpile trajectory or deterministic seed behavior.
 
-Only run `./tidy.sh` when deletion of old derived artifacts is explicitly intended.
+Only run `./scripts/tidy.sh` when deletion of old derived artifacts is explicitly intended.

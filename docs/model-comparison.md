@@ -6,9 +6,9 @@ Purpose: compact comparison of the current real seismic smoke baseline and synth
 
 * summary JSON: `data/derived/models/real_synthetic_compact_comparison.json`
 * summary CSV: `data/derived/models/real_synthetic_compact_comparison.csv`
-* refresh command: `./compare-real-synthetic-models.sh`
-* balanced split command: `./train-sequence-full-balanced.sh`
-* tiny patch Transformer command: `./train-tiny-patch-transformer.sh`
+* refresh command: `./scripts/compare-real-synthetic-models.sh`
+* balanced split command: `./scripts/train-sequence-full-balanced.sh`
+* tiny patch Transformer command: `./scripts/train-tiny-patch-transformer.sh`
 
 ## Results
 

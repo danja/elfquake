@@ -9,6 +9,11 @@ snapshot_interval="${SNAPSHOT_INTERVAL:-10}"
 progress_interval="${PROGRESS_INTERVAL:-100}"
 bottom_layer_interval="${BOTTOM_LAYER_INTERVAL:-100}"
 deposition_mode="${DEPOSITION_MODE:-sources}"
+deposition_probability="${DEPOSITION_PROBABILITY:-0.7}"
+initial_fill_mode="${INITIAL_FILL_MODE:-none}"
+initial_fill_mean_height="${INITIAL_FILL_MEAN_HEIGHT:-0}"
+initial_fill_variation="${INITIAL_FILL_VARIATION:-0}"
+initial_fill_smooth_passes="${INITIAL_FILL_SMOOTH_PASSES:-0}"
 target_fill_limit="${TARGET_FILL_LIMIT:-$(( width * height / 16 ))}"
 if [[ "$target_fill_limit" -lt 1 ]]; then
   target_fill_limit=1
@@ -53,9 +58,13 @@ args=(
   --threshold "$slope_threshold" \
   --deposition-mode "$deposition_mode" \
   --source-count "$source_count" --sensor-count 16 \
-  --deposition-probability 0.7 --seed "$seed" \
+  --deposition-probability "$deposition_probability" --seed "$seed" \
   --target-fill-limit "$target_fill_limit" \
   --bottom-layer-removal-interval "$bottom_layer_interval" \
+  --initial-fill-mode "$initial_fill_mode" \
+  --initial-fill-mean-height "$initial_fill_mean_height" \
+  --initial-fill-variation "$initial_fill_variation" \
+  --initial-fill-smooth-passes "$initial_fill_smooth_passes" \
   --summary-out "${prefix}.summary.csv" \
   --sensors-out "${prefix}.sensors.csv" \
   --piezo-out "${prefix}.piezo.csv" \

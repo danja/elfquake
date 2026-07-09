@@ -19,7 +19,7 @@ for LOOKBACK in $LOOKBACKS; do
       OUT="$RUN_DIR/torch_sequence.json" \
       SUMMARY="$RUN_DIR/sequence_model_run_summary.json" \
       GROUP_PREFIX="$RUN_DIR/torch_sequence_group" \
-      ./train-synthetic-sequence-model.sh
+      ./scripts/train-synthetic-sequence-model.sh
     SUMMARY_ARGS+=(--summary "$RUN_DIR/sequence_model_run_summary.json")
   done
 done

@@ -12,6 +12,7 @@ from elfquake.models.aligned_windows import build_aligned_window_dataset
 from elfquake.models.alignment_manifest import build_alignment_manifest
 from elfquake.models.candidates import write_model_candidates
 from elfquake.models.dataset_combine import combine_aligned_datasets
+from elfquake.models.forecast_comparison import compare_weekly_forecasts
 from elfquake.models.interface_shape import audit_model_interfaces
 from elfquake.models.learned_forecast import generate_learned_weekly_event_forecast
 from elfquake.models.logistic_smoke import train_logistic_smoke
@@ -20,6 +21,10 @@ from elfquake.models.readiness import summarize_model_readiness
 from elfquake.models.report_summary import summarize_model_run_reports
 from elfquake.models.sequence_materializer import materialize_sequence_dataset
 from elfquake.models.split_diagnostics import diagnose_temporal_split
+from elfquake.models.synthetic_drift import diagnose_synthetic_drift
+from elfquake.models.synthetic_episodes import annotate_synthetic_episodes
+from elfquake.models.synthetic_event_list_model import train_synthetic_event_list_model
+from elfquake.models.synthetic_event_list_targets import build_synthetic_event_list_targets
 from elfquake.models.synthetic_regimes import annotate_synthetic_regimes, assign_balanced_split
 from elfquake.models.tensor_materializer import materialize_tensor_dataset
 from elfquake.models.tensor_spec import build_tensor_spec
@@ -221,6 +226,61 @@ def register_model_commands(subparsers: _SubParsersAction) -> None:
     learned_forecast.add_argument("--vlf-audio-glob", action="append", default=[])
     learned_forecast.add_argument("--astronomy-glob", action="append", default=[])
     learned_forecast.set_defaults(func=_generate_learned_weekly_event_forecast)
+
+    forecast_compare = subparsers.add_parser("compare-weekly-forecasts")
+    forecast_compare.add_argument("--baseline-report", type=Path, required=True)
+    forecast_compare.add_argument("--baseline-events", type=Path, required=True)
+    forecast_compare.add_argument("--candidate-report", type=Path, required=True)
+    forecast_compare.add_argument("--candidate-events", type=Path, required=True)
+    forecast_compare.add_argument("--out", type=Path, required=True)
+    forecast_compare.add_argument("--csv-out", type=Path)
+    forecast_compare.set_defaults(func=_compare_weekly_forecasts)
+
+    event_list_targets = subparsers.add_parser("build-synthetic-event-list-targets")
+    event_list_targets.add_argument("--input", type=Path, required=True)
+    event_list_targets.add_argument("--out", type=Path, required=True)
+    event_list_targets.add_argument("--report", type=Path, required=True)
+    event_list_targets.add_argument("--horizon-rows", type=int, default=24)
+    event_list_targets.add_argument("--magnitude-threshold", type=float, default=2.0)
+    event_list_targets.add_argument("--group-field", default="dataset_id")
+    event_list_targets.add_argument("--source-field", default="source_file")
+    event_list_targets.set_defaults(func=_build_synthetic_event_list_targets)
+
+    event_list_model = subparsers.add_parser("train-synthetic-event-list-model")
+    event_list_model.add_argument("--input", type=Path, required=True)
+    event_list_model.add_argument("--out", type=Path, required=True)
+    event_list_model.add_argument("--predictions-out", type=Path)
+    event_list_model.add_argument("--train-fraction", type=float, default=0.8)
+    event_list_model.add_argument("--split-field", default="")
+    event_list_model.add_argument("--epochs", type=int, default=600)
+    event_list_model.add_argument("--learning-rate", type=float, default=0.05)
+    event_list_model.add_argument("--l2", type=float, default=0.001)
+    event_list_model.add_argument("--seed", type=int, default=42)
+    event_list_model.set_defaults(func=_train_synthetic_event_list_model)
+
+    drift = subparsers.add_parser("diagnose-synthetic-drift")
+    drift.add_argument("--input", type=Path, required=True)
+    drift.add_argument("--out", type=Path, required=True)
+    drift.add_argument("--csv-out", type=Path)
+    drift.add_argument("--target-field", default="eventlist_target_occurred")
+    drift.add_argument("--target-status-field", default="eventlist_target_status")
+    drift.add_argument("--group-field", default="dataset_id")
+    drift.add_argument("--time-field", default="window_start_utc")
+    drift.add_argument("--train-fraction", type=float, default=0.8)
+    drift.add_argument("--bucket-count", type=int, default=10)
+    drift.add_argument("--top-n", type=int, default=20)
+    drift.set_defaults(func=_diagnose_synthetic_drift)
+
+    episodes = subparsers.add_parser("annotate-synthetic-episodes")
+    episodes.add_argument("--input", type=Path, required=True)
+    episodes.add_argument("--out", type=Path, required=True)
+    episodes.add_argument("--report", type=Path, required=True)
+    episodes.add_argument("--group-field", default="dataset_id")
+    episodes.add_argument("--time-field", default="window_start_utc")
+    episodes.add_argument("--rows-per-episode", type=int, default=24)
+    episodes.add_argument("--target-field", default="eventlist_target_occurred")
+    episodes.add_argument("--drop-partial", action="store_true")
+    episodes.set_defaults(func=_annotate_synthetic_episodes)
 
 
 def _train_logistic_smoke(args: Namespace) -> int:
@@ -536,4 +596,116 @@ def _generate_learned_weekly_event_forecast(args: Namespace) -> int:
     print(f"test balanced accuracy: {scorer.get('test_metrics', {}).get('balanced_accuracy', '')}")
     print(f"events output: {args.events_out}")
     print(f"report: {args.out}")
+    return 0
+
+
+def _compare_weekly_forecasts(args: Namespace) -> int:
+    report = compare_weekly_forecasts(
+        baseline_report=args.baseline_report,
+        baseline_events=args.baseline_events,
+        candidate_report=args.candidate_report,
+        candidate_events=args.candidate_events,
+        out_path=args.out,
+        csv_out_path=args.csv_out,
+    )
+    print(f"status: {report['status']}")
+    print(f"baseline events: {report['baseline']['event_count']}")
+    print(f"candidate events: {report['candidate']['event_count']}")
+    print(f"stage 1 pass: {report['criteria']['stage_1_event_contract_pass']}")
+    print(f"stage 2 pass: {report['criteria']['stage_2_synthetic_model_pass']}")
+    print(f"output: {args.out}")
+    if args.csv_out:
+        print(f"csv output: {args.csv_out}")
+    return 0
+
+
+def _build_synthetic_event_list_targets(args: Namespace) -> int:
+    report = build_synthetic_event_list_targets(
+        input_csv=args.input,
+        out_csv=args.out,
+        report_path=args.report,
+        horizon_rows=args.horizon_rows,
+        magnitude_threshold=args.magnitude_threshold,
+        group_field=args.group_field,
+        source_field=args.source_field,
+    )
+    print(f"rows: {report['row_count']}")
+    print(f"labeled rows: {report['labeled_row_count']}")
+    print(f"positives: {report['positive_count']}")
+    print(f"negative: {report['negative_count']}")
+    print(f"positive rate: {report['positive_rate']}")
+    print(f"output: {args.out}")
+    print(f"report: {args.report}")
+    return 0
+
+
+def _train_synthetic_event_list_model(args: Namespace) -> int:
+    report = train_synthetic_event_list_model(
+        input_csv=args.input,
+        out_path=args.out,
+        predictions_out=args.predictions_out,
+        train_fraction=args.train_fraction,
+        split_field=args.split_field,
+        epochs=args.epochs,
+        learning_rate=args.learning_rate,
+        l2=args.l2,
+        seed=args.seed,
+    )
+    print(f"status: {report['status']}")
+    print(f"rows: {report['row_count']}")
+    if report["status"] == "evaluated":
+        occurrence = report["occurrence"]["test_metrics"]
+        print(f"test balanced accuracy: {occurrence['balanced_accuracy']}")
+        print(f"test positive recall: {occurrence['positive_recall']}")
+        print(f"test negative recall: {occurrence['negative_recall']}")
+        print(f"count MAE: {report['count']['test_mae']}")
+        print(f"centroid median error km: {report['centroid']['positive_test_median_error_km']}")
+    print(f"output: {args.out}")
+    if args.predictions_out:
+        print(f"predictions output: {args.predictions_out}")
+    return 0
+
+
+def _diagnose_synthetic_drift(args: Namespace) -> int:
+    report = diagnose_synthetic_drift(
+        input_csv=args.input,
+        out_path=args.out,
+        csv_out_path=args.csv_out,
+        target_field=args.target_field,
+        target_status_field=args.target_status_field,
+        group_field=args.group_field,
+        time_field=args.time_field,
+        train_fraction=args.train_fraction,
+        bucket_count=args.bucket_count,
+        top_n=args.top_n,
+    )
+    split = report["temporal_split"]
+    print(f"rows: {report['row_count']}")
+    print(f"labeled rows: {report['labeled_row_count']}")
+    print(f"overall positive rate: {report['overall']['positive_rate']}")
+    print(f"train positive rate: {split['train']['positive_rate']}")
+    print(f"test positive rate: {split['test']['positive_rate']}")
+    print(f"warning: {split['warning']}")
+    print(f"output: {args.out}")
+    if args.csv_out:
+        print(f"csv output: {args.csv_out}")
+    return 0
+
+
+def _annotate_synthetic_episodes(args: Namespace) -> int:
+    report = annotate_synthetic_episodes(
+        input_csv=args.input,
+        out_csv=args.out,
+        report_path=args.report,
+        group_field=args.group_field,
+        time_field=args.time_field,
+        rows_per_episode=args.rows_per_episode,
+        target_field=args.target_field,
+        drop_partial=args.drop_partial,
+    )
+    print(f"rows: {report['row_count']}")
+    print(f"output rows: {report['output_row_count']}")
+    print(f"episodes: {report['episode_count']}")
+    print(f"output: {args.out}")
+    print(f"report: {args.report}")
     return 0

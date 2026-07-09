@@ -4,7 +4,7 @@ set -euo pipefail
 usage() {
   cat <<'USAGE'
 Usage:
-  ./run-all.sh
+  ./scripts/run-all.sh
 
 Runs the simulation demo pipeline in dependency order:
   1. sim.sh
@@ -61,7 +61,7 @@ echo "prefix: $prefix"
 
 if [[ "$run_sim" != "0" ]]; then
   echo "step 1/7: simulation"
-  WIDTH="$width" HEIGHT="$height" STEPS="$steps" SEED="$seed" RUN_HEATMAPS="$run_heatmaps" ./sim.sh
+  WIDTH="$width" HEIGHT="$height" STEPS="$steps" SEED="$seed" RUN_HEATMAPS="$run_heatmaps" ./scripts/sim.sh
 else
   echo "step 1/7: simulation skipped"
 fi
@@ -90,22 +90,22 @@ fi
 
 if [[ "$run_fft" != "0" ]]; then
   echo "optional: piezo FFT diagnostic summary"
-  WIDTH="$width" HEIGHT="$height" STEPS="$steps" SEED="$seed" ./piezo-summary.sh "${prefix}.piezo.csv"
+  WIDTH="$width" HEIGHT="$height" STEPS="$steps" SEED="$seed" ./scripts/piezo-summary.sh "${prefix}.piezo.csv"
 fi
 
 echo "step 3/7: piezo VLF summary"
-WIDTH="$width" HEIGHT="$height" STEPS="$steps" SEED="$seed" ./piezo-vlf-summary.sh "${prefix}.piezo.csv"
+WIDTH="$width" HEIGHT="$height" STEPS="$steps" SEED="$seed" ./scripts/piezo-vlf-summary.sh "${prefix}.piezo.csv"
 
 if [[ "$run_sensor_scan" != "0" ]]; then
   echo "step 4/7: piezo sensor scan"
-  WIDTH="$width" HEIGHT="$height" STEPS="$steps" SEED="$seed" ./piezo-sensor-scan.sh "${prefix}.piezo.csv"
+  WIDTH="$width" HEIGHT="$height" STEPS="$steps" SEED="$seed" ./scripts/piezo-sensor-scan.sh "${prefix}.piezo.csv"
 else
   echo "step 4/7: piezo sensor scan skipped"
 fi
 
 if [[ "$run_audio" != "0" ]]; then
   echo "step 5/7: piezo WAV sonification"
-  WIDTH="$width" HEIGHT="$height" STEPS="$steps" SEED="$seed" ./piezo-audio.sh "${prefix}.piezo.csv"
+  WIDTH="$width" HEIGHT="$height" STEPS="$steps" SEED="$seed" ./scripts/piezo-audio.sh "${prefix}.piezo.csv"
 else
   echo "step 5/7: piezo WAV sonification skipped"
 fi
@@ -117,14 +117,14 @@ fi
 
 if [[ "$run_video" != "0" ]]; then
   echo "step 6/7: heatmap video"
-  WIDTH="$width" HEIGHT="$height" STEPS="$steps" SEED="$seed" ./make-video.sh "${prefix}.heatmaps" "${prefix}.mp4" "$fps"
+  WIDTH="$width" HEIGHT="$height" STEPS="$steps" SEED="$seed" ./scripts/make-video.sh "${prefix}.heatmaps" "${prefix}.mp4" "$fps"
 else
   echo "step 6/7: heatmap video skipped"
 fi
 
 if [[ "$run_event_map" != "0" ]]; then
   echo "step 7/7: synthetic event map"
-  ./event-map.sh "${prefix}.avalanche_events.csv"
+  ./scripts/event-map.sh "${prefix}.avalanche_events.csv"
 else
   echo "step 7/7: synthetic event map skipped"
 fi

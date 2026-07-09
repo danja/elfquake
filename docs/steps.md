@@ -1,6 +1,6 @@
 # Command Steps
 
-Recommended command order for ELFQuake workflows. Run commands from the repository root with `PYTHONPATH=src`; use the project venv when optional dependencies are needed.
+Recommended command order for ELFQuake workflows. Run commands from the repository root with `PYTHONPATH=src`; use the project venv when optional dependencies are needed. Shell wrappers live under `scripts/`, for example `./scripts/run-all.sh`.
 
 ## 1. Plan Seismic Acquisition
 
@@ -270,6 +270,54 @@ Train a small synthetic-window scorer on aligned synthetic rows, inject its late
 
 Run the default synthetic-trained learned weekly forecast. Outputs are written under `data/derived/models/learned_forecast/`; the current learned scorer is a scaffold and must be evaluated against baselines before use.
 
+### `build-synthetic-event-list-targets`
+
+Build forecast-shaped synthetic targets from avalanche event CSVs. It adds future event count, occurrence, max/mean magnitude, centroid, first-event time, and time-to-first-event fields without deriving targets from piezo/VLF channels.
+
+### `build-synthetic-event-list-targets.sh`
+
+Run the default event-list target build over the current seed `40`-`42`, `20000`-step synthetic aligned rows. The current default horizon is 6 rows because it gives the healthiest class balance.
+
+### `build-synthetic-event-list-split.sh`
+
+Assign a deterministic balanced engineering split for synthetic event-list targets using `eventlist_target_occurred`. Use this to check whether the target shape is learnable apart from temporal drift.
+
+### `diagnose-synthetic-drift`
+
+Report temporal/regime drift for a synthetic target table. It summarizes train/test target balance, per-seed time buckets, and the largest feature mean shifts while excluding target and diagnostic fields from model-feature interpretation.
+
+### `diagnose-synthetic-event-list-drift.sh`
+
+Run the default h6 event-list drift diagnostic. Outputs are written under `data/derived/models/synthetic_event_list_drift/`.
+
+### `annotate-synthetic-episodes`
+
+Add deterministic episode ids and row indexes to a synthetic table. These fields are for diagnostics and split construction, not predictive features.
+
+### `annotate-synthetic-event-list-episodes.sh`
+
+Annotate the default h6 event-list target table into 24-row episode blocks.
+
+### `validate-synthetic-event-list-drift.sh`
+
+Run the current drift-aware validation sequence: build h6 targets, diagnose drift, annotate episodes, create balanced and episode-balanced splits, and train temporal/balanced event-list heads.
+
+### `train-synthetic-event-list-model`
+
+Train dependency-light synthetic event-list heads for occurrence, count, max magnitude, and centroid. Use `--split-field model_split` with a balanced split for engineering checks, and omit it for the stricter temporal split.
+
+### `train-synthetic-event-list-model.sh`
+
+Run the default h6 synthetic event-list model. Override `INPUT`, `OUT`, `PREDICTIONS_OUT`, and `SPLIT_FIELD=model_split` to train on the balanced split.
+
+### `compare-weekly-forecasts`
+
+Compare two weekly forecast JSON/CSV pairs against the staged success criteria. It reports count, probability, magnitude, spatial similarity, learned-scorer metrics, and whether the current artifact passes the scaffold and synthetic-utility gates.
+
+### `compare-weekly-forecasts.sh`
+
+Compare the default heuristic trial forecast against the default synthetic-trained learned forecast. Outputs are written under `data/derived/models/forecast_comparison/`.
+
 ### `trial-forecast-map.sh`
 
 Render the current trial forecast event CSV on the offline Italy basemap. Use this for visual inspection of generated coordinates and magnitude-sized markers.
@@ -317,6 +365,10 @@ Fine-tune the patch Transformer from the synthetic checkpoint on real VLF image 
 ### `run-synthetic-diversity-smoke.sh`
 
 Generate extra synthetic seeds without heatmaps, video, or audio, then refresh event lists, aligned windows, tensors, and optional smoke reports for that seed set.
+
+### `run-synthetic-episode-batch.sh`
+
+Generate multiple shorter synthetic simulation episodes with localized sources, slower background fill, more frequent bottom-layer removal, and sparse event extraction defaults. Use this when replacing one long drifting trajectory with a more diverse episode dataset.
 
 ### `compare-model-run-summaries`
 

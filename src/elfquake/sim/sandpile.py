@@ -65,6 +65,10 @@ class SandpileConfig:
     target_mean_height: float = 0.0
     target_fill_limit: int = 0
     bottom_layer_removal_interval: int = 0
+    initial_fill_mode: str = "none"
+    initial_fill_mean_height: float = 0.0
+    initial_fill_variation: float = 0.0
+    initial_fill_smooth_passes: int = 0
 
 
 def run_sandpile_simulation(
@@ -99,6 +103,8 @@ def run_sandpile_simulation(
     grid = np.zeros((config.height, config.width), dtype=np.int64)
     sources = _random_points(rng, config.width, config.height, config.source_count)
     sensors = _random_points(rng, config.width, config.height, config.sensor_count)
+    if config.initial_fill_mode != "none":
+        _apply_initial_fill(grid, config)
     piezo_rows = []
     avalanche_signal_rows = []
     avalanche_activity_rows = []
@@ -257,6 +263,44 @@ def validate_config(config: SandpileConfig) -> None:
         raise ValueError("target_fill_limit must be non-negative")
     if config.bottom_layer_removal_interval < 0:
         raise ValueError("bottom_layer_removal_interval must be non-negative")
+    if config.initial_fill_mode not in {"none", "random", "structured"}:
+        raise ValueError("initial_fill_mode must be 'none', 'random', or 'structured'")
+    if config.initial_fill_mean_height < 0:
+        raise ValueError("initial_fill_mean_height must be non-negative")
+    if config.initial_fill_variation < 0:
+        raise ValueError("initial_fill_variation must be non-negative")
+    if config.initial_fill_smooth_passes < 0:
+        raise ValueError("initial_fill_smooth_passes must be non-negative")
+
+
+def _apply_initial_fill(grid: np.ndarray, config: SandpileConfig) -> None:
+    if config.initial_fill_mean_height <= 0:
+        return
+    fill_rng = np.random.default_rng(config.seed + 2_000_033)
+    mean_height = float(config.initial_fill_mean_height)
+    variation = float(config.initial_fill_variation)
+    if config.initial_fill_mode == "random":
+        values = fill_rng.normal(loc=mean_height, scale=variation or 1.0, size=grid.shape)
+    else:
+        values = fill_rng.normal(loc=mean_height, scale=variation or 1.0, size=grid.shape)
+        passes = max(1, config.initial_fill_smooth_passes)
+        for _ in range(passes):
+            values = _smooth_values(values)
+        if variation > 0:
+            values += fill_rng.normal(loc=0.0, scale=variation * 0.20, size=grid.shape)
+    np.maximum(values, 0.0, out=values)
+    grid[:, :] = np.rint(values).astype(np.int64)
+
+
+def _smooth_values(values: np.ndarray) -> np.ndarray:
+    padded = np.pad(values, 1, mode="edge")
+    return (
+        padded[1:-1, 1:-1] * 4.0
+        + padded[:-2, 1:-1]
+        + padded[2:, 1:-1]
+        + padded[1:-1, :-2]
+        + padded[1:-1, 2:]
+    ) / 8.0
 
 
 def _random_points(rng, width: int, height: int, count: int) -> np.ndarray:
@@ -491,4 +535,3 @@ def _sensor_rows(step: int, sensors: np.ndarray, grid: np.ndarray, topple_counts
             }
         )
     return rows
-

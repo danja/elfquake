@@ -25,6 +25,10 @@ def register_sandpile_commands(subparsers: _SubParsersAction) -> None:
     sandpile.add_argument("--target-mean-height", type=float)
     sandpile.add_argument("--target-fill-limit", type=int, default=0)
     sandpile.add_argument("--bottom-layer-removal-interval", type=int, default=0)
+    sandpile.add_argument("--initial-fill-mode", choices=["none", "random", "structured"], default="none")
+    sandpile.add_argument("--initial-fill-mean-height", type=float, default=0.0)
+    sandpile.add_argument("--initial-fill-variation", type=float, default=0.0)
+    sandpile.add_argument("--initial-fill-smooth-passes", type=int, default=0)
     sandpile.add_argument("--mountain-mode", action="store_true")
     sandpile.add_argument("--summary-out", type=Path, required=True)
     sandpile.add_argument("--sensors-out", type=Path, required=True)
@@ -133,6 +137,10 @@ def _run_sandpile_sim(args: Namespace) -> int:
             target_mean_height=target_mean_height,
             target_fill_limit=args.target_fill_limit,
             bottom_layer_removal_interval=bottom_layer_removal_interval,
+            initial_fill_mode=args.initial_fill_mode,
+            initial_fill_mean_height=args.initial_fill_mean_height,
+            initial_fill_variation=args.initial_fill_variation,
+            initial_fill_smooth_passes=args.initial_fill_smooth_passes,
         ),
         summary_out=args.summary_out,
         sensors_out=args.sensors_out,

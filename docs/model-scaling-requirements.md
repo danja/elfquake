@@ -7,7 +7,7 @@ Purpose: decide when a larger GRU or Transformer-style model is justified.
 Run:
 
 ```sh
-./estimate-model-scale.sh
+./scripts/estimate-model-scale.sh
 ```
 
 Current artifacts:
@@ -55,7 +55,7 @@ Avoid large attention models and GPU-only dependencies on the current system.
 
 The first larger-model scaffold is implemented as a tiny CPU-only patch Transformer:
 
-* command: `./train-tiny-patch-transformer.sh`
+* command: `./scripts/train-tiny-patch-transformer.sh`
 * output: `data/derived/models/tiny_patch_transformer/tiny_patch_transformer_model_run_summary.json`
 * split: post-burn-in regime-balanced synthetic rows, 642 train / 162 test
 * best calibrated balanced accuracy: `0.637500` for `sequence_piezo_vlf_only`

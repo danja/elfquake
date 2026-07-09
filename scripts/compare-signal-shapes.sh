@@ -4,7 +4,7 @@ set -euo pipefail
 usage() {
   cat <<'USAGE'
 Usage:
-  ./compare-signal-shapes.sh
+  ./scripts/compare-signal-shapes.sh
 
 Writes time-domain and frequency-domain shape metrics for real and synthetic signals.
 

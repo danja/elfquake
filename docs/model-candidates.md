@@ -102,10 +102,11 @@ Risks: synthetic-to-real transfer may fail; evaluate against no-pretraining and 
 
 1. Keep building labeled fixed-window tables.
 2. Default to self-supervised real VLF pretraining while supervised real labels are one-class or sparse.
-3. Use synthetic supervised pretraining as a secondary engineering check, not the default real-data path.
-4. Fine-tune on real VLF-aligned rows only after real labels contain both positive and negative examples.
-5. Add cross-modality attention only after unimodal and full-sequence ablations are stable.
-6. Explore frequency-biased, graph, and event-process Transformers as research branches, not first production models.
+3. Use synthetic event-list heads to exercise forecast-shaped occurrence, count, magnitude, and centroid outputs before real labels mature.
+4. Use synthetic supervised pretraining as a secondary engineering check, not the default real-data path.
+5. Fine-tune on real VLF-aligned rows only after real labels contain both positive and negative examples.
+6. Add cross-modality attention only after unimodal and full-sequence ablations are stable.
+7. Explore frequency-biased, graph, and event-process Transformers as research branches, not first production models.
 
 ## Default Self-Supervised Path
 
@@ -192,7 +193,7 @@ Current deeper-model smoke result:
 
 ## Scaling Requirements
 
-Before increasing model size, run `./estimate-model-scale.sh` and review [Model Scaling Requirements](model-scaling-requirements.md).
+Before increasing model size, run `./scripts/estimate-model-scale.sh` and review [Model Scaling Requirements](model-scaling-requirements.md).
 
 Current reading:
 

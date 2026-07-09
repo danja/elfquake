@@ -4,7 +4,7 @@ set -euo pipefail
 usage() {
   cat <<'USAGE'
 Usage:
-  ./event-map.sh [events_csv] [output_png] [metadata_json]
+  ./scripts/event-map.sh [events_csv] [output_png] [metadata_json]
 
 Defaults:
   events_csv     newest avalanche event CSV, else synthetic event CSV, else normalized INGV CSV

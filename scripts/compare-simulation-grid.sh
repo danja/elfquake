@@ -4,7 +4,7 @@ set -euo pipefail
 usage() {
   cat <<'USAGE'
 Usage:
-  ./compare-simulation-grid.sh
+  ./scripts/compare-simulation-grid.sh
 
 Runs the simulation/report pipeline across multiple seeds with the same comparison reports.
 
@@ -49,21 +49,21 @@ for seed in $seeds; do
     RUN_SIM="$run_sim" RUN_HEATMAPS="$run_heatmaps" RUN_VIDEO="$run_video" RUN_AUDIO="$run_audio" \
     AVALANCHE_EVENT_QUANTILE="$avalanche_event_quantile" \
     AVALANCHE_EVENT_WINDOW="$avalanche_event_window" \
-    ./run-all.sh
+    ./scripts/run-all.sh
 
   if [[ -d "$real_image_root" ]]; then
     WIDTH="$width" HEIGHT="$height" STEPS="$steps" SEED="$seed" \
       REAL_IMAGE_ROOT="$real_image_root" \
-      ./compare-piezo-vlf.sh
+      ./scripts/compare-piezo-vlf.sh
   fi
 
   if [[ -n "$real_events" && -f "$real_events" ]]; then
     WIDTH="$width" HEIGHT="$height" STEPS="$steps" SEED="$seed" \
       REAL_EVENTS="$real_events" REAL_VLF_ROOT="$real_image_root" \
-      ./compare-signal-shapes.sh
+      ./scripts/compare-signal-shapes.sh
   else
     WIDTH="$width" HEIGHT="$height" STEPS="$steps" SEED="$seed" \
       REAL_VLF_ROOT="$real_image_root" \
-      ./compare-signal-shapes.sh
+      ./scripts/compare-signal-shapes.sh
   fi
 done

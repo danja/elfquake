@@ -12,35 +12,35 @@ Run from the repository root with the project virtual environment active. Keep m
 1. Train current synthetic baselines:
 
 ```sh
-./train-synthetic-torch-model.sh
-./train-synthetic-sequence-model.sh
+./scripts/train-synthetic-torch-model.sh
+./scripts/train-synthetic-sequence-model.sh
 ```
 
 2. Run sequence comparisons and selection checks:
 
 ```sh
-./sweep-synthetic-sequence-model.sh
-./matched-sequence-comparison.sh
-./repeat-sequence-training-seeds.sh
-./train-sequence-full-regime.sh
-./train-sequence-full-balanced.sh
-./train-tiny-patch-transformer.sh
+./scripts/sweep-synthetic-sequence-model.sh
+./scripts/matched-sequence-comparison.sh
+./scripts/repeat-sequence-training-seeds.sh
+./scripts/train-sequence-full-regime.sh
+./scripts/train-sequence-full-balanced.sh
+./scripts/train-tiny-patch-transformer.sh
 ```
 
 3. Summarize and diagnose model outputs:
 
 ```sh
-./compare-model-runs.sh
-./compare-real-synthetic-models.sh
-./estimate-model-scale.sh
-./diagnose-sequence-models.sh
-./summarize-sequence-selection.sh
+./scripts/compare-model-runs.sh
+./scripts/compare-real-synthetic-models.sh
+./scripts/estimate-model-scale.sh
+./scripts/diagnose-sequence-models.sh
+./scripts/summarize-sequence-selection.sh
 ```
 
 4. Check missing-modality behavior:
 
 ```sh
-./test-sequence-missing-modalities.sh
+./scripts/test-sequence-missing-modalities.sh
 ```
 
 Use an 80 percent training, 20 percent held-out test split unless a script has a documented time-based split. Interpret synthetic runs as engineering validation only; do not imply real earthquake prediction skill.

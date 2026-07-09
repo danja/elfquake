@@ -5,7 +5,7 @@ Purpose: compare real seismic/VLF observations with simulation-derived signals b
 Run:
 
 ```sh
-./compare-signal-shapes.sh
+./scripts/compare-signal-shapes.sh
 ```
 
 Outputs:

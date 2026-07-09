@@ -4,7 +4,7 @@ set -euo pipefail
 usage() {
   cat <<'USAGE'
 Usage:
-  ./sweep-sparse-target-horizon.sh
+  ./scripts/sweep-sparse-target-horizon.sh
 
 Builds sparse-profile aligned synthetic rows for several target horizons and
 runs readiness plus temporal/group smoke reports.

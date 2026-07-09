@@ -54,6 +54,7 @@ from elfquake.models.alignment_manifest import build_alignment_manifest
 from elfquake.models.candidates import list_model_candidates, write_model_candidates
 from elfquake.models.comparison import compare_model_run_summaries
 from elfquake.models.dataset_combine import combine_aligned_datasets
+from elfquake.models.forecast_comparison import compare_weekly_forecasts
 from elfquake.models.interface_shape import audit_model_interfaces
 from elfquake.models.learned_forecast import generate_learned_weekly_event_forecast
 from elfquake.models.logistic_smoke import train_logistic_smoke
@@ -65,6 +66,10 @@ from elfquake.models.torch_sequence_data import build_sequence_samples, load_seq
 from elfquake.models.sequence_comparison import diagnose_sequence_comparison
 from elfquake.models.sequence_selection import summarize_sequence_selection
 from elfquake.models.split_diagnostics import diagnose_temporal_split
+from elfquake.models.synthetic_drift import diagnose_synthetic_drift
+from elfquake.models.synthetic_episodes import annotate_synthetic_episodes
+from elfquake.models.synthetic_event_list_model import train_synthetic_event_list_model
+from elfquake.models.synthetic_event_list_targets import build_synthetic_event_list_targets
 from elfquake.models.synthetic_regimes import annotate_synthetic_regimes, assign_balanced_split
 from elfquake.models.tensor_materializer import materialize_tensor_dataset
 from elfquake.models.tensor_spec import build_tensor_spec
@@ -364,6 +369,209 @@ class AcquisitionScaffoldTests(unittest.TestCase):
                 rows = list(csv.DictReader(handle))
             self.assertTrue(rows[0]["prediction_id"].startswith("learned_"))
             self.assertIn("synthetic-trained", rows[0]["warning"])
+
+    def test_compare_weekly_forecasts_reports_success_criteria(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            baseline_report = root / "baseline.json"
+            candidate_report = root / "candidate.json"
+            baseline_events = root / "baseline.csv"
+            candidate_events = root / "candidate.csv"
+            baseline_report.write_text(
+                json.dumps(
+                    {
+                        "schema": "elfquake.trial_multimodal_weekly_event_forecast.v1",
+                        "forecast_start_utc": "2026-07-08T00:00:00Z",
+                        "forecast_end_utc": "2026-07-15T00:00:00Z",
+                        "uncapped_expected_event_count": 10.0,
+                        "model": {"type": "heuristic"},
+                        "warning": "trial",
+                    }
+                ),
+                encoding="utf-8",
+            )
+            candidate_report.write_text(
+                json.dumps(
+                    {
+                        "schema": "elfquake.learned_multimodal_weekly_event_forecast.v1",
+                        "forecast_start_utc": "2026-07-08T00:00:00Z",
+                        "forecast_end_utc": "2026-07-15T00:00:00Z",
+                        "uncapped_expected_event_count": 9.0,
+                        "model": {
+                            "type": "synthetic_window_logistic_scorer",
+                            "learned_scorer": {
+                                "test_metrics": {
+                                    "balanced_accuracy": 0.5,
+                                    "positive_recall": 1.0,
+                                    "negative_recall": 0.0,
+                                }
+                            },
+                        },
+                        "warning": "learned",
+                    }
+                ),
+                encoding="utf-8",
+            )
+            header = (
+                "prediction_id,forecast_time_utc,latitude,longitude,magnitude_proxy,probability_proxy,"
+                "expected_week_count,real_spatial_weight,synthetic_spatial_weight,vlf_context_score,"
+                "astronomy_context_score,synthetic_context_score,warning\n"
+            )
+            baseline_events.write_text(
+                header + "trial_001,2026-07-08T00:00:00Z,42,13,3.0,0.8,10,1,0,0,0,0,trial\n",
+                encoding="utf-8",
+            )
+            candidate_events.write_text(
+                header + "learned_001,2026-07-08T00:00:00Z,42.1,13.1,3.1,0.7,9,1,0,0,0,0,learned\n",
+                encoding="utf-8",
+            )
+
+            report = compare_weekly_forecasts(
+                baseline_report=baseline_report,
+                baseline_events=baseline_events,
+                candidate_report=candidate_report,
+                candidate_events=candidate_events,
+                out_path=root / "comparison.json",
+                csv_out_path=root / "comparison.csv",
+            )
+
+            self.assertEqual(report["status"], "evaluated")
+            self.assertTrue(report["criteria"]["stage_1_event_contract_pass"])
+            self.assertFalse(report["criteria"]["stage_2_synthetic_model_pass"])
+            self.assertTrue((root / "comparison.csv").exists())
+
+    def test_build_synthetic_event_list_targets_adds_location_targets(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            events = root / "events.csv"
+            events.write_text(
+                "event_id,event_time_utc,latitude,longitude,depth_km,magnitude\n"
+                "e1,2026-01-01T02:30:00Z,42.1,13.2,8,2.4\n"
+                "e2,2026-01-01T03:30:00Z,42.3,13.4,9,3.1\n",
+                encoding="utf-8",
+            )
+            windows = root / "windows.csv"
+            windows.write_text(
+                "dataset_id,window_id,window_start_utc,window_end_utc,source_file,feature\n"
+                f"seed1,w0,2026-01-01T00:00:00Z,2026-01-01T01:00:00Z,{events},0\n"
+                f"seed1,w1,2026-01-01T01:00:00Z,2026-01-01T02:00:00Z,{events},1\n"
+                f"seed1,w2,2026-01-01T02:00:00Z,2026-01-01T03:00:00Z,{events},2\n"
+                f"seed1,w3,2026-01-01T03:00:00Z,2026-01-01T04:00:00Z,{events},3\n",
+                encoding="utf-8",
+            )
+
+            report = build_synthetic_event_list_targets(
+                input_csv=windows,
+                out_csv=root / "targets.csv",
+                report_path=root / "targets.json",
+                horizon_rows=2,
+                magnitude_threshold=2.0,
+            )
+
+            with (root / "targets.csv").open(newline="", encoding="utf-8") as handle:
+                rows = list(csv.DictReader(handle))
+            self.assertEqual(rows[0]["eventlist_target_count"], "1")
+            self.assertEqual(rows[0]["eventlist_target_occurred"], "1")
+            self.assertEqual(rows[0]["eventlist_target_centroid_latitude"], "42.100000000")
+            self.assertEqual(rows[1]["eventlist_target_max_magnitude"], "3.100000000")
+            self.assertEqual(rows[-1]["eventlist_target_status"], "unlabeled_no_future_window")
+            self.assertEqual(report["positive_count"], 2)
+
+    def test_train_synthetic_event_list_model_writes_prediction_heads(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            targets = root / "targets.csv"
+            targets.write_text(
+                "dataset_id,window_id,window_start_utc,feature_a,feature_b,eventlist_target_status,"
+                "eventlist_target_count,eventlist_target_occurred,eventlist_target_max_magnitude,"
+                "eventlist_target_centroid_latitude,eventlist_target_centroid_longitude\n"
+                "seed1,w0,2026-01-01T00:00:00Z,0.0,1.0,labeled,0,0,0,,\n"
+                "seed1,w1,2026-01-01T01:00:00Z,1.0,0.8,labeled,1,1,2.5,42.0,13.0\n"
+                "seed1,w2,2026-01-01T02:00:00Z,2.0,0.6,labeled,1,1,2.7,42.2,13.2\n"
+                "seed1,w3,2026-01-01T03:00:00Z,3.0,0.4,labeled,0,0,0,,\n"
+                "seed1,w4,2026-01-01T04:00:00Z,4.0,0.2,labeled,2,1,3.1,42.4,13.4\n",
+                encoding="utf-8",
+            )
+
+            report = train_synthetic_event_list_model(
+                input_csv=targets,
+                out_path=root / "model.json",
+                predictions_out=root / "predictions.csv",
+                train_fraction=0.8,
+                epochs=10,
+                learning_rate=0.02,
+            )
+
+            self.assertEqual(report["schema"], "elfquake.synthetic_event_list_model.v1")
+            self.assertEqual(report["status"], "evaluated")
+            self.assertTrue((root / "model.json").exists())
+            with (root / "predictions.csv").open(newline="", encoding="utf-8") as handle:
+                rows = list(csv.DictReader(handle))
+            self.assertEqual(len(rows), 1)
+            self.assertIn("predicted_event_count", rows[0])
+            self.assertIn("predicted_centroid_latitude", rows[0])
+
+    def test_synthetic_drift_reports_temporal_positive_shift(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            targets = root / "targets.csv"
+            targets.write_text(
+                "dataset_id,window_id,window_start_utc,feature_a,eventlist_target_status,eventlist_target_occurred\n"
+                "seed1,w0,2026-01-01T00:00:00Z,0,labeled,0\n"
+                "seed1,w1,2026-01-01T01:00:00Z,1,labeled,0\n"
+                "seed1,w2,2026-01-01T02:00:00Z,2,labeled,0\n"
+                "seed1,w3,2026-01-01T03:00:00Z,3,labeled,1\n"
+                "seed1,w4,2026-01-01T04:00:00Z,4,labeled,1\n"
+                "seed1,w5,2026-01-01T05:00:00Z,5,labeled,1\n",
+                encoding="utf-8",
+            )
+
+            report = diagnose_synthetic_drift(
+                input_csv=targets,
+                out_path=root / "drift.json",
+                csv_out_path=root / "drift.csv",
+                train_fraction=0.5,
+                bucket_count=3,
+            )
+
+            self.assertEqual(report["schema"], "elfquake.synthetic_drift_diagnostic.v1")
+            self.assertEqual(report["temporal_split"]["warning"], "test_split_has_no_negatives")
+            self.assertTrue((root / "drift.csv").exists())
+            self.assertEqual(report["time_buckets"][-1]["positive_rate"], 1.0)
+
+    def test_synthetic_episode_annotation_marks_blocks_and_excludes_leakage_fields(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            targets = root / "targets.csv"
+            targets.write_text(
+                "dataset_id,window_id,window_start_utc,feature_a,eventlist_target_status,"
+                "eventlist_target_count,eventlist_target_occurred,eventlist_target_max_magnitude,"
+                "eventlist_target_centroid_latitude,eventlist_target_centroid_longitude\n"
+                "seed1,w0,2026-01-01T00:00:00Z,0,labeled,0,0,0,,\n"
+                "seed1,w1,2026-01-01T01:00:00Z,1,labeled,1,1,2.5,42.0,13.0\n"
+                "seed1,w2,2026-01-01T02:00:00Z,2,labeled,0,0,0,,\n"
+                "seed1,w3,2026-01-01T03:00:00Z,3,labeled,1,1,2.7,42.2,13.2\n",
+                encoding="utf-8",
+            )
+
+            report = annotate_synthetic_episodes(
+                input_csv=targets,
+                out_csv=root / "episodes.csv",
+                report_path=root / "episodes.json",
+                rows_per_episode=2,
+            )
+            self.assertEqual(report["episode_count"], 2)
+            model = train_synthetic_event_list_model(
+                input_csv=root / "episodes.csv",
+                out_path=root / "model.json",
+                predictions_out=root / "predictions.csv",
+                epochs=5,
+            )
+
+            self.assertEqual(model["status"], "evaluated")
+            top_feature_names = [row["name"] for row in model["top_occurrence_features"]]
+            self.assertNotIn("synthetic_episode_index", top_feature_names)
+            self.assertNotIn("synthetic_episode_row_index", top_feature_names)
 
     def test_sequence_comparison_diagnostic_reads_full_reports(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
@@ -3050,6 +3258,34 @@ class AcquisitionScaffoldTests(unittest.TestCase):
         self.assertEqual(released_mass, 8)
         self.assertEqual(_count_unstable(grid, 4), 0)
         self.assertLess(int(grid.max()), 4)
+
+    @unittest.skipIf(importlib.util.find_spec("numba") is None, "numba not installed")
+    def test_sandpile_structured_initial_fill_starts_loaded(self) -> None:
+        from elfquake.sim.sandpile import SandpileConfig, run_sandpile_simulation
+
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            summary_rows, _ = run_sandpile_simulation(
+                config=SandpileConfig(
+                    width=8,
+                    height=8,
+                    steps=2,
+                    threshold=16,
+                    source_count=3,
+                    sensor_count=2,
+                    deposition_probability=0.0,
+                    seed=7,
+                    initial_fill_mode="structured",
+                    initial_fill_mean_height=6.0,
+                    initial_fill_variation=1.5,
+                    initial_fill_smooth_passes=2,
+                ),
+                summary_out=root / "summary.csv",
+                sensors_out=root / "sensors.csv",
+            )
+
+            self.assertGreater(float(summary_rows[0]["mean_height"]), 4.0)
+            self.assertGreater(int(summary_rows[0]["max_height"]), 0)
 
     @unittest.skipIf(importlib.util.find_spec("numba") is None, "numba not installed")
     def test_sandpile_mountain_mode_refills_target_and_removes_bottom_layer(self) -> None:

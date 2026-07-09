@@ -19,7 +19,7 @@ Frequency-domain interpretation:
 Override examples:
 
 ```sh
-SIM_STEP_SECONDS=30 EVENT_BIN_SECONDS=1800 ./compare-signal-shapes.sh
+SIM_STEP_SECONDS=30 EVENT_BIN_SECONDS=1800 ./scripts/compare-signal-shapes.sh
 ```
 
 Use the same declared mapping across all simulation seeds in a tuning run.
