@@ -108,6 +108,8 @@ Risks: synthetic-to-real transfer may fail; evaluate against no-pretraining and 
 6. Add cross-modality attention only after unimodal and full-sequence ablations are stable.
 7. Explore frequency-biased, graph, and event-process Transformers as research branches, not first production models.
 
+Current event-list adapter: dependency-light heads with an 8-member feature-bag occurrence ensemble. This improves the latest scaled synthetic checks modestly, but temporal utility remains below the synthetic gate, so do not promote it to a forecast adapter yet.
+
 ## Default Self-Supervised Path
 
 The default modeling path is now a CPU self-supervised real VLF sequence autoencoder. It learns an embedding from Cumiana spectrogram image features without earthquake target labels, so it can improve as captures accumulate even while supervised target tables are blocked.

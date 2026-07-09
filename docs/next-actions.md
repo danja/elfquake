@@ -3,8 +3,8 @@
 ## Immediate Priority
 
 1. Treat `./scripts/trial-weekly-event-forecast.sh` as the current end-to-end event-list contract smoke test, not as a validated predictor.
-2. Improve synthetic event-list heads before forecast promotion: current nine-episode warmed data is drift-ok, but temporal model utility is still weak.
-3. Promote synthetic event-list heads from engineering check to forecast adapter only after count, magnitude, and centroid heads beat the current sparse-profile smoke metrics.
+2. Improve synthetic event-list targets or stronger model heads before forecast promotion: the feature-bag ensemble helped, but temporal utility is still below the `0.60` synthetic gate.
+3. Promote synthetic event-list heads from engineering check to forecast adapter only after occurrence, count, magnitude, and centroid heads beat the current ensemble sparse-profile smoke metrics.
 4. Keep self-supervised real VLF pretraining as the default real-data modeling path while supervised VLF-aligned labels remain one-class or sparse.
 5. Continue periodic INGV refresh and prospective relabeling; latest real aligned rows are still one-class (`69/0` all-Italy, `0/69` central Italy).
 
@@ -52,6 +52,7 @@
 * Tested `WARMUP_STEPS=3000` on three seeds. It passed h6 drift (`0.048677`, warning `ok`) and the temporal event-list smoke model reached balanced accuracy `0.674342`; this is the new episode-batch default but still needs scaling.
 * Scaled `WARMUP_STEPS=3000` to nine episodes. The run stayed drift-ok (`0.187025` delta) with 396 labeled rows, but temporal model balanced accuracy was only `0.468045`.
 * Tested denser direct avalanche extraction on the same nine episodes. `_q099_w60_m10` saturated h6 labels (`0.828283` positive rate), while `_q0995_w120_m5` improved class balance (`0.512626`) but did not beat the sparse default model checks.
+* Added deterministic feature-bag ensembles to the dependency-light event-list occurrence head. The default script now uses 8 members with 50% feature bags, improving the scaled sparse temporal/balanced/episode-balanced checks to `0.498120`, `0.616473`, and `0.607551`.
 * Added and ran `./scripts/trial-weekly-event-forecast.sh`; the current `2026-07-08` trial emits 25 capped `>M2` event-coordinate rows for `2026-07-08` to `2026-07-15`.
 * Added and ran `./scripts/learned-weekly-event-forecast.sh`; it trains a synthetic-window logistic scorer and emits the same weekly event-list CSV contract.
 * Added learned-scorer metadata to the forecast report without changing the CSV event-row contract.

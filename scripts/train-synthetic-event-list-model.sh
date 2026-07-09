@@ -10,6 +10,9 @@ EPOCHS="${EPOCHS:-600}"
 LEARNING_RATE="${LEARNING_RATE:-0.05}"
 L2="${L2:-0.001}"
 SEED="${SEED:-42}"
+MAX_FEATURE_COUNT="${MAX_FEATURE_COUNT:-0}"
+OCCURRENCE_ENSEMBLE_COUNT="${OCCURRENCE_ENSEMBLE_COUNT:-8}"
+OCCURRENCE_FEATURE_BAG_FRACTION="${OCCURRENCE_FEATURE_BAG_FRACTION:-0.5}"
 
 PYTHONDONTWRITEBYTECODE=1 PYTHONPATH=src python3 -m elfquake.cli train-synthetic-event-list-model \
   --input "$INPUT" \
@@ -20,4 +23,7 @@ PYTHONDONTWRITEBYTECODE=1 PYTHONPATH=src python3 -m elfquake.cli train-synthetic
   --epochs "$EPOCHS" \
   --learning-rate "$LEARNING_RATE" \
   --l2 "$L2" \
-  --seed "$SEED"
+  --seed "$SEED" \
+  --max-feature-count "$MAX_FEATURE_COUNT" \
+  --occurrence-ensemble-count "$OCCURRENCE_ENSEMBLE_COUNT" \
+  --occurrence-feature-bag-fraction "$OCCURRENCE_FEATURE_BAG_FRACTION"

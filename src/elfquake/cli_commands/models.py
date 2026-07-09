@@ -256,6 +256,9 @@ def register_model_commands(subparsers: _SubParsersAction) -> None:
     event_list_model.add_argument("--learning-rate", type=float, default=0.05)
     event_list_model.add_argument("--l2", type=float, default=0.001)
     event_list_model.add_argument("--seed", type=int, default=42)
+    event_list_model.add_argument("--max-feature-count", type=int, default=0)
+    event_list_model.add_argument("--occurrence-ensemble-count", type=int, default=1)
+    event_list_model.add_argument("--occurrence-feature-bag-fraction", type=float, default=1.0)
     event_list_model.set_defaults(func=_train_synthetic_event_list_model)
 
     drift = subparsers.add_parser("diagnose-synthetic-drift")
@@ -650,6 +653,9 @@ def _train_synthetic_event_list_model(args: Namespace) -> int:
         learning_rate=args.learning_rate,
         l2=args.l2,
         seed=args.seed,
+        max_feature_count=args.max_feature_count,
+        occurrence_ensemble_count=args.occurrence_ensemble_count,
+        occurrence_feature_bag_fraction=args.occurrence_feature_bag_fraction,
     )
     print(f"status: {report['status']}")
     print(f"rows: {report['row_count']}")

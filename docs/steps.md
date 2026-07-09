@@ -304,11 +304,11 @@ Run the current drift-aware validation sequence: build h6 targets, diagnose drif
 
 ### `train-synthetic-event-list-model`
 
-Train dependency-light synthetic event-list heads for occurrence, count, max magnitude, and centroid. Use `--split-field model_split` with a balanced split for engineering checks, and omit it for the stricter temporal split.
+Train dependency-light synthetic event-list heads for occurrence, count, max magnitude, and centroid. Use `--split-field model_split` with a balanced split for engineering checks, and omit it for the stricter temporal split. The occurrence head can use deterministic feature-bag ensembles.
 
 ### `train-synthetic-event-list-model.sh`
 
-Run the default h6 synthetic event-list model. Override `INPUT`, `OUT`, `PREDICTIONS_OUT`, and `SPLIT_FIELD=model_split` to train on the balanced split.
+Run the default h6 synthetic event-list model. The wrapper defaults to an 8-member, 50% feature-bag occurrence ensemble. Override `INPUT`, `OUT`, `PREDICTIONS_OUT`, and `SPLIT_FIELD=model_split` to train on the balanced split.
 
 ### `compare-weekly-forecasts`
 

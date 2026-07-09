@@ -500,10 +500,13 @@ class AcquisitionScaffoldTests(unittest.TestCase):
                 train_fraction=0.8,
                 epochs=10,
                 learning_rate=0.02,
+                occurrence_ensemble_count=3,
+                occurrence_feature_bag_fraction=0.5,
             )
 
             self.assertEqual(report["schema"], "elfquake.synthetic_event_list_model.v1")
             self.assertEqual(report["status"], "evaluated")
+            self.assertEqual(report["occurrence_ensemble"]["member_count"], 3)
             self.assertTrue((root / "model.json").exists())
             with (root / "predictions.csv").open(newline="", encoding="utf-8") as handle:
                 rows = list(csv.DictReader(handle))
@@ -566,9 +569,11 @@ class AcquisitionScaffoldTests(unittest.TestCase):
                 out_path=root / "model.json",
                 predictions_out=root / "predictions.csv",
                 epochs=5,
+                max_feature_count=1,
             )
 
             self.assertEqual(model["status"], "evaluated")
+            self.assertEqual(model["feature_selection"]["selected_feature_count"], 1)
             top_feature_names = [row["name"] for row in model["top_occurrence_features"]]
             self.assertNotIn("synthetic_episode_index", top_feature_names)
             self.assertNotIn("synthetic_episode_row_index", top_feature_names)

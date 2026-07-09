@@ -58,9 +58,18 @@ def train_synthetic_event_list_model(
     learning_rate: float = 0.05,
     l2: float = 0.001,
     seed: int = 42,
+    max_feature_count: int = 0,
+    occurrence_ensemble_count: int = 1,
+    occurrence_feature_bag_fraction: float = 1.0,
 ) -> dict[str, object]:
     if not 0 < train_fraction < 1:
         raise ValueError("train_fraction must be between 0 and 1")
+    if max_feature_count < 0:
+        raise ValueError("max_feature_count must be non-negative")
+    if occurrence_ensemble_count < 1:
+        raise ValueError("occurrence_ensemble_count must be at least 1")
+    if not 0 < occurrence_feature_bag_fraction <= 1:
+        raise ValueError("occurrence_feature_bag_fraction must be in (0, 1]")
 
     rows = _read_labeled_rows(input_csv)
     if len(rows) < 4:
@@ -81,24 +90,37 @@ def train_synthetic_event_list_model(
         train_rows = rows[:split_at]
         test_rows = rows[split_at:]
 
+    train_occurrence = [int(row["eventlist_target_occurred"]) for row in train_rows]
+    test_occurrence = [int(row["eventlist_target_occurred"]) for row in test_rows]
     train_matrix = [[_number(row.get(name, "")) for name in feature_names] for row in train_rows]
     test_matrix = [[_number(row.get(name, "")) for name in feature_names] for row in test_rows]
+    original_feature_count = len(feature_names)
+    selected_indexes, feature_scores = _selected_feature_indexes(
+        train_matrix,
+        train_occurrence,
+        feature_names,
+        max_feature_count=max_feature_count,
+    )
+    if len(selected_indexes) != len(feature_names):
+        feature_names = [feature_names[index] for index in selected_indexes]
+        train_matrix = [[row[index] for index in selected_indexes] for row in train_matrix]
+        test_matrix = [[row[index] for index in selected_indexes] for row in test_matrix]
     means, scales = _standardization(train_matrix)
     x_train = [_standardize(row, means=means, scales=scales) for row in train_matrix]
     x_test = [_standardize(row, means=means, scales=scales) for row in test_matrix]
 
-    train_occurrence = [int(row["eventlist_target_occurred"]) for row in train_rows]
-    test_occurrence = [int(row["eventlist_target_occurred"]) for row in test_rows]
-    occurrence_weights, occurrence_bias = _fit_logistic(
-        x_train,
-        train_occurrence,
+    occurrence_model = _fit_occurrence_ensemble(
+        x_train=x_train,
+        labels=train_occurrence,
         epochs=epochs,
         learning_rate=learning_rate,
         l2=l2,
         seed=seed,
+        ensemble_count=occurrence_ensemble_count,
+        feature_bag_fraction=occurrence_feature_bag_fraction,
     )
-    train_probabilities = [_sigmoid(_dot(occurrence_weights, row) + occurrence_bias) for row in x_train]
-    test_probabilities = [_sigmoid(_dot(occurrence_weights, row) + occurrence_bias) for row in x_test]
+    train_probabilities = [_predict_occurrence_probability(occurrence_model, row) for row in x_train]
+    test_probabilities = [_predict_occurrence_probability(occurrence_model, row) for row in x_test]
     threshold = _best_balanced_threshold(train_probabilities, train_occurrence)
 
     count_model = _fit_linear_head(
@@ -140,7 +162,7 @@ def train_synthetic_event_list_model(
     prediction_rows = _prediction_rows(
         rows=test_rows,
         x_rows=x_test,
-        probability_model=(occurrence_weights, occurrence_bias),
+        probability_model=occurrence_model,
         threshold=threshold,
         count_model=count_model,
         magnitude_model=magnitude_model,
@@ -173,11 +195,23 @@ def train_synthetic_event_list_model(
         "train_row_count": len(train_rows),
         "test_row_count": len(test_rows),
         "feature_count": len(feature_names),
+        "original_feature_count": original_feature_count,
+        "feature_selection": {
+            "max_feature_count": max_feature_count,
+            "selected_feature_count": len(feature_names),
+            "method": "train_split_standardized_mean_delta",
+            "top_selected_features": feature_scores[:12],
+        },
         "split": {"type": split_type, "split_field": split_field},
         "train_fraction": train_fraction,
         "epochs": epochs,
         "learning_rate": learning_rate,
         "l2": l2,
+        "occurrence_ensemble": {
+            "ensemble_count": occurrence_ensemble_count,
+            "feature_bag_fraction": occurrence_feature_bag_fraction,
+            "member_count": len(occurrence_model),
+        },
         "target_positive_count": sum(train_occurrence) + sum(test_occurrence),
         "train_positive_count": sum(train_occurrence),
         "test_positive_count": sum(test_occurrence),
@@ -201,7 +235,7 @@ def train_synthetic_event_list_model(
             "positive_test_mean_error_km": _mean(location_errors),
             "positive_test_median_error_km": _median(location_errors),
         },
-        "top_occurrence_features": _top_features(feature_names, occurrence_weights, limit=12),
+        "top_occurrence_features": _top_ensemble_features(feature_names, occurrence_model, limit=12),
         "note": "Synthetic event-list heads are engineering adapters for count/location/magnitude targets, not real prediction evidence.",
     }
     out_path.parent.mkdir(parents=True, exist_ok=True)
@@ -261,6 +295,110 @@ def _fit_positive_head(
     )
 
 
+OccurrenceMember = tuple[list[int], list[float], float]
+
+
+def _fit_occurrence_ensemble(
+    *,
+    x_train: list[list[float]],
+    labels: list[int],
+    epochs: int,
+    learning_rate: float,
+    l2: float,
+    seed: int,
+    ensemble_count: int,
+    feature_bag_fraction: float,
+) -> list[OccurrenceMember]:
+    feature_count = len(x_train[0])
+    bag_size = max(1, min(feature_count, int(round(feature_count * feature_bag_fraction))))
+    models: list[OccurrenceMember] = []
+    for member_index in range(ensemble_count):
+        indexes = _occurrence_feature_bag(
+            feature_count=feature_count,
+            bag_size=bag_size,
+            seed=seed + member_index * 9973,
+            use_all=member_index == 0 and (feature_bag_fraction == 1.0 or ensemble_count > 1),
+        )
+        member_x = [[row[index] for index in indexes] for row in x_train]
+        weights, bias = _fit_logistic(
+            member_x,
+            labels,
+            epochs=epochs,
+            learning_rate=learning_rate,
+            l2=l2,
+            seed=seed + member_index * 101,
+        )
+        models.append((indexes, weights, bias))
+    return models
+
+
+def _occurrence_feature_bag(*, feature_count: int, bag_size: int, seed: int, use_all: bool) -> list[int]:
+    if use_all:
+        return list(range(feature_count))
+    rng = random.Random(seed)
+    return sorted(rng.sample(range(feature_count), bag_size))
+
+
+def _predict_occurrence_probability(model: list[OccurrenceMember], x_row: list[float]) -> float:
+    probabilities = []
+    for indexes, weights, bias in model:
+        values = [x_row[index] for index in indexes]
+        probabilities.append(_sigmoid(_dot(weights, values) + bias))
+    return sum(probabilities) / max(1, len(probabilities))
+
+
+def _selected_feature_indexes(
+    matrix: list[list[float]],
+    labels: list[int],
+    feature_names: list[str],
+    *,
+    max_feature_count: int,
+) -> tuple[list[int], list[dict[str, object]]]:
+    if max_feature_count == 0 or max_feature_count >= len(feature_names):
+        return list(range(len(feature_names))), _feature_scores(matrix, labels, feature_names)[:12]
+    positives = sum(labels)
+    negatives = len(labels) - positives
+    if positives == 0 or negatives == 0:
+        return list(range(len(feature_names))), _feature_scores(matrix, labels, feature_names)[:12]
+    scored = _feature_scores(matrix, labels, feature_names)
+    selected = sorted(int(row["index"]) for row in scored[:max_feature_count])
+    return selected, [row for row in scored if int(row["index"]) in set(selected)][:12]
+
+
+def _feature_scores(
+    matrix: list[list[float]],
+    labels: list[int],
+    feature_names: list[str],
+) -> list[dict[str, object]]:
+    if not matrix:
+        return []
+    positive_indexes = [index for index, label in enumerate(labels) if label == 1]
+    negative_indexes = [index for index, label in enumerate(labels) if label == 0]
+    rows: list[dict[str, object]] = []
+    for feature_index, name in enumerate(feature_names):
+        values = [row[feature_index] for row in matrix]
+        mean = sum(values) / max(1, len(values))
+        variance = sum((value - mean) ** 2 for value in values) / max(1, len(values))
+        scale = math.sqrt(variance) if variance > 0 else 1.0
+        positive_mean = _indexed_mean(values, positive_indexes)
+        negative_mean = _indexed_mean(values, negative_indexes)
+        score = abs(positive_mean - negative_mean) / scale
+        rows.append(
+            {
+                "index": feature_index,
+                "name": name,
+                "score": round(score, 6),
+            }
+        )
+    return sorted(rows, key=lambda row: (float(row["score"]), str(row["name"])), reverse=True)
+
+
+def _indexed_mean(values: list[float], indexes: list[int]) -> float:
+    if not indexes:
+        return 0.0
+    return sum(values[index] for index in indexes) / len(indexes)
+
+
 def _fit_linear_head(
     x_rows: list[list[float]],
     targets: list[float],
@@ -293,17 +431,16 @@ def _prediction_rows(
     *,
     rows: list[dict[str, str]],
     x_rows: list[list[float]],
-    probability_model: tuple[list[float], float],
+    probability_model: list[OccurrenceMember],
     threshold: float,
     count_model: tuple[list[float], float],
     magnitude_model: tuple[list[float], float] | None,
     latitude_model: tuple[list[float], float] | None,
     longitude_model: tuple[list[float], float] | None,
 ) -> list[dict[str, str]]:
-    occurrence_weights, occurrence_bias = probability_model
     output: list[dict[str, str]] = []
     for index, (row, x_row) in enumerate(zip(rows, x_rows), start=1):
-        probability = _sigmoid(_dot(occurrence_weights, x_row) + occurrence_bias)
+        probability = _predict_occurrence_probability(probability_model, x_row)
         predicted_count = _safe_count_prediction(_predict_linear(count_model, x_row))
         predicted_magnitude = _clamp_optional(_predict_optional(magnitude_model, x_row), lower=0.0, upper=8.0)
         predicted_latitude = _clamp_optional(_predict_optional(latitude_model, x_row), lower=35.0, upper=48.0)
@@ -375,6 +512,26 @@ def _top_features(feature_names: list[str], weights: list[float], *, limit: int)
         key=lambda item: abs(float(item["weight"])),
         reverse=True,
     )[:limit]
+
+
+def _top_ensemble_features(
+    feature_names: list[str],
+    model: list[OccurrenceMember],
+    *,
+    limit: int,
+) -> list[dict[str, object]]:
+    totals = [0.0 for _ in feature_names]
+    counts = [0 for _ in feature_names]
+    for indexes, weights, _bias in model:
+        for index, weight in zip(indexes, weights):
+            totals[index] += weight
+            counts[index] += 1
+    rows = []
+    for index, name in enumerate(feature_names):
+        if counts[index] == 0:
+            continue
+        rows.append({"name": name, "weight": round(totals[index] / counts[index], 6)})
+    return sorted(rows, key=lambda item: abs(float(item["weight"])), reverse=True)[:limit]
 
 
 def _mean(values: list[float]) -> float | None:
