@@ -214,6 +214,7 @@ def train_synthetic_event_list_model(
     magnitude_errors = [
         abs(float(row["predicted_max_magnitude"]) - _number(row.get("target_max_magnitude", "")))
         for row in positive_prediction_rows
+        if row.get("predicted_max_magnitude", "") != ""
     ]
     location_errors = [
         _number(row.get("location_error_km", ""))

@@ -310,6 +310,38 @@ Train dependency-light synthetic event-list heads for occurrence, count, magnitu
 
 Run the default h6 synthetic event-list model. The wrapper defaults to an 8-member, 50% feature-bag occurrence ensemble. Override `INPUT`, `OUT`, `PREDICTIONS_OUT`, and `SPLIT_FIELD=model_split` to train on the balanced split; set `OCCURRENCE_MODEL_TYPE=boosted_stumps` for the optional nonlinear occurrence diagnostic.
 
+### `summarize-synthetic-event-list-probes`
+
+Summarize event-list model and drift probe JSON reports into one compact JSON/CSV table. Use this after variant sweeps so temporal, balanced, horizon, burn-in, and model-head checks can be compared without manual inspection.
+
+### `probe-synthetic-event-list-models.sh`
+
+Run the current synthetic event-list probe harness. It sweeps selected target horizons, optional burn-in trims, default and stronger occurrence heads, feature caps, and balanced controls, then writes `summary.json` and `summary.csv` under `data/derived/models/synthetic_event_list_probes/`.
+
+### `build-synthetic-lagged-context`
+
+Add previous-row synthetic feature history to an event-list target table while excluding target and diagnostic fields. Use this to test temporal context without leaking future labels.
+
+### `probe-synthetic-event-list-lagged-context.sh`
+
+Build the default h6 lagged-context table and train a temporal event-list model over it. Override `LAGS`, `MAX_FEATURE_COUNT`, and `OUT_DIR` to compare lag depth and feature caps.
+
+### `train-synthetic-event-list-sequence-head`
+
+Train a regularized CPU PyTorch GRU over grouped synthetic event-list rows. It predicts future event occurrence from current and recent feature history while excluding target and diagnostic fields.
+
+### `train-synthetic-event-list-sequence-head.sh`
+
+Run the default h6 event-list sequence-head probe. The current default uses `LOOKBACK_ROWS=12`, `DROPOUT=0.1`, AdamW weight decay, positive-class weighting, and gradient clipping; override `SEED`, `LOOKBACK_ROWS`, `HIDDEN_UNITS`, and `DROPOUT` for stability checks.
+
+### `summarize-synthetic-event-list-sequence-heads`
+
+Summarize event-list sequence-head JSON reports into JSON/CSV, including per-configuration mean, min, max, standard deviation, and synthetic-gate pass counts.
+
+### `sweep-synthetic-event-list-sequence-head.sh`
+
+Run the default h6 sequence-head stability sweep over seeds, lookback rows, and dropout values, then write `summary.json` and `summary.csv` under `data/derived/models/synthetic_event_list_sequence_sweep/`.
+
 ### `compare-weekly-forecasts`
 
 Compare two weekly forecast JSON/CSV pairs against the staged success criteria. It reports count, probability, magnitude, spatial similarity, learned-scorer metrics, and whether the current artifact passes the scaffold and synthetic-utility gates.

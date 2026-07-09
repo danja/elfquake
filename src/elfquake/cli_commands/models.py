@@ -24,7 +24,13 @@ from elfquake.models.split_diagnostics import diagnose_temporal_split
 from elfquake.models.synthetic_drift import diagnose_synthetic_drift
 from elfquake.models.synthetic_episodes import annotate_synthetic_episodes
 from elfquake.models.synthetic_event_list_model import train_synthetic_event_list_model
+from elfquake.models.synthetic_event_list_probes import summarize_synthetic_event_list_probes
+from elfquake.models.synthetic_event_list_sequence import (
+    summarize_synthetic_event_list_sequence_heads,
+    train_synthetic_event_list_sequence_head,
+)
 from elfquake.models.synthetic_event_list_targets import build_synthetic_event_list_targets
+from elfquake.models.synthetic_lagged_context import build_synthetic_lagged_context
 from elfquake.models.synthetic_regimes import annotate_synthetic_regimes, assign_balanced_split
 from elfquake.models.tensor_materializer import materialize_tensor_dataset
 from elfquake.models.tensor_spec import build_tensor_spec
@@ -262,6 +268,47 @@ def register_model_commands(subparsers: _SubParsersAction) -> None:
     event_list_model.add_argument("--occurrence-feature-bag-fraction", type=float, default=1.0)
     event_list_model.add_argument("--occurrence-stump-count", type=int, default=24)
     event_list_model.set_defaults(func=_train_synthetic_event_list_model)
+
+    event_list_probe_summary = subparsers.add_parser("summarize-synthetic-event-list-probes")
+    event_list_probe_summary.add_argument("--root", type=Path, required=True)
+    event_list_probe_summary.add_argument("--out", type=Path, required=True)
+    event_list_probe_summary.add_argument("--csv-out", type=Path)
+    event_list_probe_summary.set_defaults(func=_summarize_synthetic_event_list_probes)
+
+    lagged_context = subparsers.add_parser("build-synthetic-lagged-context")
+    lagged_context.add_argument("--input", type=Path, required=True)
+    lagged_context.add_argument("--out", type=Path, required=True)
+    lagged_context.add_argument("--report", type=Path, required=True)
+    lagged_context.add_argument("--lag", type=int, action="append", default=[])
+    lagged_context.add_argument("--group-field", default="dataset_id")
+    lagged_context.add_argument("--time-field", default="window_start_utc")
+    lagged_context.set_defaults(func=_build_synthetic_lagged_context)
+
+    event_list_sequence = subparsers.add_parser("train-synthetic-event-list-sequence-head")
+    event_list_sequence.add_argument("--input", type=Path, required=True)
+    event_list_sequence.add_argument("--out", type=Path, required=True)
+    event_list_sequence.add_argument("--predictions-out", type=Path)
+    event_list_sequence.add_argument("--target-field", default="eventlist_target_occurred")
+    event_list_sequence.add_argument("--target-status-field", default="eventlist_target_status")
+    event_list_sequence.add_argument("--group-field", default="dataset_id")
+    event_list_sequence.add_argument("--time-field", default="window_start_utc")
+    event_list_sequence.add_argument("--train-fraction", type=float, default=0.8)
+    event_list_sequence.add_argument("--lookback-rows", type=int, default=12)
+    event_list_sequence.add_argument("--epochs", type=int, default=80)
+    event_list_sequence.add_argument("--learning-rate", type=float, default=0.001)
+    event_list_sequence.add_argument("--hidden-units", type=int, default=24)
+    event_list_sequence.add_argument("--batch-size", type=int, default=64)
+    event_list_sequence.add_argument("--dropout", type=float, default=0.1)
+    event_list_sequence.add_argument("--weight-decay", type=float, default=0.001)
+    event_list_sequence.add_argument("--max-feature-count", type=int, default=256)
+    event_list_sequence.add_argument("--seed", type=int, default=42)
+    event_list_sequence.set_defaults(func=_train_synthetic_event_list_sequence_head)
+
+    event_list_sequence_summary = subparsers.add_parser("summarize-synthetic-event-list-sequence-heads")
+    event_list_sequence_summary.add_argument("--root", type=Path, required=True)
+    event_list_sequence_summary.add_argument("--out", type=Path, required=True)
+    event_list_sequence_summary.add_argument("--csv-out", type=Path)
+    event_list_sequence_summary.set_defaults(func=_summarize_synthetic_event_list_sequence_heads)
 
     drift = subparsers.add_parser("diagnose-synthetic-drift")
     drift.add_argument("--input", type=Path, required=True)
@@ -673,6 +720,84 @@ def _train_synthetic_event_list_model(args: Namespace) -> int:
     print(f"output: {args.out}")
     if args.predictions_out:
         print(f"predictions output: {args.predictions_out}")
+    return 0
+
+
+def _summarize_synthetic_event_list_probes(args: Namespace) -> int:
+    report = summarize_synthetic_event_list_probes(
+        root_dir=args.root,
+        out_path=args.out,
+        csv_out_path=args.csv_out,
+    )
+    print(f"reports: {report['report_count']}")
+    print(f"output: {args.out}")
+    if args.csv_out:
+        print(f"csv output: {args.csv_out}")
+    return 0
+
+
+def _build_synthetic_lagged_context(args: Namespace) -> int:
+    report = build_synthetic_lagged_context(
+        input_csv=args.input,
+        out_csv=args.out,
+        report_path=args.report,
+        lags=args.lag or [1, 2, 3, 6],
+        group_field=args.group_field,
+        time_field=args.time_field,
+    )
+    print(f"rows: {report['row_count']}")
+    print(f"base features: {report['base_feature_count']}")
+    print(f"added features: {report['added_feature_count']}")
+    print(f"output: {args.out}")
+    print(f"report: {args.report}")
+    return 0
+
+
+def _train_synthetic_event_list_sequence_head(args: Namespace) -> int:
+    report = train_synthetic_event_list_sequence_head(
+        input_csv=args.input,
+        out_path=args.out,
+        predictions_out=args.predictions_out,
+        target_field=args.target_field,
+        target_status_field=args.target_status_field,
+        group_field=args.group_field,
+        time_field=args.time_field,
+        train_fraction=args.train_fraction,
+        lookback_rows=args.lookback_rows,
+        epochs=args.epochs,
+        learning_rate=args.learning_rate,
+        hidden_units=args.hidden_units,
+        batch_size=args.batch_size,
+        dropout=args.dropout,
+        weight_decay=args.weight_decay,
+        max_feature_count=args.max_feature_count,
+        seed=args.seed,
+    )
+    print(f"status: {report['status']}")
+    print(f"rows: {report['labeled_row_count']}")
+    if report["status"] == "evaluated":
+        metrics = report["calibrated_test_metrics"]
+        print(f"calibrated test balanced accuracy: {metrics['balanced_accuracy']}")
+        print(f"calibrated test positive recall: {metrics['positive_recall']}")
+        print(f"calibrated test negative recall: {metrics['negative_recall']}")
+        print(f"feature count: {report['feature_count']}")
+    print(f"output: {args.out}")
+    if args.predictions_out:
+        print(f"predictions output: {args.predictions_out}")
+    return 0
+
+
+def _summarize_synthetic_event_list_sequence_heads(args: Namespace) -> int:
+    report = summarize_synthetic_event_list_sequence_heads(
+        root_dir=args.root,
+        out_path=args.out,
+        csv_out_path=args.csv_out,
+    )
+    print(f"reports: {report['report_count']}")
+    print(f"configs: {len(report['configs'])}")
+    print(f"output: {args.out}")
+    if args.csv_out:
+        print(f"csv output: {args.csv_out}")
     return 0
 
 

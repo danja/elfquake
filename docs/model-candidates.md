@@ -112,6 +112,16 @@ Current event-list adapter: dependency-light heads with an 8-member feature-bag 
 
 Optional stronger head: a boosted-stump occurrence head is available for nonlinear tabular checks. It improved the balanced engineering split but failed the chronological split, so it remains a diagnostic branch rather than the default.
 
+Probe harness: `probe-synthetic-event-list-models.sh` sweeps target horizon, optional burn-in trimming, feature caps, ensemble size, boosted stumps, and balanced controls, then writes a compact summary. Use this before changing the default event-list adapter so temporal improvements can be separated from balanced-split learnability.
+
+Latest probe conclusion: one-row tabular event-list heads are not enough. The best drift-ok chronological result remains below the synthetic gate, while balanced controls are learnable. The next candidate should carry explicit temporal context, either as lagged event-list features, a sequence encoder, or an event-process head over recent avalanche/piezo history.
+
+Lagged-context result: adding recent feature history to h6 targets improves the best drift-ok chronological score to `0.587093` with a 256-feature cap, just below the synthetic gate. This supports moving next to a regularized sequence/event-process head rather than continuing to widen tabular lag features.
+
+Current sequence-head result: a regularized CPU GRU over grouped synthetic event-list rows is now the leading event-list candidate. The h6 lookback-12 seed-42 run passes the synthetic gate at `0.609649` calibrated balanced accuracy, but seed/config variation is still too large for promotion. Next, repeat seeds systematically and add count/location heads on the same temporal representation.
+
+First stability sweep: `sweep-synthetic-event-list-sequence-head.sh` selected lookback `12`, dropout `0.1` as the best mean h6 configuration, with mean balanced accuracy `0.600459` over seeds `7`, `42`, and `99`. This should be treated as the current default occurrence candidate, but not yet the forecast adapter because only one of three seeds passed the gate.
+
 ## Default Self-Supervised Path
 
 The default modeling path is now a CPU self-supervised real VLF sequence autoencoder. It learns an embedding from Cumiana spectrogram image features without earthquake target labels, so it can improve as captures accumulate even while supervised target tables are blocked.

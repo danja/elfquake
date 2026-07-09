@@ -3,18 +3,18 @@
 ## Immediate Priority
 
 1. Treat `./scripts/trial-weekly-event-forecast.sh` as the current end-to-end event-list contract smoke test, not as a validated predictor.
-2. Improve temporal generalization before forecast promotion: richer event-list targets and stronger heads are now in place, but temporal utility is still below the `0.60` synthetic gate.
-3. Promote synthetic event-list heads from engineering check to forecast adapter only after occurrence, count, magnitude, centroid, timing, rate, and spatial-spread heads beat the current ensemble sparse-profile smoke metrics.
+2. Stabilize the new sequence event-list head before forecast promotion: the lookback-12/dropout-0.1 config reaches mean `0.600459`, but only one of three seeds passes the `0.60` gate.
+3. Promote synthetic event-list heads from engineering check to forecast adapter only after occurrence sequence-head gains survive repeated seeds, horizon checks, and count/location target integration.
 4. Keep self-supervised real VLF pretraining as the default real-data modeling path while supervised VLF-aligned labels remain one-class or sparse.
 5. Continue periodic INGV refresh and prospective relabeling; latest real aligned rows are still one-class (`69/0` all-Italy, `0/69` central Italy).
 
 ## Modeling
 
-1. Use `./scripts/validate-synthetic-event-list-drift.sh` as the current synthetic event-list validation path.
+1. Use `./scripts/probe-synthetic-event-list-models.sh` to compare horizon, burn-in, feature-cap, ensemble, boosted-stump, and balanced-control variants; use `./scripts/validate-synthetic-event-list-drift.sh` for the narrower default validation path.
 2. Calibrate weekly event counts against historical INGV `>M2` rates before trusting any neural score scale.
 3. Compare every weekly forecast run with `./scripts/compare-weekly-forecasts.sh` and track Stage 1/Stage 2 pass/fail status.
 4. Keep direct avalanche-derived seismic features separate from piezo/VLF-like features; use ablations to test their contribution independently.
-5. Rerun the selected deeper patch Transformer only after synthetic event sparsity and temporal target drift are improved enough for meaningful checks.
+5. Reduce sequence-head variance with ensembling, early stopping, or additional regularization before extending it to count/location heads.
 
 ## Data
 
@@ -56,6 +56,14 @@
 * Added richer synthetic event-list targets for event-rate, log magnitude energy, early/middle/final horizon counts, peak timing, event duration, and spatial spread.
 * Added regression shape heads for the richer event-list targets and report metrics for each head. On the balanced split, event-rate MAE is `0.068936`, early/middle/final count MAE is `0.180167`/`0.246829`/`0.194170`, and spatial-spread MAE is `20.317859 km`.
 * Added an optional boosted-stump occurrence head. It improves the balanced engineering split to `0.629173` balanced accuracy, but fails the chronological split at `0.347744`; keep the feature-bag logistic ensemble as the default.
+* Added `./scripts/probe-synthetic-event-list-models.sh` and `summarize-synthetic-event-list-probes` to make horizon, burn-in, feature-cap, ensemble-size, boosted-stump, and balanced-control checks reproducible.
+* Smoke-tested the probe harness with `HORIZONS=3`, `BURN_IN_FRACTIONS=0`, `RUN_BALANCED_CONTROLS=0`, and `EPOCHS=20`; it wrote comparable summaries and confirmed the harness works end to end.
+* Ran the full synthetic event-list probe. The best drift-ok chronological result was h6 with a 32-feature cap at balanced accuracy `0.511278`; the best drift-ok balanced control was h12 boosted stumps at `0.651543`.
+* Updated probe summaries so model rows include matching target drift warning and positive-rate delta, making drift-ok temporal results easy to separate from suspect runs.
+* Added `build-synthetic-lagged-context` and `./scripts/probe-synthetic-event-list-lagged-context.sh` to test explicit recent-history features without target leakage.
+* Ran lagged-context h6 probes. The best drift-ok chronological result was the 256-feature cap at balanced accuracy `0.587093`, just below the synthetic gate; all features regressed to `0.530702`.
+* Added `train-synthetic-event-list-sequence-head` and `./scripts/train-synthetic-event-list-sequence-head.sh`. The h6 lookback-12 seed-42 sequence head reaches calibrated balanced accuracy `0.609649`, but seed/config checks range from `0.467419` to `0.603383`, so it needs stability work before promotion.
+* Added `./scripts/sweep-synthetic-event-list-sequence-head.sh` and `summarize-synthetic-event-list-sequence-heads`. The first 18-run sweep selected lookback `12`, dropout `0.1` as the best mean config: mean `0.600459`, min `0.576441`, max `0.645363`.
 * Added and ran `./scripts/trial-weekly-event-forecast.sh`; the current `2026-07-08` trial emits 25 capped `>M2` event-coordinate rows for `2026-07-08` to `2026-07-15`.
 * Added and ran `./scripts/learned-weekly-event-forecast.sh`; it trains a synthetic-window logistic scorer and emits the same weekly event-list CSV contract.
 * Added learned-scorer metadata to the forecast report without changing the CSV event-row contract.

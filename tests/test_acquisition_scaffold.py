@@ -527,6 +527,191 @@ class AcquisitionScaffoldTests(unittest.TestCase):
             self.assertIn("predicted_centroid_latitude", rows[0])
             self.assertIn("predicted_event_rate_per_hour", rows[0])
 
+    def test_summarize_synthetic_event_list_probes_writes_csv(self) -> None:
+        from elfquake.models.synthetic_event_list_probes import summarize_synthetic_event_list_probes
+
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            run_dir = root / "h6" / "burn_0" / "models"
+            run_dir.mkdir(parents=True)
+            (run_dir / "temporal_ensemble_default.json").write_text(
+                json.dumps(
+                    {
+                        "schema": "elfquake.synthetic_event_list_model.v1",
+                        "status": "evaluated",
+                        "row_count": 10,
+                        "train_row_count": 8,
+                        "test_row_count": 2,
+                        "train_positive_count": 4,
+                        "test_positive_count": 1,
+                        "original_feature_count": 20,
+                        "split": {"type": "temporal", "split_field": ""},
+                        "feature_selection": {"max_feature_count": 0, "selected_feature_count": 20},
+                        "occurrence_ensemble": {
+                            "model_type": "logistic_ensemble",
+                            "ensemble_count": 8,
+                            "feature_bag_fraction": 0.5,
+                            "stump_count": 24,
+                        },
+                        "occurrence": {
+                            "test_metrics": {
+                                "accuracy": 0.5,
+                                "balanced_accuracy": 0.75,
+                                "positive_recall": 1.0,
+                                "negative_recall": 0.5,
+                            }
+                        },
+                        "count": {"test_mae": 0.2},
+                        "centroid": {"positive_test_median_error_km": 12.0},
+                        "event_shape": {
+                            "eventlist_target_event_rate_per_hour": {"mae": 0.1},
+                            "eventlist_target_spatial_spread_km": {"mae": 3.0},
+                        },
+                    }
+                ),
+                encoding="utf-8",
+            )
+            (root / "h6" / "burn_0" / "drift.json").write_text(
+                json.dumps(
+                    {
+                        "schema": "elfquake.synthetic_drift_diagnostic.v1",
+                        "row_count": 10,
+                        "labeled_row_count": 10,
+                        "overall": {"positive_rate": 0.5},
+                        "temporal_split": {"positive_rate_delta": 0.1, "warning": "ok"},
+                    }
+                ),
+                encoding="utf-8",
+            )
+
+            summary = summarize_synthetic_event_list_probes(
+                root_dir=root,
+                out_path=root / "summary.json",
+                csv_out_path=root / "summary.csv",
+            )
+
+            self.assertEqual(summary["report_count"], 2)
+            with (root / "summary.csv").open(newline="", encoding="utf-8") as handle:
+                rows = list(csv.DictReader(handle))
+            self.assertEqual(rows[0]["horizon_rows"], "6")
+            self.assertIn("balanced_accuracy", rows[0])
+            model_rows = [row for row in rows if row["kind"] == "model"]
+            self.assertEqual(model_rows[0]["drift_warning"], "ok")
+            self.assertEqual(model_rows[0]["positive_rate_delta"], "0.1")
+            self.assertTrue((root / "summary.json").exists())
+
+    def test_build_synthetic_lagged_context_excludes_targets(self) -> None:
+        from elfquake.models.synthetic_lagged_context import build_synthetic_lagged_context
+
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            source = root / "targets.csv"
+            source.write_text(
+                "dataset_id,window_start_utc,feature_a,eventlist_target_status,eventlist_target_occurred\n"
+                "seed1,2026-01-01T00:00:00Z,1,labeled,0\n"
+                "seed1,2026-01-01T01:00:00Z,2,labeled,1\n",
+                encoding="utf-8",
+            )
+
+            report = build_synthetic_lagged_context(
+                input_csv=source,
+                out_csv=root / "lagged.csv",
+                report_path=root / "lagged.json",
+                lags=[1],
+            )
+
+            self.assertEqual(report["base_feature_count"], 1)
+            with (root / "lagged.csv").open(newline="", encoding="utf-8") as handle:
+                rows = list(csv.DictReader(handle))
+            self.assertEqual(rows[0]["lag1_feature_a"], "0.000000000")
+            self.assertEqual(rows[1]["lag1_feature_a"], "1.000000000")
+            self.assertNotIn("lag1_eventlist_target_occurred", rows[1])
+
+    def test_train_synthetic_event_list_sequence_head_excludes_targets(self) -> None:
+        if importlib.util.find_spec("torch") is None:
+            self.skipTest("PyTorch is not installed")
+        from elfquake.models.synthetic_event_list_sequence import train_synthetic_event_list_sequence_head
+
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            source = root / "targets.csv"
+            source.write_text(
+                "dataset_id,window_id,window_start_utc,feature_a,feature_b,eventlist_target_status,eventlist_target_occurred\n"
+                "seed1,w0,2026-01-01T00:00:00Z,0.0,1.0,labeled,0\n"
+                "seed1,w1,2026-01-01T01:00:00Z,0.2,0.8,labeled,0\n"
+                "seed1,w2,2026-01-01T02:00:00Z,0.4,0.6,labeled,1\n"
+                "seed1,w3,2026-01-01T03:00:00Z,0.6,0.4,labeled,0\n"
+                "seed1,w4,2026-01-01T04:00:00Z,0.8,0.2,labeled,1\n"
+                "seed1,w5,2026-01-01T05:00:00Z,1.0,0.0,labeled,1\n"
+                "seed1,w6,2026-01-01T06:00:00Z,1.2,0.1,labeled,0\n"
+                "seed1,w7,2026-01-01T07:00:00Z,1.4,0.2,labeled,1\n",
+                encoding="utf-8",
+            )
+
+            report = train_synthetic_event_list_sequence_head(
+                input_csv=source,
+                out_path=root / "sequence.json",
+                predictions_out=root / "sequence_predictions.csv",
+                lookback_rows=3,
+                epochs=2,
+                hidden_units=4,
+                batch_size=4,
+                max_feature_count=2,
+            )
+
+            self.assertEqual(report["schema"], "elfquake.synthetic_event_list_sequence_head.v1")
+            self.assertEqual(report["status"], "evaluated")
+            self.assertEqual(report["feature_count"], 2)
+            self.assertNotIn("eventlist_target_occurred", report["selected_feature_names"])
+            self.assertTrue((root / "sequence_predictions.csv").exists())
+
+    def test_summarize_synthetic_event_list_sequence_heads_writes_config_stats(self) -> None:
+        from elfquake.models.synthetic_event_list_sequence import summarize_synthetic_event_list_sequence_heads
+
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            run_dir = root / "lookback_12" / "dropout_0p2" / "seed_42"
+            run_dir.mkdir(parents=True)
+            (run_dir / "sequence_head.json").write_text(
+                json.dumps(
+                    {
+                        "schema": "elfquake.synthetic_event_list_sequence_head.v1",
+                        "status": "evaluated",
+                        "lookback_rows": 12,
+                        "hidden_units": 24,
+                        "dropout": 0.2,
+                        "weight_decay": 0.001,
+                        "max_feature_count": 256,
+                        "seed": 42,
+                        "feature_count": 3,
+                        "train_row_count": 8,
+                        "test_row_count": 2,
+                        "train_positive_count": 4,
+                        "test_positive_count": 1,
+                        "calibrated_test_metrics": {
+                            "balanced_accuracy": 0.6,
+                            "positive_recall": 0.5,
+                            "negative_recall": 0.7,
+                        },
+                        "calibrated_train_metrics": {"balanced_accuracy": 0.8},
+                        "history": {"first_train_loss": 1.0, "last_train_loss": 0.5, "test_loss": 0.9},
+                    }
+                ),
+                encoding="utf-8",
+            )
+
+            summary = summarize_synthetic_event_list_sequence_heads(
+                root_dir=root,
+                out_path=root / "summary.json",
+                csv_out_path=root / "summary.csv",
+            )
+
+            self.assertEqual(summary["report_count"], 1)
+            self.assertEqual(summary["configs"][0]["pass_count"], 1)
+            with (root / "summary.csv").open(newline="", encoding="utf-8") as handle:
+                rows = list(csv.DictReader(handle))
+            self.assertEqual(rows[0]["balanced_accuracy"], "0.6")
+
     def test_synthetic_drift_reports_temporal_positive_shift(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
