@@ -26,6 +26,7 @@ from elfquake.models.synthetic_episodes import annotate_synthetic_episodes
 from elfquake.models.synthetic_event_list_model import train_synthetic_event_list_model
 from elfquake.models.synthetic_event_list_probes import summarize_synthetic_event_list_probes
 from elfquake.models.synthetic_event_list_sequence import (
+    ensemble_synthetic_event_list_sequence_heads,
     summarize_synthetic_event_list_sequence_heads,
     train_synthetic_event_list_sequence_head,
 )
@@ -301,6 +302,9 @@ def register_model_commands(subparsers: _SubParsersAction) -> None:
     event_list_sequence.add_argument("--dropout", type=float, default=0.1)
     event_list_sequence.add_argument("--weight-decay", type=float, default=0.001)
     event_list_sequence.add_argument("--max-feature-count", type=int, default=256)
+    event_list_sequence.add_argument("--validation-fraction", type=float, default=0.0)
+    event_list_sequence.add_argument("--early-stopping-patience", type=int, default=0)
+    event_list_sequence.add_argument("--calibration-source", choices=["auto", "train", "validation"], default="auto")
     event_list_sequence.add_argument("--seed", type=int, default=42)
     event_list_sequence.set_defaults(func=_train_synthetic_event_list_sequence_head)
 
@@ -309,6 +313,12 @@ def register_model_commands(subparsers: _SubParsersAction) -> None:
     event_list_sequence_summary.add_argument("--out", type=Path, required=True)
     event_list_sequence_summary.add_argument("--csv-out", type=Path)
     event_list_sequence_summary.set_defaults(func=_summarize_synthetic_event_list_sequence_heads)
+
+    event_list_sequence_ensemble = subparsers.add_parser("ensemble-synthetic-event-list-sequence-heads")
+    event_list_sequence_ensemble.add_argument("--report", type=Path, action="append", required=True)
+    event_list_sequence_ensemble.add_argument("--out", type=Path, required=True)
+    event_list_sequence_ensemble.add_argument("--predictions-out", type=Path)
+    event_list_sequence_ensemble.set_defaults(func=_ensemble_synthetic_event_list_sequence_heads)
 
     drift = subparsers.add_parser("diagnose-synthetic-drift")
     drift.add_argument("--input", type=Path, required=True)
@@ -771,6 +781,9 @@ def _train_synthetic_event_list_sequence_head(args: Namespace) -> int:
         dropout=args.dropout,
         weight_decay=args.weight_decay,
         max_feature_count=args.max_feature_count,
+        validation_fraction=args.validation_fraction,
+        early_stopping_patience=args.early_stopping_patience,
+        calibration_source=args.calibration_source,
         seed=args.seed,
     )
     print(f"status: {report['status']}")
@@ -798,6 +811,25 @@ def _summarize_synthetic_event_list_sequence_heads(args: Namespace) -> int:
     print(f"output: {args.out}")
     if args.csv_out:
         print(f"csv output: {args.csv_out}")
+    return 0
+
+
+def _ensemble_synthetic_event_list_sequence_heads(args: Namespace) -> int:
+    report = ensemble_synthetic_event_list_sequence_heads(
+        report_paths=args.report,
+        out_path=args.out,
+        predictions_out=args.predictions_out,
+    )
+    print(f"status: {report['status']}")
+    print(f"reports: {report['usable_report_count']}")
+    if report["status"] == "evaluated":
+        metrics = report["calibrated_test_metrics"]
+        print(f"calibrated test balanced accuracy: {metrics['balanced_accuracy']}")
+        print(f"calibrated test positive recall: {metrics['positive_recall']}")
+        print(f"calibrated test negative recall: {metrics['negative_recall']}")
+    print(f"output: {args.out}")
+    if args.predictions_out:
+        print(f"predictions output: {args.predictions_out}")
     return 0
 
 

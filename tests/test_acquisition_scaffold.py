@@ -712,6 +712,44 @@ class AcquisitionScaffoldTests(unittest.TestCase):
                 rows = list(csv.DictReader(handle))
             self.assertEqual(rows[0]["balanced_accuracy"], "0.6")
 
+    def test_ensemble_synthetic_event_list_sequence_heads_averages_probabilities(self) -> None:
+        from elfquake.models.synthetic_event_list_sequence import ensemble_synthetic_event_list_sequence_heads
+
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            reports = []
+            for index, probs in enumerate(([0.2, 0.8], [0.4, 0.6]), start=1):
+                path = root / f"report{index}.json"
+                path.write_text(
+                    json.dumps(
+                        {
+                            "schema": "elfquake.synthetic_event_list_sequence_head.v1",
+                            "status": "evaluated",
+                            "seed": index,
+                            "lookback_rows": 2,
+                            "dropout": 0.1,
+                            "train_labels": [0, 1],
+                            "test_labels": [0, 1],
+                            "train_probabilities": probs,
+                            "test_probabilities": probs,
+                            "calibrated_test_metrics": {"balanced_accuracy": 1.0},
+                        }
+                    ),
+                    encoding="utf-8",
+                )
+                reports.append(path)
+
+            ensemble = ensemble_synthetic_event_list_sequence_heads(
+                report_paths=reports,
+                out_path=root / "ensemble.json",
+                predictions_out=root / "ensemble.csv",
+            )
+
+            self.assertEqual(ensemble["status"], "evaluated")
+            self.assertEqual(ensemble["usable_report_count"], 2)
+            self.assertEqual(ensemble["calibrated_test_metrics"]["balanced_accuracy"], 1.0)
+            self.assertTrue((root / "ensemble.csv").exists())
+
     def test_synthetic_drift_reports_temporal_positive_shift(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)

@@ -342,6 +342,22 @@ Summarize event-list sequence-head JSON reports into JSON/CSV, including per-con
 
 Run the default h6 sequence-head stability sweep over seeds, lookback rows, and dropout values, then write `summary.json` and `summary.csv` under `data/derived/models/synthetic_event_list_sequence_sweep/`.
 
+### `sweep-synthetic-event-list-sequence-validation.sh`
+
+Run the h6 sequence-head sweep with an internal chronological validation slice used for threshold calibration. This is a diagnostic; current results underperform the train-calibrated default.
+
+### `sweep-synthetic-event-list-sequence-early-stop.sh`
+
+Run the h6 sequence-head sweep with an internal chronological validation slice and early stopping. This is a diagnostic; current results are unstable and should not be promoted.
+
+### `ensemble-synthetic-event-list-sequence-heads`
+
+Average train/test probabilities from repeated sequence-head reports, calibrate the ensemble threshold on averaged train probabilities, and evaluate the averaged test probabilities.
+
+### `ensemble-synthetic-event-list-sequence-head.sh`
+
+Regenerate the default lookback-12/dropout-0.1 sequence heads for configured seeds and write an averaged probability ensemble under `data/derived/models/synthetic_event_list_sequence_ensemble/`.
+
 ### `compare-weekly-forecasts`
 
 Compare two weekly forecast JSON/CSV pairs against the staged success criteria. It reports count, probability, magnitude, spatial similarity, learned-scorer metrics, and whether the current artifact passes the scaffold and synthetic-utility gates.

@@ -122,6 +122,10 @@ Current sequence-head result: a regularized CPU GRU over grouped synthetic event
 
 First stability sweep: `sweep-synthetic-event-list-sequence-head.sh` selected lookback `12`, dropout `0.1` as the best mean h6 configuration, with mean balanced accuracy `0.600459` over seeds `7`, `42`, and `99`. This should be treated as the current default occurrence candidate, but not yet the forecast adapter because only one of three seeds passed the gate.
 
+Ensemble check: probability averaging over all three default seeds scored `0.591479`, while the best pair, seeds `42+99`, scored `0.644110`. Do not hard-code a cherry-picked seed pair as the default; use this result to motivate validation-selected ensembles or early stopping.
+
+Validation and early-stopping check: both underperformed on the current h6 table. A 20% internal validation slice appears too small or shifted to select thresholds or stopping points reliably. Keep full-epoch lookback-12/dropout-0.1 as the leading occurrence candidate until larger synthetic batches or a better validation design are available.
+
 ## Default Self-Supervised Path
 
 The default modeling path is now a CPU self-supervised real VLF sequence autoencoder. It learns an embedding from Cumiana spectrogram image features without earthquake target labels, so it can improve as captures accumulate even while supervised target tables are blocked.
