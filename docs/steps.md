@@ -206,6 +206,18 @@ Train the same CPU PyTorch sequence model while holding out one dataset group. U
 
 Train a tiny CPU PyTorch patch Transformer over materialized sequence manifests using an explicit train/test split field. Use this only for synthetic larger-model interface checks until real VLF-aligned rows have both target classes.
 
+### `prepare-transformer-target-input`
+
+Map richer target tables into the standard Transformer target contract. Use this when a target such as `eventlist_target_occurred` should become `target_occurred` with a time-ordered `model_split`.
+
+### `train-synthetic-event-list-patch-transformer.sh`
+
+Prepare the h6 event-list target table and train the current CPU patch Transformer over warmed synthetic avalanche, piezo/VLF, and summary sequences with ablation reports.
+
+### `sweep-synthetic-event-list-patch-transformer.sh`
+
+Repeat the h6 event-list patch Transformer over bounded lookback, patch-size, and dropout settings. Use this after simulation, target, or model-interface changes.
+
 ### `diagnose-temporal-split`
 
 Measure target balance and feature drift between temporal train/test partitions. Use this when holdout metrics look unstable or suspicious.
@@ -417,6 +429,10 @@ Generate extra synthetic seeds without heatmaps, video, or audio, then refresh e
 ### `run-synthetic-episode-batch.sh`
 
 Generate multiple shorter synthetic simulation episodes with localized sources, slower background fill, more frequent bottom-layer removal, `3000` unrecorded warm-up steps, and sparse event extraction defaults. Use this when replacing one long drifting trajectory with a more diverse episode dataset.
+
+### `run-longer-synthetic-transformer-batch.sh`
+
+Generate a larger warmed CPU-only synthetic episode batch for Transformer pretraining experiments. Run this only when the current short Transformer harness is stable and more synthetic coverage is worth the CPU time.
 
 ### `compare-model-run-summaries`
 

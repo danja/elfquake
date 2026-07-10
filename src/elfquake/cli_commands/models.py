@@ -36,6 +36,7 @@ from elfquake.models.synthetic_regimes import annotate_synthetic_regimes, assign
 from elfquake.models.tensor_materializer import materialize_tensor_dataset
 from elfquake.models.tensor_spec import build_tensor_spec
 from elfquake.models.temporal_holdout import evaluate_group_holdout, evaluate_temporal_holdout
+from elfquake.models.transformer_input_adapter import prepare_transformer_target_input
 from elfquake.models.trial_forecast import generate_trial_weekly_event_forecast
 from elfquake.models.window_adapter import build_event_window_features
 
@@ -102,6 +103,20 @@ def register_model_commands(subparsers: _SubParsersAction) -> None:
     balanced_split.add_argument("--split-field", default="model_split")
     balanced_split.add_argument("--test-fraction", type=float, default=0.2)
     balanced_split.set_defaults(func=_assign_balanced_split)
+
+    transformer_input = subparsers.add_parser("prepare-transformer-target-input")
+    transformer_input.add_argument("--input", type=Path, required=True)
+    transformer_input.add_argument("--out", type=Path, required=True)
+    transformer_input.add_argument("--report", type=Path, required=True)
+    transformer_input.add_argument("--target-field", default="eventlist_target_occurred")
+    transformer_input.add_argument("--target-status-field", default="eventlist_target_status")
+    transformer_input.add_argument("--standard-target-field", default="target_occurred")
+    transformer_input.add_argument("--standard-status-field", default="target_status")
+    transformer_input.add_argument("--split-field", default="model_split")
+    transformer_input.add_argument("--group-field", default="dataset_id")
+    transformer_input.add_argument("--time-field", default="window_start_utc")
+    transformer_input.add_argument("--train-fraction", type=float, default=0.8)
+    transformer_input.set_defaults(func=_prepare_transformer_target_input)
 
     group_holdout = subparsers.add_parser("evaluate-group-holdout")
     group_holdout.add_argument("--input", type=Path, required=True)
@@ -453,6 +468,29 @@ def _assign_balanced_split(args: Namespace) -> int:
     print(f"test rows: {report['test_row_count']}")
     print(f"train positives: {report['train_positive_count']}")
     print(f"test positives: {report['test_positive_count']}")
+    print(f"output: {args.out}")
+    print(f"report: {args.report}")
+    return 0
+
+
+def _prepare_transformer_target_input(args: Namespace) -> int:
+    report = prepare_transformer_target_input(
+        input_csv=args.input,
+        out_csv=args.out,
+        report_path=args.report,
+        target_field=args.target_field,
+        target_status_field=args.target_status_field,
+        standard_target_field=args.standard_target_field,
+        standard_status_field=args.standard_status_field,
+        split_field=args.split_field,
+        group_field=args.group_field,
+        time_field=args.time_field,
+        train_fraction=args.train_fraction,
+    )
+    print(f"rows: {report['row_count']}")
+    print(f"labeled rows: {report['labeled_row_count']}")
+    print(f"train rows: {report['train_row_count']}")
+    print(f"test rows: {report['test_row_count']}")
     print(f"output: {args.out}")
     print(f"report: {args.report}")
     return 0

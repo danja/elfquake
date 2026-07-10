@@ -88,6 +88,12 @@ Output files:
 * `data/derived/models/learned_forecast/mag_gt2_weekly_learned_events.csv`
 * `data/derived/models/forecast_comparison/trial_vs_learned_weekly_forecast.json`
 * `data/derived/models/forecast_comparison/trial_vs_learned_weekly_forecast.csv`
+* `data/derived/models/synthetic_event_list_patch_transformer/h6_patch_transformer.json`
+* `data/derived/models/synthetic_event_list_patch_transformer_sweep/summary.json`
+
+## Current Transformer Tuning
+
+The current supervised Transformer work is still synthetic-only because real VLF-aligned labels remain one-class. A new target adapter maps the richer synthetic event-list labels into the standard Transformer input contract, preserving an 80/20 time-ordered split within each synthetic episode. On the warmed nine-episode h6 event-list target table, a short four-configuration CPU sweep found the best row at lookback `12`, patch `3`, dropout `0.1`: the piezo/VLF-only ablation reached calibrated balanced accuracy `0.608629`, while the full direct-avalanche plus piezo/VLF plus summary ablation reached `0.463892`. This suggests the VLF-like precursor channel is the most useful synthetic signal in this setup, but the result is not yet stable enough for forecast promotion.
 * `data/derived/models/missing_modality/missing_modality_seed42_summary.json`
 * `data/derived/models/sequence_modality_diagnostic.json`
 * `data/derived/models/all_italy.ingv_backfill_seismic_windows.temporal_holdout.json`

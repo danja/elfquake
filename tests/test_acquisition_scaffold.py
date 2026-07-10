@@ -74,6 +74,7 @@ from elfquake.models.synthetic_regimes import annotate_synthetic_regimes, assign
 from elfquake.models.tensor_materializer import materialize_tensor_dataset
 from elfquake.models.tensor_spec import build_tensor_spec
 from elfquake.models.temporal_holdout import evaluate_group_holdout, evaluate_temporal_holdout
+from elfquake.models.transformer_input_adapter import prepare_transformer_target_input
 from elfquake.models.torch_sequence import (
     evaluate_torch_sequence_group_holdout,
     evaluate_torch_sequence_holdout,
@@ -2569,6 +2570,36 @@ class AcquisitionScaffoldTests(unittest.TestCase):
             self.assertEqual(report["d_model"], 8)
             self.assertEqual(report["patch_steps"], 1)
             self.assertEqual(list(report["evaluations"]), ["sequence_full"])
+
+    def test_prepare_transformer_target_input_maps_event_list_target(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            source = root / "event_list_targets.csv"
+            source.write_text(
+                "dataset_id,window_id,window_start_utc,eventlist_target_status,eventlist_target_occurred,target_occurred,target_status\n"
+                "seed1,w0,2026-01-01T00:00:00Z,labeled,0,1,old\n"
+                "seed1,w1,2026-01-01T01:00:00Z,labeled,1,0,old\n"
+                "seed1,w2,2026-01-01T02:00:00Z,labeled,0,1,old\n"
+                "seed1,w3,2026-01-01T03:00:00Z,labeled,1,0,old\n"
+                "seed1,w4,2026-01-01T04:00:00Z,labeled,0,1,old\n",
+                encoding="utf-8",
+            )
+
+            report = prepare_transformer_target_input(
+                input_csv=source,
+                out_csv=root / "transformer.csv",
+                report_path=root / "transformer.json",
+                train_fraction=0.8,
+            )
+            with (root / "transformer.csv").open(newline="", encoding="utf-8") as handle:
+                rows = list(csv.DictReader(handle))
+
+            self.assertEqual(report["schema"], "elfquake.transformer_target_input.v1")
+            self.assertEqual(report["train_row_count"], 4)
+            self.assertEqual(report["test_row_count"], 1)
+            self.assertEqual([row["target_occurred"] for row in rows], ["0", "1", "0", "1", "0"])
+            self.assertEqual([row["target_status"] for row in rows], ["labeled"] * 5)
+            self.assertEqual([row["model_split"] for row in rows], ["train", "train", "train", "train", "test"])
 
     @unittest.skipUnless(importlib.util.find_spec("torch"), "PyTorch optional dependency is not installed")
     def test_sequence_autoencoder_pretraining_writes_checkpoint_and_embeddings(self) -> None:

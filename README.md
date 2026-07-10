@@ -39,7 +39,7 @@ This work was initially prompted by the tragedy of the [2009 L'Aquila earthquake
 * A CPU PyTorch self-supervised autoencoder over real Cumiana VLF image sequences.
 * Dependency-light logistic checks and a CPU PyTorch tabular MLP for synthetic aligned rows.
 * A first CPU PyTorch GRU sequence model over synthetic avalanche and piezo/VLF sensor tensors.
-* A tiny CPU PyTorch patch Transformer scaffold for synthetic sequence engineering checks.
+* A CPU PyTorch patch Transformer scaffold for synthetic sequence engineering checks and event-list target pretraining.
 * Summary comparison, sequence sweep, and missing-modality scripts for model diagnostics.
 * A compact real-vs-synthetic comparison wrapper for central-Italy seismic baselines and synthetic sequence reports.
 * Larger-model scale checks for row count, class balance, sequence size, and CPU-only model limits.
@@ -52,7 +52,9 @@ This work was initially prompted by the tragedy of the [2009 L'Aquila earthquake
 * A deterministic trial weekly event-list forecast that combines historical INGV rates/locations, real VLF context, astronomy context, and synthetic avalanche spatial priors into a downstream-ready CSV/JSON contract.
 * A first swappable learned scorer trained on synthetic aligned rows, with the same weekly event-list CSV contract and historical INGV rate calibration metadata.
 * Synthetic event-list target and model heads for occurrence, count, magnitude, and centroid, currently useful as an engineering adapter but not yet temporally robust.
+* A Transformer target adapter and sweep wrappers for training against the richer h6 synthetic event-list target table.
 * Drift-aware synthetic validation and shorter-episode simulation scaffolding to reduce one-run lifecycle bias; the first aggressive 3000-step profile fixes target-rate drift in a small probe.
+* A larger warmed synthetic batch wrapper for CPU-only Transformer pretraining data expansion.
 * Sandpile simulation with separate seismic-like avalanche outputs and piezo/VLF analogue outputs.
 
 Run the default label-free real VLF pretraining path with:
@@ -77,6 +79,12 @@ Run the synthetic-trained learned weekly event-list forecast with:
 
 ```sh
 ./scripts/learned-weekly-event-forecast.sh
+```
+
+Run the current synthetic event-list patch Transformer smoke with:
+
+```sh
+./scripts/train-synthetic-event-list-patch-transformer.sh
 ```
 
 Compare the current real VLF embedding domain against synthetic piezo/VLF analogues with:

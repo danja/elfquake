@@ -187,6 +187,9 @@ Current implementation:
 
 * `train-deep-patch-transformer.sh` builds a post-burn-in regime-balanced synthetic split and runs a deeper patch Transformer (`d_model=64`, 3 layers, 4 heads).
 * `train-torch-patch-transformer-split-holdout` remains the backend command; the wrapper selects synthetic full, direct-avalanche-only, and piezo/VLF-only evaluations.
+* `prepare-transformer-target-input` maps richer target tables such as `eventlist_target_occurred` into the standard `target_occurred` and `model_split` fields expected by the Transformer trainer.
+* `train-synthetic-event-list-patch-transformer.sh` is the current h6 event-list Transformer pretraining smoke over the warmed nine-episode synthetic data.
+* `sweep-synthetic-event-list-patch-transformer.sh` runs bounded lookback/patch/dropout checks for that h6 event-list target.
 * Synthetic pretraining now writes a reusable checkpoint: `data/derived/models/deep_patch_transformer/deep_patch_transformer_synthetic.pt`.
 * `train-real-deep-patch-transformer.sh` is the real fine-tune wrapper. It uses the synthetic checkpoint and exits with a blocked JSON report until labels contain both classes.
 * `sequence_real_vlf_image_only` is available for real VLF sequence probes.
@@ -203,11 +206,13 @@ Current deeper-model smoke result:
 
 * synthetic artifact: `data/derived/models/deep_patch_transformer/deep_patch_transformer_synthetic.json`
 * synthetic checkpoint: `data/derived/models/deep_patch_transformer/deep_patch_transformer_synthetic.pt`
+* h6 event-list Transformer artifact: `data/derived/models/synthetic_event_list_patch_transformer/h6_patch_transformer.json`
+* h6 event-list Transformer sweep: `data/derived/models/synthetic_event_list_patch_transformer_sweep/summary.json`
 * real fine-tune artifacts: `data/derived/models/deep_patch_transformer/all_italy.real_finetune.json` and `central_italy.real_finetune.json`
 * real VLF sequence probe: `data/derived/models/deep_patch_transformer/all_italy.real_vlf_sequence_probe.json`
-* best synthetic calibrated row: `sequence_piezo_vlf_only`, balanced accuracy `0.737879`
-* `sequence_full` calibrated balanced accuracy: `0.583333`
-* real fine-tuning is blocked: all-Italy has `55` positives and `0` negatives; central Italy has `0` positives and `55` negatives
+* best current h6 event-list Transformer row: `sequence_piezo_vlf_only`, lookback `12`, patch `3`, dropout `0.1`, calibrated balanced accuracy `0.608629`
+* current h6 event-list `sequence_full` calibrated balanced accuracy: `0.463892`
+* real fine-tuning is blocked: all-Italy has `69` positives and `0` negatives; central Italy has `0` positives and `69` negatives
 
 ## Scaling Requirements
 
@@ -245,6 +250,7 @@ Current scaffold:
 * `elfquake.models.torch_tabular` - CPU PyTorch tabular MLP evaluator for aligned rows, missing masks, and modality ablations.
 * `elfquake.models.dataset_combine` - combines aligned rows from multiple synthetic runs while preserving dataset provenance.
 * `elfquake.models.report_summary` - compacts multiple evaluation reports into one comparison artifact.
+* `elfquake.models.transformer_input_adapter` - maps richer target tables into the standard Transformer target/split contract.
 * `elfquake.models.torch_patch_transformer` - CPU PyTorch patch Transformer evaluator for synthetic sequence engineering checks.
 * `elfquake.models.window_adapter` - aggregates irregular real or synthetic event lists into regular window features.
 * `elfquake.models.sequence_materializer` - materializes `time x entity x channel` sequence tables with present masks.
@@ -268,8 +274,11 @@ Current scaffold:
 * `sweep-synthetic-sequence-model.sh` - runs a bounded sequence GRU hyperparameter sweep.
 * `test-sequence-missing-modalities.sh` - exercises sequence training with VLF-only and no-VLF/piezo inputs.
 * `estimate-model-scale` - reports larger-model gates, sequence feature counts, class balance, and CPU-only size guidance.
+* `prepare-transformer-target-input` - writes a Transformer-ready CSV from richer target fields such as `eventlist_target_occurred`.
 * `train-torch-patch-transformer-split-holdout` - trains a tiny CPU PyTorch patch Transformer on explicit train/test split rows.
 * `train-deep-patch-transformer.sh` - runs the selected deeper patch Transformer synthetic pretrain smoke and writes real fine-tune readiness.
+* `train-synthetic-event-list-patch-transformer.sh` - trains the current h6 event-list patch Transformer over warmed synthetic sequences.
+* `sweep-synthetic-event-list-patch-transformer.sh` - repeats the h6 patch Transformer over bounded lookback/patch/dropout settings.
 * `train-real-deep-patch-transformer.sh` - fine-tunes the patch Transformer from the synthetic checkpoint when real labels are ready; currently writes a blocked status report.
 * `run-synthetic-diversity-smoke.sh` - generates extra CPU-only synthetic seeds without image/video overhead and refreshes model artifacts for diversity checks.
 
