@@ -37,6 +37,8 @@ def pretrain_masked_patches(
     modality_dropout_probability: float,
     max_windows_per_domain: int,
     balance_domains: bool,
+    optimizer_parameters: list[object] | None = None,
+    trainable_scope: str = "all",
     seed: int,
     torch: object,
 ) -> dict[str, object]:
@@ -48,7 +50,7 @@ def pretrain_masked_patches(
         balance_domains=balance_domains,
         rng=rng,
     )
-    optimizer = torch.optim.AdamW(model.parameters(), lr=learning_rate)
+    optimizer = torch.optim.AdamW(optimizer_parameters or model.parameters(), lr=learning_rate)
     first_loss = None
     last_loss = 0.0
     for _ in range(epochs):
@@ -125,6 +127,7 @@ def pretrain_masked_patches(
         "first_train_loss": round(first_loss or 0.0, 8),
         "last_train_loss": round(last_loss, 8),
         "epochs": epochs,
+        "trainable_scope": trainable_scope,
         "task_train_windows": {task.name: len(refs) for task, refs in prepared},
         "evaluations": evaluations,
     }

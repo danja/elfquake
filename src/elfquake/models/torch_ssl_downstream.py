@@ -13,6 +13,10 @@ SYNTHETIC_MODALITIES = (
     "synthetic_piezo_vlf",
     "synthetic_summary",
 )
+DOWNSTREAM_CONFIGS = {
+    "full": SYNTHETIC_MODALITIES,
+    "piezo_vlf_only": ("synthetic_piezo_vlf",),
+}
 MISSING_MODALITY_EVALUATIONS = {
     "full": set(),
     "direct_avalanche_only": {"synthetic_piezo_vlf", "synthetic_summary"},
@@ -33,18 +37,21 @@ def train_downstream(
     test_labels,
     sequences,
     normalizations,
+    modalities,
     lookback_steps,
     epochs,
     learning_rate,
     batch_size,
     modality_dropout_probability,
     freeze_backbone,
+    optimizer_parameters=None,
+    trainable_scope="all",
     seed,
     torch,
 ):
     rng = random.Random(seed)
     generator = torch.Generator().manual_seed(seed)
-    parameters = model.occurrence_head.parameters() if freeze_backbone else model.parameters()
+    parameters = optimizer_parameters or (model.occurrence_head.parameters() if freeze_backbone else model.parameters())
     optimizer = torch.optim.AdamW(parameters, lr=learning_rate)
     positives = sum(train_labels)
     negatives = len(train_labels) - positives
@@ -67,12 +74,12 @@ def train_downstream(
             inputs, _, observed = build_window_batch(
                 refs,
                 sequences,
-                modalities=SYNTHETIC_MODALITIES,
+                modalities=modalities,
                 lookback_steps=lookback_steps,
                 normalizations=normalizations,
                 torch=torch,
             )
-            dropped = _supervised_dropout(modality_dropout_probability, rng)
+            dropped = _supervised_dropout(modalities, modality_dropout_probability, rng)
             optimizer.zero_grad()
             loss = criterion(model(inputs, observed, dropped_modalities=dropped), labels)
             loss.backward()
@@ -86,6 +93,7 @@ def train_downstream(
         train_refs,
         sequences,
         normalizations,
+        modalities,
         lookback_steps,
         batch_size,
         set(),
@@ -93,12 +101,13 @@ def train_downstream(
     )
     threshold = _best_threshold(train_probabilities, train_labels)
     evaluations = {}
-    for name, dropped in MISSING_MODALITY_EVALUATIONS.items():
+    for name, dropped in _missing_modality_evaluations(modalities).items():
         probabilities = _probabilities(
             model,
             test_refs,
             sequences,
             normalizations,
+            modalities,
             lookback_steps,
             batch_size,
             dropped,
@@ -110,7 +119,9 @@ def train_downstream(
             "calibrated_metrics": _metrics(_predictions(probabilities, threshold=threshold), test_labels),
         }
     return {
+        "modalities": list(modalities),
         "freeze_backbone": freeze_backbone,
+        "trainable_scope": trainable_scope,
         "first_train_loss": round(first_loss or 0.0, 8),
         "last_train_loss": round(last_loss, 8),
         "calibrated_threshold": round(threshold, 6),
@@ -125,26 +136,34 @@ def summarize_downstream_runs(runs: list[dict[str, object]], regimes: tuple[str,
         selected = [run for run in runs if run["regime"] == regime]
         if not selected:
             continue
-        fine = [float(run["fine_tune"]["evaluations"]["full"]["calibrated_metrics"]["balanced_accuracy"]) for run in selected]
-        probe = [float(run["linear_probe"]["evaluations"]["full"]["calibrated_metrics"]["balanced_accuracy"]) for run in selected]
-        evaluations = {}
-        for name in MISSING_MODALITY_EVALUATIONS:
-            values = [float(run["fine_tune"]["evaluations"][name]["calibrated_metrics"]["balanced_accuracy"]) for run in selected]
-            evaluations[name] = _distribution(values)
-        summary[regime] = {
-            "run_count": len(selected),
-            "linear_probe_balanced_accuracy": _distribution(probe),
-            "fine_tune_balanced_accuracy": _distribution(fine),
-            "fine_tune_missing_modality_evaluations": evaluations,
-        }
-    random_mean = summary.get("random_init", {}).get("fine_tune_balanced_accuracy", {}).get("mean")
-    if random_mean is not None:
-        for item in summary.values():
-            item["fine_tune_mean_gain_over_random"] = round(float(item["fine_tune_balanced_accuracy"]["mean"]) - float(random_mean), 8)
+        downstream_models = {}
+        for config_name in DOWNSTREAM_CONFIGS:
+            probe = [_balanced_accuracy(run, config_name, "linear_probe") for run in selected]
+            fine = [_balanced_accuracy(run, config_name, "fine_tune") for run in selected]
+            evaluation_names = selected[0]["downstream_models"][config_name]["fine_tune"]["evaluations"]
+            evaluations = {
+                name: _distribution([
+                    float(run["downstream_models"][config_name]["fine_tune"]["evaluations"][name]["calibrated_metrics"]["balanced_accuracy"])
+                    for run in selected
+                ])
+                for name in evaluation_names
+            }
+            downstream_models[config_name] = {
+                "linear_probe_balanced_accuracy": _distribution(probe),
+                "fine_tune_balanced_accuracy": _distribution(fine),
+                "fine_tune_missing_modality_evaluations": evaluations,
+            }
+        summary[regime] = {"run_count": len(selected), "downstream_models": downstream_models}
+    random_models = summary.get("random_init", {}).get("downstream_models", {})
+    for item in summary.values():
+        for config_name, model_summary in item["downstream_models"].items():
+            random_mean = random_models.get(config_name, {}).get("fine_tune_balanced_accuracy", {}).get("mean")
+            if random_mean is not None:
+                model_summary["fine_tune_mean_gain_over_random"] = round(float(model_summary["fine_tune_balanced_accuracy"]["mean"]) - float(random_mean), 8)
     return summary
 
 
-def _probabilities(model, refs, sequences, normalizations, lookback, batch_size, dropped, torch):
+def _probabilities(model, refs, sequences, normalizations, modalities, lookback, batch_size, dropped, torch):
     result = []
     model.eval()
     with torch.no_grad():
@@ -153,7 +172,7 @@ def _probabilities(model, refs, sequences, normalizations, lookback, batch_size,
             inputs, _, observed = build_window_batch(
                 batch_refs,
                 sequences,
-                modalities=SYNTHETIC_MODALITIES,
+                modalities=modalities,
                 lookback_steps=lookback,
                 normalizations=normalizations,
                 torch=torch,
@@ -162,8 +181,31 @@ def _probabilities(model, refs, sequences, normalizations, lookback, batch_size,
     return [float(value) for value in result]
 
 
-def _supervised_dropout(probability: float, rng: random.Random) -> set[str]:
-    return {rng.choice(SYNTHETIC_MODALITIES)} if rng.random() < probability else set()
+def _supervised_dropout(modalities: tuple[str, ...], probability: float, rng: random.Random) -> set[str]:
+    if len(modalities) < 2 or rng.random() >= probability:
+        return set()
+    return {rng.choice(modalities)}
+
+
+def _missing_modality_evaluations(modalities: tuple[str, ...]) -> dict[str, set[str]]:
+    if modalities == SYNTHETIC_MODALITIES:
+        return MISSING_MODALITY_EVALUATIONS
+    return {
+        "trained_input": set(),
+        **{
+            f"without_{_modality_slug(modality)}": {modality}
+            for modality in modalities
+        },
+    }
+
+
+def _modality_slug(modality: str) -> str:
+    return modality.removeprefix("synthetic_")
+
+
+def _balanced_accuracy(run: dict[str, object], config_name: str, stage: str) -> float:
+    evaluation_name = "full" if config_name == "full" else "trained_input"
+    return float(run["downstream_models"][config_name][stage]["evaluations"][evaluation_name]["calibrated_metrics"]["balanced_accuracy"])
 
 
 def _distribution(values: list[float]) -> dict[str, float]:

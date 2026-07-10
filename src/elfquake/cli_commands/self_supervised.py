@@ -16,9 +16,36 @@ from elfquake.models.torch_ssl_transformer_evaluation import (
     REGIMES as TRANSFORMER_SSL_REGIMES,
     evaluate_self_supervised_transformer,
 )
+from elfquake.models.torch_late_gated_evaluation import evaluate_late_gated_fusion
 
 
 def register_self_supervised_commands(subparsers: _SubParsersAction) -> None:
+    late_fusion = subparsers.add_parser("evaluate-late-gated-fusion")
+    late_fusion.add_argument("--target", type=Path, required=True)
+    late_fusion.add_argument("--synthetic-sequence-manifest", type=Path, action="append", required=True)
+    late_fusion.add_argument("--out", type=Path, required=True)
+    late_fusion.add_argument("--artifact-root", type=Path)
+    late_fusion.add_argument("--seed", type=int, action="append")
+    late_fusion.add_argument("--split-field", default="model_split")
+    late_fusion.add_argument("--train-value", default="train")
+    late_fusion.add_argument("--test-value", default="test")
+    late_fusion.add_argument("--lookback-steps", type=int, default=12)
+    late_fusion.add_argument("--patch-steps", type=int, default=3)
+    late_fusion.add_argument("--train-fraction", type=float, default=0.8)
+    late_fusion.add_argument("--pretrain-stride", type=int, default=3)
+    late_fusion.add_argument("--ssl-epochs", type=int, default=6)
+    late_fusion.add_argument("--supervised-epochs", type=int, default=12)
+    late_fusion.add_argument("--learning-rate", type=float, default=0.001)
+    late_fusion.add_argument("--d-model", type=int, default=32)
+    late_fusion.add_argument("--layers", type=int, default=2)
+    late_fusion.add_argument("--heads", type=int, default=4)
+    late_fusion.add_argument("--dropout", type=float, default=0.1)
+    late_fusion.add_argument("--batch-size", type=int, default=32)
+    late_fusion.add_argument("--mask-probability", type=float, default=0.30)
+    late_fusion.add_argument("--modality-dropout-probability", type=float, default=0.25)
+    late_fusion.add_argument("--max-pretrain-windows", type=int, default=2048)
+    late_fusion.set_defaults(func=_evaluate_late_gated_fusion)
+
     transformer = subparsers.add_parser("evaluate-self-supervised-transformer")
     transformer.add_argument("--target", type=Path, required=True)
     transformer.add_argument("--synthetic-sequence-manifest", type=Path, action="append", required=True)
@@ -225,8 +252,44 @@ def _evaluate_self_supervised_transformer(args: Namespace) -> int:
     print(f"status: {report['status']}")
     print(f"downstream train/test: {report['downstream_train_rows']}/{report['downstream_test_rows']}")
     for regime, row in report["summary"].items():
-        metrics = row["fine_tune_balanced_accuracy"]
-        print(f"{regime}: mean={metrics['mean']:.6f} min={metrics['min']:.6f} max={metrics['max']:.6f}")
+        for config_name, config in row["downstream_models"].items():
+            metrics = config["fine_tune_balanced_accuracy"]
+            print(f"{regime}/{config_name}: mean={metrics['mean']:.6f} min={metrics['min']:.6f} max={metrics['max']:.6f}")
+    print(f"output: {args.out}")
+    return 0
+
+
+def _evaluate_late_gated_fusion(args: Namespace) -> int:
+    report = evaluate_late_gated_fusion(
+        target_csv=args.target,
+        synthetic_manifest_paths=args.synthetic_sequence_manifest,
+        out_path=args.out,
+        artifact_root=args.artifact_root,
+        seeds=args.seed,
+        split_field=args.split_field,
+        train_value=args.train_value,
+        test_value=args.test_value,
+        lookback_steps=args.lookback_steps,
+        patch_steps=args.patch_steps,
+        train_fraction=args.train_fraction,
+        pretrain_stride=args.pretrain_stride,
+        ssl_epochs=args.ssl_epochs,
+        supervised_epochs=args.supervised_epochs,
+        learning_rate=args.learning_rate,
+        d_model=args.d_model,
+        layers=args.layers,
+        heads=args.heads,
+        dropout=args.dropout,
+        batch_size=args.batch_size,
+        mask_probability=args.mask_probability,
+        modality_dropout_probability=args.modality_dropout_probability,
+        max_pretrain_windows=args.max_pretrain_windows,
+    )
+    print(f"status: {report['status']}")
+    for initialization, configs in report["summary"].items():
+        for config_name, row in configs.items():
+            metrics = row["balanced_accuracy"]
+            print(f"{initialization}/{config_name}: mean={metrics['mean']:.6f} min={metrics['min']:.6f} max={metrics['max']:.6f}")
     print(f"output: {args.out}")
     return 0
 

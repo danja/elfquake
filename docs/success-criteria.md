@@ -28,6 +28,10 @@ Success means synthetic training is better than trivial synthetic baselines.
 
 Current status: partly satisfied only as an engineering check. The original synthetic h6 table still fails with temporal positive-rate delta `0.609182`. The warmed aggressive profile with `WARMUP_STEPS=3000` now passes the drift gate on a nine-episode run with delta `0.187025` and 396 labeled rows, but temporal model utility remains weak. A nine-episode `WARMUP_STEPS=1000` run failed the same gate with delta `0.294146`.
 
+Latest model check: the synthetic-pretrained piezo/VLF-only Transformer averages `0.593023` balanced accuracy over three seeds and keeps both recalls above `0.40` in every seed. This is close to, but does not pass, the `0.60` gate. Full early-fusion models remain substantially weaker.
+
+Late-fusion check: naive and anchored full fusion fail the gate. Direct-only anchored fusion averages `0.570482`, but performs better when the direct branch is disabled, so it does not satisfy the requirement that an added modality demonstrate incremental value.
+
 ## Stage 3: Real Supervised Readiness
 
 Success means real data can support supervised evaluation.

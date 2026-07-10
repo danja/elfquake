@@ -169,7 +169,24 @@ Current Transformer self-supervision result:
 * Test-time missing-modality checks again favor piezo/VLF-only inputs over the full input. These are robustness checks, not separately retrained ablations.
 * Class recall remains unstable: only isolated seeds keep both positive and negative recall above `0.40`, so mean initialization gains are not sufficient for promotion.
 
-Next experiment: compare joint pretraining against synthetic pretraining with real-domain rehearsal or a temporarily frozen shared encoder, then train separate full and piezo/VLF-only downstream heads. Keep random initialization and three-seed reporting beside every result.
+Transfer-preservation experiment:
+
+* Artifact: `data/derived/models/self_supervised_transformer_transfer/evaluation.json`.
+* `evaluate-self-supervised-transfer.sh` compares seven initialization strategies and trains independent full-input and piezo/VLF-only downstream models from every pretrained state.
+* Synthetic pretraining plus a separate piezo/VLF-only head is the leading stable configuration: mean balanced accuracy `0.593023`, range `0.542228` to `0.649021`, and both class recalls exceed `0.40` for all three seeds. Random piezo/VLF-only initialization averages `0.543554`.
+* Frozen real adaptation reproduces the synthetic result exactly because it changes only the unused real adapter and decoder. It preserves the synthetic encoder but cannot transfer real-domain information into it.
+* Synthetic-then-real adaptation (`0.591392`) and rehearsal (`0.590371`) do not improve the piezo/VLF-only mean and produce poor negative recall for seed `7`. Joint-from-scratch training is less stable at mean `0.553651`.
+* Full-input heads remain weak. Joint pretraining is best at mean `0.471338`; early fusion of direct-avalanche and summary tokens is currently detrimental.
+
+Late gated-fusion experiment:
+
+* Artifact: `data/derived/models/late_gated_fusion/evaluation.json`.
+* Naive late fusion fails: the synthetic-pretrained full gated model averages `0.445736` balanced accuracy versus `0.569155` for its matched piezo/VLF anchor. The learned summary gate opens widest and removing summary improves the result.
+* Anchoring, near-closed gates, and a frozen Transformer recover mean `0.524072`, but still trail the anchor. Test-time piezo/VLF-only scoring reaches `0.588535`, confirming that auxiliary branches remain harmful.
+* A separately trained direct-only anchored gate averages `0.570482`, essentially tied with the `0.569155` anchor, and improves the minimum from `0.507038` to `0.538862`. However, disabling direct avalanche at test time raises its mean to `0.578234`, so the branch has not demonstrated added information.
+* No fusion model passes the `0.60` repeated-seed gate. Keep piezo/VLF-only as the leading architecture and do not promote direct or summary fusion.
+
+Next experiment: make component initialization independent of the presence and order of unused modality adapters, then repeat the piezo/VLF anchor and transfer comparison. The anchor currently changes between otherwise matched harnesses when the real VLF adapter is present, which is avoidable initialization variance.
 
 Interpret the tuned domain, transfer, and mixed-alignment diagnostics as baselines to continue improving. Held-out real masked reconstruction now beats the zero baseline in the real-trained, synthetic-inlier-trained, and mixed-domain checks. The full synthetic domain is still too broad, and close centroid/random controls mean the synthetic VLF analogue is not yet a proven real VLF substitute.
 
@@ -272,7 +289,9 @@ Current scaffold:
 * `elfquake.models.torch_multimodal_encoder` - modality-specific patch adapters and the shared Transformer backbone.
 * `elfquake.models.torch_ssl_pretrain` - masked-patch and modality-dropout reconstruction objectives and persistence baselines.
 * `elfquake.models.torch_ssl_downstream` - frozen probes, fine-tuning, and test-time missing-modality checks.
-* `elfquake.models.torch_ssl_transformer_evaluation` - five-regime repeated-seed experiment orchestration.
+* `elfquake.models.torch_ssl_transformer_evaluation` - seven-regime repeated-seed experiment orchestration.
+* `elfquake.models.torch_late_gated_fusion` - independently encoded piezo/VLF anchor with optional gated auxiliary residuals.
+* `elfquake.models.torch_late_gated_evaluation` - paired random/pretrained anchor, full-fusion, anchored-fusion, and direct-only evaluation.
 * `elfquake.models.window_adapter` - aggregates irregular real or synthetic event lists into regular window features.
 * `elfquake.models.sequence_materializer` - materializes `time x entity x channel` sequence tables with present masks.
 * `elfquake.models.tensor_spec` - CSV-to-tensor metadata spec with modality groups and generated present-mask channel names.

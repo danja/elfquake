@@ -264,7 +264,15 @@ Compare random, synthetic, real VLF, sequential synthetic-to-real, and balanced 
 
 ### `evaluate-self-supervised-transformer.sh`
 
-Prepare the h6 target split and run the three-seed CPU evaluation on current warmed synthetic sequences plus the real Cumiana VLF sequence. Results and checkpoints are written under `data/derived/models/self_supervised_transformer/`.
+Prepare the h6 target split and run the seven-regime, three-seed CPU evaluation on current warmed synthetic sequences plus the real Cumiana VLF sequence. Each initialization trains separate full-input and piezo/VLF-only downstream models.
+
+### `evaluate-self-supervised-transfer.sh`
+
+Run the reproducible transfer-preservation configuration with six pretraining epochs, twelve supervised epochs, and a 2,048-window synthetic cap. Results are written under `data/derived/models/self_supervised_transformer_transfer/`.
+
+### `evaluate-late-gated-fusion.sh`
+
+Compare a piezo/VLF anchor with naive, anchored full, and anchored direct-only gated fusion under random and synthetic-pretrained initialization. The report includes gate statistics and test-time branch-disable checks.
 
 ### `score-sequence-anomalies`
 

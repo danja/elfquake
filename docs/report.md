@@ -1,10 +1,14 @@
 # Analysis Report
 
-Date: 2026-07-08
+Date: 2026-07-10
 
-## Overview
+## Progress So Far
 
-ELFQuake is currently a feasibility pipeline, not an earthquake prediction system. The project can collect Italy-scoped INGV seismic events, Cumiana VLF spectrogram images, and astronomy/space-weather context; it can also generate synthetic seismic-like and VLF-like signals from an avalanche simulation. Historical seismic-only backfill now covers 2024-2026 and gives usable smoke baselines. Supervised real VLF target training remains blocked because the matured prospective VLF rows still contain only one target class per table, so the default modeling path is self-supervised real VLF pretraining plus a weak end-to-end trial forecast artifact that establishes the downstream event-list shape.
+The ideal outcome for ELFQuake would be to identify strong, consequential earthquakes in Italy before they happen, giving a useful estimate of when and where they will occur and how large they may be, while keeping false alarms low enough for the result to be actionable. That is the bottom-line standard against which the project should be judged.
+
+Progress so far is mainly in building the machinery needed to test that goal. ELFQuake now has a working live-data pipeline for Italy, regularly collecting INGV earthquake events, Cumiana VLF spectrogram images, and available astronomy and space-weather measurements. It retains the original source files, aligns observations by time, trains baseline and Transformer models, tests the contribution of each modality, and can emit a demonstration seven-day event list and map. Historical INGV data provides seismic context, while the avalanche simulation supplies controlled synthetic seismic-like and piezo/VLF-like signals for model development. Self-supervised learning also lets the Transformer learn from live VLF observations before enough real earthquake labels have accumulated.
+
+Compared with the ideal of predicting strong events, the present system is still at an early feasibility stage. It has not predicted a strong earthquake on held-out real data, and no multimodal model has yet beaten seismic-only and historical-rate baselines over a substantial real period. The overlapping live VLF and seismic record is short, the prospective target tables still lack usable class balance, and strong earthquakes are rare enough that a credible test will require much longer coverage. Current weekly forecasts demonstrate the intended software and output format only; they are not actionable predictions. The hypothesis remains open and testable, but useful strong-event prediction is not currently demonstrated or operationally viable.
 
 ## Scope
 
@@ -129,6 +133,10 @@ Synthetic-model status:
 * Synthetic masked reconstruction beats zero and last-patch baselines for all pretrained seeds. Real VLF reconstruction beats zero but not last-patch persistence, reflecting the small 186-window real training set and strong short-term persistence.
 * Sequential synthetic-then-real pretraining has the strongest mean frozen probe (`0.519176`) but weak fine-tuning (`0.452264`), so the next transfer check should use joint rehearsal or freeze the shared encoder during the real-only stage.
 * Positive/negative recall remains seed-sensitive; most runs fail to keep both above `0.40`. The initialization gains are therefore useful engineering evidence but not a promotion result.
+* A follow-up transfer-preservation experiment trains independent full and piezo/VLF-only heads. The synthetic-pretrained piezo/VLF-only model reaches mean balanced accuracy `0.593023` over three seeds, versus `0.543554` from random initialization; its range is `0.542228` to `0.649021`, and both recalls exceed `0.40` in every seed.
+* Frozen real adaptation exactly preserves the synthetic result but transfers no information into the shared encoder. Sequential adaptation and rehearsal remain near `0.59` on average but destabilize negative recall in one seed. Full early-fusion models remain below `0.48`, so late gated fusion is the next architecture check.
+* Late gated fusion does not improve the model. Naive full fusion averages `0.445736`; an anchored, frozen-backbone version recovers to `0.524072`, still below its matched piezo/VLF anchor at `0.569155`.
+* Removing the summary branch and training only a direct-avalanche gate produces `0.570482`, but disabling that direct branch at test time improves the mean to `0.578234`. This is not evidence that direct-avalanche history adds useful information. The experiment instead confirms that auxiliary fusion and initialization variance require tighter controls.
 * A second label-free real VLF anomaly layer now scores descriptor reconstruction and embedding novelty by window. The current 7-day smoke forecast artifact covers `2026-07-06T06:50:50Z` to `2026-07-13T06:50:50Z`, with demo probability `0.952514` and demo predicted event `1`; this is not trained on earthquake labels and is not a validated forecast.
 * The tuned shape-profile synthetic-to-real embedding-domain diagnostic encoded 59,931 synthetic piezo/VLF windows through a descriptor autoencoder trained on real VLF windows. Synthetic centroid distance was `1.291640` and synthetic-to-real nearest mean distance was `1.846295`.
 * The same diagnostic is still only a baseline, but it is stronger than the previous full-descriptor version: held-out real masked reconstruction MSE is `0.895188` versus a zero baseline of `0.960585`; synthetic masked reconstruction is `4.642818` versus a zero baseline of `4.721987`.

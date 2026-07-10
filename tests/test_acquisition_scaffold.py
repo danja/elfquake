@@ -89,6 +89,7 @@ from elfquake.models.torch_self_supervised import (
     score_sequence_anomalies,
 )
 from elfquake.models.torch_ssl_transformer_evaluation import evaluate_self_supervised_transformer
+from elfquake.models.torch_late_gated_evaluation import evaluate_late_gated_fusion
 from elfquake.models.torch_tabular import evaluate_torch_tabular_group_holdout, evaluate_torch_tabular_holdout
 from elfquake.models.trial_forecast import generate_trial_weekly_event_forecast
 from elfquake.models.window_adapter import build_event_window_features
@@ -2638,7 +2639,12 @@ class AcquisitionScaffoldTests(unittest.TestCase):
                 synthetic_manifest_paths=manifests,
                 real_manifest_path=real_manifest,
                 out_path=root / "evaluation.json",
-                regimes=["random_init", "synthetic_pretrain"],
+                regimes=[
+                    "random_init",
+                    "synthetic_pretrain",
+                    "synthetic_then_real_frozen",
+                    "synthetic_then_real_rehearsal",
+                ],
                 seeds=[3],
                 lookback_steps=2,
                 patch_steps=1,
@@ -2652,12 +2658,77 @@ class AcquisitionScaffoldTests(unittest.TestCase):
                 max_pretrain_windows=8,
             )
 
-            self.assertEqual(report["schema"], "elfquake.self_supervised_transformer_evaluation.v1")
+            self.assertEqual(report["schema"], "elfquake.self_supervised_transformer_evaluation.v2")
             self.assertEqual(report["status"], "evaluated")
-            self.assertEqual(len(report["runs"]), 2)
+            self.assertEqual(len(report["runs"]), 4)
             self.assertIn("random_init", report["summary"])
             self.assertIn("synthetic_pretrain", report["summary"])
-            self.assertIn("without_piezo_vlf", report["runs"][0]["fine_tune"]["evaluations"])
+            self.assertIn("full", report["runs"][0]["downstream_models"])
+            self.assertIn("piezo_vlf_only", report["runs"][0]["downstream_models"])
+            self.assertIn(
+                "without_piezo_vlf",
+                report["runs"][0]["downstream_models"]["full"]["fine_tune"]["evaluations"],
+            )
+            self.assertIn(
+                "trained_input",
+                report["runs"][0]["downstream_models"]["piezo_vlf_only"]["fine_tune"]["evaluations"],
+            )
+            frozen = next(run for run in report["runs"] if run["regime"] == "synthetic_then_real_frozen")
+            rehearsal = next(run for run in report["runs"] if run["regime"] == "synthetic_then_real_rehearsal")
+            self.assertEqual(frozen["pretraining_stages"][1]["trainable_scope"], "modality_only:real_vlf_image")
+            self.assertEqual(rehearsal["pretraining_stages"][1]["tasks"], ["synthetic", "real_vlf"])
+
+    @unittest.skipUnless(importlib.util.find_spec("torch"), "PyTorch optional dependency is not installed")
+    def test_late_gated_fusion_compares_anchor_and_auxiliary_branches(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            values = [0, 1, 0, 2, 1, 3, 2, 5, 3, 8, 5, 13, 8, 21]
+            manifests = [
+                self._write_sequence_fixture(root, "seed1", "synthetic_direct_avalanche", "avalanche_signal", values),
+                self._write_sequence_fixture(root, "seed1", "synthetic_piezo_vlf", "piezo_signal", values),
+                self._write_sequence_fixture(root, "seed1", "synthetic_summary", "topple_count", values),
+            ]
+            target = root / "target.csv"
+            target.write_text(
+                "dataset_id,window_end_utc,target_occurred,model_split\n"
+                "seed1,2026-01-01T00:03:00Z,0,train\n"
+                "seed1,2026-01-01T00:04:00Z,1,train\n"
+                "seed1,2026-01-01T00:05:00Z,0,train\n"
+                "seed1,2026-01-01T00:06:00Z,1,train\n"
+                "seed1,2026-01-01T00:07:00Z,0,train\n"
+                "seed1,2026-01-01T00:08:00Z,1,train\n"
+                "seed1,2026-01-01T00:09:00Z,0,test\n"
+                "seed1,2026-01-01T00:10:00Z,1,test\n",
+                encoding="utf-8",
+            )
+
+            report = evaluate_late_gated_fusion(
+                target_csv=target,
+                synthetic_manifest_paths=manifests,
+                out_path=root / "late_fusion.json",
+                seeds=[3],
+                lookback_steps=2,
+                patch_steps=1,
+                pretrain_stride=1,
+                ssl_epochs=1,
+                supervised_epochs=1,
+                d_model=8,
+                layers=1,
+                heads=2,
+                batch_size=2,
+                max_pretrain_windows=8,
+            )
+
+            self.assertEqual(report["schema"], "elfquake.late_gated_fusion_evaluation.v1")
+            self.assertEqual(len(report["runs"]), 8)
+            late_run = next(run for run in report["runs"] if run["model_config"] == "late_gated_fusion")
+            anchored_run = next(run for run in report["runs"] if run["model_config"] == "anchored_late_gated_fusion")
+            direct_run = next(run for run in report["runs"] if run["model_config"] == "anchored_direct_gated_fusion")
+            self.assertEqual(set(late_run["gate_statistics"]), {"synthetic_direct_avalanche", "synthetic_summary"})
+            self.assertIn("piezo_vlf_only", late_run["downstream"]["evaluations"])
+            self.assertIn("late_gated_fusion", report["summary"]["synthetic_pretrain"])
+            self.assertEqual(anchored_run["downstream"]["trainable_scope"], "fusion_only")
+            self.assertEqual(set(direct_run["gate_statistics"]), {"synthetic_direct_avalanche"})
 
     @unittest.skipUnless(importlib.util.find_spec("torch"), "PyTorch optional dependency is not installed")
     def test_sequence_autoencoder_pretraining_writes_checkpoint_and_embeddings(self) -> None:

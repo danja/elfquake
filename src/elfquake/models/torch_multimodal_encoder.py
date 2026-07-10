@@ -141,6 +141,15 @@ def build_multimodal_patch_transformer(
         ):
             return self.occurrence_head(self.embedding(inputs, observed, dropped_modalities=dropped_modalities))
 
+        def modality_pretraining_parameters(self, modality: str) -> list[object]:
+            return [
+                *self.adapters[modality].parameters(),
+                *self.decoders[modality].parameters(),
+                self.modality_embeddings[modality],
+                self.mask_tokens[modality],
+                self.missing_tokens[modality],
+            ]
+
     return MultimodalPatchTransformer()
 
 

@@ -17,6 +17,7 @@ from elfquake.models.torch_multimodal_data import (
     refs_for_rows,
 )
 from elfquake.models.torch_ssl_downstream import (
+    DOWNSTREAM_CONFIGS,
     SYNTHETIC_MODALITIES,
     summarize_downstream_runs,
     train_downstream,
@@ -38,6 +39,8 @@ REGIMES = (
     "synthetic_pretrain",
     "real_vlf_pretrain",
     "synthetic_then_real",
+    "synthetic_then_real_frozen",
+    "synthetic_then_real_rehearsal",
     "joint_synthetic_real",
 )
 
@@ -122,7 +125,7 @@ def evaluate_self_supervised_transformer(
         raise ValueError("downstream target split requires train class variation and held-out rows")
 
     report: dict[str, object] = {
-        "schema": "elfquake.self_supervised_transformer_evaluation.v1",
+        "schema": "elfquake.self_supervised_transformer_evaluation.v2",
         "backend": "torch",
         "device": "cpu",
         "status": "evaluated",
@@ -130,6 +133,7 @@ def evaluate_self_supervised_transformer(
         "synthetic_sequence_manifests": [str(path) for path in synthetic_manifest_paths],
         "real_sequence_manifest": str(real_manifest_path),
         "regimes": list(selected_regimes),
+        "downstream_configs": {name: list(modalities) for name, modalities in DOWNSTREAM_CONFIGS.items()},
         "seeds": list(selected_seeds),
         "lookback_steps": lookback_steps,
         "patch_steps": patch_steps,
@@ -190,7 +194,7 @@ def evaluate_self_supervised_transformer(
                 torch=torch,
             )
             report["runs"].append(run)
-    report["summary"] = summarize_downstream_runs(report["runs"], REGIMES)
+    report["summary"] = summarize_downstream_runs(report["runs"], selected_regimes)
     out_path.parent.mkdir(parents=True, exist_ok=True)
     out_path.write_text(json.dumps(report, indent=2, sort_keys=True) + "\n", encoding="utf-8")
     return report
@@ -244,6 +248,31 @@ def _evaluate_run(
     elif regime == "synthetic_then_real":
         stages.append(_pretrain_stage(model, [synthetic_task], False, seed, sequences, normalizations, lookback_steps, patch_steps, ssl_epochs, learning_rate, batch_size, mask_probability, modality_dropout_probability, max_pretrain_windows, torch))
         stages.append(_pretrain_stage(model, [real_task], False, seed + 1, sequences, normalizations, lookback_steps, patch_steps, ssl_epochs, learning_rate, batch_size, mask_probability, modality_dropout_probability, max_pretrain_windows, torch))
+    elif regime == "synthetic_then_real_frozen":
+        stages.append(_pretrain_stage(model, [synthetic_task], False, seed, sequences, normalizations, lookback_steps, patch_steps, ssl_epochs, learning_rate, batch_size, mask_probability, modality_dropout_probability, max_pretrain_windows, torch))
+        real_modality = real_task.modalities[0]
+        stages.append(_pretrain_stage(
+            model,
+            [real_task],
+            False,
+            seed + 1,
+            sequences,
+            normalizations,
+            lookback_steps,
+            patch_steps,
+            ssl_epochs,
+            learning_rate,
+            batch_size,
+            mask_probability,
+            modality_dropout_probability,
+            max_pretrain_windows,
+            torch,
+            optimizer_parameters=model.modality_pretraining_parameters(real_modality),
+            trainable_scope=f"modality_only:{real_modality}",
+        ))
+    elif regime == "synthetic_then_real_rehearsal":
+        stages.append(_pretrain_stage(model, [synthetic_task], False, seed, sequences, normalizations, lookback_steps, patch_steps, ssl_epochs, learning_rate, batch_size, mask_probability, modality_dropout_probability, max_pretrain_windows, torch))
+        stages.append(_pretrain_stage(model, [synthetic_task, real_task], True, seed + 1, sequences, normalizations, lookback_steps, patch_steps, ssl_epochs, learning_rate, batch_size, mask_probability, modality_dropout_probability, max_pretrain_windows, torch))
     elif regime == "joint_synthetic_real":
         stages.append(_pretrain_stage(model, [synthetic_task, real_task], True, seed, sequences, normalizations, lookback_steps, patch_steps, ssl_epochs, learning_rate, batch_size, mask_probability, modality_dropout_probability, max_pretrain_windows, torch))
 
@@ -264,59 +293,69 @@ def _evaluate_run(
         for task in (synthetic_task, real_task)
     }
     pretrained_state = clone_state(model)
-    linear_probe = train_downstream(
-        model,
-        train_refs=train_refs,
-        train_labels=train_labels,
-        test_refs=test_refs,
-        test_labels=test_labels,
-        sequences=sequences,
-        normalizations=normalizations,
-        lookback_steps=lookback_steps,
-        epochs=supervised_epochs,
-        learning_rate=learning_rate,
-        batch_size=batch_size,
-        modality_dropout_probability=0.0,
-        freeze_backbone=True,
-        seed=seed,
-        torch=torch,
-    )
-    load_compatible_state(model, pretrained_state)
-    fine_tune = train_downstream(
-        model,
-        train_refs=train_refs,
-        train_labels=train_labels,
-        test_refs=test_refs,
-        test_labels=test_labels,
-        sequences=sequences,
-        normalizations=normalizations,
-        lookback_steps=lookback_steps,
-        epochs=supervised_epochs,
-        learning_rate=learning_rate,
-        batch_size=batch_size,
-        modality_dropout_probability=modality_dropout_probability,
-        freeze_backbone=False,
-        seed=seed,
-        torch=torch,
-    )
-    checkpoint = ""
-    if artifact_root:
-        path = artifact_root / regime / f"seed_{seed}.pt"
-        path.parent.mkdir(parents=True, exist_ok=True)
-        torch.save({"schema": "elfquake.multimodal_patch_transformer.v1", "regime": regime, "seed": seed, "model_state": model.state_dict()}, path)
-        checkpoint = str(path)
+    downstream_models = {}
+    for config_name, modalities in DOWNSTREAM_CONFIGS.items():
+        load_compatible_state(model, pretrained_state)
+        _set_seed(torch, seed)
+        linear_probe = train_downstream(
+            model,
+            train_refs=train_refs,
+            train_labels=train_labels,
+            test_refs=test_refs,
+            test_labels=test_labels,
+            sequences=sequences,
+            normalizations=normalizations,
+            modalities=modalities,
+            lookback_steps=lookback_steps,
+            epochs=supervised_epochs,
+            learning_rate=learning_rate,
+            batch_size=batch_size,
+            modality_dropout_probability=0.0,
+            freeze_backbone=True,
+            seed=seed,
+            torch=torch,
+        )
+        load_compatible_state(model, pretrained_state)
+        _set_seed(torch, seed)
+        fine_tune = train_downstream(
+            model,
+            train_refs=train_refs,
+            train_labels=train_labels,
+            test_refs=test_refs,
+            test_labels=test_labels,
+            sequences=sequences,
+            normalizations=normalizations,
+            modalities=modalities,
+            lookback_steps=lookback_steps,
+            epochs=supervised_epochs,
+            learning_rate=learning_rate,
+            batch_size=batch_size,
+            modality_dropout_probability=modality_dropout_probability,
+            freeze_backbone=False,
+            seed=seed,
+            torch=torch,
+        )
+        checkpoint = ""
+        if artifact_root:
+            path = artifact_root / regime / f"seed_{seed}" / f"{config_name}.pt"
+            path.parent.mkdir(parents=True, exist_ok=True)
+            torch.save({"schema": "elfquake.multimodal_patch_transformer.v2", "regime": regime, "seed": seed, "downstream_config": config_name, "model_state": model.state_dict()}, path)
+            checkpoint = str(path)
+        downstream_models[config_name] = {
+            "linear_probe": linear_probe,
+            "fine_tune": fine_tune,
+            "checkpoint": checkpoint,
+        }
     return {
         "regime": regime,
         "seed": seed,
         "pretraining_stages": stages,
         "final_reconstruction": final_reconstruction,
-        "linear_probe": linear_probe,
-        "fine_tune": fine_tune,
-        "checkpoint": checkpoint,
+        "downstream_models": downstream_models,
     }
 
 
-def _pretrain_stage(model, tasks, balance, seed, sequences, normalizations, lookback, patch, epochs, learning_rate, batch_size, mask_probability, dropout_probability, max_windows, torch):
+def _pretrain_stage(model, tasks, balance, seed, sequences, normalizations, lookback, patch, epochs, learning_rate, batch_size, mask_probability, dropout_probability, max_windows, torch, *, optimizer_parameters=None, trainable_scope="all"):
     result = pretrain_masked_patches(
         model,
         tasks=tasks,
@@ -331,6 +370,8 @@ def _pretrain_stage(model, tasks, balance, seed, sequences, normalizations, look
         modality_dropout_probability=dropout_probability,
         max_windows_per_domain=max_windows,
         balance_domains=balance,
+        optimizer_parameters=optimizer_parameters,
+        trainable_scope=trainable_scope,
         seed=seed,
         torch=torch,
     )
