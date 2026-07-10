@@ -123,6 +123,7 @@ def evaluate_late_gated_fusion(
         "mask_probability": mask_probability,
         "modality_dropout_probability": modality_dropout_probability,
         "max_pretrain_windows": max_pretrain_windows,
+        "initialization_strategy": "stable_named_parameters_v1",
         "pretrain_train_windows": len(synthetic_task.train_refs),
         "pretrain_test_windows": len(synthetic_task.test_refs),
         "downstream_train_rows": len(train_rows),
@@ -178,6 +179,7 @@ def _evaluate_seed(
         layers=layers,
         heads=heads,
         dropout=dropout,
+        initialization_seed=seed,
     )
     random_state = clone_state(backbone)
     pretraining = pretrain_masked_patches(
@@ -212,6 +214,7 @@ def _evaluate_seed(
                 layers=layers,
                 heads=heads,
                 dropout=dropout,
+                initialization_seed=seed,
             )
             load_compatible_state(
                 model_backbone,
@@ -224,6 +227,7 @@ def _evaluate_seed(
                 modality_dropout_probability=modality_dropout_probability,
                 torch=torch,
             )
+            _set_seed(torch, seed)
             result = train_downstream(
                 model,
                 train_refs=train_refs,
@@ -274,7 +278,7 @@ def _evaluate_seed(
     return runs
 
 
-def _build_backbone(torch, *, sequences, lookback_steps, patch_steps, d_model, layers, heads, dropout):
+def _build_backbone(torch, *, sequences, lookback_steps, patch_steps, d_model, layers, heads, dropout, initialization_seed):
     return build_multimodal_patch_transformer(
         torch,
         input_sizes=modality_input_sizes(sequences),
@@ -285,6 +289,7 @@ def _build_backbone(torch, *, sequences, lookback_steps, patch_steps, d_model, l
         layers=layers,
         heads=heads,
         dropout=dropout,
+        initialization_seed=initialization_seed,
     )
 
 

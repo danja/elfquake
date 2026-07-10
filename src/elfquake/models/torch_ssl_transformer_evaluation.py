@@ -150,6 +150,7 @@ def evaluate_self_supervised_transformer(
         "mask_probability": mask_probability,
         "modality_dropout_probability": modality_dropout_probability,
         "max_pretrain_windows": max_pretrain_windows,
+        "initialization_strategy": "stable_named_parameters_v1",
         "excluded_real_vlf_reconstruction_fields": sorted(VLF_SIGNAL_EXCLUDES),
         "real_vlf_feature_names": list(next(item.feature_names for item in sequences.values() if item.modality == real_modality)),
         "synthetic_pretrain_train_windows": len(synthetic_task.train_refs),
@@ -239,6 +240,7 @@ def _evaluate_run(
         layers=layers,
         heads=heads,
         dropout=dropout,
+        initialization_seed=seed,
     )
     stages = []
     if regime == "synthetic_pretrain":

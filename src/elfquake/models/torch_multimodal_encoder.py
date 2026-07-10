@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import hashlib
 import math
 
 
@@ -16,6 +17,7 @@ def build_multimodal_patch_transformer(
     layers: int,
     heads: int,
     dropout: float,
+    initialization_seed: int | None = None,
 ):
     if d_model % heads:
         raise ValueError("heads must divide d_model")
@@ -150,7 +152,44 @@ def build_multimodal_patch_transformer(
                 self.missing_tokens[modality],
             ]
 
-    return MultimodalPatchTransformer()
+    construction_rng_state = torch.random.get_rng_state() if initialization_seed is not None else None
+    model = MultimodalPatchTransformer()
+    if initialization_seed is not None:
+        initialize_named_parameters(torch, model, seed=initialization_seed)
+        torch.random.set_rng_state(construction_rng_state)
+    return model
+
+
+def initialize_named_parameters(torch: object, model: object, *, seed: int) -> None:
+    """Initialize each parameter independently so module order cannot perturb weights."""
+
+    rng_state = torch.random.get_rng_state()
+    try:
+        with torch.no_grad():
+            for name, parameter in model.named_parameters():
+                torch.manual_seed(_parameter_seed(seed, name))
+                if name.endswith("bias"):
+                    torch.nn.init.zeros_(parameter)
+                elif parameter.ndim == 1 and "norm" in name:
+                    torch.nn.init.ones_(parameter)
+                elif parameter.ndim >= 2 and not _is_embedding_parameter(name):
+                    torch.nn.init.xavier_uniform_(parameter)
+                else:
+                    torch.nn.init.normal_(parameter, mean=0.0, std=0.02)
+    finally:
+        torch.random.set_rng_state(rng_state)
+
+
+def _parameter_seed(seed: int, name: str) -> int:
+    digest = hashlib.sha256(f"{seed}:{name}".encode("utf-8")).digest()
+    return int.from_bytes(digest[:8], "big") % (2**63 - 1)
+
+
+def _is_embedding_parameter(name: str) -> bool:
+    return name == "position" or any(
+        name.startswith(prefix)
+        for prefix in ("modality_embeddings.", "mask_tokens.", "missing_tokens.")
+    )
 
 
 def load_compatible_state(model: object, state: dict[str, object]) -> list[str]:

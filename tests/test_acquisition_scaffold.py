@@ -90,6 +90,7 @@ from elfquake.models.torch_self_supervised import (
 )
 from elfquake.models.torch_ssl_transformer_evaluation import evaluate_self_supervised_transformer
 from elfquake.models.torch_late_gated_evaluation import evaluate_late_gated_fusion
+from elfquake.models.torch_multimodal_encoder import build_multimodal_patch_transformer
 from elfquake.models.torch_tabular import evaluate_torch_tabular_group_holdout, evaluate_torch_tabular_holdout
 from elfquake.models.trial_forecast import generate_trial_weekly_event_forecast
 from elfquake.models.window_adapter import build_event_window_features
@@ -2729,6 +2730,66 @@ class AcquisitionScaffoldTests(unittest.TestCase):
             self.assertIn("late_gated_fusion", report["summary"]["synthetic_pretrain"])
             self.assertEqual(anchored_run["downstream"]["trainable_scope"], "fusion_only")
             self.assertEqual(set(direct_run["gate_statistics"]), {"synthetic_direct_avalanche"})
+
+    @unittest.skipUnless(importlib.util.find_spec("torch"), "PyTorch optional dependency is not installed")
+    def test_named_transformer_initialization_is_independent_of_unused_adapters(self) -> None:
+        import torch
+
+        shared_inputs = {
+            "synthetic_direct_avalanche": 3,
+            "synthetic_piezo_vlf": 5,
+            "synthetic_summary": 2,
+        }
+        shared_targets = {
+            "synthetic_direct_avalanche": 1,
+            "synthetic_piezo_vlf": 2,
+            "synthetic_summary": 1,
+        }
+        base = build_multimodal_patch_transformer(
+            torch,
+            input_sizes=shared_inputs,
+            target_sizes=shared_targets,
+            lookback_steps=4,
+            patch_steps=2,
+            d_model=8,
+            layers=1,
+            heads=2,
+            dropout=0.1,
+            initialization_seed=17,
+        )
+        expanded = build_multimodal_patch_transformer(
+            torch,
+            input_sizes={"real_vlf_image": 7, **shared_inputs},
+            target_sizes={"real_vlf_image": 3, **shared_targets},
+            lookback_steps=4,
+            patch_steps=2,
+            d_model=8,
+            layers=1,
+            heads=2,
+            dropout=0.1,
+            initialization_seed=17,
+        )
+
+        expanded_state = expanded.state_dict()
+        for name, value in base.state_dict().items():
+            self.assertTrue(torch.equal(value, expanded_state[name]), name)
+
+        torch.manual_seed(99)
+        expected_next = torch.rand(4)
+        torch.manual_seed(99)
+        build_multimodal_patch_transformer(
+            torch,
+            input_sizes=shared_inputs,
+            target_sizes=shared_targets,
+            lookback_steps=4,
+            patch_steps=2,
+            d_model=8,
+            layers=1,
+            heads=2,
+            dropout=0.1,
+            initialization_seed=17,
+        )
+        self.assertTrue(torch.equal(expected_next, torch.rand(4)))
 
     @unittest.skipUnless(importlib.util.find_spec("torch"), "PyTorch optional dependency is not installed")
     def test_sequence_autoencoder_pretraining_writes_checkpoint_and_embeddings(self) -> None:
