@@ -12,9 +12,41 @@ from elfquake.models.torch_self_supervised import (
     pretrain_sequence_autoencoder,
     score_sequence_anomalies,
 )
+from elfquake.models.torch_ssl_transformer_evaluation import (
+    REGIMES as TRANSFORMER_SSL_REGIMES,
+    evaluate_self_supervised_transformer,
+)
 
 
 def register_self_supervised_commands(subparsers: _SubParsersAction) -> None:
+    transformer = subparsers.add_parser("evaluate-self-supervised-transformer")
+    transformer.add_argument("--target", type=Path, required=True)
+    transformer.add_argument("--synthetic-sequence-manifest", type=Path, action="append", required=True)
+    transformer.add_argument("--real-sequence-manifest", type=Path, required=True)
+    transformer.add_argument("--out", type=Path, required=True)
+    transformer.add_argument("--artifact-root", type=Path)
+    transformer.add_argument("--regime", action="append", choices=TRANSFORMER_SSL_REGIMES)
+    transformer.add_argument("--seed", type=int, action="append")
+    transformer.add_argument("--split-field", default="model_split")
+    transformer.add_argument("--train-value", default="train")
+    transformer.add_argument("--test-value", default="test")
+    transformer.add_argument("--lookback-steps", type=int, default=12)
+    transformer.add_argument("--patch-steps", type=int, default=3)
+    transformer.add_argument("--train-fraction", type=float, default=0.8)
+    transformer.add_argument("--pretrain-stride", type=int, default=3)
+    transformer.add_argument("--ssl-epochs", type=int, default=8)
+    transformer.add_argument("--supervised-epochs", type=int, default=12)
+    transformer.add_argument("--learning-rate", type=float, default=0.001)
+    transformer.add_argument("--d-model", type=int, default=32)
+    transformer.add_argument("--layers", type=int, default=2)
+    transformer.add_argument("--heads", type=int, default=4)
+    transformer.add_argument("--dropout", type=float, default=0.1)
+    transformer.add_argument("--batch-size", type=int, default=32)
+    transformer.add_argument("--mask-probability", type=float, default=0.30)
+    transformer.add_argument("--modality-dropout-probability", type=float, default=0.25)
+    transformer.add_argument("--max-pretrain-windows", type=int, default=4096)
+    transformer.set_defaults(func=_evaluate_self_supervised_transformer)
+
     sequence_autoencoder = subparsers.add_parser("pretrain-sequence-autoencoder")
     sequence_autoencoder.add_argument("--sequence-manifest", type=Path, required=True)
     sequence_autoencoder.add_argument("--out", type=Path, required=True)
@@ -158,6 +190,43 @@ def _pretrain_sequence_autoencoder(args: Namespace) -> int:
     if "train_window_count" in report:
         print(f"train windows: {report['train_window_count']}")
         print(f"test windows: {report['test_window_count']}")
+    print(f"output: {args.out}")
+    return 0
+
+
+def _evaluate_self_supervised_transformer(args: Namespace) -> int:
+    report = evaluate_self_supervised_transformer(
+        target_csv=args.target,
+        synthetic_manifest_paths=args.synthetic_sequence_manifest,
+        real_manifest_path=args.real_sequence_manifest,
+        out_path=args.out,
+        artifact_root=args.artifact_root,
+        regimes=args.regime,
+        seeds=args.seed,
+        split_field=args.split_field,
+        train_value=args.train_value,
+        test_value=args.test_value,
+        lookback_steps=args.lookback_steps,
+        patch_steps=args.patch_steps,
+        train_fraction=args.train_fraction,
+        pretrain_stride=args.pretrain_stride,
+        ssl_epochs=args.ssl_epochs,
+        supervised_epochs=args.supervised_epochs,
+        learning_rate=args.learning_rate,
+        d_model=args.d_model,
+        layers=args.layers,
+        heads=args.heads,
+        dropout=args.dropout,
+        batch_size=args.batch_size,
+        mask_probability=args.mask_probability,
+        modality_dropout_probability=args.modality_dropout_probability,
+        max_pretrain_windows=args.max_pretrain_windows,
+    )
+    print(f"status: {report['status']}")
+    print(f"downstream train/test: {report['downstream_train_rows']}/{report['downstream_test_rows']}")
+    for regime, row in report["summary"].items():
+        metrics = row["fine_tune_balanced_accuracy"]
+        print(f"{regime}: mean={metrics['mean']:.6f} min={metrics['min']:.6f} max={metrics['max']:.6f}")
     print(f"output: {args.out}")
     return 0
 

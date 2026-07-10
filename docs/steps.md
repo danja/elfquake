@@ -258,6 +258,14 @@ Train a CPU PyTorch masked reconstruction autoencoder over a materialized sequen
 
 Run the default self-supervised path on the real Cumiana VLF image sequence manifest, writing a report, checkpoint, and embedding CSV under `data/derived/models/self_supervised/`.
 
+### `evaluate-self-supervised-transformer`
+
+Compare random, synthetic, real VLF, sequential synthetic-to-real, and balanced joint masked-patch initialization using frozen probes, full fine-tuning, reconstruction baselines, and test-time missing-modality checks.
+
+### `evaluate-self-supervised-transformer.sh`
+
+Prepare the h6 target split and run the three-seed CPU evaluation on current warmed synthetic sequences plus the real Cumiana VLF sequence. Results and checkpoints are written under `data/derived/models/self_supervised_transformer/`.
+
 ### `score-sequence-anomalies`
 
 Train a label-free descriptor autoencoder on a materialized sequence manifest, score reconstruction and embedding novelty by window, and write a smoke forecast artifact for the configured horizon.

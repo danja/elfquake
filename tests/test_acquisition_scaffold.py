@@ -88,6 +88,7 @@ from elfquake.models.torch_self_supervised import (
     pretrain_sequence_autoencoder,
     score_sequence_anomalies,
 )
+from elfquake.models.torch_ssl_transformer_evaluation import evaluate_self_supervised_transformer
 from elfquake.models.torch_tabular import evaluate_torch_tabular_group_holdout, evaluate_torch_tabular_holdout
 from elfquake.models.trial_forecast import generate_trial_weekly_event_forecast
 from elfquake.models.window_adapter import build_event_window_features
@@ -2600,6 +2601,63 @@ class AcquisitionScaffoldTests(unittest.TestCase):
             self.assertEqual([row["target_occurred"] for row in rows], ["0", "1", "0", "1", "0"])
             self.assertEqual([row["target_status"] for row in rows], ["labeled"] * 5)
             self.assertEqual([row["model_split"] for row in rows], ["train", "train", "train", "train", "test"])
+
+    @unittest.skipUnless(importlib.util.find_spec("torch"), "PyTorch optional dependency is not installed")
+    def test_self_supervised_transformer_compares_random_and_pretrained(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            values = [0, 1, 0, 2, 1, 3, 2, 5, 3, 8, 5, 13, 8, 21]
+            manifests = [
+                self._write_sequence_fixture(root, "seed1", "synthetic_direct_avalanche", "avalanche_signal", values),
+                self._write_sequence_fixture(root, "seed1", "synthetic_piezo_vlf", "piezo_signal", values),
+                self._write_sequence_fixture(root, "seed1", "synthetic_summary", "topple_count", values),
+            ]
+            real_manifest = self._write_sequence_fixture(
+                root,
+                "real",
+                "real_vlf_image",
+                "vlf_intensity_mean",
+                values,
+            )
+            target = root / "target.csv"
+            target.write_text(
+                "dataset_id,window_end_utc,target_occurred,model_split\n"
+                "seed1,2026-01-01T00:03:00Z,0,train\n"
+                "seed1,2026-01-01T00:04:00Z,1,train\n"
+                "seed1,2026-01-01T00:05:00Z,0,train\n"
+                "seed1,2026-01-01T00:06:00Z,1,train\n"
+                "seed1,2026-01-01T00:07:00Z,0,train\n"
+                "seed1,2026-01-01T00:08:00Z,1,train\n"
+                "seed1,2026-01-01T00:09:00Z,0,test\n"
+                "seed1,2026-01-01T00:10:00Z,1,test\n",
+                encoding="utf-8",
+            )
+
+            report = evaluate_self_supervised_transformer(
+                target_csv=target,
+                synthetic_manifest_paths=manifests,
+                real_manifest_path=real_manifest,
+                out_path=root / "evaluation.json",
+                regimes=["random_init", "synthetic_pretrain"],
+                seeds=[3],
+                lookback_steps=2,
+                patch_steps=1,
+                pretrain_stride=1,
+                ssl_epochs=1,
+                supervised_epochs=1,
+                d_model=8,
+                layers=1,
+                heads=2,
+                batch_size=2,
+                max_pretrain_windows=8,
+            )
+
+            self.assertEqual(report["schema"], "elfquake.self_supervised_transformer_evaluation.v1")
+            self.assertEqual(report["status"], "evaluated")
+            self.assertEqual(len(report["runs"]), 2)
+            self.assertIn("random_init", report["summary"])
+            self.assertIn("synthetic_pretrain", report["summary"])
+            self.assertIn("without_piezo_vlf", report["runs"][0]["fine_tune"]["evaluations"])
 
     @unittest.skipUnless(importlib.util.find_spec("torch"), "PyTorch optional dependency is not installed")
     def test_sequence_autoencoder_pretraining_writes_checkpoint_and_embeddings(self) -> None:

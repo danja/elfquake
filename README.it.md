@@ -34,6 +34,7 @@ Questo lavoro Ã¨ stato inizialmente ispirato dalla tragedia del terremoto dellâ€
 * Connettori e normalizzazione per archivi astronomici e di space weather.
 * Righe di feature VLF prospective ancorate al tempo, con target in attesa di etichettatura.
 * Un autoencoder CPU PyTorch self-supervised su sequenze di immagini VLF reali di Cumiana.
+* Una valutazione Transformer masked-patch multimodale che confronta inizializzazione sintetica, VLF reale, trasferimento sequenziale, addestramento congiunto e casuale su piu seed.
 * Controlli logistici leggeri e un MLP tabellare CPU PyTorch per righe sintetiche allineate.
 * Un primo modello sequenziale GRU CPU PyTorch su tensori sintetici di avalanga e sensori piezo/VLF.
 * Uno scaffold patch Transformer CPU PyTorch minimale per controlli di ingegneria sulle sequenze sintetiche.
@@ -52,7 +53,13 @@ Questo lavoro Ã¨ stato inizialmente ispirato dalla tragedia del terremoto dellâ€
 Esegui il percorso predefinito di pretraining self-supervised su VLF reale con:
 
 ```sh
-./pretrain-real-vlf-self-supervised.sh
+./scripts/pretrain-real-vlf-self-supervised.sh
+```
+
+Confronta le strategie di inizializzazione self-supervised del Transformer con:
+
+```sh
+./scripts/evaluate-self-supervised-transformer.sh
 ```
 
 Esegui lo smoke forecast VLF a 7 giorni, senza etichette, con:

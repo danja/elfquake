@@ -37,6 +37,7 @@ This work was initially prompted by the tragedy of the [2009 L'Aquila earthquake
 * Astronomical and space-weather archive connectors and normalization.
 * Prospective VLF-anchored feature rows with pending target labels.
 * A CPU PyTorch self-supervised autoencoder over real Cumiana VLF image sequences.
+* A modality-aware masked-patch Transformer evaluation comparing synthetic, real VLF, sequential-transfer, joint, and random initialization over repeated seeds.
 * Dependency-light logistic checks and a CPU PyTorch tabular MLP for synthetic aligned rows.
 * A first CPU PyTorch GRU sequence model over synthetic avalanche and piezo/VLF sensor tensors.
 * A CPU PyTorch patch Transformer scaffold for synthetic sequence engineering checks and event-list target pretraining.
@@ -61,6 +62,12 @@ Run the default label-free real VLF pretraining path with:
 
 ```sh
 ./scripts/pretrain-real-vlf-self-supervised.sh
+```
+
+Compare self-supervised Transformer initialization strategies with:
+
+```sh
+./scripts/evaluate-self-supervised-transformer.sh
 ```
 
 Run the current label-free 7-day VLF anomaly smoke forecast with:

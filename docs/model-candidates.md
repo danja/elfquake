@@ -134,6 +134,9 @@ Current implementation:
 
 * `pretrain-sequence-autoencoder` trains a masked reconstruction model on any materialized sequence manifest.
 * `pretrain-real-vlf-self-supervised.sh` runs that command on `data/derived/models/cumiana_vlf_image_sequence/manifest.json`.
+* `evaluate-self-supervised-transformer` uses modality-specific patch adapters, a shared temporal Transformer, observed/corruption/padding masks, elapsed-time inputs, modality dropout, and masked reconstruction heads.
+* `evaluate-self-supervised-transformer.sh` compares random initialization, synthetic pretraining, real VLF pretraining, sequential synthetic-to-real pretraining, and balanced joint pretraining over seeds `7`, `42`, and `99`.
+* Static VLF image geometry is excluded from reconstruction; only signal-shape fields are targets.
 * Current smoke artifact: `data/derived/models/self_supervised/real_vlf_image_autoencoder.json`.
 * Current checkpoint: `data/derived/models/self_supervised/real_vlf_image_autoencoder.pt`.
 * Current embeddings: `data/derived/models/self_supervised/real_vlf_image_embeddings.csv`.
@@ -154,6 +157,19 @@ Current implementation:
 * Current mixed-domain diagnostic: `data/derived/models/self_supervised/real_vlf_mixed_domain_alignment.json`.
 * Mixed-domain local-inlier alignment used 14,983 balanced synthetic windows. Held-out real masked reconstruction MSE improved to `0.294475` versus a zero baseline of `0.588513`, and held-out real-to-synthetic embedding centroid distance improved to `1.033580`.
 * Controls were close enough to keep pressure on the inlier method: centroid-inlier distance was `1.011474`, random was `1.142438`, and capped full-synthetic was worse at `1.617345`.
+
+Current Transformer self-supervision result:
+
+* Artifact: `data/derived/models/self_supervised_transformer/evaluation.json`.
+* Split: 315 synthetic downstream training rows and 81 held-out rows; pretraining uses 2,048 capped synthetic windows and 186 real VLF training windows.
+* Synthetic pretraining improves mean full-model balanced accuracy from `0.451754` to `0.488678`, but varies from `0.401163` to `0.572215` and does not pass the `0.60` synthetic gate.
+* Balanced joint pretraining reaches mean `0.487352` with a narrower `0.466034` to `0.514382` range. Real-only pretraining reaches `0.470726`.
+* Sequential synthetic-then-real pretraining falls back to `0.452264`, while its frozen probe is the strongest at `0.519176`; this is consistent with destructive updating during transfer.
+* Synthetic reconstruction beats zero and last-patch baselines for all pretrained seeds. Real VLF reconstruction beats zero for all pretrained seeds but not the stronger last-patch baseline.
+* Test-time missing-modality checks again favor piezo/VLF-only inputs over the full input. These are robustness checks, not separately retrained ablations.
+* Class recall remains unstable: only isolated seeds keep both positive and negative recall above `0.40`, so mean initialization gains are not sufficient for promotion.
+
+Next experiment: compare joint pretraining against synthetic pretraining with real-domain rehearsal or a temporarily frozen shared encoder, then train separate full and piezo/VLF-only downstream heads. Keep random initialization and three-seed reporting beside every result.
 
 Interpret the tuned domain, transfer, and mixed-alignment diagnostics as baselines to continue improving. Held-out real masked reconstruction now beats the zero baseline in the real-trained, synthetic-inlier-trained, and mixed-domain checks. The full synthetic domain is still too broad, and close centroid/random controls mean the synthetic VLF analogue is not yet a proven real VLF substitute.
 
@@ -252,6 +268,11 @@ Current scaffold:
 * `elfquake.models.report_summary` - compacts multiple evaluation reports into one comparison artifact.
 * `elfquake.models.transformer_input_adapter` - maps richer target tables into the standard Transformer target/split contract.
 * `elfquake.models.torch_patch_transformer` - CPU PyTorch patch Transformer evaluator for synthetic sequence engineering checks.
+* `elfquake.models.torch_multimodal_data` - cadence-aware modality loading, train-only normalization, elapsed-time inputs, and chronological window references.
+* `elfquake.models.torch_multimodal_encoder` - modality-specific patch adapters and the shared Transformer backbone.
+* `elfquake.models.torch_ssl_pretrain` - masked-patch and modality-dropout reconstruction objectives and persistence baselines.
+* `elfquake.models.torch_ssl_downstream` - frozen probes, fine-tuning, and test-time missing-modality checks.
+* `elfquake.models.torch_ssl_transformer_evaluation` - five-regime repeated-seed experiment orchestration.
 * `elfquake.models.window_adapter` - aggregates irregular real or synthetic event lists into regular window features.
 * `elfquake.models.sequence_materializer` - materializes `time x entity x channel` sequence tables with present masks.
 * `elfquake.models.tensor_spec` - CSV-to-tensor metadata spec with modality groups and generated present-mask channel names.

@@ -3,14 +3,14 @@
 ## Immediate Priority
 
 1. Treat `./scripts/trial-weekly-event-forecast.sh` as the current end-to-end event-list contract smoke test, not as a validated predictor.
-2. Use `./scripts/train-synthetic-event-list-patch-transformer.sh` as the current Transformer synthetic-pretraining smoke: the best short run is lookback `12`, patch `3`, dropout `0.1`, with piezo/VLF-only calibrated balanced accuracy `0.608629`.
-3. Stabilize event-list neural heads before forecast promotion: sequence heads and patch Transformers both show useful piezo/VLF signal, but neither has passed repeated-seed and longer-episode checks.
-4. Keep self-supervised real VLF pretraining as the default real-data modeling path while supervised VLF-aligned labels remain one-class or sparse.
+2. Use `./scripts/evaluate-self-supervised-transformer.sh` as the initialization comparison. Synthetic and joint pretraining improve mean full-model balanced accuracy over random initialization, but remain below the `0.60` gate.
+3. Test transfer without destructive updating: compare balanced joint training, real-domain rehearsal, and a frozen shared encoder during the real-only stage. Train separate full and piezo/VLF-only downstream heads.
+4. Keep label-free real VLF pretraining as the default real-data path while supervised VLF-aligned labels remain one-class or sparse; require reconstruction to beat both zero and last-patch baselines.
 5. Continue periodic INGV refresh and prospective relabeling; latest real aligned rows are still one-class (`69/0` all-Italy, `0/69` central Italy).
 
 ## Modeling
 
-1. Use `./scripts/sweep-synthetic-event-list-patch-transformer.sh` after material simulation or target changes; keep piezo/VLF-only, direct-avalanche-only, combined, and full ablations in every run.
+1. Preserve the five-regime, three-seed self-supervised comparison after material data or architecture changes; compare against random initialization and report frozen probes separately from fine-tuning.
 2. Calibrate weekly event counts against historical INGV `>M2` rates before trusting any neural score scale.
 3. Compare every weekly forecast run with `./scripts/compare-weekly-forecasts.sh` and track Stage 1/Stage 2 pass/fail status.
 4. Keep direct avalanche-derived seismic features separate from piezo/VLF-like features; use ablations to test their contribution independently.
@@ -41,6 +41,8 @@
 
 ## Recent Completed
 
+* Added modality-specific Transformer patch adapters, elapsed-time inputs, separate observed/corruption/padding masks, masked reconstruction, modality dropout, frozen probes, compatible checkpoint transfer, and missing-modality checks.
+* Ran five self-supervised initialization regimes over three seeds. Synthetic pretraining improves mean full-model balanced accuracy by `0.036924` over random initialization, and joint pretraining by `0.035598`, but neither passes the synthetic utility gate.
 * Added synthetic event-list target generation from avalanche event CSVs, including future count, occurrence, magnitude, centroid, and time-to-first-event fields.
 * Added dependency-light synthetic event-list heads for occurrence, count, max magnitude, and centroid. The h6 balanced split reaches balanced accuracy `0.887566`, count MAE `0.506783`, and centroid median error `145.585806 km`; the temporal split still fails with balanced accuracy `0.500000`.
 * Added drift diagnostics, episode annotation, and a validation wrapper. Current h6 temporal split has train positive rate `0.318653` and test positive rate `0.927835`; episode-balanced validation reaches balanced accuracy `0.878079`.
