@@ -22,7 +22,7 @@ Defaults:
 * fixed random seed support for replay
 * configurable grid size, source count, sensor count, threshold, deposition probability, and step count
 * if the relaxation sweep limit is hit, unstable slopes are drained until stable
-* mountain mode uses localized point-source deposition plus target refilling and periodic bottom-layer removal
+* mountain mode uses localized point-source deposition plus target refilling and periodic bottom-layer removal; episode batches set target refill to reuse those persistent sources rather than introducing uniform random loading
 
 ## Outputs
 
@@ -144,6 +144,12 @@ Use simulation outputs for:
 Do not use simulation performance as evidence of earthquake prediction ability. Any useful claim must come from held-out real data and ablation comparisons.
 
 Current piezo note: thresholded charge release with a local receiver footprint is the current default after seed `40`-`42` validation. The best VLF-like sensor is seed-dependent, so preserve `sensor_id` and scan or pool sensors during model preparation.
+
+Current episode-holdout diagnostics show that class-conditional piezo effects can change sign between simulation trajectories. Shortening the event target horizon, extending raw model context, and adding simple sensor max/std aggregates did not improve generalization. Before changing the sensor equations, measure event-centered lead-time profiles using only pre-relaxation piezo samples and post-relaxation avalanche events; do not inject synthetic precursor spikes.
+
+The causal lead-time probe now compares each pre-event window with matched controls and an earlier local baseline. A stored-potential channel produced a short 1--5 step effect only when the diagnostic chose the sensor nearest to the *future* avalanche. Its spatial average failed the nine-episode confirmation, so it is not a model feature. `event_nearest` is an analysis-only oracle control; use it to guide sensor design, never as a predictive input.
+
+The lead-time analyzer also supports causal `top_k` and `top_k_rise` pooling, which select the strongest current sensors without event coordinates. Neither passes the localized-default nine-episode check. A separate `SOURCE_COUNT=64` screen produced a short potential lead, but it failed nine-episode confirmation. The duration-aligned reduced-source profile is retained as a synthetic target baseline because it has usable class balance and drift, not because it supplies a validated precursor.
 
 ## Piezo Precursor Analogue
 

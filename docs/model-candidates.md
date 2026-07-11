@@ -173,20 +173,32 @@ Transfer-preservation experiment:
 
 * Artifact: `data/derived/models/self_supervised_transformer_transfer/evaluation.json`.
 * `evaluate-self-supervised-transfer.sh` compares seven initialization strategies and trains independent full-input and piezo/VLF-only downstream models from every pretrained state.
-* Synthetic pretraining plus a separate piezo/VLF-only head is the leading stable configuration: mean balanced accuracy `0.593023`, range `0.542228` to `0.649021`, and both class recalls exceed `0.40` for all three seeds. Random piezo/VLF-only initialization averages `0.543554`.
-* Frozen real adaptation reproduces the synthetic result exactly because it changes only the unused real adapter and decoder. It preserves the synthetic encoder but cannot transfer real-domain information into it.
-* Synthetic-then-real adaptation (`0.591392`) and rehearsal (`0.590371`) do not improve the piezo/VLF-only mean and produce poor negative recall for seed `7`. Joint-from-scratch training is less stable at mean `0.553651`.
-* Full-input heads remain weak. Joint pretraining is best at mean `0.471338`; early fusion of direct-avalanche and summary tokens is currently detrimental.
+* Stable name-derived initialization now makes shared parameters identical regardless of unused adapter inventory and preserves the caller's PyTorch RNG state.
+* Under this control, random-init piezo/VLF-only is strongest: mean balanced accuracy `0.619033`, range `0.577723` to `0.663709`, with both recalls above `0.40` for all three seeds.
+* Synthetic pretraining lowers piezo/VLF-only performance to `0.534272`. Real-only pretraining reaches `0.615157`, joint pretraining `0.614137`, sequential adaptation `0.542534`, and rehearsal `0.530396`; none establishes a gain over random initialization.
+* Full-input heads remain weak. Synthetic pretraining is best at mean `0.505406`; early fusion of direct-avalanche and summary tokens remains detrimental.
 
 Late gated-fusion experiment:
 
 * Artifact: `data/derived/models/late_gated_fusion/evaluation.json`.
-* Naive late fusion fails: the synthetic-pretrained full gated model averages `0.445736` balanced accuracy versus `0.569155` for its matched piezo/VLF anchor. The learned summary gate opens widest and removing summary improves the result.
-* Anchoring, near-closed gates, and a frozen Transformer recover mean `0.524072`, but still trail the anchor. Test-time piezo/VLF-only scoring reaches `0.588535`, confirming that auxiliary branches remain harmful.
-* A separately trained direct-only anchored gate averages `0.570482`, essentially tied with the `0.569155` anchor, and improves the minimum from `0.507038` to `0.538862`. However, disabling direct avalanche at test time raises its mean to `0.578234`, so the branch has not demonstrated added information.
-* No fusion model passes the `0.60` repeated-seed gate. Keep piezo/VLF-only as the leading architecture and do not promote direct or summary fusion.
+* The controlled random-init piezo/VLF anchor exactly matches the transfer harness at mean `0.619033`.
+* Random naive late fusion averages `0.561506`; anchored full and direct-only fusion recover to `0.609241` and `0.606385`, but neither beats the anchor or improves worst-seed stability.
+* Disabling the direct branch at test time raises the direct-only mean from `0.606385` to `0.611281`, so direct avalanche has not demonstrated added information.
+* Synthetic-pretrained anchor and fusion variants remain weak at approximately `0.53`. Keep random-init piezo/VLF-only as the leading controlled architecture and do not promote direct or summary fusion.
 
-Next experiment: make component initialization independent of the presence and order of unused modality adapters, then repeat the piezo/VLF anchor and transfer comparison. The anchor currently changes between otherwise matched harnesses when the real VLF adapter is present, which is avoidable initialization variance.
+Unseen-episode experiment:
+
+* Artifact: `data/derived/models/piezo_group_holdout/evaluation.json`.
+* `evaluate-piezo-group-holdout.sh` holds out each of nine complete simulation episodes and repeats each fold for model seeds `7`, `42`, and `99`.
+* Mean balanced accuracy is `0.578712`, with a `0.275641` to `0.758730` range. Only 14 of 27 folds keep both recalls above `0.40`.
+* Episode means range from `0.430199` to `0.711310`; model-seed means range from `0.536120` to `0.600213`. The within-episode score therefore overstates robustness.
+* A fixed ensemble of all three predeclared model seeds improves mean episode score to `0.632634`, but only 6 of 9 episodes keep both recalls above `0.40`. Training-only threshold calibration beats a fixed `0.5` threshold (`0.601361`) but does not change which episodes pass.
+* Episode diagnostics show sign changes in class-conditional piezo effects. Most h6 positives also occur in six-row runs while the model sees 12 minutes of context, indicating an unresolved target/sensor timescale mismatch.
+* Controlled alternatives regress: h3/12-minute reaches `0.580991`, h6/60-minute `0.512103`, and h6/12-minute with spatial max/std sensor aggregates `0.544096` ensemble balanced accuracy.
+* `compare-piezo-group-holdouts` applies the same `0.60` mean and 80% recall-fold gates to all reports; zero of four current variants passes.
+* Causal pre-relaxation lead-time analysis is now available. The release channel is predominantly same-step; the stored-potential channel fails the spatial-average nine-episode confirmation. An event-nearest 1--5 step effect is diagnostic only because it chooses a receiver using the future avalanche location.
+* Causal top-k and top-k-rise pooling also fail on the default nine-episode localized run. A 64-source three-episode potential effect failed nine-episode confirmation. Corrected duration-aligned targets now make this profile suitable for synthetic baseline tests, but not for precursor-feature training.
+* Keep leave-one-episode-out as the primary synthetic stability test. Do not increase Transformer capacity or train the potential channel until an observable, non-oracle precursor statistic passes fresh causal confirmation.
 
 Interpret the tuned domain, transfer, and mixed-alignment diagnostics as baselines to continue improving. Held-out real masked reconstruction now beats the zero baseline in the real-trained, synthetic-inlier-trained, and mixed-domain checks. The full synthetic domain is still too broad, and close centroid/random controls mean the synthetic VLF analogue is not yet a proven real VLF substitute.
 

@@ -129,7 +129,7 @@ def update_prospective_vlf_table(
     target_magnitude_min: str = "3.0",
 ) -> dict[str, object]:
     existing_rows = _read_existing_table(table_path)
-    existing_ids = {row["window_id"] for row in existing_rows if row.get("window_id")}
+    existing_by_id = {row["window_id"]: row for row in existing_rows if row.get("window_id")}
     with tempfile.TemporaryDirectory() as directory:
         candidate_path = Path(directory) / "prospective.csv"
         candidate_rows = build_prospective_vlf_windows(
@@ -144,8 +144,11 @@ def update_prospective_vlf_table(
             target_magnitude_min=target_magnitude_min,
         )
 
-    new_rows = [row for row in candidate_rows if row["window_id"] not in existing_ids]
-    merged_rows = existing_rows + new_rows
+    candidate_ids = {row["window_id"] for row in candidate_rows}
+    new_rows = [row for row in candidate_rows if row["window_id"] not in existing_by_id]
+    refreshed_rows = [row for row in candidate_rows if row["window_id"] in existing_by_id]
+    retained_rows = [row for row in existing_rows if row.get("window_id") not in candidate_ids]
+    merged_rows = candidate_rows + retained_rows
     out_path.parent.mkdir(parents=True, exist_ok=True)
     with out_path.open("w", newline="", encoding="utf-8") as handle:
         writer = csv.DictWriter(handle, fieldnames=FIELDNAMES, lineterminator="\n")
@@ -155,6 +158,8 @@ def update_prospective_vlf_table(
         "existing_rows": len(existing_rows),
         "candidate_rows": len(candidate_rows),
         "new_rows": len(new_rows),
+        "refreshed_rows": len(refreshed_rows),
+        "retained_rows": len(retained_rows),
         "total_rows": len(merged_rows),
     }
 

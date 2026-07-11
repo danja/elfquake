@@ -3,9 +3,15 @@ set -euo pipefail
 
 PYTHON_BIN="${PYTHON_BIN:-.venv/bin/python}"
 START="${START:-2026-06-29T00:00:00Z}"
-END="${END:-2026-07-08T00:00:00Z}"
 AS_OF="${AS_OF:-$(date -u +%Y-%m-%dT%H:%M:%SZ)}"
+END="${END:-$AS_OF}"
 COMBINE_START_DATE="${COMBINE_START_DATE:-2026-06-01}"
+LOOKBACK_HOURS="${LOOKBACK_HOURS:-24}"
+HORIZON_DAYS="${HORIZON_DAYS:-7}"
+TARGET_MAGNITUDE_MIN="${TARGET_MAGNITUDE_MIN:-3.0}"
+MIN_ANCHOR_GAP_SECONDS="${MIN_ANCHOR_GAP_SECONDS:-60}"
+VLF_METADATA_ROOT="${VLF_METADATA_ROOT:-data/raw/vlf/cumiana/captures}"
+ASTRONOMY_METADATA_ROOT="${ASTRONOMY_METADATA_ROOT:-data/raw/astronomy/captures}"
 START_DATE="${START:0:10}"
 END_DATE="${END:0:10}"
 
@@ -52,6 +58,8 @@ done < <(find data/derived/ingv -maxdepth 1 -name "events_central_italy_*.normal
 
 ITALY_EVENTS="data/derived/ingv/events_italy_${COMBINE_START_DATE}_${END_DATE}.combined.normalized.csv"
 CENTRAL_EVENTS="data/derived/ingv/events_central_italy_${COMBINE_START_DATE}_${END_DATE}.combined.normalized.csv"
+ITALY_CURRENT_EVENTS="data/derived/ingv/events_italy_prospective.current.normalized.csv"
+CENTRAL_CURRENT_EVENTS="data/derived/ingv/events_central_italy_prospective.current.normalized.csv"
 
 PYTHONDONTWRITEBYTECODE=1 PYTHONPATH=src "$PYTHON_BIN" -m elfquake.cli combine-normalized-events \
   "${italy_inputs[@]}" \
@@ -61,16 +69,57 @@ PYTHONDONTWRITEBYTECODE=1 PYTHONPATH=src "$PYTHON_BIN" -m elfquake.cli combine-n
   "${central_inputs[@]}" \
   --out "$CENTRAL_EVENTS"
 
+PYTHONDONTWRITEBYTECODE=1 PYTHONPATH=src "$PYTHON_BIN" -m elfquake.cli combine-normalized-events \
+  "${italy_inputs[@]}" \
+  --out "$ITALY_CURRENT_EVENTS"
+
+PYTHONDONTWRITEBYTECODE=1 PYTHONPATH=src "$PYTHON_BIN" -m elfquake.cli combine-normalized-events \
+  "${central_inputs[@]}" \
+  --out "$CENTRAL_CURRENT_EVENTS"
+
+VLF_IMAGE_FEATURES="data/derived/multimodal/cumiana_last_E_VLF.image_features.csv"
+PYTHONDONTWRITEBYTECODE=1 PYTHONPATH=src "$PYTHON_BIN" -m elfquake.cli extract-vlf-image-features \
+  --image-root "$VLF_METADATA_ROOT" \
+  --filename-prefix last_E_VLF \
+  --out "$VLF_IMAGE_FEATURES"
+
+for scope in all_italy central_italy; do
+  if [[ "$scope" == "all_italy" ]]; then
+    events="$ITALY_CURRENT_EVENTS"
+  else
+    events="$CENTRAL_CURRENT_EVENTS"
+  fi
+  table="data/derived/multimodal/${scope}.prospective_vlf_windows.csv"
+  image_table="data/derived/multimodal/${scope}.prospective_vlf_image_windows.csv"
+  PYTHONDONTWRITEBYTECODE=1 PYTHONPATH=src "$PYTHON_BIN" -m elfquake.cli update-prospective-vlf-table \
+    --table "$table" \
+    --events "$events" \
+    --vlf-metadata-root "$VLF_METADATA_ROOT" \
+    --astronomy-metadata-root "$ASTRONOMY_METADATA_ROOT" \
+    --region-id "$scope" \
+    --lookback-hours "$LOOKBACK_HOURS" \
+    --horizon-days "$HORIZON_DAYS" \
+    --min-anchor-gap-seconds "$MIN_ANCHOR_GAP_SECONDS" \
+    --target-magnitude-min "$TARGET_MAGNITUDE_MIN" \
+    --out "$table"
+  PYTHONDONTWRITEBYTECODE=1 PYTHONPATH=src "$PYTHON_BIN" -m elfquake.cli join-vlf-image-features \
+    --windows "$table" \
+    --image-features "$VLF_IMAGE_FEATURES" \
+    --out "$image_table"
+done
+
 PYTHONDONTWRITEBYTECODE=1 PYTHONPATH=src "$PYTHON_BIN" -m elfquake.cli label-multimodal-targets \
   --input data/derived/multimodal/all_italy.prospective_vlf_image_windows.csv \
-  --events "$ITALY_EVENTS" \
+  --events "$ITALY_CURRENT_EVENTS" \
   --as-of "$AS_OF" \
+  --catalog-end "$END" \
   --out data/derived/multimodal/all_italy.prospective_vlf_image_windows.labeled.csv
 
 PYTHONDONTWRITEBYTECODE=1 PYTHONPATH=src "$PYTHON_BIN" -m elfquake.cli label-multimodal-targets \
   --input data/derived/multimodal/central_italy.prospective_vlf_image_windows.csv \
-  --events "$CENTRAL_EVENTS" \
+  --events "$CENTRAL_CURRENT_EVENTS" \
   --as-of "$AS_OF" \
+  --catalog-end "$END" \
   --out data/derived/multimodal/central_italy.prospective_vlf_image_windows.labeled.csv
 
 for scope in all_italy central_italy; do

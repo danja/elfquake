@@ -48,22 +48,71 @@ def build_vlf_image_features(
     crop_right: float = 0.83,
     crop_bottom: float = 0.95,
 ) -> list[dict[str, str]]:
-    rows = [
-        extract_vlf_image_features(
+    existing = _read_existing_features(out_path)
+    rows = []
+    for image_path in image_paths:
+        cached = existing.get(str(image_path))
+        if cached and _crop_matches(
+            cached,
+            crop_left=crop_left,
+            crop_top=crop_top,
+            crop_right=crop_right,
+            crop_bottom=crop_bottom,
+        ):
+            rows.append(cached)
+            continue
+        rows.append(extract_vlf_image_features(
             image_path,
             crop_left=crop_left,
             crop_top=crop_top,
             crop_right=crop_right,
             crop_bottom=crop_bottom,
-        )
-        for image_path in image_paths
-    ]
+        ))
     out_path.parent.mkdir(parents=True, exist_ok=True)
     with out_path.open("w", newline="", encoding="utf-8") as handle:
         writer = csv.DictWriter(handle, fieldnames=FIELDNAMES, lineterminator="\n")
         writer.writeheader()
         writer.writerows(rows)
     return rows
+
+
+def _read_existing_features(path: Path) -> dict[str, dict[str, str]]:
+    if not path.exists():
+        return {}
+    with path.open(newline="", encoding="utf-8") as handle:
+        return {
+            row["vlf_image_source_file"]: {field: row.get(field, "") for field in FIELDNAMES}
+            for row in csv.DictReader(handle)
+            if row.get("vlf_image_source_file")
+        }
+
+
+def _crop_matches(
+    row: dict[str, str],
+    *,
+    crop_left: float,
+    crop_top: float,
+    crop_right: float,
+    crop_bottom: float,
+) -> bool:
+    try:
+        expected = _crop_box(
+            int(row["vlf_image_width_px"]),
+            int(row["vlf_image_height_px"]),
+            crop_left=crop_left,
+            crop_top=crop_top,
+            crop_right=crop_right,
+            crop_bottom=crop_bottom,
+        )
+        actual = tuple(int(row[field]) for field in (
+            "vlf_crop_left_px",
+            "vlf_crop_top_px",
+            "vlf_crop_right_px",
+            "vlf_crop_bottom_px",
+        ))
+    except (KeyError, TypeError, ValueError):
+        return False
+    return actual == expected
 
 
 def extract_vlf_image_features(

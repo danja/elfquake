@@ -91,6 +91,7 @@ from elfquake.models.torch_self_supervised import (
 from elfquake.models.torch_ssl_transformer_evaluation import evaluate_self_supervised_transformer
 from elfquake.models.torch_late_gated_evaluation import evaluate_late_gated_fusion
 from elfquake.models.torch_multimodal_encoder import build_multimodal_patch_transformer
+from elfquake.models.torch_piezo_group_holdout import evaluate_piezo_group_holdout
 from elfquake.models.torch_tabular import evaluate_torch_tabular_group_holdout, evaluate_torch_tabular_holdout
 from elfquake.models.trial_forecast import generate_trial_weekly_event_forecast
 from elfquake.models.window_adapter import build_event_window_features
@@ -107,6 +108,7 @@ from elfquake.normalize.space_weather import (
 from elfquake.sim.avalanche_tuning import tune_avalanche_event_extraction
 from elfquake.sim.heatmap import render_sandpile_heatmap, render_sandpile_heatmaps_from_manifest
 from elfquake.sim.piezo_transform import transform_piezo_signal_csv
+from elfquake.sim.piezo_lead_time import analyze_piezo_event_lead_time
 from elfquake.sim.report import benchmark_sandpile_simulation, summarize_sandpile_outputs
 from elfquake.storage import write_capture
 
@@ -1502,6 +1504,17 @@ class AcquisitionScaffoldTests(unittest.TestCase):
             self.assertEqual(rows[0]["vlf_image_source_file"], str(image_path))
             self.assertTrue((root / "features.csv").exists())
 
+            image_path.write_bytes(b"not-an-image")
+            cached_rows = build_vlf_image_features(
+                image_paths=[image_path],
+                out_path=root / "features.csv",
+                crop_left=0.0,
+                crop_top=0.0,
+                crop_right=1.0,
+                crop_bottom=1.0,
+            )
+            self.assertEqual(cached_rows, rows)
+
     def test_compare_vlf_image_features_writes_distance_report(self) -> None:
         from PIL import Image
         from elfquake.features.vlf_image_compare import compare_vlf_image_features
@@ -1813,6 +1826,7 @@ class AcquisitionScaffoldTests(unittest.TestCase):
                 "window_id,region_id,target_start_utc,target_end_utc,target_magnitude_min,"
                 "target_event_count,target_occurred,target_status\n"
                 "past,central_italy,2026-06-20T00:00:00Z,2026-06-27T00:00:00Z,3.0,,,\n"
+                "catalog-gap,central_italy,2026-06-21T00:00:00Z,2026-06-28T00:00:00Z,3.0,9,1,labeled\n"
                 "future,central_italy,2026-06-29T00:00:00Z,2026-07-06T00:00:00Z,3.0,,,\n",
                 encoding="utf-8",
             )
@@ -1828,14 +1842,18 @@ class AcquisitionScaffoldTests(unittest.TestCase):
                 input_csv=rows,
                 events_csv=events,
                 as_of_utc="2026-06-29T00:00:00Z",
+                catalog_end_utc="2026-06-27T00:00:00Z",
                 out_path=root / "labeled.csv",
             )
 
             self.assertEqual(labeled[0]["target_status"], "labeled")
             self.assertEqual(labeled[0]["target_event_count"], "1")
             self.assertEqual(labeled[0]["target_occurred"], "1")
-            self.assertEqual(labeled[1]["target_status"], "unlabeled_pending_future_events")
+            self.assertEqual(labeled[1]["target_status"], "unlabeled_pending_event_catalog")
             self.assertEqual(labeled[1]["target_event_count"], "")
+            self.assertEqual(labeled[1]["target_occurred"], "")
+            self.assertEqual(labeled[2]["target_status"], "unlabeled_pending_future_events")
+            self.assertEqual(labeled[2]["target_event_count"], "")
 
     def test_multimodal_table_builder_reads_manifest(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
@@ -1928,7 +1946,7 @@ class AcquisitionScaffoldTests(unittest.TestCase):
             self.assertEqual(rows[0]["vlf_capture_count"], "2")
             self.assertEqual(rows[0]["quality_missing_vlf"], "0")
 
-    def test_update_prospective_vlf_table_appends_only_new_windows(self) -> None:
+    def test_update_prospective_vlf_table_refreshes_existing_windows(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
             events = root / "events.csv"
@@ -1962,6 +1980,12 @@ class AcquisitionScaffoldTests(unittest.TestCase):
                 region_id="central_italy",
                 out_path=table,
             )
+            events.write_text(
+                "event_id,event_time_utc,magnitude,italy_region\n"
+                "1,2026-06-29T09:30:00Z,2.2,central_italy\n"
+                "2,2026-06-29T09:40:00Z,2.5,central_italy\n",
+                encoding="utf-8",
+            )
             second = update_prospective_vlf_table(
                 table_path=table,
                 events_csv=events,
@@ -1974,7 +1998,11 @@ class AcquisitionScaffoldTests(unittest.TestCase):
             self.assertEqual(first["new_rows"], 1)
             self.assertEqual(first["total_rows"], 1)
             self.assertEqual(second["new_rows"], 0)
+            self.assertEqual(second["refreshed_rows"], 1)
             self.assertEqual(second["total_rows"], 1)
+            with table.open(newline="", encoding="utf-8") as handle:
+                refreshed = list(csv.DictReader(handle))
+            self.assertEqual(refreshed[0]["seismic_event_count"], "2")
 
     def test_summarize_prospective_table_reports_readiness_and_coverage(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
@@ -2792,6 +2820,62 @@ class AcquisitionScaffoldTests(unittest.TestCase):
         self.assertTrue(torch.equal(expected_next, torch.rand(4)))
 
     @unittest.skipUnless(importlib.util.find_spec("torch"), "PyTorch optional dependency is not installed")
+    def test_piezo_group_holdout_excludes_the_test_episode(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            values = [0, 1, 0, 2, 1, 3, 2, 5, 3, 8, 5, 13]
+            manifests = [
+                self._write_sequence_fixture(root, dataset_id, "synthetic_piezo_vlf", "piezo_signal", values)
+                for dataset_id in ("seed1", "seed2")
+            ]
+            target = root / "target.csv"
+            target.write_text(
+                "dataset_id,window_end_utc,target_occurred\n"
+                "seed1,2026-01-01T00:03:00Z,0\n"
+                "seed1,2026-01-01T00:04:00Z,1\n"
+                "seed1,2026-01-01T00:05:00Z,0\n"
+                "seed1,2026-01-01T00:06:00Z,1\n"
+                "seed2,2026-01-01T00:03:00Z,0\n"
+                "seed2,2026-01-01T00:04:00Z,1\n"
+                "seed2,2026-01-01T00:05:00Z,0\n"
+                "seed2,2026-01-01T00:06:00Z,1\n",
+                encoding="utf-8",
+            )
+
+            report = evaluate_piezo_group_holdout(
+                target_csv=target,
+                piezo_manifest_paths=manifests,
+                out_path=root / "evaluation.json",
+                seeds=[3],
+                lookback_steps=2,
+                patch_steps=1,
+                epochs=1,
+                d_model=8,
+                layers=1,
+                heads=2,
+                batch_size=2,
+            )
+
+            self.assertEqual(report["schema"], "elfquake.piezo_group_holdout.v1")
+            self.assertEqual(report["summary"]["run_count"], 2)
+            self.assertEqual(report["summary"]["fixed_seed_ensemble"]["fold_count"], 2)
+            self.assertEqual(
+                report["summary"]["fixed_seed_ensemble"]["selection"],
+                "fixed_predeclared_seeds",
+            )
+            self.assertEqual(
+                set(report["episode_diagnostics"]["episodes"]),
+                {"seed1", "seed2"},
+            )
+            self.assertIn(
+                "piezo_signal",
+                report["episode_diagnostics"]["feature_consistency"],
+            )
+            self.assertEqual({run["test_group"] for run in report["runs"]}, {"seed1", "seed2"})
+            self.assertTrue(all(run["train_row_count"] == 4 for run in report["runs"]))
+            self.assertTrue(all(run["test_row_count"] == 4 for run in report["runs"]))
+
+    @unittest.skipUnless(importlib.util.find_spec("torch"), "PyTorch optional dependency is not installed")
     def test_sequence_autoencoder_pretraining_writes_checkpoint_and_embeddings(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
@@ -3019,6 +3103,72 @@ class AcquisitionScaffoldTests(unittest.TestCase):
             self.assertIn("synthetic_regime_id", lines[0])
             self.assertNotIn(",w0,", "\n".join(lines[1:]))
             self.assertEqual(report["regime_ids"], ["seed1_r0", "seed1_r1", "seed2_r0", "seed2_r1"])
+
+    def test_piezo_event_lead_time_finds_pre_event_signal(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            piezo = root / "mountain_seed1.piezo.csv"
+            event_steps = (40, 80)
+            lines = ["step,sensor_id,piezo_signal\n"]
+            for step in range(100):
+                value = 10.0 if any(1 <= event_step - step < 5 for event_step in event_steps) else 0.0
+                lines.append(f"{step},0,{value}\n")
+            piezo.write_text("".join(lines), encoding="utf-8")
+            events = root / "mountain_seed1.avalanche_events.csv"
+            events.write_text("step\n40\n80\n", encoding="utf-8")
+
+            report = analyze_piezo_event_lead_time(
+                piezo_paths=[piezo],
+                event_paths=[events],
+                out_path=root / "lead_time.json",
+                profile_out=root / "profile.csv",
+                lag_edges=[0, 1, 5, 10],
+                signal_fields=["piezo_signal"],
+                control_multiplier=3,
+                control_exclusion_steps=10,
+            )
+
+            self.assertEqual(report["schema"], "elfquake.piezo_event_lead_time.v1")
+            self.assertEqual(report["event_count"], 2)
+            self.assertIn([1, 5], report["recommendation"]["supported_lag_bins"])
+            with (root / "profile.csv").open(newline="", encoding="utf-8") as handle:
+                rows = list(csv.DictReader(handle))
+            lead = next(
+                row for row in rows
+                if row["signal_field"] == "piezo_signal"
+                and row["statistic"] == "mean"
+                and row["lag_start_steps"] == "1"
+            )
+            self.assertEqual(float(lead["event_greater_auc"]), 1.0)
+
+    def test_piezo_event_lead_time_top_k_pool_is_causal(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            piezo = root / "mountain_seed1.piezo.csv"
+            piezo.write_text(
+                "step,sensor_id,x,y,piezo_signal\n"
+                "0,0,0,0,0\n0,1,1,0,0\n"
+                "1,0,0,0,1\n1,1,1,0,9\n"
+                "2,0,0,0,2\n2,1,1,0,8\n"
+                "3,0,0,0,0\n3,1,1,0,0\n",
+                encoding="utf-8",
+            )
+            events = root / "mountain_seed1.avalanche_events.csv"
+            events.write_text("step,x,y\n3,0,0\n", encoding="utf-8")
+            report = analyze_piezo_event_lead_time(
+                piezo_paths=[piezo], event_paths=[events], out_path=root / "report.json",
+                profile_out=root / "profile.csv", lag_edges=[0, 1, 3],
+                signal_fields=["piezo_signal"], sensor_mode="top_k", sensor_top_k=1,
+            )
+            self.assertEqual(report["sensor_mode"], "top_k")
+            self.assertEqual(report["sensor_top_k"], 1)
+            self.assertEqual(report["episodes"][0]["selected_sensor_ids"], [])
+            rise_report = analyze_piezo_event_lead_time(
+                piezo_paths=[piezo], event_paths=[events], out_path=root / "rise_report.json",
+                profile_out=root / "rise_profile.csv", lag_edges=[0, 1, 3],
+                signal_fields=["piezo_signal"], sensor_mode="top_k_rise", sensor_top_k=1,
+            )
+            self.assertEqual(rise_report["sensor_mode"], "top_k_rise")
 
     def test_piezo_signal_transform_writes_derived_signal_csv(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
@@ -3842,6 +3992,38 @@ class AcquisitionScaffoldTests(unittest.TestCase):
             ])
 
     @unittest.skipIf(importlib.util.find_spec("numba") is None, "numba not installed")
+    def test_sandpile_target_fill_can_reuse_persistent_sources(self) -> None:
+        import numpy as np
+        from elfquake.sim.sandpile import SandpileConfig, run_sandpile_simulation
+
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            snapshots = root / "snapshots"
+            run_sandpile_simulation(
+                config=SandpileConfig(
+                    width=8,
+                    height=8,
+                    steps=1,
+                    threshold=32,
+                    source_count=1,
+                    sensor_count=1,
+                    deposition_probability=0.0,
+                    seed=7,
+                    target_mean_height=1.0,
+                    target_fill_limit=8,
+                    target_fill_mode="sources",
+                ),
+                summary_out=root / "summary.csv",
+                sensors_out=root / "sensors.csv",
+                snapshot_dir=snapshots,
+                snapshot_interval=1,
+            )
+
+            grid = np.load(snapshots / "sandpile_step_000000.npy")
+            self.assertEqual(int(grid.sum()), 8)
+            self.assertEqual(int((grid > 0).sum()), 1)
+
+    @unittest.skipIf(importlib.util.find_spec("numba") is None, "numba not installed")
     def test_sandpile_can_write_piezo_precursor_and_avalanche_signal_rows(self) -> None:
         from elfquake.sim.avalanche_activity import AVALANCHE_ACTIVITY_FIELDS
         from elfquake.sim.piezo import AVALANCHE_SIGNAL_SENSOR_FIELDS, PIEZO_SENSOR_FIELDS, PiezoConfig
@@ -3883,9 +4065,14 @@ class AcquisitionScaffoldTests(unittest.TestCase):
             self.assertEqual(lines[0], ",".join(PIEZO_SENSOR_FIELDS))
             self.assertEqual(len(lines), 1 + 8 * 3)
             signal_index = PIEZO_SENSOR_FIELDS.index("piezo_signal")
+            potential_index = PIEZO_SENSOR_FIELDS.index("piezo_potential_signal")
             charge_index = PIEZO_SENSOR_FIELDS.index("piezo_charge_total")
             self.assertGreater(
                 max(float(line.split(",")[signal_index]) for line in lines[1:]),
+                0.0,
+            )
+            self.assertGreater(
+                max(float(line.split(",")[potential_index]) for line in lines[1:]),
                 0.0,
             )
             self.assertGreater(

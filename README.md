@@ -13,7 +13,7 @@ We wish to exploit more modern machine learning/AI techniques to create a predic
 
 ## Status
 
-Status: weak end-to-end trial and synthetic-trained learned forecasts now emit next-week `>M2` event coordinates; synthetic event-list heads are learnable on balanced/episode splits, but drift diagnostics show temporal validation still fails, so **no earthquake prediction capability is claimed**.
+Status: the end-to-end trial emits next-week `>M2` event coordinates, while live labels remain one-class and synthetic causal precursor checks are still unstable; **no earthquake prediction capability is claimed**.
 
 Right now, while awaiting further VLF-aligned labels, the focus is on label-free real VLF representation learning, real seismic baselines, synthetic regime diagnostics, and keeping the multimodal model interface stable. Evaluation of the current model can be found in [report.md](docs/report.md), [model-comparison.md](docs/model-comparison.md), and [model-scaling-requirements.md](docs/model-scaling-requirements.md).
 

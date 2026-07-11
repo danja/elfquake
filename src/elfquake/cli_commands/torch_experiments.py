@@ -5,6 +5,7 @@ from __future__ import annotations
 from argparse import Namespace, _SubParsersAction
 from pathlib import Path
 
+from elfquake.models.piezo_group_holdout_comparison import compare_piezo_group_holdouts
 from elfquake.models.torch_late_gated_evaluation import evaluate_late_gated_fusion
 from elfquake.models.torch_piezo_group_holdout import evaluate_piezo_group_holdout
 from elfquake.models.torch_ssl_transformer_evaluation import (
@@ -44,9 +45,22 @@ def register_torch_experiment_commands(subparsers: _SubParsersAction) -> None:
     group_holdout.add_argument("--artifact-root", type=Path)
     group_holdout.add_argument("--seed", type=int, action="append")
     group_holdout.add_argument("--group-field", default="dataset_id")
+    group_holdout.add_argument(
+        "--entity-aggregation-profile",
+        choices=["mean", "piezo_spatial"],
+        default="mean",
+    )
     _add_model_arguments(group_holdout)
     group_holdout.add_argument("--epochs", type=int, default=12)
     group_holdout.set_defaults(func=_evaluate_piezo_group_holdout)
+
+    comparison = subparsers.add_parser("compare-piezo-group-holdouts")
+    comparison.add_argument("--report", type=Path, action="append", required=True)
+    comparison.add_argument("--out", type=Path, required=True)
+    comparison.add_argument("--balanced-accuracy-floor", type=float, default=0.60)
+    comparison.add_argument("--recall-floor", type=float, default=0.40)
+    comparison.add_argument("--fold-pass-fraction", type=float, default=0.80)
+    comparison.set_defaults(func=_compare_piezo_group_holdouts)
 
 
 def _add_common_arguments(parser, *, include_real: bool = False) -> None:
@@ -163,10 +177,26 @@ def _evaluate_piezo_group_holdout(args: Namespace) -> int:
         heads=args.heads,
         dropout=args.dropout,
         batch_size=args.batch_size,
+        entity_aggregation_profile=args.entity_aggregation_profile,
     )
     metrics = report["summary"]["balanced_accuracy"]
     print(f"status: {report['status']}")
     print(f"runs: {report['summary']['run_count']}")
     print(f"balanced accuracy: mean={metrics['mean']:.6f} min={metrics['min']:.6f} max={metrics['max']:.6f}")
+    print(f"output: {args.out}")
+    return 0
+
+
+def _compare_piezo_group_holdouts(args: Namespace) -> int:
+    report = compare_piezo_group_holdouts(
+        report_paths=args.report,
+        out_path=args.out,
+        balanced_accuracy_floor=args.balanced_accuracy_floor,
+        recall_floor=args.recall_floor,
+        fold_pass_fraction=args.fold_pass_fraction,
+    )
+    print(f"experiments: {report['experiment_count']}")
+    print(f"passing: {report['passing_experiment_count']}")
+    print(f"best: {report['best_experiment']}")
     print(f"output: {args.out}")
     return 0

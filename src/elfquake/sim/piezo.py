@@ -14,7 +14,9 @@ PIEZO_SENSOR_FIELDS = [
     "x",
     "y",
     "piezo_signal",
+    "piezo_potential_signal",
     "piezo_total_source",
+    "piezo_potential_total_source",
     "near_critical_cell_count",
     "critical_cell_count",
     "nearest_critical_distance",
@@ -135,8 +137,10 @@ def build_piezo_sensor_rows(
     max_distance_radius = config.max_distance_radius or attenuation_radius * 3.0
     (
         signals,
+        potential_signals,
         nearest_distances,
         total_source,
+        potential_total_source,
         near_critical_count,
         critical_count,
         max_stress_ratio,
@@ -170,7 +174,9 @@ def build_piezo_sensor_rows(
                 "x": str(int(point[1])),
                 "y": str(int(point[0])),
                 "piezo_signal": f"{float(signals[sensor_id]):.9f}",
+                "piezo_potential_signal": f"{float(potential_signals[sensor_id]):.9f}",
                 "piezo_total_source": f"{float(total_source):.9f}",
+                "piezo_potential_total_source": f"{float(potential_total_source):.9f}",
                 "near_critical_cell_count": str(int(near_critical_count)),
                 "critical_cell_count": str(int(critical_count)),
                 "nearest_critical_distance": "" if nearest < 0 else f"{float(nearest):.6f}",
@@ -261,6 +267,7 @@ def _piezo_sensor_values(
     height, width = grid.shape
     sensor_count = sensors.shape[0]
     signals = np.zeros(sensor_count, dtype=np.float64)
+    potential_signals = np.zeros(sensor_count, dtype=np.float64)
     nearest_sq = np.empty(sensor_count, dtype=np.float64)
     for sensor_index in range(sensor_count):
         nearest_sq[sensor_index] = -1.0
@@ -272,6 +279,7 @@ def _piezo_sensor_values(
         denominator = 1.0
 
     total_source = 0.0
+    total_potential_source = 0.0
     total_release = 0.0
     near_critical_count = 0
     critical_count = 0
@@ -368,9 +376,12 @@ def _piezo_sensor_values(
                 charge_max = charge[y, x]
 
             source = regular_release + critical_release
+            potential_source = charge[y, x] * stress_gate
             if source > 0:
                 total_source += source
-            if stress_ratio >= activation_ratio or source > 0:
+            if potential_source > 0:
+                total_potential_source += potential_source
+            if stress_ratio >= activation_ratio or source > 0 or potential_source > 0:
                 for sensor_index in range(sensor_count):
                     sensor_y = sensors[sensor_index, 0]
                     sensor_x = sensors[sensor_index, 1]
@@ -382,6 +393,8 @@ def _piezo_sensor_values(
                             nearest_sq[sensor_index] = distance_sq
                     if source > 0 and distance_sq <= max_distance_sq:
                         signals[sensor_index] += source / (1.0 + distance_sq / attenuation_sq)
+                    if potential_source > 0 and distance_sq <= max_distance_sq:
+                        potential_signals[sensor_index] += potential_source / (1.0 + distance_sq / attenuation_sq)
 
     nearest_distances = np.empty(sensor_count, dtype=np.float64)
     for sensor_index in range(sensor_count):
@@ -391,8 +404,10 @@ def _piezo_sensor_values(
             nearest_distances[sensor_index] = np.sqrt(nearest_sq[sensor_index])
     return (
         signals,
+        potential_signals,
         nearest_distances,
         total_source,
+        total_potential_source,
         near_critical_count,
         critical_count,
         max_stress_ratio,

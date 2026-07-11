@@ -85,6 +85,7 @@ def benchmark_sandpile_simulation(
         "source_count": config.source_count,
         "sensor_count": config.sensor_count,
         "deposition_probability": config.deposition_probability,
+        "target_fill_mode": config.target_fill_mode,
         "seed": config.seed,
         "elapsed_seconds": round(elapsed_seconds, 6),
         "steps_per_second": round(config.steps / elapsed_seconds, 6) if elapsed_seconds else None,

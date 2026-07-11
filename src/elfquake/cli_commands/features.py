@@ -101,6 +101,7 @@ def register_feature_commands(subparsers: _SubParsersAction) -> None:
     label_targets.add_argument("--input", type=Path, required=True)
     label_targets.add_argument("--events", type=Path, required=True)
     label_targets.add_argument("--as-of", required=True)
+    label_targets.add_argument("--catalog-end")
     label_targets.add_argument("--out", type=Path, required=True)
     label_targets.set_defaults(func=_label_multimodal_targets)
 
@@ -293,6 +294,7 @@ def _label_multimodal_targets(args: Namespace) -> int:
         input_csv=args.input,
         events_csv=args.events,
         as_of_utc=args.as_of,
+        catalog_end_utc=args.catalog_end,
         out_path=args.out,
     )
     print(f"labeled rows: {len(rows)}")
@@ -358,6 +360,8 @@ def _update_prospective_vlf_table(args: Namespace) -> int:
     print(f"existing rows: {report['existing_rows']}")
     print(f"candidate rows: {report['candidate_rows']}")
     print(f"new rows: {report['new_rows']}")
+    print(f"refreshed rows: {report['refreshed_rows']}")
+    print(f"retained rows: {report['retained_rows']}")
     print(f"total rows: {report['total_rows']}")
     print(f"output: {args.out}")
     return 0

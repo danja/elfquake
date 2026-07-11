@@ -46,6 +46,7 @@ def train_downstream(
     freeze_backbone,
     optimizer_parameters=None,
     trainable_scope="all",
+    include_probabilities=False,
     seed,
     torch,
 ):
@@ -113,12 +114,15 @@ def train_downstream(
             dropped,
             torch,
         )
-        evaluations[name] = {
+        evaluation = {
             "dropped_modalities": sorted(dropped),
             "default_metrics": _metrics(_predictions(probabilities, threshold=0.5), test_labels),
             "calibrated_metrics": _metrics(_predictions(probabilities, threshold=threshold), test_labels),
         }
-    return {
+        if include_probabilities:
+            evaluation["probabilities"] = [round(float(value), 8) for value in probabilities]
+        evaluations[name] = evaluation
+    result = {
         "modalities": list(modalities),
         "freeze_backbone": freeze_backbone,
         "trainable_scope": trainable_scope,
@@ -128,6 +132,11 @@ def train_downstream(
         "train_metrics": _metrics(_predictions(train_probabilities, threshold=threshold), train_labels),
         "evaluations": evaluations,
     }
+    if include_probabilities:
+        result["train_probabilities"] = [round(float(value), 8) for value in train_probabilities]
+        result["train_labels"] = list(train_labels)
+        result["test_labels"] = list(test_labels)
+    return result
 
 
 def summarize_downstream_runs(runs: list[dict[str, object]], regimes: tuple[str, ...]) -> dict[str, object]:

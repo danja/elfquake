@@ -3,18 +3,18 @@
 ## Immediate Priority
 
 1. Treat `./scripts/trial-weekly-event-forecast.sh` as the current end-to-end event-list contract smoke test, not as a validated predictor.
-2. Use `./scripts/evaluate-self-supervised-transfer.sh` as the current initialization comparison. Synthetic-pretrained piezo/VLF-only heads average `0.593023` balanced accuracy with both recalls above `0.40` in all three seeds, just below the `0.60` gate.
-3. Keep piezo/VLF-only as the leading Transformer architecture. Late gated fusion did not add stable value; direct and summary branches should remain disabled by default.
+2. Use `./scripts/evaluate-piezo-group-holdout.sh` as the primary synthetic stability check. Its fixed three-seed ensemble averages `0.632634`, but passes both recall floors on only 6 of 9 episodes.
+3. Keep random-init piezo/VLF-only as the leading controlled Transformer architecture. It averages `0.619033` within episodes, but has not passed unseen-episode stability; direct and summary branches remain disabled by default.
 4. Keep label-free real VLF pretraining as the default real-data path while supervised VLF-aligned labels remain one-class or sparse; require reconstruction to beat both zero and last-patch baselines.
-5. Continue periodic INGV refresh and prospective relabeling; latest real aligned rows are still one-class (`69/0` all-Italy, `0/69` central Italy).
+5. Continue periodic INGV refresh and prospective relabeling; the current catalog-coverage guard prevents false maturity. Latest real aligned rows remain one-class (`149/0` all-Italy, `0/149` central Italy), with 129 future rows pending in each scope.
 
 ## Modeling
 
-1. Make module initialization deterministic per named component so adding an unused real or synthetic adapter cannot change shared encoder weights; rerun the piezo/VLF anchor and transfer comparison afterward.
-2. Calibrate weekly event counts against historical INGV `>M2` rates before trusting any neural score scale.
-3. Compare every weekly forecast run with `./scripts/compare-weekly-forecasts.sh` and track Stage 1/Stage 2 pass/fail status.
-4. Keep direct avalanche-derived seismic features separate from piezo/VLF-like features; use ablations to test their contribution independently.
-5. Do not make validation-selected thresholding or early stopping the default; both underperformed. Next, reduce variance through larger episode batches, then rerun the sequence-head and patch-Transformer sweeps.
+1. Generate more independent warmed episodes and rerun leave-one-episode-out evaluation; nine episodes are not enough to estimate regime robustness tightly.
+2. Do not add the default piezo potential channel to model training yet. Its spatial average failed a nine-episode causal lead-time check; event-nearest diagnostics are positive but use future event locations and are not valid inputs.
+3. Calibrate weekly event counts against historical INGV `>M2` rates before trusting any neural score scale.
+4. Compare every weekly forecast run with `./scripts/compare-weekly-forecasts.sh` and track Stage 1/Stage 2 pass/fail status.
+5. Keep direct avalanche-derived seismic features separate from piezo/VLF-like features; use ablations to test their contribution independently.
 
 ## Data
 
@@ -26,11 +26,13 @@
 
 ## Simulation
 
-1. Run `./scripts/run-longer-synthetic-transformer-batch.sh` when CPU time is available, then validate with `./scripts/validate-synthetic-event-list-drift.sh` and rerun the Transformer sweep.
-2. Improve event-list weighting, sequence context, or temporal validation strategy; denser direct-event extraction alone made labels healthier but did not improve model smoke metrics.
-3. Compare future episode-batch h6 drift against the current scaled `WARMUP_STEPS=3000` delta `0.187025`.
-4. Revisit structured initial fill only with delayed bottom-layer removal; the first fill probe drifted at `0.307937`.
-5. Tune the piezo/VLF mapping only from `*.piezo.csv` and compare against Cumiana VLF shape reports.
+1. Run `./scripts/run-longer-synthetic-transformer-batch.sh` when CPU time is available, validate drift, then rerun `./scripts/evaluate-piezo-group-holdout.sh` against the larger episode set.
+2. Design a causal, spatially local precursor statistic that is computable without future event coordinates. Validate it on fresh nine-episode batches using `analyze-piezo-event-lead-time.sh` before model training.
+3. Keep the duration-aligned `SOURCE_COUNT=64`, refill `470`, removal interval `20`, and `q=0.998/window=120` profile as a valid synthetic target baseline (`47.0%` positives, temporal drift `0.182`). It has no confirmed piezo lead and is not a precursor-training profile.
+4. Compare observable pre-relaxation spatial-state features, rather than further receiver pooling, against this stable target baseline. Require nine-episode causal support before another candidate reaches model inputs.
+4. Compare future episode-batch h6 drift against the current scaled `WARMUP_STEPS=3000` delta `0.187025`.
+5. Revisit structured initial fill only with delayed bottom-layer removal; the first fill probe drifted at `0.307937`.
+6. Tune the piezo/VLF mapping only from `*.piezo.csv` and compare against Cumiana VLF shape reports.
 
 ## Maintenance
 
@@ -42,9 +44,14 @@
 ## Recent Completed
 
 * Added modality-specific Transformer patch adapters, elapsed-time inputs, separate observed/corruption/padding masks, masked reconstruction, modality dropout, frozen probes, compatible checkpoint transfer, and missing-modality checks.
-* Ran five self-supervised initialization regimes over three seeds. Synthetic pretraining improves mean full-model balanced accuracy by `0.036924` over random initialization, and joint pretraining by `0.035598`, but neither passes the synthetic utility gate.
-* Added frozen-shared-encoder and synthetic-rehearsal transfer strategies plus separately trained full and piezo/VLF-only heads. Synthetic-pretrained piezo/VLF-only is the leading stable result at mean `0.593023` balanced accuracy.
-* Added and ran late gated fusion with naive, anchored full, and anchored direct-only variants. None beats the piezo/VLF anchor consistently; summary is harmful and direct avalanche shows no positive branch-disable evidence.
+* Added stable name-derived Transformer initialization. Adding or reordering unused modality adapters no longer changes shared weights or advances the global PyTorch RNG.
+* Reran seven transfer regimes under controlled initialization. Random-init piezo/VLF-only is strongest at mean `0.619033`; synthetic pretraining falls to `0.534272`, so current self-supervision has no demonstrated downstream gain.
+* Reran late gated fusion under the same control. Random anchored full and direct-only variants reach `0.609241` and `0.606385`, but neither beats the piezo/VLF anchor and direct improves when disabled.
+* Added and ran nine-episode by three-seed leave-one-episode-out evaluation. Mean balanced accuracy is `0.578712`, the worst fold is `0.275641`, and 14 of 27 folds meet both recall floors.
+* Added a fixed three-seed probability ensemble with training-only threshold calibration. It raises mean unseen-episode balanced accuracy to `0.632634`, but only 6 of 9 episodes meet both recall floors; a fixed threshold passes the same six.
+* Diagnosed episode instability: the same piezo features change class-effect sign between trajectories, while h6 labels commonly form six-row positive runs against only 12 minutes of model context.
+* Tested h3 labels, h6 with 60-minute context, and opt-in spatial sensor aggregates. Their ensemble means are `0.580991`, `0.512103`, and `0.544096`; all trail the h6/12-minute mean-only baseline.
+* Added `compare-piezo-group-holdouts` and `./scripts/summarize-piezo-group-holdouts.sh`; zero of four current variants passes both the mean and recall-stability gates.
 * Added synthetic event-list target generation from avalanche event CSVs, including future count, occurrence, magnitude, centroid, and time-to-first-event fields.
 * Added dependency-light synthetic event-list heads for occurrence, count, max magnitude, and centroid. The h6 balanced split reaches balanced accuracy `0.887566`, count MAE `0.506783`, and centroid median error `145.585806 km`; the temporal split still fails with balanced accuracy `0.500000`.
 * Added drift diagnostics, episode annotation, and a validation wrapper. Current h6 temporal split has train positive rate `0.318653` and test positive rate `0.927835`; episode-balanced validation reaches balanced accuracy `0.878079`.
@@ -88,3 +95,10 @@
 * Added synthetic aligned sequence/tensor paths, GRU and patch-Transformer smoke models, missing-modality checks, and model-run summaries.
 * Added direct avalanche-derived event extraction, synthetic event maps, and separate piezo/VLF-like signal outputs.
 * Added repo-local Codex skills for source ingest, data refresh, simulation, and synthetic modeling workflows.
+* Fixed prospective-label maturity so a target is only labeled when the event catalog covers its complete horizon. The incremental refresh now rebuilds existing candidate rows, uses stable current catalog paths, and caches unchanged VLF image features.
+* Added causal pre-relaxation piezo-to-post-relaxation avalanche lead-time analysis. Old release signals are same-step effects; a new stored-potential sensor did not pass the spatially averaged nine-episode test. Event-nearest diagnostic support is not usable for prediction because it relies on future event coordinates.
+* Fixed mountain target refill so `TARGET_FILL_MODE=sources` deposits refill mass at persistent source locations instead of uniformly random cells. The episode batch now uses this localized loading mode by default.
+* Added causal `top_k` and `top_k_rise` sensor pooling to the lead-time analyzer. Both fail on the nine-episode localized default, so dynamic pooling alone does not recover the oracle diagnostic.
+* Made `SOURCE_COUNT` explicit in the episode-batch runner and derived its end time from simulated steps, removing 34 hours of false empty padding after 3,000-step runs.
+* Confirmed the corrected 64-source target baseline over nine episodes: 387 labeled rows, `182/205` positive/negative, temporal positive-rate delta `0.182`, and h6 temporal balanced accuracy `0.518750` for the simple event-list model.
+* Rejected the three-episode potential-lead result: its 15--30 and 180--360 step effects did not survive nine-episode causal confirmation across 40 events.

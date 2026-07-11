@@ -16,6 +16,7 @@ initial_fill_variation="${INITIAL_FILL_VARIATION:-0}"
 initial_fill_smooth_passes="${INITIAL_FILL_SMOOTH_PASSES:-0}"
 warmup_steps="${WARMUP_STEPS:-0}"
 target_fill_limit="${TARGET_FILL_LIMIT:-$(( width * height / 16 ))}"
+target_fill_mode="${TARGET_FILL_MODE:-sources}"
 if [[ "$target_fill_limit" -lt 1 ]]; then
   target_fill_limit=1
 fi
@@ -61,6 +62,7 @@ args=(
   --source-count "$source_count" --sensor-count 16 \
   --deposition-probability "$deposition_probability" --seed "$seed" \
   --target-fill-limit "$target_fill_limit" \
+  --target-fill-mode "$target_fill_mode" \
   --bottom-layer-removal-interval "$bottom_layer_interval" \
   --initial-fill-mode "$initial_fill_mode" \
   --initial-fill-mean-height "$initial_fill_mean_height" \

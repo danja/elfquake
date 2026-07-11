@@ -17,8 +17,8 @@ Environment=ELFQUAKE_TARGET_MAGNITUDE_MIN=3.0
 Environment=ELFQUAKE_MIN_ANCHOR_GAP_SECONDS=60
 Environment=ELFQUAKE_VLF_METADATA_ROOT=data/raw/vlf/cumiana/captures
 Environment=ELFQUAKE_ASTRONOMY_METADATA_ROOT=data/raw/astronomy/captures
-Environment=ELFQUAKE_CENTRAL_EVENTS=data/derived/ingv/events_central_italy_2026-06-01_2026-06-29.combined.normalized.csv
-Environment=ELFQUAKE_ALL_ITALY_EVENTS=data/derived/ingv/events_italy_2026-06-01_2026-06-29.combined.normalized.csv
+Environment=ELFQUAKE_CENTRAL_EVENTS=data/derived/ingv/events_central_italy_prospective.current.normalized.csv
+Environment=ELFQUAKE_ALL_ITALY_EVENTS=data/derived/ingv/events_italy_prospective.current.normalized.csv
 Environment=ELFQUAKE_CENTRAL_TABLE=data/derived/multimodal/central_italy.prospective_vlf_windows.csv
 Environment=ELFQUAKE_ALL_ITALY_TABLE=data/derived/multimodal/all_italy.prospective_vlf_windows.csv
 Environment=ELFQUAKE_VLF_IMAGE_FEATURES=data/derived/multimodal/cumiana_last_E_VLF.image_features.csv

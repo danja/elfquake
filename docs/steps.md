@@ -274,6 +274,22 @@ Run the reproducible transfer-preservation configuration with six pretraining ep
 
 Compare a piezo/VLF anchor with naive, anchored full, and anchored direct-only gated fusion under random and synthetic-pretrained initialization. The report includes gate statistics and test-time branch-disable checks.
 
+### `evaluate-piezo-group-holdout`
+
+Train the piezo/VLF-only CPU Transformer while holding out one complete synthetic episode at a time. Normalization is fitted only on training episodes; use this as the stricter synthetic generalization check.
+
+### `evaluate-piezo-group-holdout.sh`
+
+Prepare the default h6 target contract and run the nine-episode by three-model-seed leave-one-episode-out evaluation. Override `INPUT` and `ROOT` to compare other target horizons without overwriting the baseline.
+
+### `compare-piezo-group-holdouts`
+
+Rank group-holdout reports against explicit ensemble balanced-accuracy and per-episode recall-stability gates. This compares controlled variants without selecting from a held-out episode.
+
+### `summarize-piezo-group-holdouts.sh`
+
+Compare the current h6 baseline, h3 target, longer-context, and spatial-aggregation reports. The compact JSON is written to `data/derived/models/piezo_group_holdout_comparison.json`.
+
 ### `score-sequence-anomalies`
 
 Train a label-free descriptor autoencoder on a materialized sequence manifest, score reconstruction and embedding novelty by window, and write a smoke forecast artifact for the configured horizon.
@@ -444,7 +460,12 @@ Generate extra synthetic seeds without heatmaps, video, or audio, then refresh e
 
 ### `run-synthetic-episode-batch.sh`
 
-Generate multiple shorter synthetic simulation episodes with localized sources, slower background fill, more frequent bottom-layer removal, `3000` unrecorded warm-up steps, and sparse event extraction defaults. Use this when replacing one long drifting trajectory with a more diverse episode dataset.
+Generate multiple shorter synthetic simulation episodes with localized sources, source-based target refill, more frequent bottom-layer removal, `3000` unrecorded warm-up steps, and sparse event extraction defaults. Use this when replacing one long drifting trajectory with a more diverse episode dataset.
+
+### `analyze-piezo-event-lead-time.sh`
+
+Measure whether pre-relaxation piezo features consistently change before direct avalanche events, using matched controls and local-baseline difference-in-differences. `mean`, `top_k`, and `top_k_rise` are causal candidate aggregations; `event_nearest` is an oracle diagnostic that may use a future event location.
+Set `EVENT_SUFFIX` when comparing a non-default avalanche extraction, such as `_q998w120_aligned`.
 
 ### `run-longer-synthetic-transformer-batch.sh`
 

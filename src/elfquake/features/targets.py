@@ -14,8 +14,10 @@ def label_multimodal_targets(
     events_csv: Path,
     out_path: Path,
     as_of_utc: str,
+    catalog_end_utc: str | None = None,
 ) -> list[dict[str, str]]:
     as_of = parse_utc(as_of_utc)
+    catalog_end = parse_utc(catalog_end_utc) if catalog_end_utc else None
     events = _read_events(events_csv)
     with input_csv.open(newline="", encoding="utf-8") as handle:
         reader = csv.DictReader(handle)
@@ -32,9 +34,15 @@ def label_multimodal_targets(
     for row in rows:
         target_end = parse_utc(row["target_end_utc"])
         if target_end > as_of:
-            row["target_event_count"] = row.get("target_event_count", "")
-            row["target_occurred"] = row.get("target_occurred", "")
+            row["target_event_count"] = ""
+            row["target_occurred"] = ""
             row["target_status"] = "unlabeled_pending_future_events"
+            labeled.append(row)
+            continue
+        if catalog_end is not None and target_end > catalog_end:
+            row["target_event_count"] = ""
+            row["target_occurred"] = ""
+            row["target_status"] = "unlabeled_pending_event_catalog"
             labeled.append(row)
             continue
 

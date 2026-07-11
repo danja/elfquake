@@ -18,8 +18,9 @@ Current status: mostly satisfied by `trial-weekly-event-forecast.sh`, `learned-w
 
 Success means synthetic training is better than trivial synthetic baselines.
 
-* Learned scorer balanced accuracy exceeds `0.60` on held-out synthetic temporal or seed splits.
+* Learned scorer balanced accuracy exceeds `0.60` on unseen synthetic episodes; within-episode temporal splits are supporting diagnostics only.
 * Positive and negative recall are both at least `0.40`; a model that predicts almost everything positive does not pass.
+* At least 80% of repeated unseen-episode folds meet both recall floors, so a favorable mean cannot hide unstable episodes or initializations.
 * Synthetic event-list targets have both classes, location targets, and a positive rate between `0.10` and `0.90`.
 * Event-list adapters report occurrence, count, magnitude, centroid, timing, rate, and spatial-spread metrics, not only a binary score.
 * Temporal train/test positive-rate drift is small enough for a meaningful chronological check; target positive-rate delta should be below `0.25` before promoting synthetic temporal scores.
@@ -28,9 +29,15 @@ Success means synthetic training is better than trivial synthetic baselines.
 
 Current status: partly satisfied only as an engineering check. The original synthetic h6 table still fails with temporal positive-rate delta `0.609182`. The warmed aggressive profile with `WARMUP_STEPS=3000` now passes the drift gate on a nine-episode run with delta `0.187025` and 396 labeled rows, but temporal model utility remains weak. A nine-episode `WARMUP_STEPS=1000` run failed the same gate with delta `0.294146`.
 
-Latest model check: the synthetic-pretrained piezo/VLF-only Transformer averages `0.593023` balanced accuracy over three seeds and keeps both recalls above `0.40` in every seed. This is close to, but does not pass, the `0.60` gate. Full early-fusion models remain substantially weaker.
+Latest controlled within-episode check: stable name-derived initialization makes matched model variants directly comparable. Random-init piezo/VLF-only averages `0.619033` balanced accuracy over three seeds and keeps both recalls above `0.40` in every seed. Synthetic pretraining lowers it to `0.534272`; current self-supervision therefore does not add downstream value on this synthetic target.
 
-Late-fusion check: naive and anchored full fusion fail the gate. Direct-only anchored fusion averages `0.570482`, but performs better when the direct branch is disabled, so it does not satisfy the requirement that an added modality demonstrate incremental value.
+Unseen-episode check: leave-one-episode-out evaluation over nine episodes and three model seeds averages `0.578712`, ranges from `0.275641` to `0.758730`, and only 14 of 27 folds keep both recalls above `0.40`. Stage 2 therefore fails despite the stronger within-episode mean.
+
+Fixed-seed ensemble check: averaging the three predeclared model seeds raises unseen-episode mean balanced accuracy to `0.632634`, but only 6 of 9 episodes meet both recall floors. A fixed `0.5` threshold scores `0.601361` and passes the same 6 episodes, so threshold calibration is not the main instability.
+
+Alignment checks: shortening the target to h3 scores `0.580991`; expanding h6 context from 12 to 60 simulation minutes scores `0.512103`; retaining simple spatial sensor aggregates scores `0.544096`. None passes the gate, and the original h6/12-minute mean-only representation remains the best tested configuration.
+
+Late-fusion check: the controlled random-init anchored full and direct-only variants average `0.609241` and `0.606385`, below the matched `0.619033` piezo/VLF anchor. Disabling the direct branch raises its mean to `0.611281`, so direct avalanche has not demonstrated incremental value.
 
 ## Stage 3: Real Supervised Readiness
 
@@ -41,7 +48,7 @@ Success means real data can support supervised evaluation.
 * A seismic-only historical-rate baseline is computed for the same target and period.
 * VLF and astronomical features have documented coverage and timestamp alignment.
 
-Current status: blocked. Latest real aligned rows are one-class: all-Italy `69/0`, central Italy `0/69`.
+Current status: blocked. Latest real aligned rows are one-class: all-Italy `149/0`, central Italy `0/149`, plus 129 future rows pending in each scope. Labels now require the source event catalog to cover the complete target horizon, so these counts no longer include catalog-gap rows.
 
 ## Stage 4: Predictive Claim Threshold
 

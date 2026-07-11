@@ -24,6 +24,7 @@ def register_sandpile_commands(subparsers: _SubParsersAction) -> None:
     sandpile.add_argument("--deposition-mode", choices=["sources", "uniform"], default="sources")
     sandpile.add_argument("--target-mean-height", type=float)
     sandpile.add_argument("--target-fill-limit", type=int, default=0)
+    sandpile.add_argument("--target-fill-mode", choices=["uniform", "sources"], default="uniform")
     sandpile.add_argument("--bottom-layer-removal-interval", type=int, default=0)
     sandpile.add_argument("--initial-fill-mode", choices=["none", "random", "structured"], default="none")
     sandpile.add_argument("--initial-fill-mean-height", type=float, default=0.0)
@@ -137,6 +138,7 @@ def _run_sandpile_sim(args: Namespace) -> int:
             deposition_mode=args.deposition_mode,
             target_mean_height=target_mean_height,
             target_fill_limit=args.target_fill_limit,
+            target_fill_mode=args.target_fill_mode,
             bottom_layer_removal_interval=bottom_layer_removal_interval,
             initial_fill_mode=args.initial_fill_mode,
             initial_fill_mean_height=args.initial_fill_mean_height,

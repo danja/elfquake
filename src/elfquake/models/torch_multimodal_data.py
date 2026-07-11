@@ -23,6 +23,10 @@ VLF_SIGNAL_EXCLUDES = {
     "vlf_crop_height_px",
     "vlf_pixel_count",
 }
+PIEZO_SPATIAL_AGGREGATES = {
+    "piezo_signal": ("max", "std"),
+    "nearest_critical_distance": ("min", "std"),
+}
 
 
 @dataclass(frozen=True)
@@ -49,11 +53,17 @@ class Normalization:
     std: tuple[float, ...]
 
 
-def load_modality_sequences(paths: list[Path]) -> dict[tuple[str, str], ModalitySequence]:
+def load_modality_sequences(
+    paths: list[Path],
+    *,
+    entity_aggregation_profile: str = "mean",
+) -> dict[tuple[str, str], ModalitySequence]:
+    if entity_aggregation_profile not in {"mean", "piezo_spatial"}:
+        raise ValueError(f"unsupported entity aggregation profile: {entity_aggregation_profile}")
     sequences: dict[tuple[str, str], ModalitySequence] = {}
     for path in paths:
         manifest = json.loads(path.read_text(encoding="utf-8"))
-        sequence = _load_sequence(path, manifest)
+        sequence = _load_sequence(path, manifest, entity_aggregation_profile=entity_aggregation_profile)
         key = (sequence.dataset_id, sequence.modality)
         if key in sequences:
             raise ValueError(f"duplicate sequence dataset: {key[0]}/{key[1]}")
@@ -202,13 +212,21 @@ def modality_target_sizes(sequences: dict[tuple[str, str], ModalitySequence]) ->
     return result
 
 
-def _load_sequence(path: Path, manifest: dict[str, object]) -> ModalitySequence:
+def _load_sequence(
+    path: Path,
+    manifest: dict[str, object],
+    *,
+    entity_aggregation_profile: str,
+) -> ModalitySequence:
     all_fields = [str(field) for field in manifest["channel_fields"]]
     modality = str(manifest["modality"])
     fields = [field for field in all_fields if not (modality == "real_vlf_image" and field in VLF_SIGNAL_EXCLUDES)]
     field_indices = [all_fields.index(field) for field in fields]
     time_count = int(manifest["time_count"])
     sums = [[0.0 for _ in all_fields] for _ in range(time_count)]
+    square_sums = [[0.0 for _ in all_fields] for _ in range(time_count)]
+    minima = [[math.inf for _ in all_fields] for _ in range(time_count)]
+    maxima = [[-math.inf for _ in all_fields] for _ in range(time_count)]
     mask_sums = [[0.0 for _ in all_fields] for _ in range(time_count)]
     entity_counts = [0 for _ in range(time_count)]
     with Path(str(manifest["values_csv"])).open(newline="", encoding="utf-8") as value_handle, Path(str(manifest["masks_csv"])).open(newline="", encoding="utf-8") as mask_handle:
@@ -219,24 +237,109 @@ def _load_sequence(path: Path, manifest: dict[str, object]) -> ModalitySequence:
                 present = float(mask_row.get(f"{field}__present", "0") or 0)
                 mask_sums[time_index][index] += present
                 if present:
-                    sums[time_index][index] += float(value_row.get(field, "0") or 0)
+                    value = float(value_row.get(field, "0") or 0)
+                    sums[time_index][index] += value
+                    square_sums[time_index][index] += value * value
+                    minima[time_index][index] = min(minima[time_index][index], value)
+                    maxima[time_index][index] = max(maxima[time_index][index], value)
     values = []
     observed = []
+    aggregation_specs = _aggregation_specs(
+        modality,
+        fields,
+        field_indices,
+        entity_count=int(manifest.get("entity_count", 1)),
+        profile=entity_aggregation_profile,
+    )
     for time_index in range(time_count):
         divisor = entity_counts[time_index] or 1
-        values.append([sums[time_index][index] / divisor for index in field_indices])
-        observed.append([min(1.0, mask_sums[time_index][index] / divisor) for index in field_indices])
+        row_values = []
+        row_observed = []
+        for source_index, aggregate in aggregation_specs:
+            present_count = mask_sums[time_index][source_index]
+            row_values.append(_aggregate_value(
+                aggregate,
+                total=sums[time_index][source_index],
+                square_total=square_sums[time_index][source_index],
+                minimum=minima[time_index][source_index],
+                maximum=maxima[time_index][source_index],
+                count=present_count,
+                mean_divisor=divisor,
+            ))
+            row_observed.append(min(1.0, present_count / divisor))
+        values.append(row_values)
+        observed.append(row_observed)
     times, time_to_index = _read_times(Path(str(manifest["time_axis_csv"])), time_field=str(manifest.get("time_field", "")))
     return ModalitySequence(
         dataset_id=_infer_dataset_id(path, manifest),
         modality=modality,
-        feature_names=tuple(fields),
+        feature_names=tuple(_aggregation_feature_names(
+            modality,
+            fields,
+            int(manifest.get("entity_count", 1)),
+            profile=entity_aggregation_profile,
+        )),
         values=values,
         observed=observed,
         elapsed_minutes=_elapsed_minutes(times),
         times=tuple(times),
         time_to_index=time_to_index,
     )
+
+
+def _aggregation_specs(
+    modality: str,
+    fields: list[str],
+    field_indices: list[int],
+    *,
+    entity_count: int,
+    profile: str,
+) -> list[tuple[int, str]]:
+    specs = []
+    for source_index, field in zip(field_indices, fields):
+        specs.append((source_index, "mean"))
+        if profile == "piezo_spatial" and modality == "synthetic_piezo_vlf" and entity_count > 1:
+            specs.extend((source_index, aggregate) for aggregate in PIEZO_SPATIAL_AGGREGATES.get(field, ()))
+    return specs
+
+
+def _aggregation_feature_names(
+    modality: str,
+    fields: list[str],
+    entity_count: int,
+    *,
+    profile: str,
+) -> list[str]:
+    names = []
+    for field in fields:
+        names.append(field)
+        if profile == "piezo_spatial" and modality == "synthetic_piezo_vlf" and entity_count > 1:
+            names.extend(f"{field}__entity_{aggregate}" for aggregate in PIEZO_SPATIAL_AGGREGATES.get(field, ()))
+    return names
+
+
+def _aggregate_value(
+    aggregate: str,
+    *,
+    total: float,
+    square_total: float,
+    minimum: float,
+    maximum: float,
+    count: float,
+    mean_divisor: int,
+) -> float:
+    if count <= 0:
+        return 0.0
+    if aggregate == "mean":
+        return total / mean_divisor
+    if aggregate == "min":
+        return minimum
+    if aggregate == "max":
+        return maximum
+    if aggregate == "std":
+        mean = total / count
+        return math.sqrt(max(0.0, square_total / count - mean * mean))
+    raise ValueError(f"unsupported entity aggregate: {aggregate}")
 
 
 def _read_times(path: Path, *, time_field: str) -> tuple[list[str], dict[str, int]]:

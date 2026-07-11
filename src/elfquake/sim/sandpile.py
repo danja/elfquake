@@ -64,6 +64,7 @@ class SandpileConfig:
     deposition_mode: str = "sources"
     target_mean_height: float = 0.0
     target_fill_limit: int = 0
+    target_fill_mode: str = "uniform"
     bottom_layer_removal_interval: int = 0
     initial_fill_mode: str = "none"
     initial_fill_mean_height: float = 0.0
@@ -150,7 +151,7 @@ def run_sandpile_simulation(
             config=config,
             sources=sources,
         )
-        target_fill_count = _fill_to_target_mean(grid, rng, config)
+        target_fill_count = _fill_to_target_mean(grid, rng, config, sources)
         pre_relax_grid = grid.copy()
         if piezo_out is not None:
             assert resolved_piezo_config is not None
@@ -262,6 +263,8 @@ def validate_config(config: SandpileConfig) -> None:
         raise ValueError("target_mean_height must be non-negative")
     if config.target_fill_limit < 0:
         raise ValueError("target_fill_limit must be non-negative")
+    if config.target_fill_mode not in {"uniform", "sources"}:
+        raise ValueError("target_fill_mode must be 'uniform' or 'sources'")
     if config.bottom_layer_removal_interval < 0:
         raise ValueError("bottom_layer_removal_interval must be non-negative")
     if config.initial_fill_mode not in {"none", "random", "structured"}:
@@ -285,7 +288,7 @@ def _advance_unrecorded_step(
     absolute_step: int,
 ) -> None:
     _apply_deposition(grid=grid, rng=rng, config=config, sources=sources)
-    _fill_to_target_mean(grid, rng, config)
+    _fill_to_target_mean(grid, rng, config, sources)
     topple_counts = np.zeros_like(grid)
     _relax(grid, topple_counts, config.threshold, config.max_relaxation_sweeps)
     if _should_remove_bottom_layer(config, absolute_step):
@@ -343,7 +346,12 @@ def _apply_deposition(*, grid: np.ndarray, rng, config: SandpileConfig, sources:
     return deposition_count
 
 
-def _fill_to_target_mean(grid: np.ndarray, rng, config: SandpileConfig) -> int:
+def _fill_to_target_mean(
+    grid: np.ndarray,
+    rng,
+    config: SandpileConfig,
+    sources: np.ndarray,
+) -> int:
     if config.target_mean_height <= 0:
         return 0
     target_mass = int(round(config.target_mean_height * config.width * config.height))
@@ -352,6 +360,10 @@ def _fill_to_target_mean(grid: np.ndarray, rng, config: SandpileConfig) -> int:
         return 0
     if config.target_fill_limit > 0:
         deficit = min(deficit, config.target_fill_limit)
+    if config.target_fill_mode == "sources":
+        source_indices = rng.integers(0, sources.shape[0], size=deficit)
+        _deposit_points(grid, sources[source_indices])
+        return deficit
     cell_count = config.width * config.height
     full_layers = deficit // cell_count
     remainder = deficit % cell_count

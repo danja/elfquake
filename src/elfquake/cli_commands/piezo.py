@@ -19,6 +19,7 @@ from elfquake.sim.piezo_spectrogram import (
     render_piezo_strain_vlf_summary,
     render_piezo_timeseries_spectrogram,
 )
+from elfquake.sim.piezo_lead_time import analyze_piezo_event_lead_time
 from elfquake.sim.piezo_transform import transform_piezo_signal_csv
 
 
@@ -120,6 +121,22 @@ def register_piezo_commands(subparsers: _SubParsersAction) -> None:
     piezo_transform.add_argument("--release-mix", type=float, default=0.0)
     piezo_transform.add_argument("--gain-contrast", type=float, default=0.0)
     piezo_transform.set_defaults(func=_transform_piezo_signal)
+
+    lead_time = subparsers.add_parser("analyze-piezo-event-lead-time")
+    lead_time.add_argument("--piezo", type=Path, action="append", required=True)
+    lead_time.add_argument("--events", type=Path, action="append", required=True)
+    lead_time.add_argument("--out", type=Path, required=True)
+    lead_time.add_argument("--profile-out", type=Path, required=True)
+    lead_time.add_argument("--lag-edge", type=int, action="append")
+    lead_time.add_argument("--signal-field", action="append")
+    lead_time.add_argument("--primary-field", default="piezo_signal")
+    lead_time.add_argument(
+        "--sensor-mode", choices=["mean", "top_k", "top_k_rise", "event_nearest"], default="mean",
+    )
+    lead_time.add_argument("--sensor-top-k", type=int, default=3)
+    lead_time.add_argument("--control-multiplier", type=int, default=10)
+    lead_time.add_argument("--control-exclusion-steps", type=int)
+    lead_time.set_defaults(func=_analyze_piezo_event_lead_time)
 
 
 def _render_piezo_spectrogram(args: Namespace) -> int:
@@ -296,6 +313,30 @@ def _transform_piezo_signal(args: Namespace) -> int:
     print(f"output: {args.out}")
     if args.report:
         print(f"report: {args.report}")
+    return 0
+
+
+def _analyze_piezo_event_lead_time(args: Namespace) -> int:
+    report = analyze_piezo_event_lead_time(
+        piezo_paths=args.piezo,
+        event_paths=args.events,
+        out_path=args.out,
+        profile_out=args.profile_out,
+        lag_edges=args.lag_edge,
+        signal_fields=args.signal_field,
+        primary_field=args.primary_field,
+        sensor_mode=args.sensor_mode,
+        sensor_top_k=args.sensor_top_k,
+        control_multiplier=args.control_multiplier,
+        control_exclusion_steps=args.control_exclusion_steps,
+    )
+    recommendation = report["recommendation"]
+    print(f"episodes: {report['episode_count']}")
+    print(f"events: {report['event_count']}")
+    print(f"supported lag bins: {recommendation['supported_lag_bins']}")
+    print(f"recommended context steps: {recommendation['recommended_context_steps']}")
+    print(f"profile: {args.profile_out}")
+    print(f"output: {args.out}")
     return 0
 
 
