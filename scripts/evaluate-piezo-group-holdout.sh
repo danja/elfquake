@@ -9,6 +9,7 @@ TRANSFORMER_INPUT_REPORT="${TRANSFORMER_INPUT_REPORT:-$ROOT/transformer_input.js
 OUT="${OUT:-$ROOT/evaluation.json}"
 SEEDS="${SEEDS:-10000 10001 10002 10100 10101 10102 10200 10201 10202}"
 RUN_SEEDS="${RUN_SEEDS:-7 42 99}"
+EXCLUDE_PIEZO_FIELDS="${EXCLUDE_PIEZO_FIELDS:-}"
 WIDTH="${WIDTH:-256}"
 HEIGHT="${HEIGHT:-256}"
 STEPS="${STEPS:-3000}"
@@ -34,12 +35,18 @@ for seed in $RUN_SEEDS; do
   seed_args+=(--seed "$seed")
 done
 
+exclude_args=()
+for field in $EXCLUDE_PIEZO_FIELDS; do
+  exclude_args+=(--exclude-piezo-field "$field")
+done
+
 PYTHONDONTWRITEBYTECODE=1 PYTHONPATH=src "$PYTHON_BIN" -m elfquake.cli evaluate-piezo-group-holdout \
   --target "$TRANSFORMER_INPUT" \
   "${manifest_args[@]}" \
   --out "$OUT" \
   --artifact-root "$ROOT/checkpoints" \
   "${seed_args[@]}" \
+  "${exclude_args[@]}" \
   --lookback-steps "${LOOKBACK_STEPS:-12}" \
   --patch-steps "${PATCH_STEPS:-3}" \
   --epochs "${EPOCHS:-12}" \

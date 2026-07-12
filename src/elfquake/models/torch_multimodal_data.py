@@ -57,13 +57,19 @@ def load_modality_sequences(
     paths: list[Path],
     *,
     entity_aggregation_profile: str = "mean",
+    exclude_fields: set[str] | None = None,
 ) -> dict[tuple[str, str], ModalitySequence]:
     if entity_aggregation_profile not in {"mean", "piezo_spatial"}:
         raise ValueError(f"unsupported entity aggregation profile: {entity_aggregation_profile}")
     sequences: dict[tuple[str, str], ModalitySequence] = {}
     for path in paths:
         manifest = json.loads(path.read_text(encoding="utf-8"))
-        sequence = _load_sequence(path, manifest, entity_aggregation_profile=entity_aggregation_profile)
+        sequence = _load_sequence(
+            path,
+            manifest,
+            entity_aggregation_profile=entity_aggregation_profile,
+            exclude_fields=exclude_fields or set(),
+        )
         key = (sequence.dataset_id, sequence.modality)
         if key in sequences:
             raise ValueError(f"duplicate sequence dataset: {key[0]}/{key[1]}")
@@ -217,10 +223,16 @@ def _load_sequence(
     manifest: dict[str, object],
     *,
     entity_aggregation_profile: str,
+    exclude_fields: set[str],
 ) -> ModalitySequence:
     all_fields = [str(field) for field in manifest["channel_fields"]]
     modality = str(manifest["modality"])
-    fields = [field for field in all_fields if not (modality == "real_vlf_image" and field in VLF_SIGNAL_EXCLUDES)]
+    fields = [
+        field for field in all_fields
+        if field not in exclude_fields and not (modality == "real_vlf_image" and field in VLF_SIGNAL_EXCLUDES)
+    ]
+    if not fields:
+        raise ValueError(f"all fields excluded for modality {modality}")
     field_indices = [all_fields.index(field) for field in fields]
     time_count = int(manifest["time_count"])
     sums = [[0.0 for _ in all_fields] for _ in range(time_count)]

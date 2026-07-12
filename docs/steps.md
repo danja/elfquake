@@ -467,6 +467,10 @@ Generate multiple shorter synthetic simulation episodes with localized sources, 
 Measure whether pre-relaxation piezo features consistently change before direct avalanche events, using matched controls and local-baseline difference-in-differences. `mean`, `top_k`, and `top_k_rise` are causal candidate aggregations; `event_nearest` is an oracle diagnostic that may use a future event location.
 Set `EVENT_SUFFIX` when comparing a non-default avalanche extraction, such as `_q998w120_aligned`.
 
+### `build-synthetic-step-targets.sh`
+
+Build minute-scale synthetic event labels from piezo and avalanche event CSVs. The damage experiment defaults to five-minute samples with a 15-minute look-ahead, matching the validated causal lead window.
+
 ### `run-longer-synthetic-transformer-batch.sh`
 
 Generate a larger warmed CPU-only synthetic episode batch for Transformer pretraining experiments. Run this only when the current short Transformer harness is stable and more synthetic coverage is worth the CPU time.

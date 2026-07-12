@@ -3170,6 +3170,27 @@ class AcquisitionScaffoldTests(unittest.TestCase):
             )
             self.assertEqual(rise_report["sensor_mode"], "top_k_rise")
 
+    def test_synthetic_step_targets_use_future_steps_only(self) -> None:
+        from elfquake.models.synthetic_step_targets import build_synthetic_step_targets
+
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            piezo = root / "mountain_seed1.piezo.csv"
+            piezo.write_text(
+                "step,sensor_id,piezo_signal\n" + "".join(f"{step},0,0\n" for step in range(8)),
+                encoding="utf-8",
+            )
+            events = root / "mountain_seed1.avalanche_events.csv"
+            events.write_text("step\n3\n", encoding="utf-8")
+            report = build_synthetic_step_targets(
+                piezo_paths=[piezo], event_paths=[events], out_path=root / "targets.csv",
+                report_path=root / "report.json", horizon_steps=3, stride_steps=1,
+            )
+            with (root / "targets.csv").open(newline="", encoding="utf-8") as handle:
+                rows = list(csv.DictReader(handle))
+            self.assertEqual(report["positive_count"], 3)
+            self.assertEqual([row["eventlist_target_occurred"] for row in rows], ["1", "1", "1", "0", "0"])
+
     def test_piezo_signal_transform_writes_derived_signal_csv(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)

@@ -50,6 +50,7 @@ def register_torch_experiment_commands(subparsers: _SubParsersAction) -> None:
         choices=["mean", "piezo_spatial"],
         default="mean",
     )
+    group_holdout.add_argument("--exclude-piezo-field", action="append", default=[])
     _add_model_arguments(group_holdout)
     group_holdout.add_argument("--epochs", type=int, default=12)
     group_holdout.set_defaults(func=_evaluate_piezo_group_holdout)
@@ -178,6 +179,7 @@ def _evaluate_piezo_group_holdout(args: Namespace) -> int:
         dropout=args.dropout,
         batch_size=args.batch_size,
         entity_aggregation_profile=args.entity_aggregation_profile,
+        exclude_piezo_fields=args.exclude_piezo_field,
     )
     metrics = report["summary"]["balanced_accuracy"]
     print(f"status: {report['status']}")

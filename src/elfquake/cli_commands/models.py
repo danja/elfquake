@@ -37,6 +37,7 @@ from elfquake.models.tensor_materializer import materialize_tensor_dataset
 from elfquake.models.tensor_spec import build_tensor_spec
 from elfquake.models.temporal_holdout import evaluate_group_holdout, evaluate_temporal_holdout
 from elfquake.models.transformer_input_adapter import prepare_transformer_target_input
+from elfquake.models.synthetic_step_targets import build_synthetic_step_targets
 from elfquake.models.trial_forecast import generate_trial_weekly_event_forecast
 from elfquake.models.window_adapter import build_event_window_features
 
@@ -117,6 +118,17 @@ def register_model_commands(subparsers: _SubParsersAction) -> None:
     transformer_input.add_argument("--time-field", default="window_start_utc")
     transformer_input.add_argument("--train-fraction", type=float, default=0.8)
     transformer_input.set_defaults(func=_prepare_transformer_target_input)
+
+    step_targets = subparsers.add_parser("build-synthetic-step-targets")
+    step_targets.add_argument("--piezo", type=Path, action="append", required=True)
+    step_targets.add_argument("--events", type=Path, action="append", required=True)
+    step_targets.add_argument("--out", type=Path, required=True)
+    step_targets.add_argument("--report", type=Path, required=True)
+    step_targets.add_argument("--horizon-steps", type=int, default=15)
+    step_targets.add_argument("--stride-steps", type=int, default=5)
+    step_targets.add_argument("--start-time-utc", default="2026-01-01T00:00:00Z")
+    step_targets.add_argument("--step-seconds", type=int, default=60)
+    step_targets.set_defaults(func=_build_synthetic_step_targets)
 
     group_holdout = subparsers.add_parser("evaluate-group-holdout")
     group_holdout.add_argument("--input", type=Path, required=True)
@@ -493,6 +505,18 @@ def _prepare_transformer_target_input(args: Namespace) -> int:
     print(f"test rows: {report['test_row_count']}")
     print(f"output: {args.out}")
     print(f"report: {args.report}")
+    return 0
+
+
+def _build_synthetic_step_targets(args: Namespace) -> int:
+    report = build_synthetic_step_targets(
+        piezo_paths=args.piezo, event_paths=args.events, out_path=args.out, report_path=args.report,
+        horizon_steps=args.horizon_steps, stride_steps=args.stride_steps,
+        start_time_utc=args.start_time_utc, step_seconds=args.step_seconds,
+    )
+    print(f"rows: {report['row_count']}")
+    print(f"positives: {report['positive_count']}")
+    print(f"output: {args.out}")
     return 0
 
 

@@ -41,12 +41,14 @@ def evaluate_piezo_group_holdout(
     dropout: float = 0.1,
     batch_size: int = 32,
     entity_aggregation_profile: str = "mean",
+    exclude_piezo_fields: list[str] | None = None,
 ) -> dict[str, object]:
     torch = _import_torch()
     selected_seeds = tuple(seeds or (7, 42, 99))
     sequences = load_modality_sequences(
         piezo_manifest_paths,
         entity_aggregation_profile=entity_aggregation_profile,
+        exclude_fields=set(exclude_piezo_fields or []),
     )
     rows = _labeled_rows(target_csv)
     groups = sorted({row.get(group_field, "") for row in rows if row.get(group_field, "")})
@@ -73,6 +75,7 @@ def evaluate_piezo_group_holdout(
         "dropout": dropout,
         "batch_size": batch_size,
         "entity_aggregation_profile": entity_aggregation_profile,
+        "exclude_piezo_fields": sorted(exclude_piezo_fields or []),
         "episode_diagnostics": _episode_diagnostics(
             rows,
             sequences,

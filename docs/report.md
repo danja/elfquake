@@ -18,6 +18,10 @@ Pre-relaxation spatial contact, coherence, and stress-weighted criticality were 
 
 An opt-in delayed-failure extension then changed the simulation dynamics rather than merely its sensors. Near-critical cells accumulate bounded damage before relaxation, local damage lowers the failure threshold, and toppling resets damage. On nine damage-enabled episodes, pre-relaxation `damage_total` passes the causal 5--15 step lead rule: AUC `0.652315`, standardized change difference `0.484616`, and 6 of 9 episode effects positive. The associated target table has 387 labeled rows (`197` positive, `190` negative) and temporal drift `0.245581`, just inside the current gate. The simple temporal event-list head is still weak at `0.415810` balanced accuracy, so this validates the synthetic precursor mechanism, not useful forecasting or a model improvement.
 
+A matched Transformer ablation on those same nine damage trajectories confirms the distinction. With seed `42`, 8 epochs, and nine leave-one-episode-out folds, excluding `damage_total`, `damage_max`, and the active-cell count averages `0.599648` balanced accuracy; including them averages `0.586848`. The causal feature therefore does not yet improve the current model architecture. It remains a synthetic diagnostic while parameter schedules or a short-horizon damage-specific head are evaluated.
+
+A second matched experiment used 5-minute samples and a 15-minute future-event target, matching the confirmed damage lead. Its 5,373 labels contain 135 positives. With seed `42`, four epochs, and nine leave-one-episode-out folds, the generic piezo Transformer averages `0.530826` without damage channels and `0.529700` with them. Shortening the target alone therefore does not make the architecture exploit damage; the next experiment needs an imbalance-aware, dedicated damage head.
+
 ## Scope
 
 This report summarizes the current statistical comparison between real Italy-scoped seismic/VLF data and signals derived from the avalanche simulation, plus the current model-interface and PyTorch smoke results.
