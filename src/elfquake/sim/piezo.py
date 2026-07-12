@@ -7,39 +7,8 @@ from dataclasses import dataclass
 import numpy as np
 from numba import njit
 
-
-PIEZO_SENSOR_FIELDS = [
-    "step",
-    "sensor_id",
-    "x",
-    "y",
-    "piezo_signal",
-    "piezo_potential_signal",
-    "piezo_total_source",
-    "piezo_potential_total_source",
-    "near_critical_cell_count",
-    "critical_cell_count",
-    "nearest_critical_distance",
-    "max_stress_ratio",
-    "piezo_charge_total",
-    "piezo_charge_max",
-    "piezo_release_total",
-]
-
-AVALANCHE_SIGNAL_SENSOR_FIELDS = [
-    "step",
-    "sensor_id",
-    "x",
-    "y",
-    "avalanche_signal",
-    "avalanche_total_source",
-    "active_topple_cell_count",
-    "max_local_topple",
-    "nearest_topple_distance",
-    "stress_drop_total",
-    "stress_drop_max",
-    "avalanche_release_total",
-]
+from elfquake.sim.spatial_state import measure_pre_relax_spatial_state
+from elfquake.sim.sensor_schema import AVALANCHE_SIGNAL_SENSOR_FIELDS, PIEZO_SENSOR_FIELDS
 
 # Backward-compatible name for older callers. The direct avalanche channel is
 # seismic-like, not piezo-like; new code should use AVALANCHE_SIGNAL_SENSOR_FIELDS.
@@ -131,6 +100,7 @@ def build_piezo_sensor_rows(
     susceptibility: np.ndarray,
     threshold: int,
     config: PiezoConfig,
+    damage: np.ndarray | None = None,
 ) -> list[dict[str, str]]:
     validate_piezo_config(config)
     attenuation_radius = config.attenuation_radius or max(grid.shape) / 8.0
@@ -164,6 +134,12 @@ def build_piezo_sensor_rows(
         float(config.critical_release_ratio),
         float(config.saturation),
     )
+    spatial_state = measure_pre_relax_spatial_state(
+        grid=grid, threshold=threshold, activation_ratio=config.activation_ratio,
+    )
+    damage_total = float(damage.sum()) if damage is not None else 0.0
+    damage_max = float(damage.max()) if damage is not None else 0.0
+    damage_active_count = int((damage > 0).sum()) if damage is not None else 0
     rows = []
     for sensor_id, point in enumerate(sensors):
         nearest = nearest_distances[sensor_id]
@@ -178,12 +154,18 @@ def build_piezo_sensor_rows(
                 "piezo_total_source": f"{float(total_source):.9f}",
                 "piezo_potential_total_source": f"{float(potential_total_source):.9f}",
                 "near_critical_cell_count": str(int(near_critical_count)),
+                "near_critical_contact_count": str(spatial_state.near_critical_contact_count),
+                "near_critical_coherence": f"{spatial_state.near_critical_coherence:.9f}",
+                "near_critical_weighted_stress": f"{spatial_state.near_critical_weighted_stress:.9f}",
                 "critical_cell_count": str(int(critical_count)),
                 "nearest_critical_distance": "" if nearest < 0 else f"{float(nearest):.6f}",
                 "max_stress_ratio": f"{float(max_stress_ratio):.6f}",
                 "piezo_charge_total": f"{float(charge_total):.9f}",
                 "piezo_charge_max": f"{float(charge_max):.9f}",
                 "piezo_release_total": f"{float(release_total):.9f}",
+                "damage_total": f"{damage_total:.9f}",
+                "damage_max": f"{damage_max:.9f}",
+                "damage_active_cell_count": str(damage_active_count),
             }
         )
     return rows

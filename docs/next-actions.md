@@ -27,12 +27,12 @@
 ## Simulation
 
 1. Run `./scripts/run-longer-synthetic-transformer-batch.sh` when CPU time is available, validate drift, then rerun `./scripts/evaluate-piezo-group-holdout.sh` against the larger episode set.
-2. Design a causal, spatially local precursor statistic that is computable without future event coordinates. Validate it on fresh nine-episode batches using `analyze-piezo-event-lead-time.sh` before model training.
+2. Use `damage_total` as the only currently supported synthetic precursor feature. It has a 5--15 step causal lead across nine damage-enabled episodes; keep raw piezo potential and spatial-contact fields diagnostic-only until they independently pass.
 3. Keep the duration-aligned `SOURCE_COUNT=64`, refill `470`, removal interval `20`, and `q=0.998/window=120` profile as a valid synthetic target baseline (`47.0%` positives, temporal drift `0.182`). It has no confirmed piezo lead and is not a precursor-training profile.
-4. Compare observable pre-relaxation spatial-state features, rather than further receiver pooling, against this stable target baseline. Require nine-episode causal support before another candidate reaches model inputs.
-4. Compare future episode-batch h6 drift against the current scaled `WARMUP_STEPS=3000` delta `0.187025`.
-5. Revisit structured initial fill only with delayed bottom-layer removal; the first fill probe drifted at `0.307937`.
-6. Tune the piezo/VLF mapping only from `*.piezo.csv` and compare against Cumiana VLF shape reports.
+4. Run leave-one-episode-out modeling with and without damage-state features on the nine-episode damage profile. Require an improvement over the damage-disabled baseline before retaining it in the default Transformer input.
+5. Compare future episode-batch h6 drift against the current scaled `WARMUP_STEPS=3000` delta `0.187025`.
+6. Revisit structured initial fill only with delayed bottom-layer removal; the first fill probe drifted at `0.307937`.
+7. Tune the piezo/VLF mapping only from `*.piezo.csv` and compare against Cumiana VLF shape reports.
 
 ## Maintenance
 
@@ -102,3 +102,5 @@
 * Made `SOURCE_COUNT` explicit in the episode-batch runner and derived its end time from simulated steps, removing 34 hours of false empty padding after 3,000-step runs.
 * Confirmed the corrected 64-source target baseline over nine episodes: 387 labeled rows, `182/205` positive/negative, temporal positive-rate delta `0.182`, and h6 temporal balanced accuracy `0.518750` for the simple event-list model.
 * Rejected the three-episode potential-lead result: its 15--30 and 180--360 step effects did not survive nine-episode causal confirmation across 40 events.
+* Added modular pre-relaxation spatial-state metrics: near-critical contact count, coherence, and weighted stress. Their encouraging three-episode screen failed nine-episode causal confirmation across 39 events, so they remain diagnostics only.
+* Added opt-in delayed local failure through `DamageConfig`: near-critical cells accumulate damage, damage lowers only their local relaxation threshold, and toppling resets it. The damage-enabled nine-episode run has 387 labeled rows, `197/190` positives/negatives, drift `0.245581`, and a confirmed pre-relaxation `damage_total` lead at 5--15 steps (`AUC 0.652315`, positive in 6/9 episodes).

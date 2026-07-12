@@ -7,6 +7,7 @@ from argparse import Namespace, _SubParsersAction
 from pathlib import Path
 
 from elfquake.sim.piezo import PiezoConfig
+from elfquake.sim.damage import DamageConfig
 from elfquake.sim.sandpile import SandpileConfig, run_sandpile_simulation
 
 
@@ -31,6 +32,12 @@ def register_sandpile_commands(subparsers: _SubParsersAction) -> None:
     sandpile.add_argument("--initial-fill-variation", type=float, default=0.0)
     sandpile.add_argument("--initial-fill-smooth-passes", type=int, default=0)
     sandpile.add_argument("--warmup-steps", type=int, default=0)
+    sandpile.add_argument("--damage-enabled", action="store_true")
+    sandpile.add_argument("--damage-activation-ratio", type=float, default=0.85)
+    sandpile.add_argument("--damage-decay", type=float, default=0.985)
+    sandpile.add_argument("--damage-coupling", type=float, default=0.10)
+    sandpile.add_argument("--damage-threshold-reduction", type=float, default=0.25)
+    sandpile.add_argument("--damage-reset-fraction", type=float, default=0.90)
     sandpile.add_argument("--mountain-mode", action="store_true")
     sandpile.add_argument("--summary-out", type=Path, required=True)
     sandpile.add_argument("--sensors-out", type=Path, required=True)
@@ -145,6 +152,14 @@ def _run_sandpile_sim(args: Namespace) -> int:
             initial_fill_variation=args.initial_fill_variation,
             initial_fill_smooth_passes=args.initial_fill_smooth_passes,
             warmup_steps=args.warmup_steps,
+            damage=DamageConfig(
+                enabled=args.damage_enabled,
+                activation_ratio=args.damage_activation_ratio,
+                decay=args.damage_decay,
+                coupling=args.damage_coupling,
+                threshold_reduction=args.damage_threshold_reduction,
+                reset_fraction=args.damage_reset_fraction,
+            ),
         ),
         summary_out=args.summary_out,
         sensors_out=args.sensors_out,

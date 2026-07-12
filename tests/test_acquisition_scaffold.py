@@ -4023,6 +4023,43 @@ class AcquisitionScaffoldTests(unittest.TestCase):
             self.assertEqual(int(grid.sum()), 8)
             self.assertEqual(int((grid > 0).sum()), 1)
 
+    def test_pre_relax_spatial_state_measures_clustered_stress(self) -> None:
+        import numpy as np
+        from elfquake.sim.spatial_state import measure_pre_relax_spatial_state
+
+        grid = np.array([[0, 0, 0], [0, 8, 8], [0, 0, 0]], dtype=np.int64)
+        state = measure_pre_relax_spatial_state(grid=grid, threshold=4, activation_ratio=0.75)
+
+        self.assertGreater(state.near_critical_contact_count, 0)
+        self.assertGreater(state.near_critical_coherence, 0)
+        self.assertGreater(state.near_critical_weighted_stress, 0)
+
+    @unittest.skipIf(importlib.util.find_spec("numba") is None, "numba not installed")
+    def test_sandpile_damage_dynamics_are_opt_in_and_reported(self) -> None:
+        from elfquake.sim.damage import DamageConfig
+        from elfquake.sim.sandpile import SandpileConfig, run_sandpile_simulation
+
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            rows, _ = run_sandpile_simulation(
+                config=SandpileConfig(
+                    width=8, height=8, steps=6, threshold=4, source_count=2,
+                    sensor_count=1, deposition_probability=1.0, seed=5,
+                    damage=DamageConfig(enabled=True, activation_ratio=0.25, coupling=0.5),
+                ),
+                summary_out=root / "summary.csv", sensors_out=root / "sensors.csv",
+            )
+            self.assertTrue(any(float(row["pre_relax_damage_total"]) > 0 for row in rows))
+
+            default_rows, _ = run_sandpile_simulation(
+                config=SandpileConfig(
+                    width=8, height=8, steps=2, threshold=4, source_count=2,
+                    sensor_count=1, deposition_probability=1.0, seed=5,
+                ),
+                summary_out=root / "default_summary.csv", sensors_out=root / "default_sensors.csv",
+            )
+            self.assertTrue(all(row["pre_relax_damage_total"] == "0.000000000" for row in default_rows))
+
     @unittest.skipIf(importlib.util.find_spec("numba") is None, "numba not installed")
     def test_sandpile_can_write_piezo_precursor_and_avalanche_signal_rows(self) -> None:
         from elfquake.sim.avalanche_activity import AVALANCHE_ACTIVITY_FIELDS
@@ -4067,6 +4104,7 @@ class AcquisitionScaffoldTests(unittest.TestCase):
             signal_index = PIEZO_SENSOR_FIELDS.index("piezo_signal")
             potential_index = PIEZO_SENSOR_FIELDS.index("piezo_potential_signal")
             charge_index = PIEZO_SENSOR_FIELDS.index("piezo_charge_total")
+            contact_index = PIEZO_SENSOR_FIELDS.index("near_critical_contact_count")
             self.assertGreater(
                 max(float(line.split(",")[signal_index]) for line in lines[1:]),
                 0.0,
@@ -4077,6 +4115,10 @@ class AcquisitionScaffoldTests(unittest.TestCase):
             )
             self.assertGreater(
                 max(float(line.split(",")[charge_index]) for line in lines[1:]),
+                0.0,
+            )
+            self.assertGreaterEqual(
+                max(float(line.split(",")[contact_index]) for line in lines[1:]),
                 0.0,
             )
             avalanche_lines = avalanche_signal_out.read_text(encoding="utf-8").splitlines()

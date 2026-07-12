@@ -15,6 +15,12 @@ initial_fill_mean_height="${INITIAL_FILL_MEAN_HEIGHT:-0}"
 initial_fill_variation="${INITIAL_FILL_VARIATION:-0}"
 initial_fill_smooth_passes="${INITIAL_FILL_SMOOTH_PASSES:-0}"
 warmup_steps="${WARMUP_STEPS:-0}"
+damage_enabled="${DAMAGE_ENABLED:-0}"
+damage_activation_ratio="${DAMAGE_ACTIVATION_RATIO:-0.85}"
+damage_decay="${DAMAGE_DECAY:-0.985}"
+damage_coupling="${DAMAGE_COUPLING:-0.10}"
+damage_threshold_reduction="${DAMAGE_THRESHOLD_REDUCTION:-0.25}"
+damage_reset_fraction="${DAMAGE_RESET_FRACTION:-0.90}"
 target_fill_limit="${TARGET_FILL_LIMIT:-$(( width * height / 16 ))}"
 target_fill_mode="${TARGET_FILL_MODE:-sources}"
 if [[ "$target_fill_limit" -lt 1 ]]; then
@@ -69,6 +75,11 @@ args=(
   --initial-fill-variation "$initial_fill_variation" \
   --initial-fill-smooth-passes "$initial_fill_smooth_passes" \
   --warmup-steps "$warmup_steps" \
+  --damage-activation-ratio "$damage_activation_ratio" \
+  --damage-decay "$damage_decay" \
+  --damage-coupling "$damage_coupling" \
+  --damage-threshold-reduction "$damage_threshold_reduction" \
+  --damage-reset-fraction "$damage_reset_fraction" \
   --summary-out "${prefix}.summary.csv" \
   --sensors-out "${prefix}.sensors.csv" \
   --piezo-out "${prefix}.piezo.csv" \
@@ -91,6 +102,10 @@ args=(
   --avalanche-signal-attenuation-radius "$avalanche_signal_attenuation_radius" \
   --avalanche-signal-max-distance-radius "$avalanche_signal_max_distance_radius"
 )
+
+if [[ "$damage_enabled" != "0" ]]; then
+  args+=(--damage-enabled)
+fi
 
 if [[ "$run_heatmaps" != "0" ]]; then
   args+=(

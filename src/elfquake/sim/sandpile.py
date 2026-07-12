@@ -9,6 +9,7 @@ from typing import Callable
 import numpy as np
 
 from elfquake.sim.avalanche_activity import AVALANCHE_ACTIVITY_FIELDS, build_avalanche_activity_row
+from elfquake.sim.damage import DamageConfig, relax_with_damage, reset_toppled_damage, update_damage, validate_damage_config
 from elfquake.sim.piezo import (
     AVALANCHE_SIGNAL_SENSOR_FIELDS,
     PIEZO_SENSOR_FIELDS,
@@ -38,6 +39,9 @@ SUMMARY_FIELDS = [
     "safety_released_mass",
     "target_fill_count",
     "bottom_layer_removed_mass",
+    "pre_relax_damage_total",
+    "pre_relax_damage_max",
+    "pre_relax_damage_active_cell_count",
 ]
 
 SENSOR_FIELDS = [
@@ -71,6 +75,7 @@ class SandpileConfig:
     initial_fill_variation: float = 0.0
     initial_fill_smooth_passes: int = 0
     warmup_steps: int = 0
+    damage: DamageConfig = DamageConfig()
 
 
 def run_sandpile_simulation(
@@ -103,6 +108,7 @@ def run_sandpile_simulation(
         raise ValueError("progress_interval must be at least 1 when progress_callback is set")
     rng = np.random.default_rng(config.seed)
     grid = np.zeros((config.height, config.width), dtype=np.int64)
+    damage = np.zeros((config.height, config.width), dtype=np.float64)
     sources = _random_points(rng, config.width, config.height, config.source_count)
     sensors = _random_points(rng, config.width, config.height, config.sensor_count)
     if config.initial_fill_mode != "none":
@@ -140,7 +146,9 @@ def run_sandpile_simulation(
     sensor_rows = []
     snapshot_rows = []
     for warmup_step in range(config.warmup_steps):
-        _advance_unrecorded_step(grid=grid, rng=rng, config=config, sources=sources, absolute_step=warmup_step)
+        _advance_unrecorded_step(
+            grid=grid, damage=damage, rng=rng, config=config, sources=sources, absolute_step=warmup_step,
+        )
     previous_grid = grid.copy()
 
     for step in range(config.steps):
@@ -152,6 +160,9 @@ def run_sandpile_simulation(
             sources=sources,
         )
         target_fill_count = _fill_to_target_mean(grid, rng, config, sources)
+        if config.damage.enabled:
+            update_damage(grid=grid, damage=damage, threshold=config.threshold, config=config.damage)
+        damage_total, damage_max, damage_active_count = _damage_metrics(damage)
         pre_relax_grid = grid.copy()
         if piezo_out is not None:
             assert resolved_piezo_config is not None
@@ -168,6 +179,7 @@ def run_sandpile_simulation(
                     susceptibility=piezo_susceptibility,
                     threshold=config.threshold,
                     config=resolved_piezo_config,
+                    damage=damage,
                 )
             )
         topple_counts = np.zeros_like(grid)
@@ -178,12 +190,11 @@ def run_sandpile_simulation(
             relaxation_converged,
             unstable_cell_count,
             safety_released_mass,
-        ) = _relax(
-            grid,
-            topple_counts,
-            config.threshold,
-            config.max_relaxation_sweeps,
-        )
+        ) = _relax_step(grid=grid, topple_counts=topple_counts, config=config, damage=damage)
+        if config.damage.enabled:
+            reset_toppled_damage(
+                damage=damage, topple_counts=topple_counts, reset_fraction=config.damage.reset_fraction,
+            )
         if avalanche_activity_out is not None:
             avalanche_activity_rows.append(build_avalanche_activity_row(step=step, topple_counts=topple_counts))
         if resolved_avalanche_signal_out is not None:
@@ -219,6 +230,9 @@ def run_sandpile_simulation(
             "safety_released_mass": str(int(safety_released_mass)),
             "target_fill_count": str(int(target_fill_count)),
             "bottom_layer_removed_mass": str(int(bottom_layer_removed_mass)),
+            "pre_relax_damage_total": f"{damage_total:.9f}",
+            "pre_relax_damage_max": f"{damage_max:.9f}",
+            "pre_relax_damage_active_cell_count": str(damage_active_count),
         }
         summary_rows.append(summary_row)
         sensor_rows.extend(_sensor_rows(step, sensors, grid, topple_counts))
@@ -277,11 +291,13 @@ def validate_config(config: SandpileConfig) -> None:
         raise ValueError("initial_fill_smooth_passes must be non-negative")
     if config.warmup_steps < 0:
         raise ValueError("warmup_steps must be non-negative")
+    validate_damage_config(config.damage)
 
 
 def _advance_unrecorded_step(
     *,
     grid: np.ndarray,
+    damage: np.ndarray,
     rng,
     config: SandpileConfig,
     sources: np.ndarray,
@@ -289,14 +305,43 @@ def _advance_unrecorded_step(
 ) -> None:
     _apply_deposition(grid=grid, rng=rng, config=config, sources=sources)
     _fill_to_target_mean(grid, rng, config, sources)
+    if config.damage.enabled:
+        update_damage(grid=grid, damage=damage, threshold=config.threshold, config=config.damage)
     topple_counts = np.zeros_like(grid)
-    _relax(grid, topple_counts, config.threshold, config.max_relaxation_sweeps)
+    _relax_step(grid=grid, topple_counts=topple_counts, config=config, damage=damage)
+    if config.damage.enabled:
+        reset_toppled_damage(damage=damage, topple_counts=topple_counts, reset_fraction=config.damage.reset_fraction)
     if _should_remove_bottom_layer(config, absolute_step):
         _remove_bottom_layer(grid)
 
 
 def _should_remove_bottom_layer(config: SandpileConfig, absolute_step: int) -> bool:
     return config.bottom_layer_removal_interval > 0 and (absolute_step + 1) % config.bottom_layer_removal_interval == 0
+
+
+def _damage_metrics(damage: np.ndarray) -> tuple[float, float, int]:
+    if not damage.any():
+        return 0.0, 0.0, 0
+    return float(damage.sum()), float(damage.max()), int((damage > 0).sum())
+
+
+def _relax_step(*, grid: np.ndarray, topple_counts: np.ndarray, config: SandpileConfig, damage: np.ndarray):
+    if not config.damage.enabled:
+        return _relax(grid, topple_counts, config.threshold, config.max_relaxation_sweeps)
+    topple_count, released_mass, avalanche_count, converged = relax_with_damage(
+        grid, topple_counts, config.threshold, config.max_relaxation_sweeps, damage,
+        config.damage.threshold_reduction,
+    )
+    unstable_count = 0
+    safety_released_mass = 0
+    if not converged:
+        unstable_count = _count_unstable(grid, config.threshold)
+        if unstable_count == 0:
+            converged = 1
+        else:
+            unstable_count, safety_released_mass = _drain_unstable(grid, config.threshold)
+            released_mass += safety_released_mass
+    return topple_count, released_mass, avalanche_count, converged, unstable_count, safety_released_mass
 
 
 def _apply_initial_fill(grid: np.ndarray, config: SandpileConfig) -> None:

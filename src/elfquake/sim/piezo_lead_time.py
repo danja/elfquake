@@ -15,11 +15,17 @@ DEFAULT_SIGNAL_FIELDS = (
     "piezo_signal",
     "piezo_total_source",
     "near_critical_cell_count",
+    "near_critical_contact_count",
+    "near_critical_coherence",
+    "near_critical_weighted_stress",
     "critical_cell_count",
     "max_stress_ratio",
     "piezo_charge_total",
     "piezo_charge_max",
     "piezo_release_total",
+    "damage_total",
+    "damage_max",
+    "damage_active_cell_count",
 )
 PROFILE_FIELDS = (
     "signal_field",

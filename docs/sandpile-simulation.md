@@ -151,6 +151,14 @@ The causal lead-time probe now compares each pre-event window with matched contr
 
 The lead-time analyzer also supports causal `top_k` and `top_k_rise` pooling, which select the strongest current sensors without event coordinates. Neither passes the localized-default nine-episode check. A separate `SOURCE_COUNT=64` screen produced a short potential lead, but it failed nine-episode confirmation. The duration-aligned reduced-source profile is retained as a synthetic target baseline because it has usable class balance and drift, not because it supplies a validated precursor.
 
+Pre-relaxation spatial-state diagnostics now include near-critical contact count, contact coherence, and stress-weighted criticality. These are derived directly from the grid before relaxation and do not alter it. Their three-episode screen did not survive the nine-episode check, confirming that the current instantaneous-relaxation dynamics do not provide a validated multi-step precursor. Further progress requires delayed failure or damage dynamics in the simulator itself, not another receiver transformation.
+
+## Delayed Failure
+
+`DamageConfig` is an opt-in state-evolution extension. Before relaxation, cells at or above `damage.activation_ratio` accumulate bounded damage; damage decays elsewhere. During relaxation, accumulated damage lowers only that cell's local failure threshold. A toppling cell then resets most of its damage. This changes avalanche timing through simulation state rather than adding an output-only signal. The pre-relaxation `damage_total`, `damage_max`, and active-cell count are written to piezo rows and summary rows.
+
+The initial nine-episode damage profile (`activation=0.85`, `decay=0.985`, `coupling=0.10`, threshold reduction `0.25`, reset `0.90`) supports `damage_total` at a 5--15 step lead. This is synthetic evidence only: it must improve leave-one-episode-out modeling relative to damage-disabled runs before being kept as a default model feature.
+
 ## Piezo Precursor Analogue
 
 The piezo channel is an analogue for electromagnetic precursors from quartz-like rock under stress. It is not a physical EM model.
