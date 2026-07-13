@@ -3191,6 +3191,12 @@ class AcquisitionScaffoldTests(unittest.TestCase):
             self.assertEqual(report["positive_count"], 3)
             self.assertEqual([row["eventlist_target_occurred"] for row in rows], ["1", "1", "1", "0", "0"])
 
+    def test_damage_precursor_features_do_not_use_future_values(self) -> None:
+        from elfquake.models.damage_precursor_head import _window_features
+
+        features = _window_features([2.0, 4.0, 8.0, 16.0], short_steps=2)
+        self.assertEqual(features, [16.0, 8.0, 12.0, 7.5, 4.5, 8.0])
+
     def test_piezo_signal_transform_writes_derived_signal_csv(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)

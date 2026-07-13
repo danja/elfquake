@@ -6,6 +6,7 @@ from argparse import Namespace, _SubParsersAction
 from pathlib import Path
 
 from elfquake.models.piezo_group_holdout_comparison import compare_piezo_group_holdouts
+from elfquake.models.damage_precursor_head import evaluate_damage_precursor_head
 from elfquake.models.torch_late_gated_evaluation import evaluate_late_gated_fusion
 from elfquake.models.torch_piezo_group_holdout import evaluate_piezo_group_holdout
 from elfquake.models.torch_ssl_transformer_evaluation import (
@@ -54,6 +55,17 @@ def register_torch_experiment_commands(subparsers: _SubParsersAction) -> None:
     _add_model_arguments(group_holdout)
     group_holdout.add_argument("--epochs", type=int, default=12)
     group_holdout.set_defaults(func=_evaluate_piezo_group_holdout)
+
+    damage_head = subparsers.add_parser("evaluate-damage-precursor-head")
+    damage_head.add_argument("--target", type=Path, required=True)
+    damage_head.add_argument("--piezo-sequence-manifest", type=Path, action="append", required=True)
+    damage_head.add_argument("--out", type=Path, required=True)
+    damage_head.add_argument("--short-steps", type=int, default=5)
+    damage_head.add_argument("--long-steps", type=int, default=30)
+    damage_head.add_argument("--epochs", type=int, default=400)
+    damage_head.add_argument("--learning-rate", type=float, default=0.05)
+    damage_head.add_argument("--l2", type=float, default=0.01)
+    damage_head.set_defaults(func=_evaluate_damage_precursor_head)
 
     comparison = subparsers.add_parser("compare-piezo-group-holdouts")
     comparison.add_argument("--report", type=Path, action="append", required=True)
@@ -184,6 +196,19 @@ def _evaluate_piezo_group_holdout(args: Namespace) -> int:
     metrics = report["summary"]["balanced_accuracy"]
     print(f"status: {report['status']}")
     print(f"runs: {report['summary']['run_count']}")
+    print(f"balanced accuracy: mean={metrics['mean']:.6f} min={metrics['min']:.6f} max={metrics['max']:.6f}")
+    print(f"output: {args.out}")
+    return 0
+
+
+def _evaluate_damage_precursor_head(args: Namespace) -> int:
+    report = evaluate_damage_precursor_head(
+        target_csv=args.target, piezo_manifest_paths=args.piezo_sequence_manifest, out_path=args.out,
+        short_steps=args.short_steps, long_steps=args.long_steps, epochs=args.epochs,
+        learning_rate=args.learning_rate, l2=args.l2,
+    )
+    metrics = report["summary"]["balanced_accuracy"]
+    print(f"status: {report['status']}")
     print(f"balanced accuracy: mean={metrics['mean']:.6f} min={metrics['min']:.6f} max={metrics['max']:.6f}")
     print(f"output: {args.out}")
     return 0

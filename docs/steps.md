@@ -471,6 +471,10 @@ Set `EVENT_SUFFIX` when comparing a non-default avalanche extraction, such as `_
 
 Build minute-scale synthetic event labels from piezo and avalanche event CSVs. The damage experiment defaults to five-minute samples with a 15-minute look-ahead, matching the validated causal lead window.
 
+### `evaluate-damage-precursor-head.sh`
+
+Evaluate an interpretable, class-weighted damage-only short-horizon baseline across leave-one-simulation-episode-out folds. It uses only current and historical pre-relaxation damage values, with fold-local scaling and threshold calibration.
+
 ### `run-longer-synthetic-transformer-batch.sh`
 
 Generate a larger warmed CPU-only synthetic episode batch for Transformer pretraining experiments. Run this only when the current short Transformer harness is stable and more synthetic coverage is worth the CPU time.

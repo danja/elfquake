@@ -22,6 +22,8 @@ A matched Transformer ablation on those same nine damage trajectories confirms t
 
 A second matched experiment used 5-minute samples and a 15-minute future-event target, matching the confirmed damage lead. Its 5,373 labels contain 135 positives. With seed `42`, four epochs, and nine leave-one-episode-out folds, the generic piezo Transformer averages `0.530826` without damage channels and `0.529700` with them. Shortening the target alone therefore does not make the architecture exploit damage; the next experiment needs an imbalance-aware, dedicated damage head.
 
+Dedicated damage-only Transformer branches were also tested on the same target and folds. A 12-minute lookback averages `0.500824`; expanding to 24 minutes gives `0.504695`. An explicit, class-weighted logistic damage head using only current/past pre-relaxation level, one-step rise, short/long means, contrast, and range averages `0.506188` over nine unseen episodes (5 of 9 folds meet both `0.40` recall floors). Extending its causal history from 30 to 60 minutes improves the mean to `0.528976`, but only 4 of 9 folds meet both floors and it remains below the `0.530826` no-damage control. The causal damage effect is therefore not yet sufficiently stable between trajectories for short-horizon event prediction. Keep it as a synthetic diagnostic, and improve the delayed-failure regime before adding it to the default model.
+
 ## Scope
 
 This report summarizes the current statistical comparison between real Italy-scoped seismic/VLF data and signals derived from the avalanche simulation, plus the current model-interface and PyTorch smoke results.

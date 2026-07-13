@@ -29,7 +29,7 @@
 1. Run `./scripts/run-longer-synthetic-transformer-batch.sh` when CPU time is available, validate drift, then rerun `./scripts/evaluate-piezo-group-holdout.sh` against the larger episode set.
 2. Keep `damage_total` as a validated synthetic precursor diagnostic, not a default Transformer feature. A matched nine-fold screen regressed from `0.599648` without damage channels to `0.586848` with them.
 3. Keep the duration-aligned `SOURCE_COUNT=64`, refill `470`, removal interval `20`, and `q=0.998/window=120` profile as a valid synthetic target baseline (`47.0%` positives, temporal drift `0.182`). It has no confirmed piezo lead and is not a precursor-training profile.
-4. Test an imbalance-aware, damage-specific short-horizon head. The minute-scale generic Transformer remains effectively unchanged with damage (`0.529700`) versus without (`0.530826`); require a matched gain before retaining damage in default inputs.
+4. Keep the engineered damage head as a diagnostic: 30 minutes of history scores `0.506188`; 60 minutes reaches `0.528976` but passes both recall floors in only 4 of 9 episodes. Sweep nearby causal history lengths only after tuning delayed-failure dynamics for stable cross-episode effects and reconfirming its causal lead.
 5. Compare future episode-batch h6 drift against the current scaled `WARMUP_STEPS=3000` delta `0.187025`.
 6. Revisit structured initial fill only with delayed bottom-layer removal; the first fill probe drifted at `0.307937`.
 7. Tune the piezo/VLF mapping only from `*.piezo.csv` and compare against Cumiana VLF shape reports.
@@ -106,3 +106,4 @@
 * Added opt-in delayed local failure through `DamageConfig`: near-critical cells accumulate damage, damage lowers only their local relaxation threshold, and toppling resets it. The damage-enabled nine-episode run has 387 labeled rows, `197/190` positives/negatives, drift `0.245581`, and a confirmed pre-relaxation `damage_total` lead at 5--15 steps (`AUC 0.652315`, positive in 6/9 episodes).
 * Added named piezo-channel exclusions to group holdout for matched feature ablations. On the damage profile, the single-seed nine-fold Transformer screen is lower with damage channels (`0.586848`) than without (`0.599648`); do not promote them yet.
 * Added 15-minute synthetic step targets sampled every 5 minutes to match the damage lead. The matched short-horizon nine-fold screen is also lower with damage (`0.529700`) than without (`0.530826`), so a generic Transformer does not yet exploit the causal state.
+* Tested dedicated damage-only patch-Transformer branches at 12- and 24-minute lookback. They reach `0.500824` and `0.504695`; isolating or extending context does not recover predictive utility.
