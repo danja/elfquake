@@ -475,6 +475,18 @@ Build minute-scale synthetic event labels from piezo and avalanche event CSVs. T
 
 Evaluate an interpretable, class-weighted damage-only short-horizon baseline across leave-one-simulation-episode-out folds. It uses only current and historical pre-relaxation damage values, with fold-local scaling and threshold calibration.
 
+### `probe-damage-persistence.sh`
+
+Run fresh nine-episode short- and long-memory delayed-failure profiles. It holds all non-memory simulation, extraction, target, and model settings constant, then writes causal-lead, drift, and 60-minute damage-head reports per profile.
+
+### `probe-damage-reset.sh`
+
+Run a three-episode causal screen comparing residual-damage and rapid-reset dynamics. Expand only a profile with a supported lead-time result.
+
+### `evaluate-damage-profile-baselines.sh`
+
+Compare generic piezo/VLF Transformer runs with and without the three damage channels on exactly the same profile, targets, episode folds, and initialization seed.
+
 ### `run-longer-synthetic-transformer-batch.sh`
 
 Generate a larger warmed CPU-only synthetic episode batch for Transformer pretraining experiments. Run this only when the current short Transformer harness is stable and more synthetic coverage is worth the CPU time.
