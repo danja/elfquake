@@ -26,6 +26,10 @@ VLF_SIGNAL_EXCLUDES = {
 PIEZO_SPATIAL_AGGREGATES = {
     "piezo_signal": ("max", "std"),
     "nearest_critical_distance": ("min", "std"),
+    "damage_local_mean": ("max", "std"),
+    "damage_local_max": ("max", "std"),
+    "damage_local_active_fraction": ("max", "std"),
+    "damage_local_std": ("max", "std"),
 }
 
 

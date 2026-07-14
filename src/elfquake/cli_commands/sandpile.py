@@ -8,6 +8,7 @@ from pathlib import Path
 
 from elfquake.sim.piezo import PiezoConfig
 from elfquake.sim.damage import DamageConfig
+from elfquake.sim.mature_weakness import MatureWeaknessConfig
 from elfquake.sim.sandpile import SandpileConfig, run_sandpile_simulation
 
 
@@ -38,6 +39,13 @@ def register_sandpile_commands(subparsers: _SubParsersAction) -> None:
     sandpile.add_argument("--damage-coupling", type=float, default=0.10)
     sandpile.add_argument("--damage-threshold-reduction", type=float, default=0.25)
     sandpile.add_argument("--damage-reset-fraction", type=float, default=0.90)
+    sandpile.add_argument("--mature-weakness-enabled", action="store_true")
+    sandpile.add_argument("--mature-weakness-damage-threshold", type=float, default=0.50)
+    sandpile.add_argument("--mature-weakness-dwell-steps", type=int, default=5)
+    sandpile.add_argument("--mature-weakness-maturation-rate", type=float, default=0.10)
+    sandpile.add_argument("--mature-weakness-decay", type=float, default=0.995)
+    sandpile.add_argument("--mature-weakness-threshold-reduction", type=float, default=0.20)
+    sandpile.add_argument("--mature-weakness-reset-fraction", type=float, default=0.90)
     sandpile.add_argument("--mountain-mode", action="store_true")
     sandpile.add_argument("--summary-out", type=Path, required=True)
     sandpile.add_argument("--sensors-out", type=Path, required=True)
@@ -159,6 +167,15 @@ def _run_sandpile_sim(args: Namespace) -> int:
                 coupling=args.damage_coupling,
                 threshold_reduction=args.damage_threshold_reduction,
                 reset_fraction=args.damage_reset_fraction,
+            ),
+            mature_weakness=MatureWeaknessConfig(
+                enabled=args.mature_weakness_enabled,
+                damage_threshold=args.mature_weakness_damage_threshold,
+                dwell_steps=args.mature_weakness_dwell_steps,
+                maturation_rate=args.mature_weakness_maturation_rate,
+                decay=args.mature_weakness_decay,
+                threshold_reduction=args.mature_weakness_threshold_reduction,
+                reset_fraction=args.mature_weakness_reset_fraction,
             ),
         ),
         summary_out=args.summary_out,

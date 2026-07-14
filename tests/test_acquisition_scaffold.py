@@ -4062,8 +4062,48 @@ class AcquisitionScaffoldTests(unittest.TestCase):
         self.assertGreater(state.near_critical_weighted_stress, 0)
 
     @unittest.skipIf(importlib.util.find_spec("numba") is None, "numba not installed")
+    def test_local_damage_sensors_are_fixed_location_and_causal(self) -> None:
+        import numpy as np
+        from elfquake.sim.damage_sensors import measure_local_damage
+
+        damage = np.zeros((7, 7), dtype=np.float64)
+        damage[1:4, 1:4] = 0.5
+        sensors = np.array([[2, 2], [6, 6]], dtype=np.int64)
+        means, maximums, active_fractions, variations = measure_local_damage(
+            sensors=sensors, damage=damage, radius=1,
+        )
+        self.assertGreater(means[0], means[1])
+        self.assertGreater(maximums[0], maximums[1])
+        self.assertGreater(active_fractions[0], active_fractions[1])
+        self.assertEqual(variations[1], 0.0)
+
+    @unittest.skipIf(importlib.util.find_spec("numba") is None, "numba not installed")
+    def test_mature_weakness_requires_sustained_microdamage_and_resets(self) -> None:
+        import numpy as np
+        from elfquake.sim.mature_weakness import (
+            MatureWeaknessConfig,
+            reset_toppled_mature_weakness,
+            update_mature_weakness,
+        )
+
+        damage = np.array([[0.8]], dtype=np.float64)
+        weakness = np.zeros((1, 1), dtype=np.float64)
+        dwell = np.zeros((1, 1), dtype=np.int64)
+        config = MatureWeaknessConfig(damage_threshold=0.5, dwell_steps=2, maturation_rate=0.5, decay=1.0)
+        update_mature_weakness(damage=damage, weakness=weakness, dwell=dwell, config=config)
+        self.assertEqual(float(weakness[0, 0]), 0.0)
+        update_mature_weakness(damage=damage, weakness=weakness, dwell=dwell, config=config)
+        self.assertGreater(float(weakness[0, 0]), 0.0)
+        reset_toppled_mature_weakness(
+            weakness=weakness, dwell=dwell, topple_counts=np.array([[1]], dtype=np.int64), reset_fraction=1.0,
+        )
+        self.assertEqual(float(weakness[0, 0]), 0.0)
+        self.assertEqual(int(dwell[0, 0]), 0)
+
+    @unittest.skipIf(importlib.util.find_spec("numba") is None, "numba not installed")
     def test_sandpile_damage_dynamics_are_opt_in_and_reported(self) -> None:
         from elfquake.sim.damage import DamageConfig
+        from elfquake.sim.mature_weakness import MatureWeaknessConfig
         from elfquake.sim.sandpile import SandpileConfig, run_sandpile_simulation
 
         with tempfile.TemporaryDirectory() as directory:
@@ -4086,6 +4126,16 @@ class AcquisitionScaffoldTests(unittest.TestCase):
                 summary_out=root / "default_summary.csv", sensors_out=root / "default_sensors.csv",
             )
             self.assertTrue(all(row["pre_relax_damage_total"] == "0.000000000" for row in default_rows))
+            self.assertTrue(all(row["pre_relax_mature_weakness_total"] == "0.000000000" for row in default_rows))
+
+            with self.assertRaisesRegex(ValueError, "requires damage.enabled"):
+                run_sandpile_simulation(
+                    config=SandpileConfig(
+                        width=8, height=8, steps=2, threshold=4, source_count=2, sensor_count=1,
+                        mature_weakness=MatureWeaknessConfig(enabled=True),
+                    ),
+                    summary_out=root / "invalid_summary.csv", sensors_out=root / "invalid_sensors.csv",
+                )
 
     @unittest.skipIf(importlib.util.find_spec("numba") is None, "numba not installed")
     def test_sandpile_can_write_piezo_precursor_and_avalanche_signal_rows(self) -> None:

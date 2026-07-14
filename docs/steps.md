@@ -483,6 +483,14 @@ Run fresh nine-episode short- and long-memory delayed-failure profiles. It holds
 
 Run a three-episode causal screen comparing residual-damage and rapid-reset dynamics. Expand only a profile with a supported lead-time result.
 
+### `sim.sh` with mature weakness
+
+Set `DAMAGE_ENABLED=1` and `MATURE_WEAKNESS_ENABLED=1` to run the opt-in two-stage microdamage-to-mature-weakness mechanism. Keep its output separate from validated control profiles until a nine-episode causal check passes.
+
+### `probe-mature-weakness.sh`
+
+Run the predeclared nine-episode two-stage confirmation. It writes separate causal reports for microdamage and mature weakness, plus 15-minute target balance and drift diagnostics; it deliberately does not train a model.
+
 ### `evaluate-damage-profile-baselines.sh`
 
 Compare generic piezo/VLF Transformer runs with and without the three damage channels on exactly the same profile, targets, episode folds, and initialization seed.

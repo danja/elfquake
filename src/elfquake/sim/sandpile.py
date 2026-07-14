@@ -10,6 +10,14 @@ import numpy as np
 
 from elfquake.sim.avalanche_activity import AVALANCHE_ACTIVITY_FIELDS, build_avalanche_activity_row
 from elfquake.sim.damage import DamageConfig, relax_with_damage, reset_toppled_damage, update_damage, validate_damage_config
+from elfquake.sim.mature_weakness import (
+    MatureWeaknessConfig,
+    relax_with_damage_and_mature_weakness,
+    reset_toppled_mature_weakness,
+    summarize_mature_weakness,
+    update_mature_weakness,
+    validate_mature_weakness_config,
+)
 from elfquake.sim.piezo import (
     AVALANCHE_SIGNAL_SENSOR_FIELDS,
     PIEZO_SENSOR_FIELDS,
@@ -42,6 +50,9 @@ SUMMARY_FIELDS = [
     "pre_relax_damage_total",
     "pre_relax_damage_max",
     "pre_relax_damage_active_cell_count",
+    "pre_relax_mature_weakness_total",
+    "pre_relax_mature_weakness_max",
+    "pre_relax_mature_weakness_active_cell_count",
 ]
 
 SENSOR_FIELDS = [
@@ -76,6 +87,7 @@ class SandpileConfig:
     initial_fill_smooth_passes: int = 0
     warmup_steps: int = 0
     damage: DamageConfig = DamageConfig()
+    mature_weakness: MatureWeaknessConfig = MatureWeaknessConfig()
 
 
 def run_sandpile_simulation(
@@ -109,6 +121,8 @@ def run_sandpile_simulation(
     rng = np.random.default_rng(config.seed)
     grid = np.zeros((config.height, config.width), dtype=np.int64)
     damage = np.zeros((config.height, config.width), dtype=np.float64)
+    mature_weakness = np.zeros((config.height, config.width), dtype=np.float64)
+    mature_weakness_dwell = np.zeros((config.height, config.width), dtype=np.int64)
     sources = _random_points(rng, config.width, config.height, config.source_count)
     sensors = _random_points(rng, config.width, config.height, config.sensor_count)
     if config.initial_fill_mode != "none":
@@ -147,7 +161,8 @@ def run_sandpile_simulation(
     snapshot_rows = []
     for warmup_step in range(config.warmup_steps):
         _advance_unrecorded_step(
-            grid=grid, damage=damage, rng=rng, config=config, sources=sources, absolute_step=warmup_step,
+            grid=grid, damage=damage, mature_weakness=mature_weakness, mature_weakness_dwell=mature_weakness_dwell,
+            rng=rng, config=config, sources=sources, absolute_step=warmup_step,
         )
     previous_grid = grid.copy()
 
@@ -162,7 +177,13 @@ def run_sandpile_simulation(
         target_fill_count = _fill_to_target_mean(grid, rng, config, sources)
         if config.damage.enabled:
             update_damage(grid=grid, damage=damage, threshold=config.threshold, config=config.damage)
+        if config.mature_weakness.enabled:
+            update_mature_weakness(
+                damage=damage, weakness=mature_weakness, dwell=mature_weakness_dwell,
+                config=config.mature_weakness,
+            )
         damage_total, damage_max, damage_active_count = _damage_metrics(damage)
+        weakness_total, weakness_max, weakness_active_count = summarize_mature_weakness(mature_weakness)
         pre_relax_grid = grid.copy()
         if piezo_out is not None:
             assert resolved_piezo_config is not None
@@ -180,6 +201,7 @@ def run_sandpile_simulation(
                     threshold=config.threshold,
                     config=resolved_piezo_config,
                     damage=damage,
+                    mature_weakness=mature_weakness,
                 )
             )
         topple_counts = np.zeros_like(grid)
@@ -190,10 +212,18 @@ def run_sandpile_simulation(
             relaxation_converged,
             unstable_cell_count,
             safety_released_mass,
-        ) = _relax_step(grid=grid, topple_counts=topple_counts, config=config, damage=damage)
+        ) = _relax_step(
+            grid=grid, topple_counts=topple_counts, config=config, damage=damage,
+            mature_weakness=mature_weakness,
+        )
         if config.damage.enabled:
             reset_toppled_damage(
                 damage=damage, topple_counts=topple_counts, reset_fraction=config.damage.reset_fraction,
+            )
+        if config.mature_weakness.enabled:
+            reset_toppled_mature_weakness(
+                weakness=mature_weakness, dwell=mature_weakness_dwell, topple_counts=topple_counts,
+                reset_fraction=config.mature_weakness.reset_fraction,
             )
         if avalanche_activity_out is not None:
             avalanche_activity_rows.append(build_avalanche_activity_row(step=step, topple_counts=topple_counts))
@@ -233,6 +263,9 @@ def run_sandpile_simulation(
             "pre_relax_damage_total": f"{damage_total:.9f}",
             "pre_relax_damage_max": f"{damage_max:.9f}",
             "pre_relax_damage_active_cell_count": str(damage_active_count),
+            "pre_relax_mature_weakness_total": f"{weakness_total:.9f}",
+            "pre_relax_mature_weakness_max": f"{weakness_max:.9f}",
+            "pre_relax_mature_weakness_active_cell_count": str(weakness_active_count),
         }
         summary_rows.append(summary_row)
         sensor_rows.extend(_sensor_rows(step, sensors, grid, topple_counts))
@@ -292,12 +325,17 @@ def validate_config(config: SandpileConfig) -> None:
     if config.warmup_steps < 0:
         raise ValueError("warmup_steps must be non-negative")
     validate_damage_config(config.damage)
+    validate_mature_weakness_config(config.mature_weakness)
+    if config.mature_weakness.enabled and not config.damage.enabled:
+        raise ValueError("mature weakness requires damage.enabled")
 
 
 def _advance_unrecorded_step(
     *,
     grid: np.ndarray,
     damage: np.ndarray,
+    mature_weakness: np.ndarray,
+    mature_weakness_dwell: np.ndarray,
     rng,
     config: SandpileConfig,
     sources: np.ndarray,
@@ -307,10 +345,21 @@ def _advance_unrecorded_step(
     _fill_to_target_mean(grid, rng, config, sources)
     if config.damage.enabled:
         update_damage(grid=grid, damage=damage, threshold=config.threshold, config=config.damage)
+    if config.mature_weakness.enabled:
+        update_mature_weakness(
+            damage=damage, weakness=mature_weakness, dwell=mature_weakness_dwell, config=config.mature_weakness,
+        )
     topple_counts = np.zeros_like(grid)
-    _relax_step(grid=grid, topple_counts=topple_counts, config=config, damage=damage)
+    _relax_step(
+        grid=grid, topple_counts=topple_counts, config=config, damage=damage, mature_weakness=mature_weakness,
+    )
     if config.damage.enabled:
         reset_toppled_damage(damage=damage, topple_counts=topple_counts, reset_fraction=config.damage.reset_fraction)
+    if config.mature_weakness.enabled:
+        reset_toppled_mature_weakness(
+            weakness=mature_weakness, dwell=mature_weakness_dwell, topple_counts=topple_counts,
+            reset_fraction=config.mature_weakness.reset_fraction,
+        )
     if _should_remove_bottom_layer(config, absolute_step):
         _remove_bottom_layer(grid)
 
@@ -325,13 +374,19 @@ def _damage_metrics(damage: np.ndarray) -> tuple[float, float, int]:
     return float(damage.sum()), float(damage.max()), int((damage > 0).sum())
 
 
-def _relax_step(*, grid: np.ndarray, topple_counts: np.ndarray, config: SandpileConfig, damage: np.ndarray):
+def _relax_step(*, grid: np.ndarray, topple_counts: np.ndarray, config: SandpileConfig, damage: np.ndarray, mature_weakness: np.ndarray):
     if not config.damage.enabled:
         return _relax(grid, topple_counts, config.threshold, config.max_relaxation_sweeps)
-    topple_count, released_mass, avalanche_count, converged = relax_with_damage(
-        grid, topple_counts, config.threshold, config.max_relaxation_sweeps, damage,
-        config.damage.threshold_reduction,
-    )
+    if config.mature_weakness.enabled:
+        topple_count, released_mass, avalanche_count, converged = relax_with_damage_and_mature_weakness(
+            grid, topple_counts, config.threshold, config.max_relaxation_sweeps, damage,
+            0.0, mature_weakness, config.mature_weakness.threshold_reduction,
+        )
+    else:
+        topple_count, released_mass, avalanche_count, converged = relax_with_damage(
+            grid, topple_counts, config.threshold, config.max_relaxation_sweeps, damage,
+            config.damage.threshold_reduction,
+        )
     unstable_count = 0
     safety_released_mass = 0
     if not converged:

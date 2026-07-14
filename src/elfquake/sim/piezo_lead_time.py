@@ -26,6 +26,13 @@ DEFAULT_SIGNAL_FIELDS = (
     "damage_total",
     "damage_max",
     "damage_active_cell_count",
+    "damage_local_mean",
+    "damage_local_max",
+    "damage_local_active_fraction",
+    "damage_local_std",
+    "mature_weakness_total",
+    "mature_weakness_max",
+    "mature_weakness_active_cell_count",
 )
 PROFILE_FIELDS = (
     "signal_field",

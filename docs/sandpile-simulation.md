@@ -155,9 +155,15 @@ Pre-relaxation spatial-state diagnostics now include near-critical contact count
 
 ## Delayed Failure
 
-`DamageConfig` is an opt-in state-evolution extension. Before relaxation, cells at or above `damage.activation_ratio` accumulate bounded damage; damage decays elsewhere. During relaxation, accumulated damage lowers only that cell's local failure threshold. A toppling cell then resets most of its damage. This changes avalanche timing through simulation state rather than adding an output-only signal. The pre-relaxation `damage_total`, `damage_max`, and active-cell count are written to piezo rows and summary rows.
+`DamageConfig` is an opt-in state-evolution extension. Before relaxation, cells at or above `damage.activation_ratio` accumulate bounded damage; damage decays elsewhere. During relaxation, accumulated damage lowers only that cell's local failure threshold. A toppling cell then resets most of its damage. This changes avalanche timing through simulation state rather than adding an output-only signal. The pre-relaxation `damage_total`, `damage_max`, and active-cell count are written to piezo rows and summary rows. Each fixed piezo receiver also records local damage mean, maximum, active fraction, and standard deviation within its receiver footprint; these are causal receiver readouts, not future-event-derived features.
 
 The initial nine-episode damage profile (`activation=0.85`, `decay=0.985`, `coupling=0.10`, threshold reduction `0.25`, reset `0.90`) supports `damage_total` at a 5--15 step lead. This is synthetic evidence only: it must improve leave-one-episode-out modeling relative to damage-disabled runs before being kept as a default model feature.
+
+The fixed top-three local-damage receiver aggregation was tested on nine fresh control-dynamics episodes and 43 extracted events. None of the four local fields passed the causal lead rule. Localizing the existing damage readout therefore does not recover a transferable precursor; further work should separate damage accumulation from failure maturation rather than add more receiver pooling.
+
+`MatureWeaknessConfig` implements that separation as an opt-in two-stage path. Stress first creates microdamage through `DamageConfig`. Only after microdamage remains above `mature_weakness.damage_threshold` for `dwell_steps` does a bounded mature-weakness field grow. In this mode microdamage does not lower the relaxation threshold; only mature weakness does. Toppling partially resets mature weakness and clears its dwell counter. The mature total, maximum, and active-cell count are recorded before relaxation in summary and piezo CSVs. This is a new mechanism and has only passed a small output smoke test, not causal validation.
+
+The predeclared profile (`damage threshold=0.50`, dwell `5`, maturation rate `0.10`, decay `0.995`, threshold reduction `0.20`, reset `0.90`) has now completed a nine-episode test. Neither microdamage nor mature weakness passed the causal lead rule across 44 extracted events, despite stable target timing. Treat this mechanism as rejected for modeling at these settings; do not infer precursor value from its output smoke test.
 
 ## Piezo Precursor Analogue
 

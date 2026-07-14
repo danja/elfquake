@@ -28,6 +28,10 @@ A controlled persistence screen then held all delayed-failure settings fixed exc
 
 A reset-fraction screen reinforced the need for larger causal confirmation. Both residual damage (`reset=0.75`) and rapid reset (`0.98`) appeared to support a 15--30 minute lead in three episodes. Residual damage was expanded to nine episodes: its target timing remained stable (train/test positive-rate delta `0.005106`), but the lead disappeared across 43 events. It was therefore stopped before model comparison. Three-episode causal screens are too noisy for profile selection; do not use them as a promotion gate.
 
+Fixed local damage readouts were then added around each simulated piezo receiver: local mean, maximum, active fraction, and variation inside the receiver footprint. A causal top-three-receiver aggregation on nine fresh control-dynamics episodes and 43 events did not support a lead for any field. This rules out simple spatial dilution of `damage_total` as the explanation for the weak model results. The next simulation change should be a two-stage damage mechanism in which accumulated microdamage must mature over time before it alters failure behaviour.
+
+That two-stage mechanism was implemented and tested with nine fresh episodes. Microdamage had to remain above `0.50` for five steps before mature weakness accumulated; only mature weakness lowered the local failure threshold. The extracted target table remained well aligned (`5,373` rows, `130` positives, train/test positive-rate delta `-0.001174`), but neither microdamage nor mature weakness passed the causal lead rule across 44 events. No model was trained. The mechanism therefore does not yet produce a transferable precursor under its predeclared profile.
+
 ## Scope
 
 This report summarizes the current statistical comparison between real Italy-scoped seismic/VLF data and signals derived from the avalanche simulation, plus the current model-interface and PyTorch smoke results.

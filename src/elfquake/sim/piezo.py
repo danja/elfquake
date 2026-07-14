@@ -7,6 +7,7 @@ from dataclasses import dataclass
 import numpy as np
 from numba import njit
 
+from elfquake.sim.damage_sensors import measure_local_damage
 from elfquake.sim.spatial_state import measure_pre_relax_spatial_state
 from elfquake.sim.sensor_schema import AVALANCHE_SIGNAL_SENSOR_FIELDS, PIEZO_SENSOR_FIELDS
 
@@ -101,6 +102,7 @@ def build_piezo_sensor_rows(
     threshold: int,
     config: PiezoConfig,
     damage: np.ndarray | None = None,
+    mature_weakness: np.ndarray | None = None,
 ) -> list[dict[str, str]]:
     validate_piezo_config(config)
     attenuation_radius = config.attenuation_radius or max(grid.shape) / 8.0
@@ -140,6 +142,14 @@ def build_piezo_sensor_rows(
     damage_total = float(damage.sum()) if damage is not None else 0.0
     damage_max = float(damage.max()) if damage is not None else 0.0
     damage_active_count = int((damage > 0).sum()) if damage is not None else 0
+    weakness_total = float(mature_weakness.sum()) if mature_weakness is not None else 0.0
+    weakness_max = float(mature_weakness.max()) if mature_weakness is not None else 0.0
+    weakness_active_count = int((mature_weakness > 0).sum()) if mature_weakness is not None else 0
+    if damage is None:
+        local_damage = tuple(np.zeros(len(sensors), dtype=np.float64) for _ in range(4))
+    else:
+        local_damage = measure_local_damage(sensors=sensors, damage=damage, radius=attenuation_radius)
+    local_means, local_maximums, local_active_fractions, local_variations = local_damage
     rows = []
     for sensor_id, point in enumerate(sensors):
         nearest = nearest_distances[sensor_id]
@@ -166,6 +176,13 @@ def build_piezo_sensor_rows(
                 "damage_total": f"{damage_total:.9f}",
                 "damage_max": f"{damage_max:.9f}",
                 "damage_active_cell_count": str(damage_active_count),
+                "damage_local_mean": f"{float(local_means[sensor_id]):.9f}",
+                "damage_local_max": f"{float(local_maximums[sensor_id]):.9f}",
+                "damage_local_active_fraction": f"{float(local_active_fractions[sensor_id]):.9f}",
+                "damage_local_std": f"{float(local_variations[sensor_id]):.9f}",
+                "mature_weakness_total": f"{weakness_total:.9f}",
+                "mature_weakness_max": f"{weakness_max:.9f}",
+                "mature_weakness_active_cell_count": str(weakness_active_count),
             }
         )
     return rows

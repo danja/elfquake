@@ -6,6 +6,8 @@ PIEZO_SENSOR_FIELDS = [
     "near_critical_contact_count", "near_critical_coherence", "near_critical_weighted_stress",
     "critical_cell_count", "nearest_critical_distance", "max_stress_ratio", "piezo_charge_total",
     "piezo_charge_max", "piezo_release_total", "damage_total", "damage_max", "damage_active_cell_count",
+    "damage_local_mean", "damage_local_max", "damage_local_active_fraction", "damage_local_std",
+    "mature_weakness_total", "mature_weakness_max", "mature_weakness_active_cell_count",
 ]
 
 AVALANCHE_SIGNAL_SENSOR_FIELDS = [

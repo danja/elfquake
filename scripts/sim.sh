@@ -21,6 +21,13 @@ damage_decay="${DAMAGE_DECAY:-0.985}"
 damage_coupling="${DAMAGE_COUPLING:-0.10}"
 damage_threshold_reduction="${DAMAGE_THRESHOLD_REDUCTION:-0.25}"
 damage_reset_fraction="${DAMAGE_RESET_FRACTION:-0.90}"
+mature_weakness_enabled="${MATURE_WEAKNESS_ENABLED:-0}"
+mature_weakness_damage_threshold="${MATURE_WEAKNESS_DAMAGE_THRESHOLD:-0.50}"
+mature_weakness_dwell_steps="${MATURE_WEAKNESS_DWELL_STEPS:-5}"
+mature_weakness_maturation_rate="${MATURE_WEAKNESS_MATURATION_RATE:-0.10}"
+mature_weakness_decay="${MATURE_WEAKNESS_DECAY:-0.995}"
+mature_weakness_threshold_reduction="${MATURE_WEAKNESS_THRESHOLD_REDUCTION:-0.20}"
+mature_weakness_reset_fraction="${MATURE_WEAKNESS_RESET_FRACTION:-0.90}"
 target_fill_limit="${TARGET_FILL_LIMIT:-$(( width * height / 16 ))}"
 target_fill_mode="${TARGET_FILL_MODE:-sources}"
 if [[ "$target_fill_limit" -lt 1 ]]; then
@@ -80,6 +87,12 @@ args=(
   --damage-coupling "$damage_coupling" \
   --damage-threshold-reduction "$damage_threshold_reduction" \
   --damage-reset-fraction "$damage_reset_fraction" \
+  --mature-weakness-damage-threshold "$mature_weakness_damage_threshold" \
+  --mature-weakness-dwell-steps "$mature_weakness_dwell_steps" \
+  --mature-weakness-maturation-rate "$mature_weakness_maturation_rate" \
+  --mature-weakness-decay "$mature_weakness_decay" \
+  --mature-weakness-threshold-reduction "$mature_weakness_threshold_reduction" \
+  --mature-weakness-reset-fraction "$mature_weakness_reset_fraction" \
   --summary-out "${prefix}.summary.csv" \
   --sensors-out "${prefix}.sensors.csv" \
   --piezo-out "${prefix}.piezo.csv" \
@@ -105,6 +118,9 @@ args=(
 
 if [[ "$damage_enabled" != "0" ]]; then
   args+=(--damage-enabled)
+fi
+if [[ "$mature_weakness_enabled" != "0" ]]; then
+  args+=(--mature-weakness-enabled)
 fi
 
 if [[ "$run_heatmaps" != "0" ]]; then
