@@ -15,9 +15,9 @@ Stato: uno smoke test end-to-end debole ora emette coordinate di eventi `>M2` pe
 
 In questo momento, in attesa di ulteriori etichette VLF allineate, il focus è sull’apprendimento di rappresentazioni VLF reali senza etichette, sulle baseline sismiche reali, sulla diagnostica dei regimi sintetici e sul mantenimento stabile dell’interfaccia multimodale del modello. La valutazione del modello corrente si trova in [report.md](docs/report.md), [model-comparison.md](docs/model-comparison.md) e [model-scaling-requirements.md](docs/model-scaling-requirements.md).
 
-### Terremoti Simulati
+### Prediction
 
-![simulated earthquake map](docs/images/map_v1.1.0.png)
+![simulated earthquake map](docs/images/map_2026-07-15.png)
 
 ### Segnale VLF Simulato
 

@@ -17,9 +17,9 @@ Status: the end-to-end trial emits next-week `>M2` event coordinates, while live
 
 Right now, while awaiting further VLF-aligned labels, the focus is on label-free real VLF representation learning, real seismic baselines, synthetic regime diagnostics, and keeping the multimodal model interface stable. Evaluation of the current model can be found in [report.md](docs/report.md), [model-comparison.md](docs/model-comparison.md), and [model-scaling-requirements.md](docs/model-scaling-requirements.md).
 
-### Simulated Earthquakes
+### Prediction Attempt
 
-![simulated earthquake map](docs/images/map_v1.1.0.png)
+![simulated earthquake map](docs/images/map_2026-07-15.png)
 
 ### Simulated VLF Signal
 
