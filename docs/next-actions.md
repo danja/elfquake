@@ -11,7 +11,7 @@
 
 ## Modeling
 
-1. Require any learned real transfer model to beat the training-only historical spatial-rate baseline on held-out balanced accuracy and precision. The first synthetic-to-real M2.5 cell trial did not (`0.662743/0.266667` versus `0.686013/0.343915`).
+1. Run `./scripts/run-transfer-experiments.sh` after each real-data refresh. It compares historical rate, real-only random initialization, synthetic transfer, rolling-origin folds, and a train-only grid selection before one final holdout evaluation. The default synthetic corpus now includes four long episodes; add more 20,000-step episodes before treating transfer changes as stable.
 1. Generate more independent warmed episodes and rerun leave-one-episode-out evaluation; nine episodes are not enough to estimate regime robustness tightly.
 2. Do not add the default piezo potential channel to model training yet. Its spatial average failed a nine-episode causal lead-time check; event-nearest diagnostics are positive but use future event locations and are not valid inputs.
 3. Calibrate weekly event counts against historical INGV `>M2` rates before trusting any neural score scale.
@@ -45,6 +45,9 @@
 
 ## Recent Completed
 
+* Added `run-transfer-experiment-suite` and `./scripts/run-transfer-experiments.sh`. The suite performs matched real-only versus synthetic-pretrained ablations, four rolling-origin folds, and a train-only threshold/grid selection followed by final holdout evaluation.
+* Generated a 20,000-step CPU episode at seed `4300` and stacked its dense synthetic records with seeds `40`--`42`. Synthetic episodes are offset in synthetic time during training because their source timestamps intentionally share one demonstration origin; real timestamps are unchanged.
+* The expanded transfer corpus contains 79,976 synthetic records and 190 weekly spatial samples. Transfer remains below the historical spatial-rate baseline on precision and is not predictive evidence.
 * Added modality-specific Transformer patch adapters, elapsed-time inputs, separate observed/corruption/padding masks, masked reconstruction, modality dropout, frozen probes, compatible checkpoint transfer, and missing-modality checks.
 * Added stable name-derived Transformer initialization. Adding or reordering unused modality adapters no longer changes shared weights or advances the global PyTorch RNG.
 * Reran seven transfer regimes under controlled initialization. Random-init piezo/VLF-only is strongest at mean `0.619033`; synthetic pretraining falls to `0.534272`, so current self-supervision has no demonstrated downstream gain.

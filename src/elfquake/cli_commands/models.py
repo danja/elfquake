@@ -19,6 +19,7 @@ from elfquake.models.logistic_smoke import train_logistic_smoke
 from elfquake.models.model_scale import estimate_model_scale
 from elfquake.models.readiness import summarize_model_readiness
 from elfquake.models.real_transfer_trial import run_real_transfer_trial
+from elfquake.models.transfer_experiments import run_transfer_experiment_suite
 from elfquake.models.report_summary import summarize_model_run_reports
 from elfquake.models.sequence_materializer import materialize_sequence_dataset
 from elfquake.models.split_diagnostics import diagnose_temporal_split
@@ -275,6 +276,19 @@ def register_model_commands(subparsers: _SubParsersAction) -> None:
     transfer_trial.add_argument("--seed", type=int, default=42)
     transfer_trial.set_defaults(func=_run_real_transfer_trial)
 
+    transfer_suite = subparsers.add_parser("run-transfer-experiment-suite")
+    transfer_suite.add_argument("--real-events", type=Path, required=True)
+    transfer_suite.add_argument("--synthetic-events", type=Path, action="append", required=True)
+    transfer_suite.add_argument("--out", type=Path, required=True)
+    transfer_suite.add_argument("--magnitude-threshold", type=float, default=2.5)
+    transfer_suite.add_argument("--horizon-days", type=int, default=7)
+    transfer_suite.add_argument("--cell-degrees", type=float, default=1.5)
+    transfer_suite.add_argument("--train-fraction", type=float, default=0.8)
+    transfer_suite.add_argument("--epochs", type=int, default=50)
+    transfer_suite.add_argument("--pretrain-epochs", type=int, default=30)
+    transfer_suite.add_argument("--seed", type=int, default=42)
+    transfer_suite.set_defaults(func=_run_transfer_experiment_suite)
+
     forecast_compare = subparsers.add_parser("compare-weekly-forecasts")
     forecast_compare.add_argument("--baseline-report", type=Path, required=True)
     forecast_compare.add_argument("--baseline-events", type=Path, required=True)
@@ -439,6 +453,27 @@ def _run_real_transfer_trial(args: Namespace) -> int:
     print(f"held-out balanced accuracy: {metrics['balanced_accuracy']}")
     print(f"held-out precision: {metrics['precision']}")
     print(f"output: {args.out_dir / 'report.json'}")
+    return 0
+
+
+def _run_transfer_experiment_suite(args: Namespace) -> int:
+    report = run_transfer_experiment_suite(
+        real_events_csv=args.real_events,
+        synthetic_event_csvs=args.synthetic_events,
+        out_path=args.out,
+        magnitude_threshold=args.magnitude_threshold,
+        horizon_days=args.horizon_days,
+        cell_degrees=args.cell_degrees,
+        train_fraction=args.train_fraction,
+        epochs=args.epochs,
+        pretrain_epochs=args.pretrain_epochs,
+        seed=args.seed,
+    )
+    ablations = report["experiment_1_matched_ablation"]
+    print(f"status: {report['status']}")
+    for name, result in ablations.items():
+        print(f"{name}: balanced_accuracy={result.get('balanced_accuracy', 'n/a')} precision={result.get('precision', 'n/a')}")
+    print(f"output: {args.out}")
     return 0
 
 

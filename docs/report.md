@@ -1,6 +1,6 @@
 # Analysis Report
 
-Date: 2026-07-11
+Date: 2026-07-15
 
 ## Progress So Far
 
@@ -35,6 +35,8 @@ That two-stage mechanism was implemented and tested with nine fresh episodes. Mi
 The first synthetic-to-real spatial transfer trial now provides a stricter real-data checkpoint. It pretrained a small CPU model on three synthetic avalanche event catalogs, then fine-tuned chronologically on 80% of the 2024--2026 INGV catalog and held out the final 20%. Because Italy as a whole has an M2.5+ event in nearly every week, the target is a fixed 1.5-degree Italy cell containing an M2.5+ event in the following week. On the holdout, the model reached `0.662743` balanced accuracy and `0.266667` precision, below a training-only historical spatial-rate baseline (`0.686013` balanced accuracy, `0.343915` precision). It therefore has no demonstrated useful predictive value, but the end-to-end transfer, chronological evaluation, and independently located actual-versus-predicted map are now reproducible. VLF and astronomy are explicit missing-modality inputs in this run because their validated historical overlap is not yet long enough.
 
 ## Scope
+
+The matched transfer experiment suite now compares a historical spatial-rate baseline, a real seismic-only randomly initialized MLP, and synthetic-pretrained real fine-tuning under the same chronological split. The expanded corpus contains 79,976 dense synthetic records from four long episodes and 190 weekly spatial samples; independent simulation episodes are offset by 21 synthetic days because they share a demonstration start timestamp. On the final real holdout, the rate baseline reaches `0.686013` balanced accuracy and `0.343915` precision, random-init seismic reaches `0.666349` and `0.269113`, and synthetic transfer reaches `0.680722` and `0.307054`. Four rolling-origin transfer folds average `0.668175` balanced accuracy, with a worst fold of `0.656225`. A train-only sweep selects M2.5 with 1.0-degree cells; its final holdout reaches `0.710283` balanced accuracy but only `0.210784` precision. These results establish useful controls and sensitivity checks, not predictive skill.
 
 This report summarizes the current statistical comparison between real Italy-scoped seismic/VLF data and signals derived from the avalanche simulation, plus the current model-interface and PyTorch smoke results.
 

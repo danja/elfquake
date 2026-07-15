@@ -58,12 +58,12 @@ def run_real_transfer_trial(
     if horizon_days < 1 or cell_degrees <= 0:
         raise ValueError("horizon_days and cell_degrees must be positive")
     real_events = _read_events(real_events_csv)
-    synthetic_events = [event for path in synthetic_event_csvs for event in _read_events(path)]
+    synthetic_events = _read_synthetic_corpus(synthetic_event_csvs)
     if len(real_events) < 10:
         raise ValueError("real event catalog is too small")
     cells = _cells(cell_degrees)
-    real_samples = _weekly_samples(real_events, cells, magnitude_threshold, horizon_days)
-    synthetic_samples = _weekly_samples(synthetic_events, cells, magnitude_threshold, horizon_days)
+    real_samples = _weekly_samples(real_events, cells, magnitude_threshold, horizon_days, cell_degrees)
+    synthetic_samples = _weekly_samples(synthetic_events, cells, magnitude_threshold, horizon_days, cell_degrees)
     train_count = int(len({sample.week_start for sample in real_samples}) * train_fraction)
     week_starts = sorted({sample.week_start for sample in real_samples})
     train_weeks = set(week_starts[:train_count])
@@ -164,6 +164,20 @@ def _read_events(path: Path) -> list[Event]:
     return sorted(events, key=lambda event: event.time)
 
 
+def _read_synthetic_corpus(paths: list[Path]) -> list[Event]:
+    """Stack independent episodes without letting their shared clock overlap.
+
+    Simulation runs use a common demonstration start date. Offsetting each
+    episode by 21 days is a modeling transform only; source paths remain in
+    the report and no real timestamps are modified.
+    """
+    events: list[Event] = []
+    for index, path in enumerate(paths):
+        offset = timedelta(days=21 * index)
+        events.extend(Event(event.time + offset, event.latitude, event.longitude, event.magnitude) for event in _read_events(path))
+    return sorted(events, key=lambda event: event.time)
+
+
 def _cells(size: float) -> list[tuple[float, float]]:
     return [
         (min(ITALY_LAT[1], lat + size / 2), min(ITALY_LON[1], lon + size / 2))
@@ -200,7 +214,7 @@ def _steps(start: float, end: float, size: float) -> list[float]:
     return values
 
 
-def _weekly_samples(events: list[Event], cells: list[tuple[float, float]], threshold: float, horizon_days: int) -> list[Sample]:
+def _weekly_samples(events: list[Event], cells: list[tuple[float, float]], threshold: float, horizon_days: int, cell_degrees: float) -> list[Sample]:
     if not events:
         return []
     start = datetime.combine(events[0].time.date(), datetime.min.time(), tzinfo=timezone.utc)
@@ -209,9 +223,9 @@ def _weekly_samples(events: list[Event], cells: list[tuple[float, float]], thres
     week = start
     while week <= end:
         for lat, lon in cells:
-            history_7 = _in_cell(events, week - timedelta(days=7), week, lat, lon)
-            history_28 = _in_cell(events, week - timedelta(days=28), week, lat, lon)
-            target = _in_cell(events, week, week + timedelta(days=horizon_days), lat, lon)
+            history_7 = _in_cell(events, week - timedelta(days=7), week, lat, lon, cell_degrees)
+            history_28 = _in_cell(events, week - timedelta(days=28), week, lat, lon, cell_degrees)
+            target = _in_cell(events, week, week + timedelta(days=horizon_days), lat, lon, cell_degrees)
             values = _features(history_7, history_28, lat, lon)
             label = int(any(event.magnitude >= threshold for event in target))
             samples.append(Sample(week, lat, lon, values, label))
@@ -219,8 +233,8 @@ def _weekly_samples(events: list[Event], cells: list[tuple[float, float]], thres
     return samples
 
 
-def _in_cell(events: list[Event], start: datetime, end: datetime, lat: float, lon: float) -> list[Event]:
-    half = 0.75
+def _in_cell(events: list[Event], start: datetime, end: datetime, lat: float, lon: float, cell_degrees: float) -> list[Event]:
+    half = cell_degrees / 2.0
     return [event for event in events if start <= event.time < end and abs(event.latitude - lat) <= half and abs(event.longitude - lon) <= half]
 
 
