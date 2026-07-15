@@ -2,7 +2,8 @@
 
 ## Immediate Priority
 
-1. Treat `./scripts/trial-weekly-event-forecast.sh` as the current end-to-end event-list contract smoke test, not as a validated predictor.
+1. Run `./scripts/run-real-transfer-trial.sh` after each INGV refresh. It is the first chronological 80/20 real-data check at M2.5, expressed as seven-day fixed Italy spatial-cell targets; interpret its held-out map and scores only as an experimental baseline.
+2. Treat `./scripts/trial-weekly-event-forecast.sh` as the current end-to-end event-list contract smoke test, not as a validated predictor.
 2. Use `./scripts/evaluate-piezo-group-holdout.sh` as the primary synthetic stability check. Its fixed three-seed ensemble averages `0.632634`, but passes both recall floors on only 6 of 9 episodes.
 3. Keep random-init piezo/VLF-only as the leading controlled Transformer architecture. It averages `0.619033` within episodes, but has not passed unseen-episode stability; direct and summary branches remain disabled by default.
 4. Keep label-free real VLF pretraining as the default real-data path while supervised VLF-aligned labels remain one-class or sparse; require reconstruction to beat both zero and last-patch baselines.
@@ -10,6 +11,7 @@
 
 ## Modeling
 
+1. Require any learned real transfer model to beat the training-only historical spatial-rate baseline on held-out balanced accuracy and precision. The first synthetic-to-real M2.5 cell trial did not (`0.662743/0.266667` versus `0.686013/0.343915`).
 1. Generate more independent warmed episodes and rerun leave-one-episode-out evaluation; nine episodes are not enough to estimate regime robustness tightly.
 2. Do not add the default piezo potential channel to model training yet. Its spatial average failed a nine-episode causal lead-time check; event-nearest diagnostics are positive but use future event locations and are not valid inputs.
 3. Calibrate weekly event counts against historical INGV `>M2` rates before trusting any neural score scale.

@@ -7,6 +7,7 @@ from pathlib import Path
 
 from elfquake.visualization.event_map import DEFAULT_BASEMAP_GEOJSON, render_event_map
 from elfquake.visualization.prediction_map import render_prediction_event_map
+from elfquake.visualization.transfer_trial_map import render_transfer_trial_map
 
 
 def register_visualization_commands(subparsers: _SubParsersAction) -> None:
@@ -36,6 +37,14 @@ def register_visualization_commands(subparsers: _SubParsersAction) -> None:
     prediction_map.add_argument("--max-actual-events", type=int)
     prediction_map.add_argument("--basemap-geojson", type=Path)
     prediction_map.set_defaults(func=_render_prediction_event_map)
+
+    transfer_map = subparsers.add_parser("render-transfer-trial-map")
+    transfer_map.add_argument("--actual-events", type=Path, required=True)
+    transfer_map.add_argument("--predictions", type=Path, required=True)
+    transfer_map.add_argument("--out", type=Path, required=True)
+    transfer_map.add_argument("--metadata-out", type=Path)
+    transfer_map.add_argument("--title", default="ELFQuake held-out Italy week: actual vs predicted cells")
+    transfer_map.set_defaults(func=_render_transfer_trial_map)
 
 
 def _render_event_map(args: Namespace) -> int:
@@ -81,4 +90,18 @@ def _render_prediction_event_map(args: Namespace) -> int:
     print(f"threshold: {report['threshold']}")
     if args.metadata_out:
         print(f"metadata: {args.metadata_out}")
+    return 0
+
+
+def _render_transfer_trial_map(args: Namespace) -> int:
+    report = render_transfer_trial_map(
+        actual_csv=args.actual_events,
+        predictions_csv=args.predictions,
+        out_path=args.out,
+        metadata_out=args.metadata_out,
+        title=args.title,
+    )
+    print(f"map: {report['map_file']}")
+    print(f"actual events: {report['actual_event_count']}")
+    print(f"predicted cells: {report['predicted_cell_count']}")
     return 0

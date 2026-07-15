@@ -18,6 +18,7 @@ from elfquake.models.learned_forecast import generate_learned_weekly_event_forec
 from elfquake.models.logistic_smoke import train_logistic_smoke
 from elfquake.models.model_scale import estimate_model_scale
 from elfquake.models.readiness import summarize_model_readiness
+from elfquake.models.real_transfer_trial import run_real_transfer_trial
 from elfquake.models.report_summary import summarize_model_run_reports
 from elfquake.models.sequence_materializer import materialize_sequence_dataset
 from elfquake.models.split_diagnostics import diagnose_temporal_split
@@ -261,6 +262,19 @@ def register_model_commands(subparsers: _SubParsersAction) -> None:
     learned_forecast.add_argument("--astronomy-glob", action="append", default=[])
     learned_forecast.set_defaults(func=_generate_learned_weekly_event_forecast)
 
+    transfer_trial = subparsers.add_parser("run-real-transfer-trial")
+    transfer_trial.add_argument("--real-events", type=Path, required=True)
+    transfer_trial.add_argument("--synthetic-events", type=Path, action="append", required=True)
+    transfer_trial.add_argument("--out-dir", type=Path, required=True)
+    transfer_trial.add_argument("--magnitude-threshold", type=float, default=2.5)
+    transfer_trial.add_argument("--horizon-days", type=int, default=7)
+    transfer_trial.add_argument("--cell-degrees", type=float, default=1.5)
+    transfer_trial.add_argument("--train-fraction", type=float, default=0.8)
+    transfer_trial.add_argument("--pretrain-epochs", type=int, default=30)
+    transfer_trial.add_argument("--finetune-epochs", type=int, default=80)
+    transfer_trial.add_argument("--seed", type=int, default=42)
+    transfer_trial.set_defaults(func=_run_real_transfer_trial)
+
     forecast_compare = subparsers.add_parser("compare-weekly-forecasts")
     forecast_compare.add_argument("--baseline-report", type=Path, required=True)
     forecast_compare.add_argument("--baseline-events", type=Path, required=True)
@@ -404,6 +418,27 @@ def _train_ablation_smoke(args: Namespace) -> int:
     print(f"rows: {report['row_count']}")
     print(f"labeled rows: {report['labeled_row_count']}")
     print(f"output: {args.out}")
+    return 0
+
+
+def _run_real_transfer_trial(args: Namespace) -> int:
+    report = run_real_transfer_trial(
+        real_events_csv=args.real_events,
+        synthetic_event_csvs=args.synthetic_events,
+        out_dir=args.out_dir,
+        magnitude_threshold=args.magnitude_threshold,
+        horizon_days=args.horizon_days,
+        cell_degrees=args.cell_degrees,
+        train_fraction=args.train_fraction,
+        pretrain_epochs=args.pretrain_epochs,
+        finetune_epochs=args.finetune_epochs,
+        seed=args.seed,
+    )
+    metrics = report["evaluation"]
+    print(f"status: {report['status']}")
+    print(f"held-out balanced accuracy: {metrics['balanced_accuracy']}")
+    print(f"held-out precision: {metrics['precision']}")
+    print(f"output: {args.out_dir / 'report.json'}")
     return 0
 
 
