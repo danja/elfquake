@@ -11,13 +11,15 @@ Vogliamo sfruttare tecniche più moderne di machine learning/AI per creare un mo
 
 ## Stato
 
-Stato: uno smoke test end-to-end debole ora emette coordinate di eventi `>M2` per la prossima settimana usando artefatti reali e sintetici correnti; **non si rivendica alcuna capacità di previsione dei terremoti**.
+Stato: è ora disponibile la prima suite riproducibile di trasferimento sintetico-reale sui dati italiani. In un holdout cronologico 80/20 per eventi M2.5+ nei sette giorni successivi, suddivisi in celle geografiche fisse, il pretraining sintetico raggiunge una balanced accuracy di `0.680722` e una precisione di `0.307054`, inferiori alla baseline storica della frequenza spaziale (`0.686013` e `0.343915`); **non si rivendica alcuna capacità di previsione dei terremoti**.
 
-In questo momento, in attesa di ulteriori etichette VLF allineate, il focus è sull’apprendimento di rappresentazioni VLF reali senza etichette, sulle baseline sismiche reali, sulla diagnostica dei regimi sintetici e sul mantenimento stabile dell’interfaccia multimodale del modello. La valutazione del modello corrente si trova in [report.md](docs/report.md), [model-comparison.md](docs/model-comparison.md) e [model-scaling-requirements.md](docs/model-scaling-requirements.md).
+Il focus attuale è sulla validazione cronologica rolling, sull’espansione del corpus sintetico e sulla raccolta di abbastanza dati VLF Cumiana da ottenere entrambe le classi di target, positiva e negativa. La suite attuale contiene 79.976 record sintetici e 190 campioni spaziali settimanali; VLF e astronomia restano input esplicitamente mancanti nell’holdout reale perché la loro sovrapposizione storica validata non è ancora abbastanza lunga. Vedi [report.md](docs/report.md), [model-comparison.md](docs/model-comparison.md) e [docs/2026-07-15_elfquake-progress.md](docs/2026-07-15_elfquake-progress.md).
 
-### Prediction
+### Mappa del trial di trasferimento held-out
 
 ![simulated earthquake map](docs/images/map_2026-07-15.png)
+
+Questa è una mappa diagnostica di una settimana held-out scelta casualmente: i marker blu sono eventi INGV reali e quelli rossi sono i centri delle celle previste indipendentemente. Non è una previsione operativa.
 
 ### Segnale VLF Simulato
 
@@ -48,6 +50,8 @@ Questo lavoro è stato inizialmente ispirato dalla tragedia del terremoto dell�
 * Allineamento di descrittori VLF reali/sintetici misti con loss CORAL e controlli sintetici centroid/random/full.
 * Smoke forecast VLF reali senza etichette basati su anomalie, finché le etichette reali supervisionate restano bloccate.
 * Uno smoke forecast settimanale deterministico che combina tassi/posizioni storiche INGV, contesto VLF reale, contesto astronomico e prior spaziali sintetici da avalanga in un contratto CSV/JSON pronto per il downstream.
+* Una suite riproducibile di trasferimento sintetico-reale con ablation real-only e synthetic-pretrained, holdout temporali rolling, selezione della griglia solo sui dati di training e valutazione finale contro una baseline storica della frequenza spaziale.
+* Un episodio CPU di 20.000 passi con seed `4300`, che porta il corpus sintetico denso per il transfer a 79.976 record e 190 campioni spaziali settimanali su quattro episodi lunghi.
 * Simulazione sandpile con uscite separate simili a eventi sismici e uscite analoghe piezo/VLF.
 
 Esegui il percorso predefinito di pretraining self-supervised su VLF reale con:

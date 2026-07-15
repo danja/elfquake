@@ -13,13 +13,15 @@ We wish to exploit more modern machine learning/AI techniques to create a predic
 
 ## Status
 
-Status: the end-to-end trial emits next-week `>M2` event coordinates, while live labels remain one-class and synthetic causal precursor checks are still unstable; **no earthquake prediction capability is claimed**.
+Status: the first reproducible synthetic-to-real transfer suite is now running on Italy-scoped data. On a chronological 80/20 holdout for seven-day M2.5+ events in fixed geographic cells, synthetic pretraining reached `0.680722` balanced accuracy and `0.307054` precision, below the historical spatial-rate baseline at `0.686013` and `0.343915`; **no earthquake prediction capability is claimed**.
 
-Right now, while awaiting further VLF-aligned labels, the focus is on label-free real VLF representation learning, real seismic baselines, synthetic regime diagnostics, and keeping the multimodal model interface stable. Evaluation of the current model can be found in [report.md](docs/report.md), [model-comparison.md](docs/model-comparison.md), and [model-scaling-requirements.md](docs/model-scaling-requirements.md).
+The current focus is on rolling chronological validation, expanding the synthetic corpus, and collecting enough Cumiana VLF data to obtain both positive and negative target classes. The latest transfer suite contains 79,976 synthetic records and 190 weekly spatial samples; VLF and astronomy remain explicit missing inputs in the real holdout because their validated historical overlap is not yet long enough. See [report.md](docs/report.md), [model-comparison.md](docs/model-comparison.md), and [docs/2026-07-15_elfquake-progress.md](docs/2026-07-15_elfquake-progress.md).
 
-### Prediction Attempt
+### Held-out Transfer Trial Map
 
 ![simulated earthquake map](docs/images/map_2026-07-15.png)
+
+This is a diagnostic map from a randomly selected held-out week: blue markers are actual INGV events and red markers are independently predicted cell centres. It is not an operational forecast.
 
 ### Simulated VLF Signal
 
@@ -56,6 +58,8 @@ This work was initially prompted by the tragedy of the [2009 L'Aquila earthquake
 * A Transformer target adapter and sweep wrappers for training against the richer h6 synthetic event-list target table.
 * Drift-aware synthetic validation and shorter-episode simulation scaffolding to reduce one-run lifecycle bias; the first aggressive 3000-step profile fixes target-rate drift in a small probe.
 * A larger warmed synthetic batch wrapper for CPU-only Transformer pretraining data expansion.
+* A reproducible synthetic-to-real transfer suite with real-only and synthetic-pretrained ablations, rolling time holdouts, training-only grid selection, and final evaluation against a historical spatial-rate baseline.
+* A 20,000-step CPU simulation episode at seed `4300`, expanding the dense synthetic transfer corpus to 79,976 records and 190 weekly spatial samples across four long episodes.
 * Sandpile simulation with separate seismic-like avalanche outputs and piezo/VLF analogue outputs.
 
 Run the default label-free real VLF pretraining path with:
