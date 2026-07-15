@@ -9,6 +9,8 @@ from elfquake.backfill import plan_ingv_backfill
 from elfquake.cli_commands.common import print_stored_captures
 from elfquake.connectors.astronomy import fetch_manifest_json
 from elfquake.connectors.ingv import fetch_italy_events
+from elfquake.connectors.japan import fetch_japan_events
+from elfquake.connectors.vlf_manifest import fetch_manifest_captures, repeat_manifest_captures
 from elfquake.connectors.space_archives import (
     fetch_gfz_kp_ap,
     fetch_kyoto_dst_month,
@@ -19,6 +21,7 @@ from elfquake.connectors.vlf_cumiana import fetch_manifest_images, repeat_manife
 from elfquake.connectors.vlf_abelian import fetch_cumiana_archive, probe_cumiana_archive, record_cumiana_stream
 from elfquake.normalize.events import combine_normalized_events
 from elfquake.normalize.ingv import normalize_ingv_event_text
+from elfquake.normalize.japan import normalize_japan_event_json
 from elfquake.normalize.space_weather import (
     normalize_f107_daily,
     normalize_gfz_kp_ap,
@@ -35,6 +38,33 @@ def register_source_commands(subparsers: _SubParsersAction) -> None:
     ingv.add_argument("--min-mag", type=float, default=2.0)
     ingv.add_argument("--limit", type=int, default=10000)
     ingv.set_defaults(func=_fetch_ingv_events)
+
+    japan = subparsers.add_parser("fetch-japan-events")
+    japan.add_argument("--start", required=True)
+    japan.add_argument("--end", required=True)
+    japan.add_argument("--out-root", type=Path, default=Path("data/raw/japan/events"))
+    japan.add_argument("--min-mag", type=float, default=2.0)
+    japan.add_argument("--limit", type=int, default=20000)
+    japan.set_defaults(func=_fetch_japan_events)
+
+    japan_norm = subparsers.add_parser("normalize-japan-events")
+    japan_norm.add_argument("--raw", type=Path, required=True)
+    japan_norm.add_argument("--out", type=Path, required=True)
+    japan_norm.set_defaults(func=_normalize_japan_events)
+
+    japan_vlf = subparsers.add_parser("fetch-vlf-japan")
+    japan_vlf.add_argument("--manifest", type=Path, default=Path("data/raw/vlf/japan/manifest.csv"))
+    japan_vlf.add_argument("--out-root", type=Path, default=Path("data/raw/vlf/japan"))
+    japan_vlf.add_argument("--only", action="append", default=[])
+    japan_vlf.set_defaults(func=_fetch_vlf_japan)
+
+    japan_vlf_loop = subparsers.add_parser("capture-vlf-japan-loop")
+    japan_vlf_loop.add_argument("--manifest", type=Path, default=Path("data/raw/vlf/japan/manifest.csv"))
+    japan_vlf_loop.add_argument("--out-root", type=Path, default=Path("data/raw/vlf/japan"))
+    japan_vlf_loop.add_argument("--only", action="append", default=[])
+    japan_vlf_loop.add_argument("--cycles", type=int, default=2)
+    japan_vlf_loop.add_argument("--interval-seconds", type=int, default=1800)
+    japan_vlf_loop.set_defaults(func=_capture_vlf_japan_loop)
 
     ingv_plan = subparsers.add_parser("plan-ingv-backfill")
     ingv_plan.add_argument("--start", required=True)
@@ -153,6 +183,33 @@ def _fetch_ingv_events(args: Namespace) -> int:
             limit=args.limit,
         )
     ])
+
+
+def _fetch_japan_events(args: Namespace) -> int:
+    return print_stored_captures([fetch_japan_events(
+        args.start, args.end, out_root=args.out_root, min_magnitude=args.min_mag, limit=args.limit,
+    )])
+
+
+def _normalize_japan_events(args: Namespace) -> int:
+    count = normalize_japan_event_json(args.raw, args.out)
+    print(f"normalized rows: {count}")
+    print(f"output: {args.out}")
+    return 0
+
+
+def _fetch_vlf_japan(args: Namespace) -> int:
+    return print_stored_captures(fetch_manifest_captures(
+        args.manifest, out_root=args.out_root, source_namespace="japan",
+        only=set(args.only) if args.only else None,
+    ))
+
+
+def _capture_vlf_japan_loop(args: Namespace) -> int:
+    return print_stored_captures(repeat_manifest_captures(
+        args.manifest, out_root=args.out_root, source_namespace="japan", cycles=args.cycles,
+        interval_seconds=args.interval_seconds, only=set(args.only) if args.only else None,
+    ))
 
 
 def _plan_ingv_backfill(args: Namespace) -> int:

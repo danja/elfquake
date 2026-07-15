@@ -94,7 +94,7 @@ def _read_events(events_csv: Path, region_id: str) -> list[dict[str, str]]:
         rows = list(csv.DictReader(handle))
     if not region_id or region_id == "all_italy":
         return rows
-    return [row for row in rows if row.get("italy_region", region_id) == region_id]
+    return [row for row in rows if row.get("region_id", row.get("italy_region", region_id)) == region_id]
 
 
 def _max_magnitude(events: list[dict[str, str]]) -> str:

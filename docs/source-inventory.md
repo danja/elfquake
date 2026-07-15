@@ -1,10 +1,10 @@
 # Source Inventory and Onboarding
 
-This document tracks Italy-relevant data sources, details the criteria to consider a source usable, and specifies the onboarding checklist for new sources.
+This document tracks Italy sources and the Japan parallel experiment, details the criteria to consider a source usable, and specifies the onboarding checklist for new sources. The production study remains Italy-scoped; Japan is an isolated comparative dataset until its passive-radio coverage is verified.
 
 ## 1. Master Source Inventory
 
-We only track and ingest Italy-relevant data. A source is marked **Usable** only after a raw sample pull is verified as reproducible.
+Italy remains the production scope. Japan sources are maintained in a separate namespace for comparative experiments. A source is marked **Usable** only after a raw sample pull is verified as reproducible.
 
 | Source | Use | Access / URL | Format | Status |
 | --- | --- | --- | --- | --- |
@@ -19,6 +19,9 @@ We only track and ingest Italy-relevant data. A source is marked **Usable** only
 | **Kyoto WDC Dst** | Dst hourly index | `https://wdc.kugi.kyoto-u.ac.jp/dstdir/` | text, HTML | **Usable**: final (to 2020) and provisional (to 2026) pages confirmed. |
 | **Space Weather Canada**| Daily F10.7 solar flux | `https://www.spaceweather.gc.ca/solar_flux_data/daily_flux_values/fluxtable.txt` | text | **Usable**: daily archive since 2004 confirmed. |
 | **USNO** | Lunar phase events | `https://aa.usno.navy.mil/api/` | JSON | **Usable**: Moon phase events API confirmed. |
+| **USGS FDSN event** | Japan regional earthquake catalog | `https://earthquake.usgs.gov/fdsnws/event/1/` | GeoJSON | **Candidate**: connector and bounded sample path implemented; verify a live sample before modelling. |
+| **Japan ISEE Moshiri/Kagoshima** | Passive natural-radio context | `https://stdb2.isee.nagoya-u.ac.jp/vlf/` | broadband ELF/VLF waveform/spectrogram | **Candidate verified**: stations, antenna type, sampling and coverage documented; raw digital access requires request. |
+| **Japan/WALDO broadband VLF** | Historical passive-radio fallback | `https://waldo.world/` | MATLAB v4-like broadband waveform | **Deferred**: old, browser/account-dependent, and unsuitable as the primary current Japan source. See [waldo.md](waldo.md). |
 
 ---
 
@@ -28,6 +31,12 @@ Use an explicit geographic filter for Italy on all spatial sources. We start wit
 
 *   **Latitude Bounds**: `35` to `48`
 *   **Longitude Bounds**: `6` to `19`
+
+## 2a. Japan Region Bounding Filter
+
+The initial Japan experiment uses `30` to `46` degrees latitude and `129` to
+`146` degrees longitude. This is an acquisition box, not a claim that every
+event in the box belongs to one tectonic regime.
 
 ---
 
@@ -55,4 +64,3 @@ When evaluating or onboarding a new data source, document and verify the followi
 ## References
 *   See [VLF Feasibility](vlf-feasibility.md) for details on Cumiana and Abelian VLF data.
 *   See [Astronomical Feasibility](astronomical-feasibility.md) for details on solar, lunar, and geomagnetic archives.
-

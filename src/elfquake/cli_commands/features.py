@@ -21,9 +21,26 @@ from elfquake.features.vlf_image import build_vlf_image_features
 from elfquake.features.vlf_image_compare import compare_vlf_image_features
 from elfquake.features.vlf_image_windows import join_vlf_image_features_to_windows
 from elfquake.features.vlf_windows import build_vlf_window_features
+from elfquake.features.italy_coverage import build_italy_coverage_report
+from elfquake.features.vlf_event_association import build_vlf_event_association_report
 
 
 def register_feature_commands(subparsers: _SubParsersAction) -> None:
+    coverage = subparsers.add_parser("build-italy-coverage-report")
+    coverage.add_argument("--events", type=Path, required=True)
+    coverage.add_argument("--vlf-metadata-root", type=Path)
+    coverage.add_argument("--anomaly-scores", type=Path)
+    coverage.add_argument("--out", type=Path, required=True)
+    coverage.add_argument("--weekly-out", type=Path)
+    coverage.set_defaults(func=_build_italy_coverage_report)
+    association = subparsers.add_parser("build-vlf-event-association-report")
+    association.add_argument("--events", type=Path, required=True)
+    association.add_argument("--anomaly-scores", type=Path, required=True)
+    association.add_argument("--out", type=Path, required=True)
+    association.add_argument("--weekly-out", type=Path)
+    association.add_argument("--permutations", type=int, default=2000)
+    association.add_argument("--seed", type=int, default=42)
+    association.set_defaults(func=_build_vlf_event_association_report)
     multimodal = subparsers.add_parser("build-multimodal-smoke")
     multimodal.add_argument("--events", type=Path, required=True)
     multimodal.add_argument("--vlf-metadata", type=Path, action="append", default=[])
@@ -196,6 +213,33 @@ def _build_vlf_features(args: Namespace) -> int:
     )
     print(f"wrote: {args.out}")
     print(f"vlf_capture_count: {row['vlf_capture_count']}")
+    return 0
+
+
+def _build_italy_coverage_report(args: Namespace) -> int:
+    report = build_italy_coverage_report(
+        events_csv=args.events,
+        vlf_metadata_root=args.vlf_metadata_root,
+        anomaly_scores_csv=args.anomaly_scores,
+        out_path=args.out,
+        weekly_out=args.weekly_out,
+    )
+    print(f"events: {report['events']['row_count']}")
+    print(f"vlf metadata: {report['vlf_captures']['metadata_count']}")
+    print(f"overlap weeks: {report['overlap']['weeks_with_both']}")
+    print(f"output: {args.out}")
+    return 0
+
+
+def _build_vlf_event_association_report(args: Namespace) -> int:
+    report = build_vlf_event_association_report(
+        events_csv=args.events, anomaly_scores_csv=args.anomaly_scores,
+        out_path=args.out, weekly_out=args.weekly_out,
+        permutations=args.permutations, seed=args.seed,
+    )
+    print(f"status: {report['status']}")
+    print(f"weekly VLF rows: {report['weekly_vlf_rows']}")
+    print(f"output: {args.out}")
     return 0
 
 

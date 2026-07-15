@@ -1,0 +1,3 @@
+station_id,station_name,latitude,longitude,receiver_mode,frequency_scope,sampling_rate,coverage,access_url,data_status,notes
+MSR,Moshiri,44.37,142.27,passive_broadband_elf_vlf,ELF/VLF,20kHz_then_40kHz,1980-present,https://stdb2.isee.nagoya-u.ac.jp/vlf/vlf_kag.html,request_required,"Crossed-loop antenna; 40 kHz three-channel system from 2019"
+KAG,Kagoshima,31.48,130.72,passive_broadband_elf_vlf,ELF/VLF,20kHz_then_40kHz,1976-present,https://stdb2.isee.nagoya-u.ac.jp/vlf/vlf_kag.html,request_required,"Crossed-loop/valley antenna; digital data from 2008"

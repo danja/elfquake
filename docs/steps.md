@@ -298,6 +298,14 @@ Train a label-free descriptor autoencoder on a materialized sequence manifest, s
 
 Run the default real Cumiana VLF anomaly scorer and emit a 7-day label-free smoke forecast under `data/derived/models/self_supervised/`.
 
+### `report-italy-data-coverage.sh`
+
+Summarize INGV, Cumiana capture, VLF anomaly, and weekly overlap coverage without fitting a supervised earthquake model. Use after each refresh.
+
+### `analyze-italy-vlf-event-association.sh`
+
+Compare weekly VLF anomaly scores with INGV event weeks using shuffled-label permutation controls. Treat `insufficient_controls` as the correct result while overlap is short.
+
 ### `generate-trial-weekly-event-forecast`
 
 Generate a deterministic trial event-list forecast for the next week. It combines historical INGV event rates and spatial density, real VLF context, astronomy context, and synthetic avalanche event priors into CSV rows with forecast time, latitude, longitude, magnitude proxy, probability proxy, and source contribution fields.
@@ -668,3 +676,17 @@ Render real or synthetic event CSVs on an Italy map background with magnitude-sc
 ### `render-prediction-event-map`
 
 Render avalanche-derived actual events and PyTorch predicted-positive target-window hits on one Italy map. Use this as a synthetic model demo; the model predicts windows, not epicentre coordinates.
+
+## 14. Run Japan Comparative Inputs
+
+### `backfill-japan-history.sh`
+
+Fetch bounded Japan USGS GeoJSON event chunks, normalize them into the shared event schema, combine them, and build seven-day seismic windows with `region_id=japan`.
+
+### `capture-japan-vlf-loop.sh`
+
+Capture verified passive broadband Japan ELF/VLF manifest entries on a repeatable schedule. The manifest is empty until a real station or WALDO endpoint has been validated.
+
+### `build-japan-vlf-features.sh`
+
+Extract image features from verified Japan spectrogram captures using the same feature contract as Cumiana. Keep Japan and Italy split during validation.

@@ -112,3 +112,18 @@
 * Added named piezo-channel exclusions to group holdout for matched feature ablations. On the damage profile, the single-seed nine-fold Transformer screen is lower with damage channels (`0.586848`) than without (`0.599648`); do not promote them yet.
 * Added 15-minute synthetic step targets sampled every 5 minutes to match the damage lead. The matched short-horizon nine-fold screen is also lower with damage (`0.529700`) than without (`0.530826`), so a generic Transformer does not yet exploit the causal state.
 * Tested dedicated damage-only patch-Transformer branches at 12- and 24-minute lookback. They reach `0.500824` and `0.504695`; isolating or extending context does not recover predictive utility.
+# Japan parallel data path
+
+* Run `./scripts/backfill-japan-history.sh` and verify nonempty USGS raw and normalized outputs.
+* Identify one reproducible current passive broadband ELF/VLF Japan sample and add it to `data/raw/vlf/japan/manifest.csv`; prioritize ISEE Moshiri or Kagoshima over WALDO.
+* Compare Japan and Italy source coverage before any cross-region model training.
+* Contact the ISEE data owners for one recent Moshiri or Kagoshima digital sample, then build the Japan VLF adapter for its native binary format.
+* Keep WALDO out of the main acquisition schedule; revisit it only for a defined historical case study or optional self-supervised pretraining corpus.
+
+* Added `./scripts/report-italy-data-coverage.sh`. The first report contains 4,836 INGV events, 282 Cumiana capture metadata records across nine days, 224 VLF anomaly windows, and only two weeks with both VLF and seismic observations. This is descriptive coverage evidence, not an association result.
+* Added `./scripts/analyze-italy-vlf-event-association.sh`. The initial permutation-controlled association is expected to remain insufficient until at least three VLF-observed event weeks and three VLF-observed control weeks exist.
+
+## Italy coverage diagnostics
+
+* Run `./scripts/report-italy-data-coverage.sh` after each refresh. It reports INGV event coverage, Cumiana capture coverage, label-free anomaly coverage, and descriptive weekly overlap.
+* Treat anomaly/event overlap as exploratory only until enough mature windows contain both positive and negative targets.
