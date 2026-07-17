@@ -2328,6 +2328,37 @@ class AcquisitionScaffoldTests(unittest.TestCase):
             self.assertEqual(report["evaluations"]["synthetic_seismic_piezo_vlf"]["status"], "evaluated")
             self.assertEqual(report["evaluations"]["all_features"]["test_labels"], [1, 1])
 
+    def test_temporal_holdout_can_keep_same_time_rows_together(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            table = root / "spatial.csv"
+            rows = []
+            for index, label in enumerate((0, 0, 1, 1)):
+                timestamp = f"2026-01-0{index + 1}T00:00:00Z"
+                rows.extend(
+                    f"w{index}a,c1,{timestamp},0,{label},labeled\n"
+                    f"w{index}b,c2,{timestamp},0,{label},labeled\n"
+                )
+            table.write_text(
+                "window_id,region_id,window_start_utc,seismic_event_count,target_occurred,target_status\n"
+                + "".join(rows),
+                encoding="utf-8",
+            )
+
+            report = evaluate_temporal_holdout(
+                input_csv=table,
+                out_path=root / "holdout.json",
+                train_fraction=0.5,
+                epochs=20,
+                learning_rate=0.1,
+                group_by_time=True,
+            )
+
+            self.assertEqual(report["group_by_time"], True)
+            self.assertEqual(report["train_row_count"], 4)
+            self.assertEqual(report["test_row_count"], 4)
+            self.assertLess(report["train_time_end"], report["test_time_start"])
+
     @unittest.skipUnless(importlib.util.find_spec("torch"), "PyTorch optional dependency is not installed")
     def test_torch_tabular_holdout_trains_synthetic_ablations(self) -> None:
         with tempfile.TemporaryDirectory() as directory:

@@ -7,7 +7,8 @@
 2. Use `./scripts/evaluate-piezo-group-holdout.sh` as the primary synthetic stability check. Its fixed three-seed ensemble averages `0.632634`, but passes both recall floors on only 6 of 9 episodes.
 3. Keep random-init piezo/VLF-only as the leading controlled Transformer architecture. It averages `0.619033` within episodes, but has not passed unseen-episode stability; direct and summary branches remain disabled by default.
 4. Keep label-free real VLF pretraining as the default real-data path while supervised VLF-aligned labels remain one-class or sparse; require reconstruction to beat both zero and last-patch baselines.
-5. Continue periodic INGV refresh and prospective relabeling; the current catalog-coverage guard prevents false maturity. Latest real aligned rows remain one-class (`149/0` all-Italy, `0/149` central Italy), with 129 future rows pending in each scope.
+5. Continue periodic INGV refresh and prospective relabeling; the current catalog-coverage guard prevents false maturity. Region-level tables remain one-class, so use `./scripts/prepare-italy-spatial-model-inputs.sh` for the fixed-cell baseline until more temporal coverage arrives.
+6. Repeat `./scripts/evaluate-italy-spatial-baseline.sh` after each refresh; its `--group-by-time` split keeps all cells from one VLF window in the same partition.
 
 ## Modeling
 
@@ -120,10 +121,18 @@
 * Contact the ISEE data owners for one recent Moshiri or Kagoshima digital sample, then build the Japan VLF adapter for its native binary format.
 * Keep WALDO out of the main acquisition schedule; revisit it only for a defined historical case study or optional self-supervised pretraining corpus.
 
-* Added `./scripts/report-italy-data-coverage.sh`. The first report contains 4,836 INGV events, 282 Cumiana capture metadata records across nine days, 224 VLF anomaly windows, and only two weeks with both VLF and seismic observations. This is descriptive coverage evidence, not an association result.
-* Added `./scripts/analyze-italy-vlf-event-association.sh`. The initial permutation-controlled association is expected to remain insufficient until at least three VLF-observed event weeks and three VLF-observed control weeks exist.
+* Refreshed Italy data through 2026-07-16: 67 new INGV events were pulled, one new Cumiana `last_E_VLF` image was captured, and the prospective tables now contain 279 rows with 277 mature rows. Both all-Italy (`277/0`) and central-Italy (`0/277`) remain class-blocked.
+* Rebuilt the real VLF sequence and model inputs: 279 image rows and 256 anomaly windows now extend through 2026-07-16. The label-free smoke forecast remains a novelty artifact, not a seismic prediction.
+* Audited the mirrored all-Italy/central-Italy label counts. Equal row counts are correct because both scopes use the same VLF anchors; the one-class labels are target saturation, not a region-filter bug. All-Italy is `277/0` at M3+ and central Italy is `0/277`; at M2.5+ central Italy is `228/49` but all-Italy remains `277/0`.
+* Added `./scripts/report-italy-data-coverage.sh`. The latest report contains 4,836 INGV events, 283 Cumiana capture metadata records, 256 VLF anomaly windows, and only two weeks with both VLF and seismic observations. This is descriptive coverage evidence, not an association result.
+* Added `./scripts/analyze-italy-vlf-event-association.sh`. The first refreshed permutation-controlled association remains `insufficient_controls`: three VLF-observed weeks provide only one M2.5+ event week and two controls.
 
 ## Italy coverage diagnostics
 
 * Run `./scripts/report-italy-data-coverage.sh` after each refresh. It reports INGV event coverage, Cumiana capture coverage, label-free anomaly coverage, and descriptive weekly overlap.
 * Treat anomaly/event overlap as exploratory only until enough mature windows contain both positive and negative targets.
+* Replace binary all-Italy targets with fixed spatial-cell targets or count regression; use central-Italy M2.5+ only as a temporary exploratory control.
+
+The fixed-cell implementation is available in `data/derived/multimodal/all_italy.spatial_vlf_image_windows.labeled.csv` and is prepared by `./scripts/prepare-italy-spatial-model-inputs.sh`. The current smoke artifact has 5,301 rows across 19 cells, with 812 positive, 4,451 negative, and 38 pending labels. This fixes target saturation but does not fix the short time coverage or establish predictive skill.
+
+The first grouped-time logistic smoke baseline reached calibrated balanced accuracy `0.655320` for the all-feature ablation. The seismic-only and VLF-only ablations collapsed to balanced accuracy `0.5` under their calibrated thresholds. These figures are a single short-window diagnostic and are not evidence that either modality predicts earthquakes.

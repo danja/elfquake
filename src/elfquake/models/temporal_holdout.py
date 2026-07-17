@@ -18,6 +18,7 @@ def evaluate_temporal_holdout(
     train_fraction: float = 0.8,
     epochs: int = 600,
     learning_rate: float = 0.2,
+    group_by_time: bool = False,
 ) -> dict[str, object]:
     if not 0 < train_fraction < 1:
         raise ValueError("train_fraction must be between 0 and 1")
@@ -36,15 +37,19 @@ def evaluate_temporal_holdout(
         "train_fraction": train_fraction,
         "epochs": epochs,
         "learning_rate": learning_rate,
+        "group_by_time": group_by_time,
         "evaluations": {},
     }
     if len(labeled) < 4:
         report["status"] = "insufficient_labeled_rows"
         return _write_report(out_path, report)
 
-    train_count = min(len(labeled) - 1, max(2, int(len(labeled) * train_fraction)))
-    train_rows = labeled[:train_count]
-    test_rows = labeled[train_count:]
+    train_rows, test_rows = _split_rows(
+        labeled,
+        time_field=time_field,
+        train_fraction=train_fraction,
+        group_by_time=group_by_time,
+    )
     labels_train = [int(row["target_occurred"]) for row in train_rows]
     labels_test = [int(row["target_occurred"]) for row in test_rows]
     report.update(
@@ -76,6 +81,27 @@ def evaluate_temporal_holdout(
         )
     report["status"] = _overall_status(report)
     return _write_report(out_path, report)
+
+
+def _split_rows(
+    rows: list[dict[str, str]],
+    *,
+    time_field: str,
+    train_fraction: float,
+    group_by_time: bool,
+) -> tuple[list[dict[str, str]], list[dict[str, str]]]:
+    if not group_by_time:
+        train_count = min(len(rows) - 1, max(2, int(len(rows) * train_fraction)))
+        return rows[:train_count], rows[train_count:]
+
+    times = sorted({row.get(time_field, "") for row in rows})
+    if len(times) < 2:
+        return rows[:1], rows[1:]
+    train_time_count = min(len(times) - 1, max(1, int(len(times) * train_fraction)))
+    cutoff = times[train_time_count]
+    train_rows = [row for row in rows if row.get(time_field, "") < cutoff]
+    test_rows = [row for row in rows if row.get(time_field, "") >= cutoff]
+    return train_rows, test_rows
 
 
 def evaluate_group_holdout(

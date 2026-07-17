@@ -23,6 +23,7 @@ from elfquake.features.vlf_image_windows import join_vlf_image_features_to_windo
 from elfquake.features.vlf_windows import build_vlf_window_features
 from elfquake.features.italy_coverage import build_italy_coverage_report
 from elfquake.features.vlf_event_association import build_vlf_event_association_report
+from elfquake.features.spatial_targets import label_spatial_multimodal_targets
 
 
 def register_feature_commands(subparsers: _SubParsersAction) -> None:
@@ -41,6 +42,15 @@ def register_feature_commands(subparsers: _SubParsersAction) -> None:
     association.add_argument("--permutations", type=int, default=2000)
     association.add_argument("--seed", type=int, default=42)
     association.set_defaults(func=_build_vlf_event_association_report)
+    spatial = subparsers.add_parser("label-spatial-multimodal-targets")
+    spatial.add_argument("--input", type=Path, required=True)
+    spatial.add_argument("--events", type=Path, required=True)
+    spatial.add_argument("--out", type=Path, required=True)
+    spatial.add_argument("--as-of", required=True)
+    spatial.add_argument("--catalog-end")
+    spatial.add_argument("--cell-degrees", type=float, default=1.5)
+    spatial.add_argument("--target-magnitude-min", type=float, default=2.5)
+    spatial.set_defaults(func=_label_spatial_multimodal_targets)
     multimodal = subparsers.add_parser("build-multimodal-smoke")
     multimodal.add_argument("--events", type=Path, required=True)
     multimodal.add_argument("--vlf-metadata", type=Path, action="append", default=[])
@@ -239,6 +249,17 @@ def _build_vlf_event_association_report(args: Namespace) -> int:
     )
     print(f"status: {report['status']}")
     print(f"weekly VLF rows: {report['weekly_vlf_rows']}")
+    print(f"output: {args.out}")
+    return 0
+
+
+def _label_spatial_multimodal_targets(args: Namespace) -> int:
+    rows = label_spatial_multimodal_targets(
+        input_csv=args.input, events_csv=args.events, out_path=args.out,
+        as_of_utc=args.as_of, catalog_end_utc=args.catalog_end,
+        cell_degrees=args.cell_degrees, target_magnitude_min=args.target_magnitude_min,
+    )
+    print(f"spatial target rows: {len(rows)}")
     print(f"output: {args.out}")
     return 0
 

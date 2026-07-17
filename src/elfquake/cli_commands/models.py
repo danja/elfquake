@@ -73,6 +73,7 @@ def register_model_commands(subparsers: _SubParsersAction) -> None:
     temporal_holdout.add_argument("--train-fraction", type=float, default=0.8)
     temporal_holdout.add_argument("--epochs", type=int, default=600)
     temporal_holdout.add_argument("--learning-rate", type=float, default=0.2)
+    temporal_holdout.add_argument("--group-by-time", action="store_true")
     temporal_holdout.set_defaults(func=_evaluate_temporal_holdout)
 
     split_diagnostics = subparsers.add_parser("diagnose-temporal-split")
@@ -485,6 +486,7 @@ def _evaluate_temporal_holdout(args: Namespace) -> int:
         train_fraction=args.train_fraction,
         epochs=args.epochs,
         learning_rate=args.learning_rate,
+        group_by_time=args.group_by_time,
     )
     print_holdout_report(report, args.out)
     return 0
