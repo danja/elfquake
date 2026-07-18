@@ -22,6 +22,7 @@ from elfquake.models.real_transfer_trial import run_real_transfer_trial
 from elfquake.models.transfer_experiments import run_transfer_experiment_suite
 from elfquake.models.report_summary import summarize_model_run_reports
 from elfquake.models.sequence_materializer import materialize_sequence_dataset
+from elfquake.models.spatial_permutation import permute_spatial_target_vectors
 from elfquake.models.split_diagnostics import diagnose_temporal_split
 from elfquake.models.synthetic_drift import diagnose_synthetic_drift
 from elfquake.models.synthetic_episodes import annotate_synthetic_episodes
@@ -56,6 +57,13 @@ def register_model_commands(subparsers: _SubParsersAction) -> None:
     readiness.add_argument("--input", type=Path, required=True)
     readiness.add_argument("--out", type=Path, required=True)
     readiness.set_defaults(func=_summarize_model_readiness)
+
+    permutation = subparsers.add_parser("permute-spatial-targets")
+    permutation.add_argument("--input", type=Path, required=True)
+    permutation.add_argument("--out", type=Path, required=True)
+    permutation.add_argument("--seed", type=int, default=42)
+    permutation.add_argument("--time-field", default="window_start_utc")
+    permutation.set_defaults(func=_permute_spatial_targets)
 
     ablation = subparsers.add_parser("train-ablation-smoke")
     ablation.add_argument("--input", type=Path, required=True)
@@ -418,6 +426,16 @@ def _summarize_model_readiness(args: Namespace) -> int:
     print(f"status: {report['status']}")
     print(f"rows: {report['row_count']}")
     print(f"labeled rows: {report['labeled_row_count']}")
+    print(f"output: {args.out}")
+    return 0
+
+
+def _permute_spatial_targets(args: Namespace) -> int:
+    report = permute_spatial_target_vectors(
+        input_csv=args.input, out_path=args.out, seed=args.seed, time_field=args.time_field
+    )
+    print(f"rows: {report['row_count']}")
+    print(f"labeled time groups: {report['labeled_time_count']}")
     print(f"output: {args.out}")
     return 0
 

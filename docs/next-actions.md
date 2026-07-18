@@ -10,6 +10,7 @@
 5. Continue periodic INGV refresh and prospective relabeling; the current catalog-coverage guard prevents false maturity. Region-level tables remain one-class, so use `./scripts/prepare-italy-spatial-model-inputs.sh` for the fixed-cell baseline until more temporal coverage arrives.
 6. Repeat `./scripts/evaluate-italy-spatial-baseline.sh` after each refresh; its `--group-by-time` split keeps all cells from one VLF window in the same partition.
 7. Do not promote the spatial model from the current cell holdout: only 5 of 19 cells contain positive labels, so leave-one-cell-out evaluation is mostly one-class. Accumulate more time coverage before using this as a transfer test.
+8. Treat the permutation result as a stop signal for interpretation: the five timestamp-shuffled controls averaged `0.679362`, above the real-order score `0.655320`. Do not tune the model against this table until the live capture history is substantially longer.
 
 ## Modeling
 
@@ -139,3 +140,5 @@ The fixed-cell implementation is available in `data/derived/multimodal/all_italy
 The first grouped-time logistic smoke baseline reached calibrated balanced accuracy `0.655320` for the all-feature ablation. The seismic-only and VLF-only ablations collapsed to balanced accuracy `0.5` under their calibrated thresholds. These figures are a single short-window diagnostic and are not evidence that either modality predicts earthquakes.
 
 The first 19-cell leave-one-cell-out probe is stored under `data/derived/models/all_italy_spatial_cell_holdouts_v2`. Only 5 cells have positive test labels; the other 14 folds are one-class. The valid folds range from `0.146597` to `0.855263` calibrated balanced accuracy, with mean `0.333370` across all folds. This instability and class sparsity block meaningful spatial transfer evaluation.
+
+The timestamp-permutation null control is stored under `data/derived/models/all_italy_spatial_permutation_controls`. It preserves each timestamp's complete spatial label pattern but shuffles those patterns across time. Five controls scored `0.643309`--`0.709108`, mean `0.679362`; all five matched or exceeded the real-order `0.655320`. The current multimodal score therefore has no demonstrated temporal signal.

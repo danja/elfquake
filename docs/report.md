@@ -1,6 +1,6 @@
 # Analysis Report
 
-Date: 2026-07-15
+Date: 2026-07-18
 
 ## Progress So Far
 
@@ -8,9 +8,31 @@ The ideal outcome for ELFQuake would be to identify strong, consequential earthq
 
 Progress so far is mainly in building the machinery needed to test that goal. ELFQuake now has a working live-data pipeline for Italy, regularly collecting INGV earthquake events, Cumiana VLF spectrogram images, and available astronomy and space-weather measurements. It retains the original source files, aligns observations by time, trains baseline and Transformer models, tests the contribution of each modality, and can emit a demonstration seven-day event list and map. Historical INGV data provides seismic context, while the avalanche simulation supplies controlled synthetic seismic-like and piezo/VLF-like signals for model development. Self-supervised learning also lets the Transformer learn from live VLF observations before enough real earthquake labels have accumulated.
 
-Compared with the ideal of predicting strong events, the present system is still at an early feasibility stage. It has not predicted a strong earthquake on held-out real data, and no multimodal model has yet beaten seismic-only and historical-rate baselines over a substantial real period. The overlapping live VLF and seismic record is short, the prospective target tables still lack usable class balance, and strong earthquakes are rare enough that a credible test will require much longer coverage. Current weekly forecasts demonstrate the intended software and output format only; they are not actionable predictions. The hypothesis remains open and testable, but useful strong-event prediction is not currently demonstrated or operationally viable.
+Compared with the ideal of predicting strong events, the present system is still at an early feasibility stage. It has not predicted a strong earthquake on held-out real data, and no multimodal model has yet beaten seismic-only and historical-rate baselines over a substantial real period. The overlapping live VLF and seismic record is short, and strong earthquakes are rare enough that a credible test will require much longer coverage. Current weekly forecasts demonstrate the intended software and output format only; they are not actionable predictions. The hypothesis remains open and testable, but useful strong-event prediction is not currently demonstrated or operationally viable.
 
-The prospective-label pipeline now only marks a target mature when the fetched INGV catalog covers its entire target horizon. Current image-aligned tables contain 278 rows each: 149 mature labels and 129 future pending rows. The all-Italy mature rows are all positive and the central-Italy rows all negative because the closely spaced captures share the same few seven-day horizons, not because labels were reversed. This remains unsuitable for supervised real training. On the synthetic side, localized target refilling now uses persistent loading sites. Its potential-like piezo sensor shows a short lead only in an oracle diagnostic that selects the sensor closest to the future avalanche; the causal spatial average does not reproduce the effect across nine fresh episodes. It is therefore not used as a predictive model feature.
+### Decision Summary
+
+The table below assesses practical project utility, not predictive success. “Yes (probably)” means the work is already useful infrastructure or a reproducible measurement. “Maybe (further research needed)” means it is a plausible research direction without sufficient evidence. “No (probably)” means the current form should not be used as a claim, feature, or operational forecast.
+
+| Experiment | Utility | Comment |
+| --- | --- | --- |
+| Italy-scoped INGV acquisition and normalization | Yes (probably) | Reproducible seismic records with timestamps, provenance, and uncertainty fields. |
+| Cumiana live VLF image capture and feature extraction | Yes (probably) | Provides a repeatable natural-radio observation stream, although it is image-derived rather than raw waveform data. |
+| Astronomy and space-weather ingestion | Maybe (further research needed) | The interfaces and captures work, but there is no demonstrated incremental value. |
+| Self-supervised learning on real VLF images | Maybe (further research needed) | Useful for representation learning while labels are sparse; reconstruction does not establish earthquake relevance. |
+| Sandpile simulation as synthetic data generation | Yes (probably) | Useful for controlled software, sensor, target, and ablation experiments, subject to regime and realism limits. |
+| Piezo-like signal as a VLF analogue | Maybe (further research needed) | Shape statistics can be tuned toward VLF, but no causal precursor value has been demonstrated. |
+| Direct avalanche signal as a seismic analogue | Maybe (further research needed) | Event extraction and spatial rendering are useful, but synthetic events remain difficult to align with real seismic sparsity and timing. |
+| Synthetic Transformer and sequence-model experiments | Maybe (further research needed) | Useful for interface and training checks; leave-one-episode-out stability is not yet adequate. |
+| Synthetic-to-real transfer | No (probably) | Current transfer is below or comparable to historical-rate controls and is not predictive evidence. |
+| Fixed spatial-cell target redesign | Yes (probably) | Removes all-Italy target saturation and creates a valid spatial evaluation contract. |
+| Grouped-time spatial baseline | Maybe (further research needed) | It is a useful leakage-controlled diagnostic, but the `0.655320` score is not above its null controls. |
+| Leave-one-cell-out evaluation | No (probably) | Currently blocked by only 5 of 19 cells containing positive labels. |
+| Timestamp-permutation null control | Yes (probably) | It is an important reproducible falsification check; all five null runs matched or exceeded the real-order score. |
+| Seven-day event-list forecasts and maps | Yes (probably) | Useful demonstration and integration outputs only; not actionable predictions. |
+| Useful strong-earthquake prediction at present | No (probably) | No held-out real-data evidence supports this capability. |
+
+The prospective-label pipeline now only marks a target mature when the fetched INGV catalog covers its entire target horizon. Current image-aligned tables contain 279 rows each: 277 mature labels and 2 future pending rows. The all-Italy mature rows are all positive and the central-Italy rows all negative because the closely spaced captures share the same few seven-day horizons, not because labels were reversed. These region-level tables remain unsuitable for supervised real training. On the synthetic side, localized target refilling now uses persistent loading sites. Its potential-like piezo sensor shows a short lead only in an oracle diagnostic that selects the sensor closest to the future avalanche; the causal spatial average does not reproduce the effect across nine fresh episodes. It is therefore not used as a predictive model feature.
 
 ### Latest Italy coverage check
 
@@ -27,6 +49,8 @@ The fixed-cell replacement is now available. `./scripts/build-italy-spatial-vlf-
 The leakage-controlled spatial smoke evaluation is `./scripts/evaluate-italy-spatial-baseline.sh`; it keeps every cell from a timestamp together. Its first grouped-time run used 4,199 training rows and 1,064 test rows. The all-feature logistic ablation reached calibrated balanced accuracy `0.655320`; seismic-only and VLF-only both reached `0.5`. With only 279 capture times and a short overlap, this is an engineering baseline, not useful earthquake prediction.
 
 The leave-one-cell-out control is `./scripts/evaluate-italy-spatial-cell-holdouts.sh`. Across 19 cells, only 5 had positive labels; the remaining folds were one-class. Calibrated all-feature balanced accuracy ranged from `0.146597` to `0.855263` on the mixed folds and averaged `0.333370` across all folds. This shows that the earlier grouped-time score does not yet demonstrate spatial transfer; more observations are required.
+
+The timestamp-permutation control is `./scripts/evaluate-italy-spatial-permutation-controls.sh`. It preserves each timestamp's spatial event pattern and shuffles complete patterns across time. Five null runs scored `0.643309`--`0.709108`, mean `0.679362`, while the real-order run scored `0.655320`. Since every null run was at least as strong, the real-order score provides no evidence of a temporal VLF or multimodal signal.
 
 The first reduced-source (`SOURCE_COUNT=64`) screening run briefly met a causal potential-lead rule across three episodes, but this did not survive a nine-episode confirmation across 40 events. It is not a precursor feature. Its initial empty chronological test tail was traced to a fixed 84-hour modeling window after a 50-hour simulation; episode batches now derive the end timestamp from the number of simulated steps. With duration-aligned windows, the nine-episode reduced-source profile (`SOURCE_COUNT=64`, refill `470`, removal interval `20`, `q=0.998/window=120`) has 387 labeled rows, a `0.470284` positive rate, temporal drift `0.181728`, and a weak simple temporal score of `0.518750` balanced accuracy. It is a valid synthetic target baseline, not evidence of a piezo precursor.
 
@@ -73,7 +97,7 @@ Real seismic:
 
 Real VLF:
 
-* 247 Cumiana `last_E_VLF` spectrogram image-feature rows
+* 279 Cumiana `last_E_VLF` spectrogram image-feature rows in the current refresh
 * `data/derived/multimodal/cumiana_last_E_VLF.image_features.csv`
 * image sequence manifest: `data/derived/models/cumiana_vlf_image_sequence/manifest.json`
 
@@ -87,10 +111,17 @@ Real prospective model rows:
 
 * `data/derived/models/all_italy.real_vlf_aligned_windows.csv`
 * `data/derived/models/central_italy.real_vlf_aligned_windows.csv`
-* each table has 278 rows, 149 labeled rows, and 129 future pending rows
-* all-Italy labels are currently 149 positive / 0 negative
-* central-Italy labels are currently 0 positive / 149 negative
+* each region-level table has 279 rows, 277 labeled rows, and 2 future pending rows
+* all-Italy labels are currently 277 positive / 0 negative
+* central-Italy labels are currently 0 positive / 277 negative
 * both are `insufficient_class_variation`
+
+The separate fixed-cell table is the current real-data baseline input:
+
+* `data/derived/multimodal/all_italy.spatial_vlf_image_windows.labeled.csv`
+* 5,301 rows across 19 cells and 279 VLF timestamps
+* 812 positive, 4,451 negative, and 38 pending labels
+* the 19 spatial rows per timestamp are repeated observations of one VLF window, not 19 independent time samples
 
 ## Method
 
@@ -153,7 +184,7 @@ Real-data status:
 * Cumiana VLF image capture and image-feature extraction are working.
 * Real VLF-aligned model tables are scaffolded for all-Italy and central Italy.
 * Real PyTorch training should not start yet, because each real table has only one target class. The real deep patch Transformer wrapper records this blocker instead of training.
-* Current real VLF-aligned label counts are 149 positive / 0 negative for all-Italy and 0 positive / 149 negative for central Italy; each scope has 129 future pending rows.
+* Current region-level real VLF-aligned label counts are 277 positive / 0 negative for all-Italy and 0 positive / 277 negative for central Italy; each scope has 2 future pending rows.
 * Self-supervised real VLF pretraining is available and is now the default model-development path until supervised labels have both classes.
 * Historical seismic-only backfill for `2024-01-01` to `2026-07-07` produced 130 weekly training windows per scope.
 * Backfilled all-Italy seismic windows are ready but heavily positive-skewed: train 95 positive / 9 negative, test 25 positive / 1 negative.
@@ -181,7 +212,7 @@ Synthetic-model status:
 * A stricter leave-one-episode-out run holds out each of nine simulation episodes across three model seeds. Mean balanced accuracy drops to `0.578712`, ranges from `0.275641` to `0.758730`, and only 14 of 27 folds keep both recalls above `0.40`. This fails the synthetic stability gate and shows that the promising within-episode score does not yet generalize reliably across simulation episodes.
 * Averaging the three predeclared model seeds raises unseen-episode mean balanced accuracy to `0.632634`, but only 6 of 9 episodes retain both recall floors. Training-only threshold calibration outperforms a fixed `0.5` threshold (`0.601361`) without fixing the three unstable episodes, so the remaining failure is mainly episode generalization rather than threshold choice.
 * Episode diagnostics show that piezo feature effects change sign across trajectories. Shorter h3 labels (`0.580991` ensemble mean), longer 60-minute h6 context (`0.512103`), and simple spatial sensor aggregates (`0.544096`) all regress. The h6/12-minute mean-only representation remains best, but zero of four variants passes the combined mean and recall-stability gate.
-* A second label-free real VLF anomaly layer now scores descriptor reconstruction and embedding novelty by window. The current 7-day smoke forecast artifact covers `2026-07-06T06:50:50Z` to `2026-07-13T06:50:50Z`, with demo probability `0.952514` and demo predicted event `1`; this is not trained on earthquake labels and is not a validated forecast.
+* A second label-free real VLF anomaly layer now scores descriptor reconstruction and embedding novelty by window. The latest smoke artifact covers the current Cumiana sequence through `2026-07-16`, with demo probability `0.928922`; this is not trained on earthquake labels and is not a validated forecast.
 * The tuned shape-profile synthetic-to-real embedding-domain diagnostic encoded 59,931 synthetic piezo/VLF windows through a descriptor autoencoder trained on real VLF windows. Synthetic centroid distance was `1.291640` and synthetic-to-real nearest mean distance was `1.846295`.
 * The same diagnostic is still only a baseline, but it is stronger than the previous full-descriptor version: held-out real masked reconstruction MSE is `0.895188` versus a zero baseline of `0.960585`; synthetic masked reconstruction is `4.642818` versus a zero baseline of `4.721987`.
 * A real-like synthetic inlier subset now marks the closest 25% of synthetic descriptor windows. It keeps 14,983 synthetic windows and reduces synthetic-to-real nearest mean distance to `1.162097`, with scale mean absolute delta `0.057490`.
@@ -374,8 +405,8 @@ Corrected-label smoke outputs:
 * tabular PyTorch seed holdouts: calibrated balanced accuracy `0.784169`, `0.762832`, and `0.732602`
 * sequence GRU temporal row: calibrated balanced accuracy `0.500000`
 * sequence GRU seed holdouts: calibrated balanced accuracy `0.720690`, `0.821105`, and `0.768339`
-* real VLF image sequence manifest: `data/derived/models/cumiana_vlf_image_sequence/manifest.json`, with `247` time steps and `25` channels
-* prospective VLF-aligned labels currently have `23` all-Italy positives and `0` negatives, while central Italy has `0` positives and `23` negatives, so real VLF-aligned training still has insufficient class variation
+* current real VLF image sequence manifest: `data/derived/models/cumiana_vlf_image_sequence/manifest.json`, with `279` time steps and `25` channels
+* the older region-level VLF-aligned smoke artifact had `23` all-Italy positives and `0` negatives, while central Italy had `0` positives and `23` negatives; the current refresh supersedes it with 279 rows and 277 mature labels per region, still without class variation
 
 Pre-relabel sweep outputs that need rerunning before model selection:
 
@@ -387,7 +418,7 @@ Pre-relabel sweep outputs that need rerunning before model selection:
 * matched 20-epoch sequence comparison: `data/derived/models/sequence_sweep_20epoch/default_vs_matched_sequence_diagnostic.json`, `64` evaluation rows; pre-relabel best row `sequence_piezo_vlf_only`, `lookback=60`, `hidden=24`, held-out `seed42`, calibrated balanced accuracy `0.772558`
 * repeated training-seed comparison: `data/derived/models/sequence_training_seed_repeat/sequence_training_seed_selection.json`; pre-relabel best single row `sequence_piezo_vlf_only` at `0.772558`, with `sequence_full` best on mean group score (`0.741342`) and worst-held-out-seed score (`0.712754`)
 * tiny patch Transformer scaffold: `data/derived/models/tiny_patch_transformer/tiny_patch_transformer_model_run_summary.json`; pre-relabel best calibrated row `0.637500`, `sequence_piezo_vlf_only`, explicit regime-balanced split
-* real model-input scaffold: `data/derived/models/all_italy.real_vlf_aligned_windows.csv` and `data/derived/models/central_italy.real_vlf_aligned_windows.csv`; both have `247` rows and `23` labeled rows but still lack class variation
+* current region-level real model-input scaffold: `data/derived/models/all_italy.real_vlf_aligned_windows.csv` and `data/derived/models/central_italy.real_vlf_aligned_windows.csv`; each has 279 rows and 277 labeled rows but still lacks class variation
 
 Sequence diagnostic interpretation: do not change the default GRU lookback from `60` on current evidence. The corrected-label temporal sequence row remains at balanced accuracy `0.5`; older sweep and missing-modality reports need rerunning before choosing between direct avalanche, piezo/VLF, and full sequence inputs.
 
