@@ -350,6 +350,7 @@ def register_model_commands(subparsers: _SubParsersAction) -> None:
     transfer_suite.add_argument("--train-fraction", type=float, default=0.8)
     transfer_suite.add_argument("--epochs", type=int, default=50)
     transfer_suite.add_argument("--pretrain-epochs", type=int, default=30)
+    transfer_suite.add_argument("--precision-recall-floor", type=float, default=0.5)
     transfer_suite.add_argument("--seed", type=int, default=42)
     transfer_suite.set_defaults(func=_run_transfer_experiment_suite)
 
@@ -620,6 +621,7 @@ def _run_transfer_experiment_suite(args: Namespace) -> int:
         train_fraction=args.train_fraction,
         epochs=args.epochs,
         pretrain_epochs=args.pretrain_epochs,
+        precision_recall_floor=args.precision_recall_floor,
         seed=args.seed,
     )
     ablations = report["experiment_1_matched_ablation"]

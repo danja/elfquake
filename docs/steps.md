@@ -188,6 +188,10 @@ Combine independent synthetic episodes with explicit time offsets before catalog
 
 Compare each central-Italy synthetic episode separately with explicit full-run durations. Use this to detect regime differences that a globally calibrated combined catalog can conceal.
 
+### `run-transfer-experiments.sh`
+
+Run the historical-rate, real-only, and synthetic-transfer controls. Set `SYNTHETIC_EVENTS` to a space-separated list when using a variable-length matched corpus; otherwise the legacy four-file defaults are used. Set `PRECISION_RECALL_FLOOR` to control the training-only precision calibration floor; reports also include a training-positive-rate-matched threshold.
+
 ### `balance-italy-synthetic-episode-rates.sh`
 
 Deterministically thin overactive synthetic episodes toward the real central-Italy event rate while preserving underactive episodes unchanged. Use this only as an observation-model or training-balance diagnostic; it does not repair the simulator or create missing events.
