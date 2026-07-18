@@ -254,6 +254,8 @@ Synthetic-to-real transfer strategy:
 3. When real labels contain both classes, fine-tune on `all_italy.real_vlf_aligned_windows.csv` and `central_italy.real_vlf_aligned_windows.csv` with `cumiana_vlf_image_sequence/manifest.json`.
 4. Compare fine-tuned models against no-pretraining, seismic-only, VLF-only, and multimodal ablations on held-out time periods.
 
+Event alignment should precede larger transfer models. See [Synthetic Event Alignment Strategies](event-alignment-strategies.md). The preferred sequence is catalog-level calibration, multi-resolution count/energy/occupancy targets, then a replaceable intensity-field or point-process head. Binary occurrence remains a useful reporting view but is currently too lossy and saturated at the country level.
+
 Current deeper-model smoke result:
 
 * synthetic artifact: `data/derived/models/deep_patch_transformer/deep_patch_transformer_synthetic.json`

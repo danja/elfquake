@@ -11,6 +11,7 @@
 6. Repeat `./scripts/evaluate-italy-spatial-baseline.sh` after each refresh; its `--group-by-time` split keeps all cells from one VLF window in the same partition.
 7. Do not promote the spatial model from the current cell holdout: only 5 of 19 cells contain positive labels, so leave-one-cell-out evaluation is mostly one-class. Accumulate more time coverage before using this as a transfer test.
 8. Treat the permutation result as a stop signal for interpretation: the five timestamp-shuffled controls averaged `0.679362`, above the real-order score `0.655320`. Do not tune the model against this table until the live capture history is substantially longer.
+9. Follow [Synthetic Event Alignment Strategies](event-alignment-strategies.md): first compare real and synthetic event-process statistics, then calibrate time/rate, magnitude, and spatial density before another transfer-model sweep.
 
 ## Modeling
 
@@ -28,6 +29,7 @@
 3. Validate Abelian Cumiana live/archive audio only if a reproducible nonempty pull is found; current probes returned zero usable bytes.
 4. Extend historical INGV backfill earlier than 2024 only if weekly baseline calibration needs longer seasonal coverage.
 5. Repeat mixed real/synthetic VLF alignment after new Cumiana captures; require improvements over centroid and random controls before relying on inlier selection.
+6. Keep event-count, energy, and spatial-occupancy targets alongside binary occurrence; do not make one thresholded event label carry all timing, magnitude, and location information.
 
 ## Simulation
 
