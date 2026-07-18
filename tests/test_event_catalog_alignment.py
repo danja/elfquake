@@ -5,6 +5,7 @@ import unittest
 from pathlib import Path
 
 from elfquake.models.event_catalog_alignment import (
+    balance_synthetic_episode_rates,
     calibrate_synthetic_catalog,
     calibrate_synthetic_magnitudes,
     calibrate_synthetic_spatial_coordinates,
@@ -78,6 +79,16 @@ class EventCatalogAlignmentTests(unittest.TestCase):
             self.assertEqual(combined_report["episode_count"], 2)
             self.assertEqual(combined_report["event_count"], 4)
             self.assertEqual(spatial_report["synthetic_event_count"], 4)
+
+            balanced = root / "balanced.csv"
+            balanced_report = balance_synthetic_episode_rates(
+                real_events=real,
+                synthetic_events=combined,
+                episode_duration_days=[2.0, 2.0],
+                out_path=balanced,
+                seed=7,
+            )
+            self.assertEqual(balanced_report["output_event_count"], 4)
 
 
 if __name__ == "__main__":

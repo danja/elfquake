@@ -17,6 +17,7 @@ from elfquake.models.event_catalog_alignment import (
     calibrate_synthetic_catalog,
     calibrate_synthetic_magnitudes,
     calibrate_synthetic_spatial_coordinates,
+    balance_synthetic_episode_rates,
     combine_synthetic_catalogs,
     compare_event_catalogs,
 )
@@ -109,6 +110,15 @@ def register_model_commands(subparsers: _SubParsersAction) -> None:
     combine_catalogs.add_argument("--report", type=Path, required=True)
     combine_catalogs.add_argument("--offset-days", type=int, default=21)
     combine_catalogs.set_defaults(func=_combine_synthetic_catalogs)
+
+    episode_balance = subparsers.add_parser("balance-synthetic-episode-rates")
+    episode_balance.add_argument("--real-events", type=Path, required=True)
+    episode_balance.add_argument("--synthetic-events", type=Path, required=True)
+    episode_balance.add_argument("--episode-duration-days", type=float, action="append", required=True)
+    episode_balance.add_argument("--out", type=Path, required=True)
+    episode_balance.add_argument("--report", type=Path, required=True)
+    episode_balance.add_argument("--seed", type=int, default=42)
+    episode_balance.set_defaults(func=_balance_synthetic_episode_rates)
 
     ablation = subparsers.add_parser("train-ablation-smoke")
     ablation.add_argument("--input", type=Path, required=True)
@@ -543,6 +553,23 @@ def _combine_synthetic_catalogs(args: Namespace) -> int:
     args.report.write_text(json.dumps(report, indent=2, sort_keys=True) + "\n", encoding="utf-8")
     print(f"episodes: {report['episode_count']}")
     print(f"events: {report['event_count']}")
+    print(f"output: {args.out}")
+    return 0
+
+
+def _balance_synthetic_episode_rates(args: Namespace) -> int:
+    report = balance_synthetic_episode_rates(
+        real_events=args.real_events,
+        synthetic_events=args.synthetic_events,
+        episode_duration_days=args.episode_duration_days,
+        out_path=args.out,
+        seed=args.seed,
+    )
+    args.report.parent.mkdir(parents=True, exist_ok=True)
+    args.report.write_text(json.dumps(report, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+    print(f"input events: {report['input_event_count']}")
+    print(f"output events: {report['output_event_count']}")
+    print(f"target rate: {report['target_rate_per_day']:.6f}")
     print(f"output: {args.out}")
     return 0
 

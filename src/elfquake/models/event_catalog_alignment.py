@@ -99,6 +99,88 @@ def combine_synthetic_catalogs(
     }
 
 
+def balance_synthetic_episode_rates(
+    *,
+    real_events: Path,
+    synthetic_events: Path,
+    episode_duration_days: list[float],
+    out_path: Path,
+    seed: int = 42,
+) -> dict[str, object]:
+    """Thin overactive episodes while preserving underactive episodes unchanged."""
+    real = _read_catalog(real_events)
+    rows = _read_rows(synthetic_events)
+    target_rate = _rate_per_day(real)
+    if not rows or not episode_duration_days:
+        raise ValueError("synthetic catalog and episode durations are required")
+    fieldnames = _read_fieldnames(synthetic_events)
+    for field in ("episode_rate_per_day", "episode_balance_keep_probability", "episode_balance_status"):
+        if field not in fieldnames:
+            fieldnames.append(field)
+
+    grouped: dict[int, list[dict[str, str]]] = {}
+    for row in rows:
+        try:
+            index = int(row["synthetic_episode_index"])
+        except (KeyError, TypeError, ValueError) as exc:
+            raise ValueError("combined catalog needs synthetic_episode_index") from exc
+        if index < 0 or index >= len(episode_duration_days):
+            raise ValueError("episode index has no supplied duration")
+        grouped.setdefault(index, []).append(row)
+
+    rng = random.Random(seed)
+    output_rows: list[dict[str, str]] = []
+    episode_reports = []
+    for index in sorted(grouped):
+        episode_rows = grouped[index]
+        duration = max(float(episode_duration_days[index]), 1e-9)
+        rate = len(episode_rows) / duration
+        target_count = min(len(episode_rows), max(1, int(target_rate * duration + 0.5))) if rate else 0
+        probability = target_count / len(episode_rows) if episode_rows else 1.0
+        status = "overactive_thinned" if probability < 1.0 else "underactive_preserved"
+        selected = (
+            set(rng.sample(range(len(episode_rows)), target_count))
+            if target_count < len(episode_rows)
+            else set(range(len(episode_rows)))
+        )
+        kept = 0
+        for row_index, row in enumerate(episode_rows):
+            row["episode_rate_per_day"] = f"{rate:.9f}"
+            row["episode_balance_keep_probability"] = f"{probability:.9f}"
+            row["episode_balance_status"] = status
+            if row_index in selected:
+                output_rows.append(row)
+                kept += 1
+        episode_reports.append(
+            {
+                "episode_index": index,
+                "input_event_count": len(episode_rows),
+                "output_event_count": kept,
+                "duration_days": duration,
+                "input_rate_per_day": rate,
+                "target_rate_per_day": target_rate,
+                "keep_probability": probability,
+                "status": status,
+            }
+        )
+
+    output_rows.sort(key=lambda row: row.get("event_time_utc", ""))
+    out_path.parent.mkdir(parents=True, exist_ok=True)
+    with out_path.open("w", newline="", encoding="utf-8") as handle:
+        writer = csv.DictWriter(handle, fieldnames=fieldnames, lineterminator="\n")
+        writer.writeheader()
+        writer.writerows(output_rows)
+    return {
+        "schema": "elfquake.synthetic_episode_rate_balance.v1",
+        "target_rate_per_day": target_rate,
+        "input_event_count": len(rows),
+        "output_event_count": len(output_rows),
+        "seed": seed,
+        "episodes": episode_reports,
+        "output": str(out_path),
+    }
+
+
 def calibrate_synthetic_magnitudes(
     *, real_events: Path, synthetic_events: Path, out_path: Path
 ) -> dict[str, object]:

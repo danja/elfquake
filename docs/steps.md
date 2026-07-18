@@ -184,6 +184,14 @@ Apply the train-fitted magnitude mapping and deterministic global rate thinning 
 
 Combine independent synthetic episodes with explicit time offsets before catalog comparison or calibration. This supplies enough events for distribution statistics without changing the source simulation files.
 
+### `evaluate-italy-synthetic-episode-alignment.sh`
+
+Compare each central-Italy synthetic episode separately with explicit full-run durations. Use this to detect regime differences that a globally calibrated combined catalog can conceal.
+
+### `balance-italy-synthetic-episode-rates.sh`
+
+Deterministically thin overactive synthetic episodes toward the real central-Italy event rate while preserving underactive episodes unchanged. Use this only as an observation-model or training-balance diagnostic; it does not repair the simulator or create missing events.
+
 ### `calibrate-italy-synthetic-spatial.sh`
 
 Apply an auditable empirical latitude/longitude mapping to a derived catalog. Use only as an observation-model experiment; retain raw coordinates and compare nearest-neighbour and occupancy statistics before using it for training.
