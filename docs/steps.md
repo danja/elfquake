@@ -178,7 +178,15 @@ Write a derived synthetic catalog whose magnitudes are mapped to the empirical r
 
 ### `calibrate-italy-synthetic-catalog.sh`
 
-Apply the train-fitted magnitude mapping and deterministic global rate thinning together. This is an observation-model diagnostic; it does not alter the simulation source and does not yet solve spatial coverage mismatch.
+Apply the train-fitted magnitude mapping and deterministic global rate thinning together, and add per-event cell-rate importance weights without moving event coordinates. This is an observation-model diagnostic; it does not alter the simulation source and does not recover missing spatial support.
+
+### `combine-italy-synthetic-catalogs.sh`
+
+Combine independent synthetic episodes with explicit time offsets before catalog comparison or calibration. This supplies enough events for distribution statistics without changing the source simulation files.
+
+### `calibrate-italy-synthetic-spatial.sh`
+
+Apply an auditable empirical latitude/longitude mapping to a derived catalog. Use only as an observation-model experiment; retain raw coordinates and compare nearest-neighbour and occupancy statistics before using it for training.
 
 ## 8. Check Readiness And Baselines
 

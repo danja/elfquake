@@ -42,7 +42,11 @@ Compare and reweight spatial occupancy rather than moving individual events arbi
 
 Persistent localized sandpile sources must remain visible in the uncalibrated signal. Spatial reweighting should be an explicit observation model, not a hidden change to the simulation dynamics.
 
-The first implemented rate-and-magnitude calibration reduces the synthetic-to-real rate ratio from about `2.0` to `1.14` and the magnitude Wasserstein distance from about `2.3` to `0.15` for seed `40`. It still covers only 11 of the 63 real occupied cells, so it is not a complete catalog alignment.
+The first implemented rate-and-magnitude calibration reduces the synthetic-to-real rate ratio from about `2.0` to `1.14` and the magnitude Wasserstein distance from about `2.3` to `0.15` for seed `40`. It still covers only 11 of the 63 real occupied cells, so it is not a complete catalog alignment. The next derived catalog also carries per-event cell-rate importance weights; these preserve synthetic coordinates and are intended for weighted training, not for claiming that missing cells have been recovered.
+
+Scope matters: the current simulation profile is labelled `central_italy`. Against the matching 594-event central-Italy INGV catalog, raw seed `40` is about 16 times too active. A tuned five-event extraction reduces the rate ratio to `0.71`, but its sample is too small and its nearest-neighbour distance is much worse. This means a good alignment cannot be declared from a single tuned episode; at least several independent episodes and a joint rate/magnitude/spatial score are required.
+
+The first three-episode combined profile is more useful. After rate and magnitude calibration, it reaches a rate ratio of `0.956`, magnitude Wasserstein distance `0.082`, and median inter-event time `23.6` hours versus `21.6` hours for central Italy. Spatial quantile transport improves nearest-neighbour Wasserstein distance from `30.939` to `11.212` km and covers 3 of 4 coarse central-Italy cells. This is the first promising intermediate profile, but the remaining spatial clustering error still prevents promotion.
 
 ### 4. Catalog-level distance and simulation calibration
 

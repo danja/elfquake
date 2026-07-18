@@ -13,7 +13,13 @@ from elfquake.models.aligned_windows import build_aligned_window_dataset
 from elfquake.models.alignment_manifest import build_alignment_manifest
 from elfquake.models.candidates import write_model_candidates
 from elfquake.models.dataset_combine import combine_aligned_datasets
-from elfquake.models.event_catalog_alignment import calibrate_synthetic_catalog, calibrate_synthetic_magnitudes, compare_event_catalogs
+from elfquake.models.event_catalog_alignment import (
+    calibrate_synthetic_catalog,
+    calibrate_synthetic_magnitudes,
+    calibrate_synthetic_spatial_coordinates,
+    combine_synthetic_catalogs,
+    compare_event_catalogs,
+)
 from elfquake.models.forecast_comparison import compare_weekly_forecasts
 from elfquake.models.interface_shape import audit_model_interfaces
 from elfquake.models.learned_forecast import generate_learned_weekly_event_forecast
@@ -87,6 +93,20 @@ def register_model_commands(subparsers: _SubParsersAction) -> None:
     catalog_calibration.add_argument("--report", type=Path, required=True)
     catalog_calibration.add_argument("--seed", type=int, default=42)
     catalog_calibration.set_defaults(func=_calibrate_synthetic_catalog)
+
+    spatial_calibration = subparsers.add_parser("calibrate-synthetic-spatial")
+    spatial_calibration.add_argument("--real-events", type=Path, required=True)
+    spatial_calibration.add_argument("--synthetic-events", type=Path, required=True)
+    spatial_calibration.add_argument("--out", type=Path, required=True)
+    spatial_calibration.add_argument("--report", type=Path, required=True)
+    spatial_calibration.set_defaults(func=_calibrate_synthetic_spatial)
+
+    combine_catalogs = subparsers.add_parser("combine-synthetic-catalogs")
+    combine_catalogs.add_argument("--synthetic-events", type=Path, action="append", required=True)
+    combine_catalogs.add_argument("--out", type=Path, required=True)
+    combine_catalogs.add_argument("--report", type=Path, required=True)
+    combine_catalogs.add_argument("--offset-days", type=int, default=21)
+    combine_catalogs.set_defaults(func=_combine_synthetic_catalogs)
 
     ablation = subparsers.add_parser("train-ablation-smoke")
     ablation.add_argument("--input", type=Path, required=True)
@@ -496,6 +516,29 @@ def _calibrate_synthetic_catalog(args: Namespace) -> int:
     args.report.write_text(json.dumps(report, indent=2, sort_keys=True) + "\n", encoding="utf-8")
     print(f"retained events: {report['retained_event_count']}")
     print(f"keep probability: {report['keep_probability']:.6f}")
+    print(f"output: {args.out}")
+    return 0
+
+
+def _calibrate_synthetic_spatial(args: Namespace) -> int:
+    report = calibrate_synthetic_spatial_coordinates(
+        real_events=args.real_events, synthetic_events=args.synthetic_events, out_path=args.out
+    )
+    args.report.parent.mkdir(parents=True, exist_ok=True)
+    args.report.write_text(json.dumps(report, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+    print(f"synthetic events: {report['synthetic_event_count']}")
+    print(f"output: {args.out}")
+    return 0
+
+
+def _combine_synthetic_catalogs(args: Namespace) -> int:
+    report = combine_synthetic_catalogs(
+        synthetic_events=args.synthetic_events, out_path=args.out, offset_days=args.offset_days
+    )
+    args.report.parent.mkdir(parents=True, exist_ok=True)
+    args.report.write_text(json.dumps(report, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+    print(f"episodes: {report['episode_count']}")
+    print(f"events: {report['event_count']}")
     print(f"output: {args.out}")
     return 0
 

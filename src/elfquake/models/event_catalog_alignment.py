@@ -47,6 +47,45 @@ def compare_event_catalogs(
     return report
 
 
+def combine_synthetic_catalogs(
+    *, synthetic_events: list[Path], out_path: Path, offset_days: int = 21
+) -> dict[str, object]:
+    """Combine independent synthetic episodes without overlapping their clocks."""
+    if offset_days < 1:
+        raise ValueError("offset_days must be positive")
+    from datetime import datetime, timedelta
+
+    combined_rows: list[dict[str, str]] = []
+    fieldnames: list[str] = []
+    for episode_index, path in enumerate(synthetic_events):
+        rows = _read_rows(path)
+        if not fieldnames:
+            fieldnames = _read_fieldnames(path)
+        for row in rows:
+            try:
+                timestamp = datetime.fromisoformat(row["event_time_utc"].replace("Z", "+00:00"))
+            except (KeyError, ValueError):
+                continue
+            row["event_time_utc"] = (timestamp + timedelta(days=episode_index * offset_days)).isoformat().replace("+00:00", "Z")
+            row["synthetic_episode_index"] = str(episode_index)
+            combined_rows.append(row)
+    if "synthetic_episode_index" not in fieldnames:
+        fieldnames.append("synthetic_episode_index")
+    combined_rows.sort(key=lambda row: row.get("event_time_utc", ""))
+    out_path.parent.mkdir(parents=True, exist_ok=True)
+    with out_path.open("w", newline="", encoding="utf-8") as handle:
+        writer = csv.DictWriter(handle, fieldnames=fieldnames, lineterminator="\n")
+        writer.writeheader()
+        writer.writerows(combined_rows)
+    return {
+        "schema": "elfquake.synthetic_catalog_combined.v1",
+        "episode_count": len(synthetic_events),
+        "event_count": len(combined_rows),
+        "offset_days": offset_days,
+        "output": str(out_path),
+    }
+
+
 def calibrate_synthetic_magnitudes(
     *, real_events: Path, synthetic_events: Path, out_path: Path
 ) -> dict[str, object]:
@@ -97,9 +136,28 @@ def calibrate_synthetic_catalog(
     if len(real_magnitudes) < 2 or not synthetic_magnitudes:
         raise ValueError("both catalogs need enough valid events for calibration")
     fieldnames = _read_fieldnames(synthetic_events)
-    for field in ("magnitude_raw", "magnitude_calibration", "rate_keep_probability", "rate_calibration"):
+    for field in (
+        "magnitude_raw",
+        "magnitude_calibration",
+        "rate_keep_probability",
+        "rate_calibration",
+        "spatial_weight_raw",
+        "spatial_weight",
+        "spatial_calibration",
+    ):
         if field not in fieldnames:
             fieldnames.append(field)
+
+    real_days = max(_duration_days([event["time"] for event in real]), 1e-9)
+    synthetic_days = max(_duration_days([event["time"] for event in synthetic]), 1e-9)
+    real_cell_rates = _cell_rates(real, real_days)
+    synthetic_cell_rates = _cell_rates(synthetic, synthetic_days)
+    raw_spatial_weights = {
+        cell: real_cell_rates.get(cell, 0.0) / rate
+        for cell, rate in synthetic_cell_rates.items()
+    }
+    mean_spatial_weight = _weighted_event_mean(synthetic, raw_spatial_weights)
+    mean_spatial_weight = mean_spatial_weight or 1.0
 
     rng = random.Random(seed)
     output_rows = []
@@ -118,6 +176,11 @@ def calibrate_synthetic_catalog(
         row["magnitude_calibration"] = "real_train_empirical_quantile"
         row["rate_keep_probability"] = f"{keep_probability:.9f}"
         row["rate_calibration"] = "deterministic_global_rate_thinning"
+        cell = _cell_key(float(row["latitude"]), float(row["longitude"]))
+        raw_weight = raw_spatial_weights.get(cell, 0.0)
+        row["spatial_weight_raw"] = f"{raw_weight:.9f}"
+        row["spatial_weight"] = f"{raw_weight / mean_spatial_weight:.9f}"
+        row["spatial_calibration"] = "real_train_cell_rate_over_synthetic_cell_rate"
         output_rows.append(row)
         kept_count += 1
     out_path.parent.mkdir(parents=True, exist_ok=True)
@@ -136,6 +199,51 @@ def calibrate_synthetic_catalog(
         "seed": seed,
         "magnitude_method": "empirical quantile mapping fitted on real catalog",
         "rate_method": "deterministic global rate thinning",
+        "spatial_method": "per-event cell-rate importance weight; coordinates unchanged",
+        "spatial_cells_real": len(real_cell_rates),
+        "spatial_cells_synthetic": len(synthetic_cell_rates),
+        "output": str(out_path),
+    }
+
+
+def calibrate_synthetic_spatial_coordinates(
+    *, real_events: Path, synthetic_events: Path, out_path: Path
+) -> dict[str, object]:
+    """Map synthetic latitude/longitude marginals to real training marginals."""
+    real = _read_catalog(real_events)
+    rows = _read_rows(synthetic_events)
+    valid = []
+    for row in rows:
+        try:
+            valid.append((row, float(row["latitude"]), float(row["longitude"])))
+        except (KeyError, TypeError, ValueError):
+            continue
+    if len(real) < 2 or not valid:
+        raise ValueError("both catalogs need enough valid coordinates for calibration")
+    real_latitudes = sorted(event["latitude"] for event in real)
+    real_longitudes = sorted(event["longitude"] for event in real)
+    synthetic_latitudes = [item[1] for item in valid]
+    synthetic_longitudes = [item[2] for item in valid]
+    fieldnames = _read_fieldnames(synthetic_events)
+    for field in ("latitude_raw", "longitude_raw", "spatial_calibration"):
+        if field not in fieldnames:
+            fieldnames.append(field)
+    for row, latitude, longitude in valid:
+        row["latitude_raw"] = row.get("latitude", "")
+        row["longitude_raw"] = row.get("longitude", "")
+        row["latitude"] = f"{_quantile(real_latitudes, _empirical_percentile(synthetic_latitudes, latitude)):.6f}"
+        row["longitude"] = f"{_quantile(real_longitudes, _empirical_percentile(synthetic_longitudes, longitude)):.6f}"
+        row["spatial_calibration"] = "real_train_empirical_coordinate_quantile"
+    out_path.parent.mkdir(parents=True, exist_ok=True)
+    with out_path.open("w", newline="", encoding="utf-8") as handle:
+        writer = csv.DictWriter(handle, fieldnames=fieldnames, lineterminator="\n")
+        writer.writeheader()
+        writer.writerows(rows)
+    return {
+        "schema": "elfquake.synthetic_spatial_calibration.v1",
+        "real_event_count": len(real),
+        "synthetic_event_count": len(valid),
+        "method": "independent empirical latitude/longitude quantile mapping",
         "output": str(out_path),
     }
 
@@ -181,6 +289,24 @@ def _summary(events: list[dict[str, float]], cell_degrees: float) -> dict[str, o
 def _rate_per_day(events: list[dict[str, float]]) -> float:
     times = [event["time"] for event in events]
     return len(events) / max(_duration_days(times), 1e-9) if events else 0.0
+
+
+def _cell_rates(events: list[dict[str, float]], duration_days: float) -> dict[tuple[int, int], float]:
+    counts: dict[tuple[int, int], int] = {}
+    for event in events:
+        cell = _cell_key(event["latitude"], event["longitude"])
+        counts[cell] = counts.get(cell, 0) + 1
+    return {cell: count / duration_days for cell, count in counts.items()}
+
+
+def _weighted_event_mean(events: list[dict[str, float]], weights: dict[tuple[int, int], float]) -> float:
+    if not events:
+        return 0.0
+    return sum(weights.get(_cell_key(event["latitude"], event["longitude"]), 0.0) for event in events) / len(events)
+
+
+def _cell_key(latitude: float, longitude: float, cell_degrees: float = 1.5) -> tuple[int, int]:
+    return (int((latitude - ITALY_LAT[0]) / cell_degrees), int((longitude - ITALY_LON[0]) / cell_degrees))
 
 
 def _compare_summary(real: dict[str, object], synthetic: dict[str, object], name: str) -> dict[str, object]:

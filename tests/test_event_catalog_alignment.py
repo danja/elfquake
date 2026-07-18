@@ -4,7 +4,13 @@ import tempfile
 import unittest
 from pathlib import Path
 
-from elfquake.models.event_catalog_alignment import calibrate_synthetic_catalog, calibrate_synthetic_magnitudes, compare_event_catalogs
+from elfquake.models.event_catalog_alignment import (
+    calibrate_synthetic_catalog,
+    calibrate_synthetic_magnitudes,
+    calibrate_synthetic_spatial_coordinates,
+    combine_synthetic_catalogs,
+    compare_event_catalogs,
+)
 
 
 class EventCatalogAlignmentTests(unittest.TestCase):
@@ -39,11 +45,28 @@ class EventCatalogAlignmentTests(unittest.TestCase):
             self.assertEqual(calibration["synthetic_event_count"], 2)
             self.assertEqual(rate_calibration["synthetic_event_count"], 2)
             self.assertLessEqual(rate_calibration["retained_event_count"], 2)
+            with (root / "rate_calibrated.csv").open(newline="", encoding="utf-8") as handle:
+                rate_rows = list(csv.DictReader(handle))
+            if rate_rows:
+                self.assertIn("spatial_weight", rate_rows[0])
+                self.assertIn("spatial_calibration", rate_rows[0])
             with calibrated.open(newline="", encoding="utf-8") as handle:
                 rows = list(csv.DictReader(handle))
             self.assertEqual(len(rows), 2)
             self.assertEqual(rows[0]["magnitude_raw"], "4.5")
             self.assertEqual(rows[0]["magnitude_calibration"], "real_train_empirical_quantile")
+
+            combined = root / "combined.csv"
+            combined_report = combine_synthetic_catalogs(
+                synthetic_events=[synthetic, synthetic], out_path=combined, offset_days=21
+            )
+            spatial = root / "spatial.csv"
+            spatial_report = calibrate_synthetic_spatial_coordinates(
+                real_events=real, synthetic_events=combined, out_path=spatial
+            )
+            self.assertEqual(combined_report["episode_count"], 2)
+            self.assertEqual(combined_report["event_count"], 4)
+            self.assertEqual(spatial_report["synthetic_event_count"], 4)
 
 
 if __name__ == "__main__":

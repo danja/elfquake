@@ -13,7 +13,9 @@
 8. Treat the permutation result as a stop signal for interpretation: the five timestamp-shuffled controls averaged `0.679362`, above the real-order score `0.655320`. Do not tune the model against this table until the live capture history is substantially longer.
 9. Follow [Synthetic Event Alignment Strategies](event-alignment-strategies.md): first compare real and synthetic event-process statistics, then calibrate time/rate, magnitude, and spatial density before another transfer-model sweep.
 10. Review `data/derived/reports/italy_event_catalog_alignment.json`; the first comparison shows synthetic magnitudes are far too high and synthetic episodes occupy fewer cells, so do not use raw synthetic magnitudes for transfer without calibration.
-11. Compare calibrated catalogs using `data/derived/reports/italy_event_catalog_alignment_calibrated.json`; rate and magnitude alignment improve, but spatial support remains incomplete. Implement spatial-density weighting or a source-observation model before claiming catalog alignment.
+11. Compare calibrated catalogs using `data/derived/reports/italy_event_catalog_alignment_calibrated.json`; rate and magnitude alignment improve, but spatial support remains incomplete. Use the new per-event spatial weights only in a weighted-training diagnostic until a source-observation model is validated.
+12. Use the matching central-Italy catalog for central-Italy simulation profiles. The current raw seed-40 rate is about 16 times too high; do not select an extractor from a five-event sample. Generate and combine several independent episodes before judging temporal or spatial alignment.
+13. Use the three-episode combined calibrated profile as the current alignment candidate: `data/derived/reports/central_italy_event_catalog_alignment_combined_spatial.json`. Improve its spatial nearest-neighbour distance without degrading its rate, magnitude, or inter-event-time matches.
 
 ## Modeling
 
@@ -34,6 +36,8 @@
 6. Keep event-count, energy, and spatial-occupancy targets alongside binary occurrence; do not make one thresholded event label carry all timing, magnitude, and location information.
 7. Fit magnitude calibration on the real training period only, then compare calibrated and uncalibrated synthetic catalogs before adding temporal-rate or spatial-density transforms.
 8. Treat rate thinning as an observation model, not a simulation fix; retain the raw event catalog and test whether spatial reweighting improves cell occupancy without moving localized source events.
+9. Add a joint alignment score with minimum sample gates: rate ratio, magnitude distance, inter-event distance, nearest-neighbour distance, and spatial occupancy must be reported together.
+10. Preserve the combined-episode time offsets and calibration metadata in every synthetic training artifact; do not collapse episodes back onto their shared demonstration clock.
 
 ## Simulation
 
