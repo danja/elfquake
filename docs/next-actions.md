@@ -12,6 +12,8 @@
 7. Do not promote the spatial model from the current cell holdout: only 5 of 19 cells contain positive labels, so leave-one-cell-out evaluation is mostly one-class. Accumulate more time coverage before using this as a transfer test.
 8. Treat the permutation result as a stop signal for interpretation: the five timestamp-shuffled controls averaged `0.679362`, above the real-order score `0.655320`. Do not tune the model against this table until the live capture history is substantially longer.
 9. Follow [Synthetic Event Alignment Strategies](event-alignment-strategies.md): first compare real and synthetic event-process statistics, then calibrate time/rate, magnitude, and spatial density before another transfer-model sweep.
+10. Review `data/derived/reports/italy_event_catalog_alignment.json`; the first comparison shows synthetic magnitudes are far too high and synthetic episodes occupy fewer cells, so do not use raw synthetic magnitudes for transfer without calibration.
+11. Compare calibrated catalogs using `data/derived/reports/italy_event_catalog_alignment_calibrated.json`; rate and magnitude alignment improve, but spatial support remains incomplete. Implement spatial-density weighting or a source-observation model before claiming catalog alignment.
 
 ## Modeling
 
@@ -30,6 +32,8 @@
 4. Extend historical INGV backfill earlier than 2024 only if weekly baseline calibration needs longer seasonal coverage.
 5. Repeat mixed real/synthetic VLF alignment after new Cumiana captures; require improvements over centroid and random controls before relying on inlier selection.
 6. Keep event-count, energy, and spatial-occupancy targets alongside binary occurrence; do not make one thresholded event label carry all timing, magnitude, and location information.
+7. Fit magnitude calibration on the real training period only, then compare calibrated and uncalibrated synthetic catalogs before adding temporal-rate or spatial-density transforms.
+8. Treat rate thinning as an observation model, not a simulation fix; retain the raw event catalog and test whether spatial reweighting improves cell occupancy without moving localized source events.
 
 ## Simulation
 

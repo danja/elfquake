@@ -168,6 +168,18 @@ Join VLF window features into an existing design matrix. Use this to compare sei
 
 Aggregate irregular real or synthetic event lists into regular event-window features. Use this adapter before tensor or aligned-window materialization.
 
+### `compare-italy-event-catalogs.sh`
+
+Compare real INGV and synthetic avalanche catalogs using event rate, inter-event times, magnitude, energy, and spatial-neighbour statistics. Use this before synthetic transfer calibration.
+
+### `calibrate-italy-synthetic-magnitudes.sh`
+
+Write a derived synthetic catalog whose magnitudes are mapped to the empirical real-catalog magnitude distribution. The source catalog is unchanged; fit this mapping on training data only for a valid evaluation.
+
+### `calibrate-italy-synthetic-catalog.sh`
+
+Apply the train-fitted magnitude mapping and deterministic global rate thinning together. This is an observation-model diagnostic; it does not alter the simulation source and does not yet solve spatial coverage mismatch.
+
 ## 8. Check Readiness And Baselines
 
 ### `summarize-model-readiness`

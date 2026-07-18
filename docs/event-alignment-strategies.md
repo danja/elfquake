@@ -42,6 +42,8 @@ Compare and reweight spatial occupancy rather than moving individual events arbi
 
 Persistent localized sandpile sources must remain visible in the uncalibrated signal. Spatial reweighting should be an explicit observation model, not a hidden change to the simulation dynamics.
 
+The first implemented rate-and-magnitude calibration reduces the synthetic-to-real rate ratio from about `2.0` to `1.14` and the magnitude Wasserstein distance from about `2.3` to `0.15` for seed `40`. It still covers only 11 of the 63 real occupied cells, so it is not a complete catalog alignment.
+
 ### 4. Catalog-level distance and simulation calibration
 
 Score each synthetic episode against the real training catalog using a vector of summary statistics:

@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from argparse import Namespace, _SubParsersAction
+import json
 from pathlib import Path
 
 from elfquake.cli_commands.common import print_holdout_report
@@ -12,6 +13,7 @@ from elfquake.models.aligned_windows import build_aligned_window_dataset
 from elfquake.models.alignment_manifest import build_alignment_manifest
 from elfquake.models.candidates import write_model_candidates
 from elfquake.models.dataset_combine import combine_aligned_datasets
+from elfquake.models.event_catalog_alignment import calibrate_synthetic_catalog, calibrate_synthetic_magnitudes, compare_event_catalogs
 from elfquake.models.forecast_comparison import compare_weekly_forecasts
 from elfquake.models.interface_shape import audit_model_interfaces
 from elfquake.models.learned_forecast import generate_learned_weekly_event_forecast
@@ -64,6 +66,27 @@ def register_model_commands(subparsers: _SubParsersAction) -> None:
     permutation.add_argument("--seed", type=int, default=42)
     permutation.add_argument("--time-field", default="window_start_utc")
     permutation.set_defaults(func=_permute_spatial_targets)
+
+    catalog_compare = subparsers.add_parser("compare-event-catalogs")
+    catalog_compare.add_argument("--real-events", type=Path, required=True)
+    catalog_compare.add_argument("--synthetic-events", type=Path, action="append", required=True)
+    catalog_compare.add_argument("--out", type=Path, required=True)
+    catalog_compare.add_argument("--cell-degrees", type=float, default=1.5)
+    catalog_compare.set_defaults(func=_compare_event_catalogs)
+
+    magnitude_calibration = subparsers.add_parser("calibrate-synthetic-magnitudes")
+    magnitude_calibration.add_argument("--real-events", type=Path, required=True)
+    magnitude_calibration.add_argument("--synthetic-events", type=Path, required=True)
+    magnitude_calibration.add_argument("--out", type=Path, required=True)
+    magnitude_calibration.set_defaults(func=_calibrate_synthetic_magnitudes)
+
+    catalog_calibration = subparsers.add_parser("calibrate-synthetic-catalog")
+    catalog_calibration.add_argument("--real-events", type=Path, required=True)
+    catalog_calibration.add_argument("--synthetic-events", type=Path, required=True)
+    catalog_calibration.add_argument("--out", type=Path, required=True)
+    catalog_calibration.add_argument("--report", type=Path, required=True)
+    catalog_calibration.add_argument("--seed", type=int, default=42)
+    catalog_calibration.set_defaults(func=_calibrate_synthetic_catalog)
 
     ablation = subparsers.add_parser("train-ablation-smoke")
     ablation.add_argument("--input", type=Path, required=True)
@@ -436,6 +459,43 @@ def _permute_spatial_targets(args: Namespace) -> int:
     )
     print(f"rows: {report['row_count']}")
     print(f"labeled time groups: {report['labeled_time_count']}")
+    print(f"output: {args.out}")
+    return 0
+
+
+def _compare_event_catalogs(args: Namespace) -> int:
+    report = compare_event_catalogs(
+        real_events=args.real_events,
+        synthetic_events=args.synthetic_events,
+        out_path=args.out,
+        cell_degrees=args.cell_degrees,
+    )
+    print(f"catalogs: {len(report['catalogs'])}")
+    print(f"output: {args.out}")
+    return 0
+
+
+def _calibrate_synthetic_magnitudes(args: Namespace) -> int:
+    report = calibrate_synthetic_magnitudes(
+        real_events=args.real_events, synthetic_events=args.synthetic_events, out_path=args.out
+    )
+    print(f"real events: {report['real_event_count']}")
+    print(f"synthetic events: {report['synthetic_event_count']}")
+    print(f"output: {args.out}")
+    return 0
+
+
+def _calibrate_synthetic_catalog(args: Namespace) -> int:
+    report = calibrate_synthetic_catalog(
+        real_events=args.real_events,
+        synthetic_events=args.synthetic_events,
+        out_path=args.out,
+        seed=args.seed,
+    )
+    args.report.parent.mkdir(parents=True, exist_ok=True)
+    args.report.write_text(json.dumps(report, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+    print(f"retained events: {report['retained_event_count']}")
+    print(f"keep probability: {report['keep_probability']:.6f}")
     print(f"output: {args.out}")
     return 0
 
