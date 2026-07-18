@@ -15,16 +15,20 @@
 10. Review `data/derived/reports/italy_event_catalog_alignment.json`; the first comparison shows synthetic magnitudes are far too high and synthetic episodes occupy fewer cells, so do not use raw synthetic magnitudes for transfer without calibration.
 11. Compare calibrated catalogs using `data/derived/reports/italy_event_catalog_alignment_calibrated.json`; rate and magnitude alignment improve, but spatial support remains incomplete. Use the new per-event spatial weights only in a weighted-training diagnostic until a source-observation model is validated.
 12. Use the matching central-Italy catalog for central-Italy simulation profiles. The current raw seed-40 rate is about 16 times too high; do not select an extractor from a five-event sample. Generate and combine several independent episodes before judging temporal or spatial alignment.
-13. Use the three-episode combined calibrated profile as the current alignment candidate: `data/derived/reports/central_italy_event_catalog_alignment_combined_spatial.json`. Improve its spatial nearest-neighbour distance without degrading its rate, magnitude, or inter-event-time matches.
+13. Use the three-episode combined calibrated profile as the current alignment candidate: `data/derived/reports/central_italy_event_catalog_alignment_combined_spatial.json`. Its sample-matched nearest-neighbour distance is now `3.469` km; validate this improvement with more episodes and held-out spatial cells before promoting it.
+14. Do not promote the 40,000-step seed-`4500` profile. Its tuned ten-event catalog is too small and has poor magnitude and clustering alignment; generate several independent long episodes and require a minimum event count before recalibrating.
+15. Use explicit simulation coverage duration in future catalog comparisons. The corrected five-episode report is `data/derived/reports/central_italy_event_catalog_alignment_5episode_duration_final.json`; its rate ratio is `0.924`, but held-out episode and cell validation is still required.
 
 ## Modeling
 
 1. Run `./scripts/run-transfer-experiments.sh` after each real-data refresh. It compares historical rate, real-only random initialization, synthetic transfer, rolling-origin folds, and a train-only grid selection before one final holdout evaluation. The default synthetic corpus now includes four long episodes; add more 20,000-step episodes before treating transfer changes as stable.
 1. Generate more independent warmed episodes and rerun leave-one-episode-out evaluation; nine episodes are not enough to estimate regime robustness tightly.
-2. Do not add the default piezo potential channel to model training yet. Its spatial average failed a nine-episode causal lead-time check; event-nearest diagnostics are positive but use future event locations and are not valid inputs.
-3. Calibrate weekly event counts against historical INGV `>M2` rates before trusting any neural score scale.
-4. Compare every weekly forecast run with `./scripts/compare-weekly-forecasts.sh` and track Stage 1/Stage 2 pass/fail status.
-5. Keep direct avalanche-derived seismic features separate from piezo/VLF-like features; use ablations to test their contribution independently.
+2. Combine at least five scope-matched long episodes, apply calibration using training dates only, and report rate, magnitude, inter-event, sample-matched clustering, and occupancy metrics together.
+3. Keep the five-episode candidate as a diagnostic benchmark, not a training default, until its corrected rate and spatial metrics survive held-out episode and cell checks.
+4. Do not add the default piezo potential channel to model training yet. Its spatial average failed a nine-episode causal lead-time check; event-nearest diagnostics are positive but use future event locations and are not valid inputs.
+5. Calibrate weekly event counts against historical INGV `>M2` rates before trusting any neural score scale.
+6. Compare every weekly forecast run with `./scripts/compare-weekly-forecasts.sh` and track Stage 1/Stage 2 pass/fail status.
+7. Keep direct avalanche-derived seismic features separate from piezo/VLF-like features; use ablations to test their contribution independently.
 
 ## Data
 
@@ -38,6 +42,7 @@
 8. Treat rate thinning as an observation model, not a simulation fix; retain the raw event catalog and test whether spatial reweighting improves cell occupancy without moving localized source events.
 9. Add a joint alignment score with minimum sample gates: rate ratio, magnitude distance, inter-event distance, nearest-neighbour distance, and spatial occupancy must be reported together.
 10. Preserve the combined-episode time offsets and calibration metadata in every synthetic training artifact; do not collapse episodes back onto their shared demonstration clock.
+11. Use sample-size-matched nearest-neighbour statistics for catalog clustering. Do not compare a 32-event synthetic catalog directly against all 594 real events.
 
 ## Simulation
 

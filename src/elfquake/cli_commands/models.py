@@ -78,6 +78,7 @@ def register_model_commands(subparsers: _SubParsersAction) -> None:
     catalog_compare.add_argument("--synthetic-events", type=Path, action="append", required=True)
     catalog_compare.add_argument("--out", type=Path, required=True)
     catalog_compare.add_argument("--cell-degrees", type=float, default=1.5)
+    catalog_compare.add_argument("--synthetic-duration-days", type=float, action="append")
     catalog_compare.set_defaults(func=_compare_event_catalogs)
 
     magnitude_calibration = subparsers.add_parser("calibrate-synthetic-magnitudes")
@@ -92,6 +93,7 @@ def register_model_commands(subparsers: _SubParsersAction) -> None:
     catalog_calibration.add_argument("--out", type=Path, required=True)
     catalog_calibration.add_argument("--report", type=Path, required=True)
     catalog_calibration.add_argument("--seed", type=int, default=42)
+    catalog_calibration.add_argument("--synthetic-duration-days", type=float)
     catalog_calibration.set_defaults(func=_calibrate_synthetic_catalog)
 
     spatial_calibration = subparsers.add_parser("calibrate-synthetic-spatial")
@@ -489,6 +491,7 @@ def _compare_event_catalogs(args: Namespace) -> int:
         synthetic_events=args.synthetic_events,
         out_path=args.out,
         cell_degrees=args.cell_degrees,
+        synthetic_duration_days=args.synthetic_duration_days,
     )
     print(f"catalogs: {len(report['catalogs'])}")
     print(f"output: {args.out}")
@@ -511,6 +514,7 @@ def _calibrate_synthetic_catalog(args: Namespace) -> int:
         synthetic_events=args.synthetic_events,
         out_path=args.out,
         seed=args.seed,
+        synthetic_duration_days=args.synthetic_duration_days,
     )
     args.report.parent.mkdir(parents=True, exist_ok=True)
     args.report.write_text(json.dumps(report, indent=2, sort_keys=True) + "\n", encoding="utf-8")

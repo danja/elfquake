@@ -48,6 +48,12 @@ Scope matters: the current simulation profile is labelled `central_italy`. Again
 
 The first three-episode combined profile is more useful. After rate and magnitude calibration, it reaches a rate ratio of `0.956`, magnitude Wasserstein distance `0.082`, and median inter-event time `23.6` hours versus `21.6` hours for central Italy. Spatial quantile transport improves nearest-neighbour Wasserstein distance from `30.939` to `11.212` km and covers 3 of 4 coarse central-Italy cells. This is the first promising intermediate profile, but the remaining spatial clustering error still prevents promotion.
 
+A 40,000-step seed-`4500` episode tested whether a longer trajectory would correct the sparse event process. It did not: the default extractor returned five events, and the best tuned profile returned ten. The tuned signal-shape score improved to `0.177394`, but rate ratio was `0.606`, magnitude Wasserstein distance `2.501`, and sample-matched nearest-neighbour distance `91.279` km. Duration is therefore not a sufficient alignment fix; the next useful test is a multi-episode catalog with a minimum event-count gate and held-out validation.
+
+Five default-extraction episodes (`40`, `41`, `42`, `4300`, and `4500`) now provide a larger candidate. Catalog duration must be supplied explicitly because quiet tails are not represented by emitted events. With the known 111.78-day combined coverage, calibration and spatial transport retain 67 events: rate ratio `0.924`, magnitude Wasserstein distance `0.046`, inter-event Wasserstein distance `22.885` hours, sample-matched nearest-neighbour distance `1.600` km, and 3 of 4 occupied coarse cells. This is the strongest current diagnostic, but it remains subject to held-out validation.
+
+Nearest-neighbour comparisons must be sample-size matched. With 594 real events versus 32 calibrated synthetic events, the full-catalog distance is biased upward. Sampling 32 real events repeatedly gives a baseline comparison of `21.570` km; spatial transport reduces the synthetic comparison to `3.469` km. This is a substantial clustering improvement, although cell occupancy and joint spatial structure still need validation on more episodes.
+
 ### 4. Catalog-level distance and simulation calibration
 
 Score each synthetic episode against the real training catalog using a vector of summary statistics:

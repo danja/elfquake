@@ -35,13 +35,24 @@ class EventCatalogAlignmentTests(unittest.TestCase):
                 encoding="utf-8",
             )
 
-            report = compare_event_catalogs(real_events=real, synthetic_events=[synthetic], out_path=root / "report.json")
+            report = compare_event_catalogs(
+                real_events=real,
+                synthetic_events=[synthetic],
+                out_path=root / "report.json",
+                synthetic_duration_days=[10.0],
+            )
             calibration = calibrate_synthetic_magnitudes(real_events=real, synthetic_events=synthetic, out_path=calibrated)
             rate_calibration = calibrate_synthetic_catalog(
-                real_events=real, synthetic_events=synthetic, out_path=root / "rate_calibrated.csv", seed=7
+                real_events=real,
+                synthetic_events=synthetic,
+                out_path=root / "rate_calibrated.csv",
+                seed=7,
+                synthetic_duration_days=10.0,
             )
 
             self.assertEqual(report["catalogs"][0]["summary"]["event_count"], 3)
+            self.assertEqual(report["catalogs"][1]["summary"]["duration_days"], 10.0)
+            self.assertIn("sample_matched_nearest_neighbour_km_wasserstein", report["comparisons_to_real"][0])
             self.assertEqual(calibration["synthetic_event_count"], 2)
             self.assertEqual(rate_calibration["synthetic_event_count"], 2)
             self.assertLessEqual(rate_calibration["retained_event_count"], 2)

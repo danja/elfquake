@@ -7,6 +7,15 @@ SYNTHETIC_EVENTS="${SYNTHETIC_EVENTS:-data/derived/sim/mountain_256x256_seed40_2
 OUT="${OUT:-data/derived/sim/mountain_256x256_seed40_20000.avalanche_events.catalog_calibrated.csv}"
 REPORT="${REPORT:-${OUT%.csv}.json}"
 
-PYTHONDONTWRITEBYTECODE=1 PYTHONPATH=src "$PYTHON_BIN" -m elfquake.cli calibrate-synthetic-catalog \
-  --real-events "$REAL_EVENTS" --synthetic-events "$SYNTHETIC_EVENTS" \
-  --out "$OUT" --report "$REPORT" --seed "${SEED:-42}"
+args=(
+  --real-events "$REAL_EVENTS"
+  --synthetic-events "$SYNTHETIC_EVENTS"
+  --out "$OUT"
+  --report "$REPORT"
+  --seed "${SEED:-42}"
+)
+if [[ -n "${SYNTHETIC_DURATION_DAYS:-}" ]]; then
+  args+=(--synthetic-duration-days "$SYNTHETIC_DURATION_DAYS")
+fi
+
+PYTHONDONTWRITEBYTECODE=1 PYTHONPATH=src "$PYTHON_BIN" -m elfquake.cli calibrate-synthetic-catalog "${args[@]}"

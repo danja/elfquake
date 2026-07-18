@@ -16,8 +16,15 @@ ITALY_LON = (5.5, 19.5)
 
 
 def compare_event_catalogs(
-    *, real_events: Path, synthetic_events: list[Path], out_path: Path, cell_degrees: float = 1.5
+    *,
+    real_events: Path,
+    synthetic_events: list[Path],
+    out_path: Path,
+    cell_degrees: float = 1.5,
+    synthetic_duration_days: list[float] | None = None,
 ) -> dict[str, object]:
+    if synthetic_duration_days and len(synthetic_duration_days) != len(synthetic_events):
+        raise ValueError("synthetic duration count must match synthetic catalog count")
     real = _read_catalog(real_events)
     synthetic = [_read_catalog(path) for path in synthetic_events]
     catalogs = [{"name": "real_italy", "path": str(real_events), "events": real}]
@@ -25,16 +32,22 @@ def compare_event_catalogs(
         {"name": f"synthetic_{index:02d}", "path": str(path), "events": events}
         for index, (path, events) in enumerate(zip(synthetic_events, synthetic), start=1)
     )
-    summaries = [_summary(item["events"], cell_degrees) for item in catalogs]
+    summaries = [_summary(item["events"], cell_degrees) for item in catalogs[:1]]
+    summaries.extend(
+        _summary(events, cell_degrees, duration_days=duration)
+        for events, duration in zip(synthetic, synthetic_duration_days or [None] * len(synthetic))
+    )
     real_summary = summaries[0]
     comparisons = [
-        _compare_summary(real_summary, summary, name)
-        for name, summary in ((item["name"], summary) for item, summary in zip(catalogs[1:], summaries[1:]))
+        _compare_summary(real_summary, summary, name, real_events=real, synthetic_events=item["events"])
+        for item, summary in zip(catalogs[1:], summaries[1:])
+        for name in [item["name"]]
     ]
     report = {
         "schema": "elfquake.event_catalog_alignment.v1",
         "method": {
             "cell_degrees": cell_degrees,
+            "synthetic_duration_days": synthetic_duration_days,
             "spatial_metric": "cell occupancy and haversine nearest-neighbour distances",
             "distribution_metrics": "Kolmogorov-Smirnov and Wasserstein distances",
             "warning": "descriptive comparison only; no event identities are matched",
@@ -122,14 +135,19 @@ def calibrate_synthetic_magnitudes(
 
 
 def calibrate_synthetic_catalog(
-    *, real_events: Path, synthetic_events: Path, out_path: Path, seed: int = 42
+    *,
+    real_events: Path,
+    synthetic_events: Path,
+    out_path: Path,
+    seed: int = 42,
+    synthetic_duration_days: float | None = None,
 ) -> dict[str, object]:
     """Apply train-fitted magnitude mapping and deterministic rate thinning."""
     real = _read_catalog(real_events)
     rows = _read_rows(synthetic_events)
     synthetic = _read_catalog(synthetic_events)
     real_rate = _rate_per_day(real)
-    synthetic_rate = _rate_per_day(synthetic)
+    synthetic_rate = _rate_per_day(synthetic, duration_days=synthetic_duration_days)
     keep_probability = min(1.0, real_rate / synthetic_rate) if synthetic_rate else 0.0
     real_magnitudes = sorted(event["magnitude"] for event in real)
     synthetic_magnitudes = [event["magnitude"] for event in synthetic]
@@ -149,7 +167,12 @@ def calibrate_synthetic_catalog(
             fieldnames.append(field)
 
     real_days = max(_duration_days([event["time"] for event in real]), 1e-9)
-    synthetic_days = max(_duration_days([event["time"] for event in synthetic]), 1e-9)
+    synthetic_days = max(
+        synthetic_duration_days
+        if synthetic_duration_days is not None
+        else _duration_days([event["time"] for event in synthetic]),
+        1e-9,
+    )
     real_cell_rates = _cell_rates(real, real_days)
     synthetic_cell_rates = _cell_rates(synthetic, synthetic_days)
     raw_spatial_weights = {
@@ -195,6 +218,7 @@ def calibrate_synthetic_catalog(
         "retained_event_count": kept_count,
         "real_rate_per_day": real_rate,
         "synthetic_rate_per_day": synthetic_rate,
+        "synthetic_duration_days": synthetic_duration_days,
         "keep_probability": keep_probability,
         "seed": seed,
         "magnitude_method": "empirical quantile mapping fitted on real catalog",
@@ -265,7 +289,9 @@ def _read_catalog(path: Path) -> list[dict[str, float]]:
     return events
 
 
-def _summary(events: list[dict[str, float]], cell_degrees: float) -> dict[str, object]:
+def _summary(
+    events: list[dict[str, float]], cell_degrees: float, duration_days: float | None = None
+) -> dict[str, object]:
     magnitudes = [event["magnitude"] for event in events]
     times = [event["time"] for event in events]
     gaps = _gaps_hours(times)
@@ -275,8 +301,8 @@ def _summary(events: list[dict[str, float]], cell_degrees: float) -> dict[str, o
         "event_count": len(events),
         "time_start": times[0] if times else "",
         "time_end": times[-1] if times else "",
-        "duration_days": _duration_days(times),
-        "rate_per_day": _rate_per_day(events),
+        "duration_days": duration_days if duration_days is not None else _duration_days(times),
+        "rate_per_day": _rate_per_day(events, duration_days=duration_days),
         "interevent_hours": _distribution(gaps),
         "magnitude": _distribution(magnitudes),
         "energy_proxy": _distribution([10.0 ** (1.5 * magnitude) for magnitude in magnitudes]),
@@ -286,9 +312,10 @@ def _summary(events: list[dict[str, float]], cell_degrees: float) -> dict[str, o
     }
 
 
-def _rate_per_day(events: list[dict[str, float]]) -> float:
+def _rate_per_day(events: list[dict[str, float]], duration_days: float | None = None) -> float:
     times = [event["time"] for event in events]
-    return len(events) / max(_duration_days(times), 1e-9) if events else 0.0
+    duration = duration_days if duration_days is not None else _duration_days(times)
+    return len(events) / max(duration, 1e-9) if events else 0.0
 
 
 def _cell_rates(events: list[dict[str, float]], duration_days: float) -> dict[tuple[int, int], float]:
@@ -309,7 +336,14 @@ def _cell_key(latitude: float, longitude: float, cell_degrees: float = 1.5) -> t
     return (int((latitude - ITALY_LAT[0]) / cell_degrees), int((longitude - ITALY_LON[0]) / cell_degrees))
 
 
-def _compare_summary(real: dict[str, object], synthetic: dict[str, object], name: str) -> dict[str, object]:
+def _compare_summary(
+    real: dict[str, object],
+    synthetic: dict[str, object],
+    name: str,
+    *,
+    real_events: list[dict[str, float]],
+    synthetic_events: list[dict[str, float]],
+) -> dict[str, object]:
     real_magnitudes = real["magnitude"]["values"]
     synthetic_magnitudes = synthetic["magnitude"]["values"]
     real_gaps = real["interevent_hours"]["values"]
@@ -323,8 +357,27 @@ def _compare_summary(real: dict[str, object], synthetic: dict[str, object], name
         "interevent_hours_wasserstein": _distance(real_gaps, synthetic_gaps),
         "interevent_hours_ks": _ks(real_gaps, synthetic_gaps),
         "nearest_neighbour_km_wasserstein": _distance(real["nearest_neighbour_km"]["values"], synthetic["nearest_neighbour_km"]["values"]),
+        "sample_matched_nearest_neighbour_km_wasserstein": _sample_matched_neighbour_distance(
+            real_events, synthetic_events
+        ),
         "shared_spatial_cell_count": len(set(real["spatial_cell_occupancy"]) & set(synthetic["spatial_cell_occupancy"])),
     }
+
+
+def _sample_matched_neighbour_distance(
+    real_events: list[dict[str, float]], synthetic_events: list[dict[str, float]], repeats: int = 32
+) -> float | None:
+    """Compare nearest-neighbour distances after matching catalog sample size."""
+    sample_size = len(synthetic_events)
+    if sample_size < 2 or len(real_events) < sample_size:
+        return None
+    synthetic_distances = _nearest_neighbour_km(synthetic_events)
+    rng = random.Random(42)
+    distances = []
+    for _ in range(repeats):
+        sampled_real = rng.sample(real_events, sample_size)
+        distances.append(_distance(_nearest_neighbour_km(sampled_real), synthetic_distances) or 0.0)
+    return sum(distances) / len(distances) if distances else None
 
 
 def _read_rows(path: Path) -> list[dict[str, str]]:
