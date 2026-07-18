@@ -139,4 +139,8 @@ fi
 
 args+=(--progress-interval "$progress_interval")
 
+# Preserve the exact resolved simulator arguments beside each generated episode.
+printf '%q ' "${args[@]}" > "${prefix}.command.txt"
+printf '\n' >> "${prefix}.command.txt"
+
 PYTHONDONTWRITEBYTECODE=1 PYTHONPATH=src .venv/bin/python "${args[@]}"

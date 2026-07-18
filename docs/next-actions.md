@@ -18,7 +18,7 @@
 13. Use the three-episode combined calibrated profile as the current alignment candidate: `data/derived/reports/central_italy_event_catalog_alignment_combined_spatial.json`. Its sample-matched nearest-neighbour distance is now `3.469` km; validate this improvement with more episodes and held-out spatial cells before promoting it.
 14. Do not promote the 40,000-step seed-`4500` profile. Its tuned ten-event catalog is too small and has poor magnitude and clustering alignment; generate several independent long episodes and require a minimum event count before recalibrating.
 15. Use explicit simulation coverage duration in future catalog comparisons. The corrected five-episode report is `data/derived/reports/central_italy_event_catalog_alignment_5episode_duration_final.json`; its rate ratio is `0.924`, but held-out episode and cell validation is still required.
-16. Treat `./scripts/evaluate-italy-synthetic-episode-alignment.sh` as a regime-stability diagnostic. The current episodes span rate ratios `0.278`--`14.990` before calibration, so do not interpret the combined calibrated profile as process validation.
+16. Treat `./scripts/evaluate-italy-synthetic-episode-alignment.sh` as a regime-stability diagnostic only after all inputs share one simulator profile. The current `0.278`--`14.990` spread is configuration drift: regenerate seeds under the current source-localized refill profile before judging seed sensitivity.
 17. Use `./scripts/balance-italy-synthetic-episode-rates.sh` only as an auditable training/observation-model diagnostic. It can thin overactive episodes, but it must not synthesize events for underactive episodes; the simulator still needs regime stabilization.
 
 ## Modeling
@@ -28,11 +28,12 @@
 2. Combine at least five scope-matched long episodes, apply calibration using training dates only, and report rate, magnitude, inter-event, sample-matched clustering, and occupancy metrics together.
 3. Keep the five-episode candidate as a diagnostic benchmark, not a training default, until its corrected rate and spatial metrics survive held-out episode and cell checks.
 4. Add regime-conditioned reporting or a mixture-of-regimes simulation before another global calibration pass; the current episode rate spread is too large to treat one global thinning factor as a physical correction.
-5. Investigate the low-rate `4300` and `4500` regimes by comparing their avalanche-signal distributions and source/loading trajectories with seeds `40`--`42`; adjust simulation dynamics only if the cause is understood.
-6. Do not add the default piezo potential channel to model training yet. Its spatial average failed a nine-episode causal lead-time check; event-nearest diagnostics are positive but use future event locations and are not valid inputs.
-7. Calibrate weekly event counts against historical INGV `>M2` rates before trusting any neural score scale.
-8. Compare every weekly forecast run with `./scripts/compare-weekly-forecasts.sh` and track Stage 1/Stage 2 pass/fail status.
-9. Keep direct avalanche-derived seismic features separate from piezo/VLF-like features; use ablations to test their contribution independently.
+5. Regenerate a matched 20,000-step corpus for three or more seeds using the current `run-synthetic-episode-batch.sh` profile, then rebuild catalogs and repeat alignment. Do not combine the old high-fill artifacts with the current low-fill artifacts.
+6. Investigate any remaining rate spread after the matched rerun by comparing avalanche-signal distributions and source/loading trajectories; adjust dynamics only if the cause is understood.
+7. Do not add the default piezo potential channel to model training yet. Its spatial average failed a nine-episode causal lead-time check; event-nearest diagnostics are positive but use future event locations and are not valid inputs.
+8. Calibrate weekly event counts against historical INGV `>M2` rates before trusting any neural score scale.
+9. Compare every weekly forecast run with `./scripts/compare-weekly-forecasts.sh` and track Stage 1/Stage 2 pass/fail status.
+10. Keep direct avalanche-derived seismic features separate from piezo/VLF-like features; use ablations to test their contribution independently.
 
 ## Data
 

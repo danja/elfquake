@@ -192,6 +192,8 @@ Compare each central-Italy synthetic episode separately with explicit full-run d
 
 Deterministically thin overactive synthetic episodes toward the real central-Italy event rate while preserving underactive episodes unchanged. Use this only as an observation-model or training-balance diagnostic; it does not repair the simulator or create missing events.
 
+Each `sim.sh` run also writes a `.command.txt` sidecar containing the resolved simulator arguments. Keep this sidecar with the generated artifacts and use it to verify that episodes share the same profile before combining them.
+
 ### `calibrate-italy-synthetic-spatial.sh`
 
 Apply an auditable empirical latitude/longitude mapping to a derived catalog. Use only as an observation-model experiment; retain raw coordinates and compare nearest-neighbour and occupancy statistics before using it for training.
