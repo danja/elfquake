@@ -11,7 +11,14 @@ from pathlib import Path
 from elfquake.features.common import parse_utc
 
 
-BASE_INDEX_FIELDS = ["window_id", "region_id", "window_start_utc", "window_end_utc", "source_file"]
+BASE_INDEX_FIELDS = [
+    "window_id",
+    "region_id",
+    "target_cell_id",
+    "window_start_utc",
+    "window_end_utc",
+    "source_file",
+]
 TARGET_FIELDS = ["target_event_count", "target_occurred", "target_status"]
 
 

@@ -9,6 +9,7 @@
 4. Keep label-free real VLF pretraining as the default real-data path while supervised VLF-aligned labels remain one-class or sparse; require reconstruction to beat both zero and last-patch baselines.
 5. Continue periodic INGV refresh and prospective relabeling; the current catalog-coverage guard prevents false maturity. Region-level tables remain one-class, so use `./scripts/prepare-italy-spatial-model-inputs.sh` for the fixed-cell baseline until more temporal coverage arrives.
 6. Repeat `./scripts/evaluate-italy-spatial-baseline.sh` after each refresh; its `--group-by-time` split keeps all cells from one VLF window in the same partition.
+7. Do not promote the spatial model from the current cell holdout: only 5 of 19 cells contain positive labels, so leave-one-cell-out evaluation is mostly one-class. Accumulate more time coverage before using this as a transfer test.
 
 ## Modeling
 
@@ -136,3 +137,5 @@
 The fixed-cell implementation is available in `data/derived/multimodal/all_italy.spatial_vlf_image_windows.labeled.csv` and is prepared by `./scripts/prepare-italy-spatial-model-inputs.sh`. The current smoke artifact has 5,301 rows across 19 cells, with 812 positive, 4,451 negative, and 38 pending labels. This fixes target saturation but does not fix the short time coverage or establish predictive skill.
 
 The first grouped-time logistic smoke baseline reached calibrated balanced accuracy `0.655320` for the all-feature ablation. The seismic-only and VLF-only ablations collapsed to balanced accuracy `0.5` under their calibrated thresholds. These figures are a single short-window diagnostic and are not evidence that either modality predicts earthquakes.
+
+The first 19-cell leave-one-cell-out probe is stored under `data/derived/models/all_italy_spatial_cell_holdouts_v2`. Only 5 cells have positive test labels; the other 14 folds are one-class. The valid folds range from `0.146597` to `0.855263` calibrated balanced accuracy, with mean `0.333370` across all folds. This instability and class sparsity block meaningful spatial transfer evaluation.

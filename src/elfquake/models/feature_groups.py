@@ -18,6 +18,7 @@ ID_FIELDS = {
     "region_id",
     "window_start_utc",
     "window_end_utc",
+    "target_cell_id",
     "source_file",
     "seismic_source_file",
     "vlf_image_source_file",
