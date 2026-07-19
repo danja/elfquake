@@ -39,6 +39,7 @@ def evaluate_torch_patch_transformer_split_holdout(
     seed: int = 42,
     include_missing_masks: bool = True,
     evaluation_names: list[str] | None = None,
+    regression_target_fields: list[str] | None = None,
     checkpoint_in: Path | None = None,
     checkpoint_out: Path | None = None,
 ) -> dict[str, object]:
@@ -77,6 +78,7 @@ def evaluate_torch_patch_transformer_split_holdout(
         seed=seed,
         include_missing_masks=include_missing_masks,
         evaluation_names=evaluation_names,
+        regression_target_fields=regression_target_fields,
         checkpoint_in=checkpoint_in,
         checkpoint_out=checkpoint_out,
     )
@@ -104,6 +106,7 @@ def evaluate_torch_patch_transformer_split_holdout(
         batch_size=batch_size,
         seed=seed,
         evaluation_names=evaluation_names,
+        regression_target_fields=regression_target_fields,
         checkpoint_in=checkpoint_in,
         checkpoint_out=checkpoint_out,
     )
@@ -132,6 +135,7 @@ def _base_report(
     seed: int,
     include_missing_masks: bool,
     evaluation_names: list[str] | None,
+    regression_target_fields: list[str] | None,
     checkpoint_in: Path | None,
     checkpoint_out: Path | None,
 ) -> dict[str, object]:
@@ -161,6 +165,7 @@ def _base_report(
         "checkpoint_in": str(checkpoint_in) if checkpoint_in else "",
         "checkpoint_out": str(checkpoint_out) if checkpoint_out else "",
         "selected_evaluations": list(selected),
+        "regression_target_fields": list(regression_target_fields or ()),
         "evaluations": {},
     }
 
@@ -182,6 +187,7 @@ def _evaluate_all(
     batch_size: int,
     seed: int,
     evaluation_names: list[str] | None,
+    regression_target_fields: list[str] | None,
     checkpoint_in: Path | None,
     checkpoint_out: Path | None,
 ) -> None:
@@ -205,6 +211,7 @@ def _evaluate_all(
             seed=seed,
             checkpoint_in=checkpoint_in,
             checkpoint_out=checkpoint_out if name == last_name else None,
+            regression_target_fields=regression_target_fields,
         )
 
 
@@ -226,6 +233,7 @@ def _evaluate_one(
     seed: int,
     checkpoint_in: Path | None,
     checkpoint_out: Path | None,
+    regression_target_fields: list[str] | None,
 ) -> dict[str, object]:
     original_train_count = len(train_rows)
     original_test_count = len(test_rows)
@@ -254,7 +262,10 @@ def _evaluate_one(
         return result
 
     train_x, test_x = _standardize_sequences(train_x, test_x)
-    history, train_probabilities, test_probabilities = _fit_patch_transformer(
+    regression_fields = tuple(regression_target_fields or ())
+    train_regression = {field: [float(row.get(field, "0") or 0.0) for row in train_rows] for field in regression_fields}
+    test_regression = {field: [float(row.get(field, "0") or 0.0) for row in test_rows] for field in regression_fields}
+    history, train_probabilities, test_probabilities, train_regression_predictions, test_regression_predictions = _fit_patch_transformer(
         train_x=train_x,
         train_labels=labels_train,
         test_x=test_x,
@@ -270,6 +281,9 @@ def _evaluate_one(
         seed=seed,
         checkpoint_in=checkpoint_in,
         checkpoint_out=checkpoint_out,
+        train_regression=train_regression,
+        test_regression=test_regression,
+        regression_fields=regression_fields,
     )
     calibrated_threshold = _best_threshold(train_probabilities, labels_train)
     result.update(
@@ -287,6 +301,14 @@ def _evaluate_one(
             "test_predictions": _predictions(test_probabilities, threshold=0.5),
             "test_labels": labels_test,
             "history": history,
+            "regression_targets": {
+                field: {
+                    "test_mae": round(sum(abs(pred - actual) for pred, actual in zip(test_regression_predictions[field], test_regression[field])) / len(test_rows), 6),
+                    "test_predictions": [round(value, 6) for value in test_regression_predictions[field]],
+                    "test_values": test_regression[field],
+                }
+                for field in regression_fields
+            },
         }
     )
     return result
@@ -309,7 +331,10 @@ def _fit_patch_transformer(
     seed: int,
     checkpoint_in: Path | None,
     checkpoint_out: Path | None,
-) -> tuple[dict[str, object], list[float], list[float]]:
+    train_regression: dict[str, list[float]],
+    test_regression: dict[str, list[float]],
+    regression_fields: tuple[str, ...],
+) -> tuple[dict[str, object], list[float], list[float], dict[str, list[float]], dict[str, list[float]]]:
     torch = _import_torch()
     _set_deterministic_seed(torch, seed)
     x_train = _patchify(torch.tensor(train_x, dtype=torch.float32), patch_steps=patch_steps, torch=torch)
@@ -324,12 +349,23 @@ def _fit_patch_transformer(
         layers=layers,
         heads=heads,
         dropout=dropout,
+        regression_fields=regression_fields,
     )
     loaded_checkpoint = _load_checkpoint(model, checkpoint_in=checkpoint_in, torch=torch)
     positives = sum(train_labels)
     negatives = len(train_labels) - positives
     pos_weight = torch.tensor([negatives / positives], dtype=torch.float32) if positives else torch.tensor([1.0])
     criterion = torch.nn.BCEWithLogitsLoss(pos_weight=pos_weight)
+    regression_criteria = {field: torch.nn.MSELoss() for field in regression_fields}
+    regression_stats = {}
+    train_regression_tensor = {}
+    test_regression_tensor = {}
+    for field in regression_fields:
+        mean = sum(train_regression[field]) / len(train_regression[field])
+        scale = math.sqrt(sum((value - mean) ** 2 for value in train_regression[field]) / max(1, len(train_regression[field]))) or 1.0
+        regression_stats[field] = (mean, scale)
+        train_regression_tensor[field] = torch.tensor([(value - mean) / scale for value in train_regression[field]], dtype=torch.float32).unsqueeze(1)
+        test_regression_tensor[field] = torch.tensor([(value - mean) / scale for value in test_regression[field]], dtype=torch.float32).unsqueeze(1)
     optimizer = torch.optim.AdamW(model.parameters(), lr=learning_rate)
     generator = torch.Generator().manual_seed(seed)
     first_loss = None
@@ -341,7 +377,12 @@ def _fit_patch_transformer(
         for start in range(0, len(train_x), batch_size):
             batch_indices = permutation[start : start + batch_size]
             optimizer.zero_grad()
-            loss = criterion(model(x_train[batch_indices]), y_train[batch_indices])
+            outputs = model(x_train[batch_indices])
+            logits = outputs["occurrence"] if isinstance(outputs, dict) else outputs
+            loss = criterion(logits, y_train[batch_indices])
+            if isinstance(outputs, dict):
+                for field in regression_fields:
+                    loss = loss + 0.1 * regression_criteria[field](outputs[field], train_regression_tensor[field][batch_indices])
             loss.backward()
             optimizer.step()
             epoch_loss += float(loss.item()) * len(batch_indices)
@@ -350,9 +391,18 @@ def _fit_patch_transformer(
             first_loss = last_loss
     model.eval()
     with torch.no_grad():
-        train_probabilities = torch.sigmoid(model(x_train)).squeeze(1).tolist()
-        test_probabilities = torch.sigmoid(model(x_test)).squeeze(1).tolist()
-        test_loss = float(criterion(model(x_test), y_test).item())
+        train_outputs = model(x_train)
+        test_outputs = model(x_test)
+        train_probabilities = torch.sigmoid(train_outputs["occurrence"] if isinstance(train_outputs, dict) else train_outputs).squeeze(1).tolist()
+        test_logits = test_outputs["occurrence"] if isinstance(test_outputs, dict) else test_outputs
+        test_probabilities = torch.sigmoid(test_logits).squeeze(1).tolist()
+        test_loss = float(criterion(test_logits, y_test).item())
+        train_regression_predictions = {}
+        test_regression_predictions = {}
+        for field in regression_fields:
+            mean, scale = regression_stats[field]
+            train_regression_predictions[field] = [value * scale + mean for value in train_outputs[field].squeeze(1).tolist()]
+            test_regression_predictions[field] = [value * scale + mean for value in test_outputs[field].squeeze(1).tolist()]
     if checkpoint_out:
         _save_checkpoint(
             model,
@@ -375,6 +425,8 @@ def _fit_patch_transformer(
         },
         [float(value) for value in train_probabilities],
         [float(value) for value in test_probabilities],
+        train_regression_predictions,
+        test_regression_predictions,
     )
 
 
@@ -389,6 +441,7 @@ class _TinyPatchTransformer:
         layers: int,
         heads: int,
         dropout: float,
+        regression_fields: tuple[str, ...] = (),
     ) -> None:
         self.torch = torch
         self.projection = torch.nn.Linear(patch_input_size, d_model)
@@ -402,11 +455,13 @@ class _TinyPatchTransformer:
         )
         self.encoder = torch.nn.TransformerEncoder(encoder_layer, num_layers=layers)
         self.head = torch.nn.Linear(d_model, 1)
+        self.regression_fields = tuple(regression_fields)
+        self.regression_heads = torch.nn.ModuleDict({field: torch.nn.Linear(d_model, 1) for field in self.regression_fields})
         self.position = torch.nn.Parameter(torch.zeros(1, patch_count, d_model))
         torch.nn.init.normal_(self.position, mean=0.0, std=0.02)
 
     def parameters(self):
-        return [self.position, *self.projection.parameters(), *self.encoder.parameters(), *self.head.parameters()]
+        return [self.position, *self.projection.parameters(), *self.encoder.parameters(), *self.head.parameters(), *self.regression_heads.parameters()]
 
     def state_dict(self) -> dict[str, object]:
         return {
@@ -414,6 +469,7 @@ class _TinyPatchTransformer:
             "projection": self.projection.state_dict(),
             "encoder": self.encoder.state_dict(),
             "head": self.head.state_dict(),
+            "regression_heads": self.regression_heads.state_dict(),
         }
 
     def load_partial_state_dict(self, state: dict[str, object]) -> list[str]:
@@ -423,7 +479,7 @@ class _TinyPatchTransformer:
             with self.torch.no_grad():
                 self.position.copy_(position)
             loaded.append("position")
-        for name, module in (("projection", self.projection), ("encoder", self.encoder), ("head", self.head)):
+        for name, module in (("projection", self.projection), ("encoder", self.encoder), ("head", self.head), ("regression_heads", self.regression_heads)):
             module_state = state.get(name)
             if not isinstance(module_state, dict):
                 continue
@@ -438,15 +494,21 @@ class _TinyPatchTransformer:
         self.projection.train()
         self.encoder.train()
         self.head.train()
+        self.regression_heads.train()
 
     def eval(self) -> None:
         self.projection.eval()
         self.encoder.eval()
         self.head.eval()
+        self.regression_heads.eval()
 
     def __call__(self, x):
         encoded = self.encoder(self.projection(x) + self.position[:, : x.shape[1], :])
-        return self.head(encoded.mean(dim=1))
+        pooled = encoded.mean(dim=1)
+        occurrence = self.head(pooled)
+        if not self.regression_fields:
+            return occurrence
+        return {"occurrence": occurrence, **{field: self.regression_heads[field](pooled) for field in self.regression_fields}}
 
 
 def _patchify(x, *, patch_steps: int, torch: object):

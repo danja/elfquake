@@ -31,4 +31,5 @@ PYTHONDONTWRITEBYTECODE=1 PYTHONPATH=src "$PYTHON_BIN" -m elfquake.cli run-trans
   --epochs "${EPOCHS:-50}" \
   --pretrain-epochs "${PRETRAIN_EPOCHS:-30}" \
   --precision-recall-floor "${PRECISION_RECALL_FLOOR:-0.5}" \
+  --feature-mode "${FEATURE_MODE:-compact}" \
   --seed "${SEED:-42}"

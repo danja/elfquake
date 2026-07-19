@@ -26,20 +26,23 @@ for lookback_steps in $LOOKBACK_STEPS_LIST; do
     fi
     for dropout in $DROPOUTS; do
       dropout_slug="$(slug_number "$dropout")"
-      run_dir="${ROOT}/lookback_${lookback_steps}/patch_${patch_steps}/dropout_${dropout_slug}"
-      mkdir -p "$run_dir"
-      INPUT="$INPUT" \
-      ROOT="$run_dir" \
-      OUT="${run_dir}/patch_transformer.json" \
-      SUMMARY="${run_dir}/patch_transformer_summary.json" \
-      CHECKPOINT_OUT="${run_dir}/patch_transformer.pt" \
-      LOOKBACK_STEPS="$lookback_steps" \
-      PATCH_STEPS="$patch_steps" \
-      DROPOUT="$dropout" \
-      EPOCHS="$EPOCHS" \
-      RUN_SEEDS="$RUN_SEEDS" \
-        ./scripts/train-synthetic-event-list-patch-transformer.sh
-      reports+=(--report "${run_dir}/patch_transformer.json")
+      config_dir="${ROOT}/lookback_${lookback_steps}/patch_${patch_steps}/dropout_${dropout_slug}"
+      for run_seed in $RUN_SEEDS; do
+        run_dir="${config_dir}/seed_${run_seed}"
+        mkdir -p "$run_dir"
+        INPUT="$INPUT" \
+        ROOT="$run_dir" \
+        OUT="${run_dir}/patch_transformer.json" \
+        SUMMARY="${run_dir}/patch_transformer_summary.json" \
+        CHECKPOINT_OUT="${run_dir}/patch_transformer.pt" \
+        LOOKBACK_STEPS="$lookback_steps" \
+        PATCH_STEPS="$patch_steps" \
+        DROPOUT="$dropout" \
+        EPOCHS="$EPOCHS" \
+        RUN_SEEDS="$run_seed" \
+          ./scripts/train-synthetic-event-list-patch-transformer.sh
+        reports+=(--report "${run_dir}/patch_transformer.json")
+      done
     done
   done
 done

@@ -228,6 +228,10 @@ Train a CPU PyTorch tabular MLP with the same time-ordered split and feature-gro
 
 Train the same CPU PyTorch tabular MLP while holding out one dataset group, usually a synthetic seed. Use this to check synthetic transfer across generated runs.
 
+### `run-transfer-experiments.sh`
+
+Run the compact CPU MLP transfer baseline after a real-data refresh. Set `FEATURE_MODE=multiscale` to add causal 1--90 day local/neighbour counts, magnitude, energy, and recency features for a controlled feature experiment.
+
 ### `train-torch-sequence-holdout`
 
 Train a CPU PyTorch GRU over materialized sequence manifests with a time-ordered split. Use this to test whether sensor time structure adds value beyond tabular aggregates. Use repeated `--evaluation` options for focused runs such as `sequence_full`.
@@ -251,6 +255,10 @@ Prepare the h6 event-list target table and train the current CPU patch Transform
 ### `sweep-synthetic-event-list-patch-transformer.sh`
 
 Repeat the h6 event-list patch Transformer over bounded lookback, patch-size, and dropout settings. Use this after simulation, target, or model-interface changes.
+
+### `evaluate-synthetic-event-list-patch-transformer-episodes.sh`
+
+Run a leave-one-episode-out CPU Transformer check. Each synthetic episode is held out in turn, and optional count and log-energy regression heads are trained alongside occurrence; use this to measure regime generalization rather than to select a forecast model.
 
 ### `diagnose-temporal-split`
 

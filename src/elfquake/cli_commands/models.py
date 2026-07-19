@@ -183,6 +183,7 @@ def register_model_commands(subparsers: _SubParsersAction) -> None:
     transformer_input.add_argument("--group-field", default="dataset_id")
     transformer_input.add_argument("--time-field", default="window_start_utc")
     transformer_input.add_argument("--train-fraction", type=float, default=0.8)
+    transformer_input.add_argument("--test-group")
     transformer_input.set_defaults(func=_prepare_transformer_target_input)
 
     step_targets = subparsers.add_parser("build-synthetic-step-targets")
@@ -351,6 +352,7 @@ def register_model_commands(subparsers: _SubParsersAction) -> None:
     transfer_suite.add_argument("--epochs", type=int, default=50)
     transfer_suite.add_argument("--pretrain-epochs", type=int, default=30)
     transfer_suite.add_argument("--precision-recall-floor", type=float, default=0.5)
+    transfer_suite.add_argument("--feature-mode", choices=("compact", "multiscale"), default="compact")
     transfer_suite.add_argument("--seed", type=int, default=42)
     transfer_suite.set_defaults(func=_run_transfer_experiment_suite)
 
@@ -622,6 +624,7 @@ def _run_transfer_experiment_suite(args: Namespace) -> int:
         epochs=args.epochs,
         pretrain_epochs=args.pretrain_epochs,
         precision_recall_floor=args.precision_recall_floor,
+        feature_mode=args.feature_mode,
         seed=args.seed,
     )
     ablations = report["experiment_1_matched_ablation"]
@@ -724,6 +727,7 @@ def _prepare_transformer_target_input(args: Namespace) -> int:
         group_field=args.group_field,
         time_field=args.time_field,
         train_fraction=args.train_fraction,
+        test_group=args.test_group,
     )
     print(f"rows: {report['row_count']}")
     print(f"labeled rows: {report['labeled_row_count']}")

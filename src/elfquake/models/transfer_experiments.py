@@ -36,13 +36,14 @@ def run_transfer_experiment_suite(
     pretrain_epochs: int = 30,
     seed: int = 42,
     precision_recall_floor: float = 0.5,
+    feature_mode: str = "compact",
 ) -> dict[str, object]:
     """Run experiments 1--3 using one fixed final real holdout."""
     real = _read_events(real_events_csv)
     synthetic = _read_synthetic_corpus(synthetic_event_csvs)
     cells = _cells(cell_degrees)
-    samples = _weekly_samples(real, cells, magnitude_threshold, horizon_days, cell_degrees)
-    synthetic_samples = _weekly_samples(synthetic, cells, magnitude_threshold, horizon_days, cell_degrees)
+    samples = _weekly_samples(real, cells, magnitude_threshold, horizon_days, cell_degrees, feature_mode)
+    synthetic_samples = _weekly_samples(synthetic, cells, magnitude_threshold, horizon_days, cell_degrees, feature_mode)
     weeks = sorted({sample.week_start for sample in samples})
     split = int(len(weeks) * train_fraction)
     train_weeks, test_weeks = set(weeks[:split]), set(weeks[split:])
@@ -55,7 +56,8 @@ def run_transfer_experiment_suite(
         "synthetic_pretrained_transfer": _model_result(torch, train, test, synthetic_samples=synthetic_samples, epochs=epochs, pretrain_epochs=pretrain_epochs, seed=seed, precision_recall_floor=precision_recall_floor),
     }
     rolling = _rolling_results(torch, samples, synthetic_samples, weeks, epochs, pretrain_epochs, seed, precision_recall_floor)
-    grid = _grid_selection(torch, real, synthetic, train_weeks, test, magnitude_threshold, horizon_days, epochs, pretrain_epochs, seed, precision_recall_floor)
+    rolling["historical_spatial_rate_folds"] = _rolling_rate_results(samples, weeks, precision_recall_floor)
+    grid = _grid_selection(torch, real, synthetic, train_weeks, test, magnitude_threshold, horizon_days, epochs, pretrain_epochs, seed, precision_recall_floor, feature_mode)
     report = {
         "schema": "elfquake.real_transfer_experiment_suite.v1",
         "status": "evaluated",
@@ -65,6 +67,7 @@ def run_transfer_experiment_suite(
         "experiment_2_rolling_origin": rolling,
         "experiment_3_train_only_grid_selection": grid,
         "precision_calibration": {"recall_floor": precision_recall_floor, "selection_rule": "maximize training precision subject to recall floor and at least one positive prediction"},
+        "feature_mode": feature_mode,
         "experiment_4_synthetic_corpus": {"status": "input_corpus_reported_separately", "required": "more independent warmed episodes must be generated before synthetic transfer is treated as informative", "current_synthetic_sample_count": len(synthetic_samples)},
     }
     out_path.parent.mkdir(parents=True, exist_ok=True)
@@ -136,17 +139,36 @@ def _rolling_results(torch, samples, synthetic_samples, weeks, epochs, pretrain_
     return {"folds": results, "mean_balanced_accuracy": round(sum(float(item["balanced_accuracy"]) for item in evaluated) / len(evaluated), 6) if evaluated else None, "worst_balanced_accuracy": min((float(item["balanced_accuracy"]) for item in evaluated), default=None)}
 
 
-def _grid_selection(torch, real, synthetic, train_weeks, final_test, default_threshold, horizon_days, epochs, pretrain_epochs, seed, precision_recall_floor):
+def _rolling_rate_results(samples, weeks, precision_recall_floor):
+    results = []
+    for fraction in (0.60, 0.70, 0.80, 0.85):
+        split = max(1, int(len(weeks) * fraction))
+        train_weeks, test_weeks = set(weeks[:split]), set(weeks[split:])
+        train = [sample for sample in samples if sample.week_start in train_weeks]
+        test = [sample for sample in samples if sample.week_start in test_weeks]
+        result = _rate_result(train, test, precision_recall_floor=precision_recall_floor)
+        result.update({"train_fraction": fraction, "train_weeks": len(train_weeks), "test_weeks": len(test_weeks)})
+        results.append(result)
+    evaluated = [item for item in results if item.get("status") == "evaluated"]
+    return {
+        "folds": results,
+        "mean_precision": round(sum(float(item["precision"]) for item in evaluated) / len(evaluated), 6) if evaluated else None,
+        "mean_precision_calibrated": round(sum(float(item["precision_calibrated_metrics"]["precision"]) for item in evaluated) / len(evaluated), 6) if evaluated else None,
+        "mean_rate_calibrated_precision": round(sum(float(item["rate_calibrated_metrics"]["precision"]) for item in evaluated) / len(evaluated), 6) if evaluated else None,
+    }
+
+
+def _grid_selection(torch, real, synthetic, train_weeks, final_test, default_threshold, horizon_days, epochs, pretrain_epochs, seed, precision_recall_floor, feature_mode):
     candidates = []
     train_end = max(train_weeks)
     # The last quarter of the training period selects configuration; the final
     # 20 percent is never used for selection.
-    all_weeks = sorted({sample.week_start for sample in _weekly_samples(real, _cells(1.5), default_threshold, horizon_days, 1.5)})
+    all_weeks = sorted({sample.week_start for sample in _weekly_samples(real, _cells(1.5), default_threshold, horizon_days, 1.5, feature_mode)})
     selection_cut = all_weeks[max(1, int(len(all_weeks) * 0.60))]
     for threshold in (2.5, 2.7, 3.0):
         for size in (1.0, 1.5, 2.0):
             cells = _cells(size)
-            samples = _weekly_samples(real, cells, threshold, horizon_days, size)
+            samples = _weekly_samples(real, cells, threshold, horizon_days, size, feature_mode)
             weeks = sorted({sample.week_start for sample in samples})
             train = [sample for sample in samples if sample.week_start < selection_cut]
             validation = [sample for sample in samples if selection_cut <= sample.week_start <= train_end]
@@ -161,11 +183,11 @@ def _grid_selection(torch, real, synthetic, train_weeks, final_test, default_thr
         selected_threshold = float(selected["magnitude_threshold"])
         selected_size = float(selected["cell_degrees"])
         selected_cells = _cells(selected_size)
-        selected_samples = _weekly_samples(real, selected_cells, selected_threshold, horizon_days, selected_size)
+        selected_samples = _weekly_samples(real, selected_cells, selected_threshold, horizon_days, selected_size, feature_mode)
         final_start = min(sample.week_start for sample in final_test)
         selected_train = [sample for sample in selected_samples if sample.week_start < final_start]
         selected_test = [sample for sample in selected_samples if sample.week_start >= final_start]
-        selected_synthetic = _weekly_samples(synthetic, selected_cells, selected_threshold, horizon_days, selected_size)
+        selected_synthetic = _weekly_samples(synthetic, selected_cells, selected_threshold, horizon_days, selected_size, feature_mode)
         final_result = _model_result(torch, selected_train, selected_test, synthetic_samples=selected_synthetic, epochs=epochs, pretrain_epochs=pretrain_epochs, seed=seed + 100, precision_recall_floor=precision_recall_floor)
         final_result.update({"magnitude_threshold": selected_threshold, "cell_degrees": selected_size, "test_start": str(final_start)})
     return {"selection_rule": "highest validation balanced accuracy, tie-break precision; final holdout excluded", "candidates": candidates, "selected": selected, "final_holdout_evaluation": final_result}

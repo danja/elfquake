@@ -3900,7 +3900,9 @@ class AcquisitionScaffoldTests(unittest.TestCase):
                 (root / "first_summary.csv").read_text(encoding="utf-8").splitlines()[0],
                 "step,deposition_count,avalanche_count,topple_count,max_height,mean_height,released_mass,"
                 "relaxation_converged,unstable_cell_count,safety_released_mass,target_fill_count,"
-                "bottom_layer_removed_mass",
+                "bottom_layer_removed_mass,pre_relax_damage_total,pre_relax_damage_max,"
+                "pre_relax_damage_active_cell_count,pre_relax_mature_weakness_total,"
+                "pre_relax_mature_weakness_max,pre_relax_mature_weakness_active_cell_count",
             )
 
     @unittest.skipIf(importlib.util.find_spec("numba") is None, "numba not installed")

@@ -15,6 +15,8 @@ and later 40 kHz operation. Their raw digital data are currently available by
 request, so they are recorded in the station registry but not yet in the fetch
 manifest. [ISEE station details](https://stdb2.isee.nagoya-u.ac.jp/vlf/vlf_stations.html)
 
+hirahara@nagoya-u.jp, otsuka@isee.nagoya-u.ac.jp, shiokawa@nagoya-u.jp
+
 WALDO is retained only as a secondary historical fallback. Its data are old,
 the station/date discovery process is awkward, and downloads require a browser
 account. The primary Japan route is now to request a current or recent digital

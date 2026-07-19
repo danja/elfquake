@@ -21,6 +21,7 @@ def prepare_transformer_target_input(
     group_field: str = "dataset_id",
     time_field: str = "window_start_utc",
     train_fraction: float = 0.8,
+    test_group: str | None = None,
 ) -> dict[str, object]:
     """Copy a named binary target into the standard Transformer target fields."""
 
@@ -37,14 +38,21 @@ def prepare_transformer_target_input(
         standard_status_field=standard_status_field,
     )
     labeled = [row for row in output_rows if row.get(standard_target_field) in {"0", "1"}]
-    _assign_temporal_group_split(
-        output_rows,
-        labeled,
-        split_field=split_field,
-        group_field=group_field,
-        time_field=time_field,
-        train_fraction=train_fraction,
-    )
+    if test_group:
+        for row in output_rows:
+            if row.get(standard_target_field) in {"0", "1"}:
+                row[split_field] = "test" if row.get(group_field, "") == test_group else "train"
+            else:
+                row[split_field] = ""
+    else:
+        _assign_temporal_group_split(
+            output_rows,
+            labeled,
+            split_field=split_field,
+            group_field=group_field,
+            time_field=time_field,
+            train_fraction=train_fraction,
+        )
 
     out_fields = _field_order(
         fieldnames,
@@ -72,6 +80,7 @@ def prepare_transformer_target_input(
         "group_field": group_field,
         "time_field": time_field,
         "train_fraction": train_fraction,
+        "test_group": test_group or "",
         "train_row_count": len(train_rows),
         "test_row_count": len(test_rows),
         "train_positive_count": _positive_count(train_rows, standard_target_field),

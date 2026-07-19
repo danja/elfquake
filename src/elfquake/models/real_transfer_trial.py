@@ -214,7 +214,14 @@ def _steps(start: float, end: float, size: float) -> list[float]:
     return values
 
 
-def _weekly_samples(events: list[Event], cells: list[tuple[float, float]], threshold: float, horizon_days: int, cell_degrees: float) -> list[Sample]:
+def _weekly_samples(
+    events: list[Event],
+    cells: list[tuple[float, float]],
+    threshold: float,
+    horizon_days: int,
+    cell_degrees: float,
+    feature_mode: str = "compact",
+) -> list[Sample]:
     if not events:
         return []
     start = datetime.combine(events[0].time.date(), datetime.min.time(), tzinfo=timezone.utc)
@@ -226,7 +233,12 @@ def _weekly_samples(events: list[Event], cells: list[tuple[float, float]], thres
             history_7 = _in_cell(events, week - timedelta(days=7), week, lat, lon, cell_degrees)
             history_28 = _in_cell(events, week - timedelta(days=28), week, lat, lon, cell_degrees)
             target = _in_cell(events, week, week + timedelta(days=horizon_days), lat, lon, cell_degrees)
-            values = _features(history_7, history_28, lat, lon)
+            if feature_mode == "compact":
+                values = _features(history_7, history_28, lat, lon)
+            elif feature_mode == "multiscale":
+                values = _multiscale_features(events, week, lat, lon, cell_degrees)
+            else:
+                raise ValueError(f"unknown feature mode: {feature_mode}")
             label = int(any(event.magnitude >= threshold for event in target))
             samples.append(Sample(week, lat, lon, values, label))
         week += timedelta(days=horizon_days)
@@ -250,6 +262,51 @@ def _features(short: list[Event], long: list[Event], lat: float, lon: float) -> 
 
 def _feature_names() -> list[str]:
     return ["seismic_log_count_7d", "seismic_log_count_28d", "seismic_max_magnitude_28d", "seismic_log_energy_28d", "spatial_lat", "spatial_lon", "vlf_present", "astro_present"]
+
+
+def _multiscale_features(
+    events: list[Event], week: datetime, lat: float, lon: float, cell_degrees: float
+) -> tuple[float, ...]:
+    values: list[float] = []
+    for days in (1, 3, 7, 14, 28, 90):
+        local = _in_cell(events, week - timedelta(days=days), week, lat, lon, cell_degrees)
+        neighbours = _in_cell(events, week - timedelta(days=days), week, lat, lon, cell_degrees * 2.0)
+        magnitudes = [event.magnitude for event in local]
+        energy = sum(10 ** (1.5 * magnitude) for magnitude in magnitudes)
+        values.extend(
+            (
+                math.log1p(len(local)),
+                math.log1p(len(neighbours)),
+                max(magnitudes, default=0.0) / 6.0,
+                math.log1p(energy) / 12.0,
+            )
+        )
+    previous = [event for event in events if event.time < week]
+    last_gap_days = (week - max((event.time for event in previous), default=week)).total_seconds() / 86400.0
+    values.extend(
+        (
+            min(last_gap_days, 90.0) / 90.0,
+            (lat - ITALY_LAT[0]) / (ITALY_LAT[1] - ITALY_LAT[0]),
+            (lon - ITALY_LON[0]) / (ITALY_LON[1] - ITALY_LON[0]),
+            0.0,
+            0.0,
+        )
+    )
+    return tuple(values)
+
+
+def _multiscale_feature_names() -> list[str]:
+    names = []
+    for days in (1, 3, 7, 14, 28, 90):
+        names.extend(
+            (
+                f"seismic_log_count_{days}d",
+                f"seismic_log_neighbour_count_{days}d",
+                f"seismic_max_magnitude_{days}d",
+                f"seismic_log_energy_{days}d",
+            )
+        )
+    return names + ["seismic_days_since_last_event", "spatial_lat", "spatial_lon", "vlf_present", "astro_present"]
 
 
 def _torch():

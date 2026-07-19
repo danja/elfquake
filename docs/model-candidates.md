@@ -2,6 +2,8 @@
 
 Start with models that test whether VLF and astronomy add value over seismic-only features. Do not move to deep models until time-based validation and ablations are reproducible.
 
+For the current transfer trial, see [Feature And Training Options](feature-training-options.md). The immediate bottleneck is the sparse four-feature seismic representation and absent real VLF/astronomy history, not Transformer capacity.
+
 Reference: `docs/references/2202.07125v5.pdf`, *Transformers in Time Series: A Survey*. Relevant ideas are timestamp encoding, efficient attention for long sequences, patch tokens, cross-channel attention, seasonal/frequency bias, spatio-temporal graph hybrids, and event-process Transformers.
 
 ## Baseline Stage
@@ -119,6 +121,12 @@ Latest probe conclusion: one-row tabular event-list heads are not enough. The be
 Lagged-context result: adding recent feature history to h6 targets improves the best drift-ok chronological score to `0.587093` with a 256-feature cap, just below the synthetic gate. This supports moving next to a regularized sequence/event-process head rather than continuing to widen tabular lag features.
 
 Current sequence-head result: a regularized CPU GRU over grouped synthetic event-list rows is now the leading event-list candidate. The h6 lookback-12 seed-42 run passes the synthetic gate at `0.609649` calibrated balanced accuracy, but seed/config variation is still too large for promotion. Next, repeat seeds systematically and add count/location heads on the same temporal representation.
+
+Current MLP baseline and feature check: `run-transfer-experiments.sh` accepts `FEATURE_MODE=compact|multiscale`. The multiscale mode adds causal local/neighbour counts, maximum magnitude, log energy, and recency over 1--90 day windows. On the matched three-episode transfer trial it scored `0.907098` balanced accuracy and `0.144231` default precision, below the compact baseline (`0.919624`, `0.163043`). Keep the MLP as the inexpensive baseline and keep multiscale features available for further calibration, but do not treat this first result as evidence of added value.
+
+Current Transformer sweep: `sweep-synthetic-event-list-patch-transformer.sh` now supports multiple seeds and was run with seeds `7`, `17`, `42`, `99`, and `123`, 36 epochs, lookbacks 8/12, patch sizes 2/3, and dropout 0.1. Across 20 runs, calibrated balanced accuracy averaged `0.5620` for piezo/VLF-only, `0.4770` for direct-only, `0.5472` for direct plus piezo/VLF, and `0.5340` for full. Lookback 8, patch 3 was the best piezo/VLF configuration at `0.5912` mean. The result supports retaining piezo/VLF-only as the leading synthetic ablation, but fixed-split seed variance remains too high for model promotion.
+
+Multi-task extension: `train-torch-patch-transformer-split-holdout` accepts repeatable `--regression-target` fields. Count and log magnitude-energy heads are trained with normalization fitted on the training rows and reported with held-out MAE. `evaluate-synthetic-event-list-patch-transformer-episodes.sh` applies these heads in nine leave-one-episode-out folds. The current mean occurrence score is `0.5508` with a `0.3788`--`0.7009` range; keep this as a regime-generalization diagnostic, not a selected model.
 
 First stability sweep: `sweep-synthetic-event-list-sequence-head.sh` selected lookback `12`, dropout `0.1` as the best mean h6 configuration, with mean balanced accuracy `0.600459` over seeds `7`, `42`, and `99`. This should be treated as the current default occurrence candidate, but not yet the forecast adapter because only one of three seeds passed the gate.
 
