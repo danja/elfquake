@@ -1,2 +1,3 @@
 endpoint_id,url,content,station,latitude,longitude,receiver_mode,region_id,expected_content_type
 isee_mos_2025010100,https://ergsc.isee.nagoya-u.ac.jp/data/ergsc/ground/vlf/mos/2025/01/isee_vlf_mos_2025010100_v01.cdf,cdf,Moshiri,44.37,142.27,crossed_loop,japan,application/cdf
+isee_mos_2025063023,https://ergsc.isee.nagoya-u.ac.jp/data/ergsc/ground/vlf/mos/2025/06/isee_vlf_mos_2025063023_v01.cdf,cdf,Moshiri,44.37,142.27,crossed_loop,japan,application/cdf

@@ -12,6 +12,7 @@ from elfquake.connectors.ingv import fetch_italy_events
 from elfquake.connectors.japan import fetch_japan_events
 from elfquake.connectors.vlf_manifest import fetch_manifest_captures, repeat_manifest_captures
 from elfquake.normalize.vlf_cdf import normalize_vlf_cdf
+from elfquake.features.vlf_cdf import extract_vlf_cdf_features
 from elfquake.connectors.space_archives import (
     fetch_gfz_kp_ap,
     fetch_kyoto_dst_month,
@@ -64,6 +65,12 @@ def register_source_commands(subparsers: _SubParsersAction) -> None:
     japan_cdf.add_argument("--samples-out", type=Path, required=True)
     japan_cdf.add_argument("--metadata-out", type=Path, required=True)
     japan_cdf.set_defaults(func=_normalize_vlf_japan_cdf)
+
+    japan_cdf_features = subparsers.add_parser("extract-vlf-japan-cdf-features")
+    japan_cdf_features.add_argument("--input", type=Path, required=True)
+    japan_cdf_features.add_argument("--out", type=Path, required=True)
+    japan_cdf_features.add_argument("--bands", type=int, default=8)
+    japan_cdf_features.set_defaults(func=_extract_vlf_japan_cdf_features)
 
     japan_vlf_loop = subparsers.add_parser("capture-vlf-japan-loop")
     japan_vlf_loop.add_argument("--manifest", type=Path, default=Path("data/raw/vlf/japan/manifest.csv"))
@@ -238,6 +245,15 @@ def _normalize_vlf_japan_cdf(args: Namespace) -> int:
     print(f"variables: {len(report['variables'])}")
     print(f"samples: {args.samples_out}")
     print(f"metadata: {args.metadata_out}")
+    return 0
+
+
+def _extract_vlf_japan_cdf_features(args: Namespace) -> int:
+    report = extract_vlf_cdf_features(input_path=args.input, out_path=args.out, bands=args.bands)
+    print(f"rows: {report['row_count']}")
+    print(f"channels: {','.join(report['spectrogram_variables'])}")
+    print(f"features: {args.out}")
+    print(f"metadata: {args.out}.metadata.json")
     return 0
 
 

@@ -21,6 +21,7 @@ from elfquake.features.vlf_image import build_vlf_image_features
 from elfquake.features.vlf_image_compare import compare_vlf_image_features
 from elfquake.features.vlf_image_windows import join_vlf_image_features_to_windows
 from elfquake.features.vlf_windows import build_vlf_window_features
+from elfquake.features.vlf_cdf_windows import build_japan_cdf_window_features
 from elfquake.features.italy_coverage import build_italy_coverage_report
 from elfquake.features.vlf_event_association import build_vlf_event_association_report
 from elfquake.features.spatial_targets import label_spatial_multimodal_targets
@@ -75,6 +76,12 @@ def register_feature_commands(subparsers: _SubParsersAction) -> None:
     vlf_window_features.add_argument("--metadata-root", type=Path, required=True)
     vlf_window_features.add_argument("--out", type=Path, required=True)
     vlf_window_features.set_defaults(func=_build_vlf_window_features)
+
+    japan_cdf_windows = subparsers.add_parser("build-japan-vlf-cdf-window-features")
+    japan_cdf_windows.add_argument("--features", type=Path, required=True)
+    japan_cdf_windows.add_argument("--windows", type=Path, required=True)
+    japan_cdf_windows.add_argument("--out", type=Path, required=True)
+    japan_cdf_windows.set_defaults(func=_build_japan_cdf_window_features)
 
     vlf_image_features = subparsers.add_parser("extract-vlf-image-features")
     vlf_image_features.add_argument("--image", type=Path, action="append", default=[])
@@ -271,6 +278,13 @@ def _build_vlf_window_features(args: Namespace) -> int:
         out_path=args.out,
     )
     print(f"vlf window rows: {len(rows)}")
+    print(f"output: {args.out}")
+    return 0
+
+
+def _build_japan_cdf_window_features(args: Namespace) -> int:
+    rows = build_japan_cdf_window_features(feature_csv=args.features, windows_csv=args.windows, out_path=args.out)
+    print(f"Japan CDF window rows: {len(rows)}")
     print(f"output: {args.out}")
     return 0
 

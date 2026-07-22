@@ -19,7 +19,7 @@ tail -n +2 "$PLAN" | while IFS=, read -r CHUNK_START CHUNK_END _COMMAND; do
   END_DATE="${CHUNK_END:0:10}"
   PYTHONDONTWRITEBYTECODE=1 PYTHONPATH=src "$PYTHON_BIN" -m elfquake.cli fetch-japan-events \
     --start "$CHUNK_START" --end "$CHUNK_END" --min-mag "$MIN_MAG" --out-root "$RAW_ROOT"
-  RAW="$(find "$RAW_ROOT" -maxdepth 1 -name "events_japan_${START_DATE}_${END_DATE}_*.json" | sort | tail -n 1)"
+  RAW="$(find "$RAW_ROOT" -maxdepth 1 -name "events_japan_${START_DATE}_${END_DATE}_*.json" ! -name '*.metadata.json' | sort | tail -n 1)"
   [[ -n "$RAW" ]] || { echo "No Japan raw file found for $START_DATE to $END_DATE" >&2; exit 2; }
   PYTHONDONTWRITEBYTECODE=1 PYTHONPATH=src "$PYTHON_BIN" -m elfquake.cli normalize-japan-events \
     --raw "$RAW" --out "$DERIVED_ROOT/events_japan_${START_DATE}_${END_DATE}.normalized.csv"

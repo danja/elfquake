@@ -270,6 +270,18 @@ Generate disjoint synthetic episodes under explicit loading regimes and refresh 
 
 Decode one raw ISEE Japan VLF CDF file into scalar samples and metadata after installing `cdflib`. Use only after recording the exact archive URL, station metadata, units, and scientific-use restrictions.
 
+### `extract-japan-vlf-cdf-features.sh`
+
+Convert native ISEE CDF spectrogram arrays into time-indexed logarithmic frequency-band features while preserving the raw CDF. Japan inputs and derived outputs are for scientific research only.
+
+### `build-japan-vlf-cdf-window-features.sh`
+
+Aggregate native Japan CDF feature rows into the existing UTC training-window shape. Keep the resulting research-only rows separate from Italy datasets unless a cross-region experiment is explicitly declared.
+
+### `process-japan-vlf-manifest.sh`
+
+Run the Japan CDF ingestion and preprocessing chain for every manifest row. It fetches missing raw files, normalizes CDF metadata, extracts native spectrogram features, and optionally aggregates them to seismic windows with `WINDOWS=...`. All outputs are for scientific research only.
+
 ### `fetch-japan-vlf-cdf.sh`
 
 Download one exact ISEE CDF URL unchanged, verify it is nonempty, and write a checksum capture record beside the raw file.
@@ -737,7 +749,7 @@ Render avalanche-derived actual events and PyTorch predicted-positive target-win
 
 ### `backfill-japan-history.sh`
 
-Fetch bounded Japan USGS GeoJSON event chunks, normalize them into the shared event schema, combine them, and build seven-day seismic windows with `region_id=japan`.
+Fetch bounded Japan USGS GeoJSON event chunks, normalize them into the shared event schema, combine them, and build seven-day seismic windows with `region_id=japan`. The script excludes capture sidecars when selecting raw payloads. Japan results are for scientific research only.
 
 ### `capture-japan-vlf-loop.sh`
 

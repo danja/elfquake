@@ -88,8 +88,10 @@ def _info_value(info: object, name: str, default: object) -> object:
 
 def _format_time(value: object) -> str:
     if hasattr(value, "isoformat"):
-        return value.isoformat().replace("+00:00", "Z")
-    return str(value)
+        formatted = value.isoformat().replace("+00:00", "Z")
+    else:
+        formatted = str(value)
+    return formatted if formatted.endswith("Z") else formatted + "Z"
 
 
 def _format_value(value: object) -> str:
