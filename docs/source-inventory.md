@@ -20,7 +20,7 @@ Italy remains the production scope. Japan sources are maintained in a separate n
 | **Space Weather Canada**| Daily F10.7 solar flux | `https://www.spaceweather.gc.ca/solar_flux_data/daily_flux_values/fluxtable.txt` | text | **Usable**: daily archive since 2004 confirmed. |
 | **USNO** | Lunar phase events | `https://aa.usno.navy.mil/api/` | JSON | **Usable**: Moon phase events API confirmed. |
 | **USGS FDSN event** | Japan regional earthquake catalog | `https://earthquake.usgs.gov/fdsnws/event/1/` | GeoJSON | **Candidate**: connector and bounded sample path implemented; verify a live sample before modelling. |
-| **Japan ISEE Moshiri/Kagoshima** | Passive natural-radio context | `https://stdb2.isee.nagoya-u.ac.jp/vlf/` | broadband ELF/VLF waveform/spectrogram | **Candidate verified**: stations, antenna type, sampling and coverage documented; raw digital access requires request. |
+| **Japan ISEE VLF/ELF network** | Passive natural-radio context | `https://stdb2.isee.nagoya-u.ac.jp/vlf/`; [ERGSC CDF archive](https://ergsc.isee.nagoya-u.ac.jp/data/ergsc/ground/vlf/) | plots and CDF spectra | **Candidate verified**: official viewers and CDF archive confirmed; scientific-use permission confirmed by the project contact. Exact nonempty file pull, station metadata, and units remain pending. See [vlf-japan-isee.md](vlf-japan-isee.md). |
 | **Japan/WALDO broadband VLF** | Historical passive-radio fallback | `https://waldo.world/` | MATLAB v4-like broadband waveform | **Deferred**: old, browser/account-dependent, and unsuitable as the primary current Japan source. See [waldo.md](waldo.md). |
 
 ---

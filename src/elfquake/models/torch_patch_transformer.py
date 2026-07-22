@@ -40,6 +40,7 @@ def evaluate_torch_patch_transformer_split_holdout(
     include_missing_masks: bool = True,
     evaluation_names: list[str] | None = None,
     regression_target_fields: list[str] | None = None,
+    sequence_normalization: str = "global",
     checkpoint_in: Path | None = None,
     checkpoint_out: Path | None = None,
 ) -> dict[str, object]:
@@ -53,6 +54,8 @@ def evaluate_torch_patch_transformer_split_holdout(
         raise ValueError("heads must divide d_model")
     if not 0 <= dropout < 1:
         raise ValueError("dropout must be in [0, 1)")
+    if sequence_normalization not in {"global", "per_window"}:
+        raise ValueError("sequence_normalization must be 'global' or 'per_window'")
 
     rows, _ = _read_rows_and_fields(input_csv)
     labeled = [row for row in rows if row.get("target_occurred") in {"0", "1"}]
@@ -79,6 +82,7 @@ def evaluate_torch_patch_transformer_split_holdout(
         include_missing_masks=include_missing_masks,
         evaluation_names=evaluation_names,
         regression_target_fields=regression_target_fields,
+        sequence_normalization=sequence_normalization,
         checkpoint_in=checkpoint_in,
         checkpoint_out=checkpoint_out,
     )
@@ -107,6 +111,7 @@ def evaluate_torch_patch_transformer_split_holdout(
         seed=seed,
         evaluation_names=evaluation_names,
         regression_target_fields=regression_target_fields,
+        sequence_normalization=sequence_normalization,
         checkpoint_in=checkpoint_in,
         checkpoint_out=checkpoint_out,
     )
@@ -136,6 +141,7 @@ def _base_report(
     include_missing_masks: bool,
     evaluation_names: list[str] | None,
     regression_target_fields: list[str] | None,
+    sequence_normalization: str,
     checkpoint_in: Path | None,
     checkpoint_out: Path | None,
 ) -> dict[str, object]:
@@ -166,6 +172,7 @@ def _base_report(
         "checkpoint_out": str(checkpoint_out) if checkpoint_out else "",
         "selected_evaluations": list(selected),
         "regression_target_fields": list(regression_target_fields or ()),
+        "sequence_normalization": sequence_normalization,
         "evaluations": {},
     }
 
@@ -188,6 +195,7 @@ def _evaluate_all(
     seed: int,
     evaluation_names: list[str] | None,
     regression_target_fields: list[str] | None,
+    sequence_normalization: str,
     checkpoint_in: Path | None,
     checkpoint_out: Path | None,
 ) -> None:
@@ -212,6 +220,7 @@ def _evaluate_all(
             checkpoint_in=checkpoint_in,
             checkpoint_out=checkpoint_out if name == last_name else None,
             regression_target_fields=regression_target_fields,
+            sequence_normalization=sequence_normalization,
         )
 
 
@@ -234,6 +243,7 @@ def _evaluate_one(
     checkpoint_in: Path | None,
     checkpoint_out: Path | None,
     regression_target_fields: list[str] | None,
+    sequence_normalization: str,
 ) -> dict[str, object]:
     original_train_count = len(train_rows)
     original_test_count = len(test_rows)
@@ -261,6 +271,9 @@ def _evaluate_one(
         result["status"] = "no_sequence_features"
         return result
 
+    if sequence_normalization == "per_window":
+        train_x = _normalize_sequence_windows(train_x, feature_names)
+        test_x = _normalize_sequence_windows(test_x, feature_names)
     train_x, test_x = _standardize_sequences(train_x, test_x)
     regression_fields = tuple(regression_target_fields or ())
     train_regression = {field: [float(row.get(field, "0") or 0.0) for row in train_rows] for field in regression_fields}
@@ -519,6 +532,30 @@ def _patchify(x, *, patch_steps: int, torch: object):
         padding = torch.zeros(sample_count, padded_steps - lookback_steps, feature_count, dtype=x.dtype)
         x = torch.cat([x, padding], dim=1)
     return x.reshape(sample_count, patch_count, patch_steps * feature_count)
+
+
+def _normalize_sequence_windows(
+    samples: list[list[list[float]]], feature_names: list[str]
+) -> list[list[list[float]]]:
+    """Normalize each causal lookback independently, preserving presence masks."""
+    normalized: list[list[list[float]]] = []
+    for sample in samples:
+        if not sample:
+            normalized.append(sample)
+            continue
+        columns = list(zip(*sample))
+        output_columns = []
+        for index, column in enumerate(columns):
+            values = list(column)
+            if index < len(feature_names) and feature_names[index].endswith("__present"):
+                output_columns.append(values)
+                continue
+            mean = sum(values) / len(values)
+            variance = sum((value - mean) ** 2 for value in values) / max(1, len(values))
+            scale = math.sqrt(variance) or 1.0
+            output_columns.append([(value - mean) / scale for value in values])
+        normalized.append([list(row) for row in zip(*output_columns)])
+    return normalized
 
 
 def _import_torch() -> object:

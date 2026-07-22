@@ -237,6 +237,8 @@ def _weekly_samples(
                 values = _features(history_7, history_28, lat, lon)
             elif feature_mode == "multiscale":
                 values = _multiscale_features(events, week, lat, lon, cell_degrees)
+            elif feature_mode == "relative":
+                values = _relative_features(events, week, lat, lon, cell_degrees, len(cells))
             else:
                 raise ValueError(f"unknown feature mode: {feature_mode}")
             label = int(any(event.magnitude >= threshold for event in target))
@@ -307,6 +309,42 @@ def _multiscale_feature_names() -> list[str]:
             )
         )
     return names + ["seismic_days_since_last_event", "spatial_lat", "spatial_lon", "vlf_present", "astro_present"]
+
+
+def _relative_features(
+    events: list[Event], week: datetime, lat: float, lon: float, cell_degrees: float, cell_count: int
+) -> tuple[float, ...]:
+    """Express local activity relative to the preceding Italy-wide baseline."""
+    values: list[float] = []
+    for days in (1, 7, 28, 90):
+        start = week - timedelta(days=days)
+        local = _in_cell(events, start, week, lat, lon, cell_degrees)
+        neighbours = _in_cell(events, start, week, lat, lon, cell_degrees * 2.0)
+        country = [event for event in events if start <= event.time < week]
+        magnitudes = [event.magnitude for event in local]
+        country_magnitudes = [event.magnitude for event in country]
+        local_energy = sum(10 ** (1.5 * magnitude) for magnitude in magnitudes)
+        country_energy = sum(10 ** (1.5 * magnitude) for magnitude in country_magnitudes)
+        baseline_count = len(country) / max(1, cell_count)
+        baseline_energy = country_energy / max(1, cell_count)
+        baseline_max = max(country_magnitudes, default=0.0)
+        values.extend(
+            (
+                math.log1p(len(local)) - math.log1p(baseline_count),
+                math.log1p(len(neighbours)) - math.log1p(baseline_count),
+                (max(magnitudes, default=0.0) - baseline_max) / 6.0,
+                (math.log1p(local_energy) - math.log1p(baseline_energy)) / 12.0,
+            )
+        )
+    values.extend(
+        (
+            (lat - ITALY_LAT[0]) / (ITALY_LAT[1] - ITALY_LAT[0]),
+            (lon - ITALY_LON[0]) / (ITALY_LON[1] - ITALY_LON[0]),
+            0.0,
+            0.0,
+        )
+    )
+    return tuple(values)
 
 
 def _torch():

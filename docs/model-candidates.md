@@ -128,6 +128,14 @@ Current Transformer sweep: `sweep-synthetic-event-list-patch-transformer.sh` now
 
 Multi-task extension: `train-torch-patch-transformer-split-holdout` accepts repeatable `--regression-target` fields. Count and log magnitude-energy heads are trained with normalization fitted on the training rows and reported with held-out MAE. `evaluate-synthetic-event-list-patch-transformer-episodes.sh` applies these heads in nine leave-one-episode-out folds. The current mean occurrence score is `0.5508` with a `0.3788`--`0.7009` range; keep this as a regime-generalization diagnostic, not a selected model.
 
+The matched occurrence-only control scored `0.5533` mean balanced accuracy with a `0.4091`--`0.6830` range. Auxiliary count and energy losses did not improve occurrence, so occurrence-only remains the default head while the regression outputs remain optional diagnostics.
+
+Domain-robust feature probe: `FEATURE_MODE=relative` expresses local activity against a causal Italy-wide baseline. Its matched rolling mean balanced accuracy was `0.907935`, below multiscale `0.912232`, so relative scaling is not currently preferred. Keep it available for future domain-randomized simulation batches.
+
+First domain-randomization stress test: `data/derived/models/domain_randomized_transformer_episode_holdout/summary.json` covers 12 complete episodes from three loading regimes. Mean calibrated balanced accuracy was `0.5096`, with profile means `0.5042` baseline, `0.4881` slow-fill, and `0.5364` fast-localized. The current model therefore fails the regime-invariance gate; improve feature normalization and target alignment before widening the domain.
+
+The Transformer now has an opt-in `--sequence-normalization per_window` control. On the same randomized folds it scored `0.4909`, below global normalization (`0.5096`), so per-window normalization is not a default and should not be used to rescue the current model.
+
 First stability sweep: `sweep-synthetic-event-list-sequence-head.sh` selected lookback `12`, dropout `0.1` as the best mean h6 configuration, with mean balanced accuracy `0.600459` over seeds `7`, `42`, and `99`. This should be treated as the current default occurrence candidate, but not yet the forecast adapter because only one of three seeds passed the gate.
 
 Ensemble check: probability averaging over all three default seeds scored `0.591479`, while the best pair, seeds `42+99`, scored `0.644110`. Do not hard-code a cherry-picked seed pair as the default; use this result to motivate validation-selected ensembles or early stopping.

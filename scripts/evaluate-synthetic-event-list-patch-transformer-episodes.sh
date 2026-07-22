@@ -9,7 +9,8 @@ LOOKBACK_STEPS="${LOOKBACK_STEPS:-8}"
 PATCH_STEPS="${PATCH_STEPS:-3}"
 EPOCHS="${EPOCHS:-12}"
 MODEL_SEED="${MODEL_SEED:-42}"
-REGRESSION_TARGETS="${REGRESSION_TARGETS:-eventlist_target_count eventlist_target_log10_magnitude_energy}"
+SEQUENCE_NORMALIZATION="${SEQUENCE_NORMALIZATION:-global}"
+REGRESSION_TARGETS="${REGRESSION_TARGETS-eventlist_target_count eventlist_target_log10_magnitude_energy}"
 
 mkdir -p "$ROOT"
 mapfile -t groups < <(PYTHONDONTWRITEBYTECODE=1 PYTHONPATH=src "$PYTHON_BIN" - "$INPUT" <<'PY'
@@ -56,6 +57,7 @@ for group in "${groups[@]}"; do
     --patch-steps "$PATCH_STEPS" \
     --epochs "$EPOCHS" \
     --seed "$MODEL_SEED" \
+    --sequence-normalization "$SEQUENCE_NORMALIZATION" \
     --evaluation sequence_piezo_vlf_only \
     "${regression_args[@]}"
   reports+=(--report "$fold_root/patch_transformer.json")

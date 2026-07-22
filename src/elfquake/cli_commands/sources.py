@@ -11,6 +11,7 @@ from elfquake.connectors.astronomy import fetch_manifest_json
 from elfquake.connectors.ingv import fetch_italy_events
 from elfquake.connectors.japan import fetch_japan_events
 from elfquake.connectors.vlf_manifest import fetch_manifest_captures, repeat_manifest_captures
+from elfquake.normalize.vlf_cdf import normalize_vlf_cdf
 from elfquake.connectors.space_archives import (
     fetch_gfz_kp_ap,
     fetch_kyoto_dst_month,
@@ -57,6 +58,12 @@ def register_source_commands(subparsers: _SubParsersAction) -> None:
     japan_vlf.add_argument("--out-root", type=Path, default=Path("data/raw/vlf/japan"))
     japan_vlf.add_argument("--only", action="append", default=[])
     japan_vlf.set_defaults(func=_fetch_vlf_japan)
+
+    japan_cdf = subparsers.add_parser("normalize-vlf-japan-cdf")
+    japan_cdf.add_argument("--input", type=Path, required=True)
+    japan_cdf.add_argument("--samples-out", type=Path, required=True)
+    japan_cdf.add_argument("--metadata-out", type=Path, required=True)
+    japan_cdf.set_defaults(func=_normalize_vlf_japan_cdf)
 
     japan_vlf_loop = subparsers.add_parser("capture-vlf-japan-loop")
     japan_vlf_loop.add_argument("--manifest", type=Path, default=Path("data/raw/vlf/japan/manifest.csv"))
@@ -222,6 +229,15 @@ def _plan_ingv_backfill(args: Namespace) -> int:
     )
     print(f"planned windows: {len(rows)}")
     print(f"output: {args.out}")
+    return 0
+
+
+def _normalize_vlf_japan_cdf(args: Namespace) -> int:
+    report = normalize_vlf_cdf(input_path=args.input, samples_out=args.samples_out, metadata_out=args.metadata_out)
+    print(f"rows: {report['row_count']}")
+    print(f"variables: {len(report['variables'])}")
+    print(f"samples: {args.samples_out}")
+    print(f"metadata: {args.metadata_out}")
     return 0
 
 

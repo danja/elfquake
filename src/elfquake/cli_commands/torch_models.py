@@ -113,6 +113,7 @@ def register_torch_model_commands(subparsers: _SubParsersAction) -> None:
     torch_patch_split.add_argument("--no-missing-masks", action="store_true")
     torch_patch_split.add_argument("--evaluation", action="append", default=[], help="Sequence evaluation name to run; repeatable")
     torch_patch_split.add_argument("--regression-target", action="append", default=[], help="Optional numeric target field; repeatable")
+    torch_patch_split.add_argument("--sequence-normalization", choices=("global", "per_window"), default="global")
     torch_patch_split.add_argument("--checkpoint-in", type=Path)
     torch_patch_split.add_argument("--checkpoint-out", type=Path)
     torch_patch_split.set_defaults(func=_train_torch_patch_transformer_split_holdout)
@@ -236,6 +237,7 @@ def _train_torch_patch_transformer_split_holdout(args: Namespace) -> int:
         include_missing_masks=not args.no_missing_masks,
         evaluation_names=args.evaluation or None,
         regression_target_fields=args.regression_target or None,
+        sequence_normalization=args.sequence_normalization,
         checkpoint_in=args.checkpoint_in,
         checkpoint_out=args.checkpoint_out,
     )

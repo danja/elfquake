@@ -26,7 +26,18 @@
 22. Follow [Feature And Training Options](feature-training-options.md): multiscale seismic/neighbour features are now implemented behind `FEATURE_MODE=multiscale`; the first MLP transfer check is negative, so retain compact features as the baseline and test the multiscale path only with more data and stronger calibration.
 23. Use `data/derived/models/central_italy_transformer_sweep_long/summary.json` as the current five-seed fixed-split Transformer reference. The longer run still favours piezo/VLF-only, but do not select it until the episode-held-out range improves.
 24. Use `data/derived/models/central_italy_transformer_episode_holdout/` as the current nine-fold multi-task diagnostic. Mean calibrated balanced accuracy is `0.5508`, with a `0.3788`--`0.7009` range; improve regime robustness before adding more capacity.
-25. Compare the multi-task head against occurrence-only on identical episode folds, then add count and energy loss-weight sweeps. Keep normalization and all threshold selection training-only.
+25. The identical occurrence-only control scores `0.5533`, slightly above multi-task `0.5508`; keep occurrence-only as default. Only run count/energy loss-weight sweeps if a representation diagnostic justifies the added objectives, with normalization and threshold selection training-only.
+26. Test domain-robust features with `FEATURE_MODE=relative`: use causal local/neighbour activity and magnitude/energy relative to the preceding Italy-wide baseline. Require improvement over the compact model on rolling folds and at least five of nine episode folds before retaining it.
+27. Expand synthetic domain randomization across source schedules, deposition rates, thresholds, erosion, and sensor corruption. Select settings using training episodes only; reserve complete episodes for final evaluation.
+28. Require cross-regime consensus and calibrated uncertainty for any future event list. Abstain when ensemble disagreement or domain distance is high, and compare predicted rates with the historical INGV rate.
+29. Keep synthetic pretraining and self-supervised representation learning separate from supervised evidence. Once real labels contain both classes, use chronological real validation with seismic-only, VLF-only, astronomy-only, full, and shuffled-modality controls.
+30. Treat `data/derived/models/domain_randomized_transformer_episode_holdout/` as a failed but reusable stress-test baseline: mean calibrated balanced accuracy `0.5096`. Before adding more regimes, test target alignment and regime-relative normalization on these same 12 folds.
+31. Treat `data/derived/models/domain_randomized_transformer_episode_holdout_per_window/` as the normalization control: mean `0.4909`, below global normalization. Do not add model capacity yet; inspect event extraction thresholds, horizon labels, and causal regime-relative targets on the same folds.
+32. Add a train-only target audit for each held-out episode: event count, positive rate, event timing, and source/profile metadata. Require comparable target support before interpreting model scores across regimes.
+33. Obtain one exact ISEE CDF file URL from the archive, record its station/date/units/use policy, and store the unchanged file under `data/raw/vlf/japan/`. Do not mark the source usable until the pull is reproducibly nonempty.
+34. After installing `cdflib`, run `INPUT=data/raw/vlf/japan/<file>.cdf ./scripts/normalize-japan-vlf-cdf.sh`; inspect epoch variables and channel units before building features.
+35. For the first ISEE sample, retain the CDF metadata JSON as the source contract. Confirm whether the archive variable is a scalar trace or a time-frequency array before adding a feature adapter; do not flatten a spectrum without preserving its time and frequency axes.
+36. Add a native CDF spectrum feature adapter for `ch1`/`ch2`: preserve the frequency axis, produce time-windowed log-power bands and quality counts, and compare those features with Cumiana image features without mixing Japan into Italy scores.
 25. Use `./scripts/trial-weekly-event-forecast.sh` as the current end-to-end event-list contract smoke test, not as a validated predictor.
 26. Use `./scripts/balance-italy-synthetic-episode-rates.sh` only as an auditable training/observation-model diagnostic. It can thin overactive episodes, but it must not synthesize events for underactive episodes; the matched rerun is preferred.
 
@@ -117,6 +128,10 @@
 * Added causal multiscale transfer features, ran the MLP baseline and a four-configuration CPU patch-Transformer sweep, and recorded the negative MLP comparison and piezo/VLF-only Transformer result in the model docs.
 * Extended the patch-Transformer sweep to five seeds (`7`, `17`, `42`, `99`, `123`) and 36 epochs across 20 runs. Piezo/VLF-only remained the strongest mean ablation at calibrated balanced accuracy `0.5620`; this remains synthetic-only evidence.
 * Added optional Transformer regression heads and ran a nine-fold leave-one-episode-out multi-task check. Occurrence balanced accuracy averaged `0.5508`; count and log-energy MAE averaged `0.4234` and `2.7124`.
+* Added causal `FEATURE_MODE=relative` features and ran the matched transfer probe. Rolling balanced accuracy was `0.907935`, below the multiscale control at `0.912232`; retain the compact baseline and treat relative features as an available diagnostic.
+* Compared multi-task and occurrence-only Transformer heads on identical episode folds. Occurrence-only was marginally better (`0.5533` versus `0.5508`), so auxiliary targets remain opt-in.
+* Added `run-domain-randomized-synthetic-batch.sh` with explicit baseline, slow-fill, and fast-localized profiles. Generated 12 episodes and ran complete-episode holdouts; the model averaged `0.5096`, failing the regime-invariance gate but establishing a reproducible stress test.
+* Added opt-in per-window sequence normalization and ran the same 12-fold control. It scored `0.4909`, so it is retained only as a negative normalization control.
 * Updated the sandpile determinism test for the current damage-reporting schema. The focused simulation test and the 138-test acquisition/feature suite now pass.
 * Ran a four-config h6 patch-Transformer sweep on the warmed nine-episode synthetic data. Piezo/VLF-only was the strongest ablation in every config; best short-run calibrated balanced accuracy was `0.608629` with lookback `12`, patch `3`, dropout `0.1`.
 * Added `./scripts/run-longer-synthetic-transformer-batch.sh` as the repeatable CPU-only route for larger warmed synthetic batches before Transformer retuning.
@@ -152,7 +167,7 @@
 * Run `./scripts/backfill-japan-history.sh` and verify nonempty USGS raw and normalized outputs.
 * Identify one reproducible current passive broadband ELF/VLF Japan sample and add it to `data/raw/vlf/japan/manifest.csv`; prioritize ISEE Moshiri or Kagoshima over WALDO.
 * Compare Japan and Italy source coverage before any cross-region model training.
-* Contact the ISEE data owners for one recent Moshiri or Kagoshima digital sample, then build the Japan VLF adapter for its native binary format.
+* Use the confirmed ISEE permission to obtain one recent Moshiri or Kagoshima digital sample, then build the Japan VLF adapter for its native CDF format.
 * Keep WALDO out of the main acquisition schedule; revisit it only for a defined historical case study or optional self-supervised pretraining corpus.
 
 * Refreshed Italy data through 2026-07-16: 67 new INGV events were pulled, one new Cumiana `last_E_VLF` image was captured, and the prospective tables now contain 279 rows with 277 mature rows. Both all-Italy (`277/0`) and central-Italy (`0/277`) remain class-blocked.

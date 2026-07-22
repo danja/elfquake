@@ -260,6 +260,20 @@ Repeat the h6 event-list patch Transformer over bounded lookback, patch-size, an
 
 Run a leave-one-episode-out CPU Transformer check. Each synthetic episode is held out in turn, and optional count and log-energy regression heads are trained alongside occurrence; use this to measure regime generalization rather than to select a forecast model.
 
+The Transformer command also accepts `--sequence-normalization per_window` for a causal lookback normalization control. Keep the default `global` mode unless the control is explicitly being evaluated.
+
+### `run-domain-randomized-synthetic-batch.sh`
+
+Generate disjoint synthetic episodes under explicit loading regimes and refresh their derived artifacts. Use the resulting complete episodes for regime-invariance stress tests; do not mix profile selection with held-out evaluation.
+
+### `normalize-japan-vlf-cdf.sh`
+
+Decode one raw ISEE Japan VLF CDF file into scalar samples and metadata after installing `cdflib`. Use only after recording the exact archive URL, station metadata, units, and scientific-use restrictions.
+
+### `fetch-japan-vlf-cdf.sh`
+
+Download one exact ISEE CDF URL unchanged, verify it is nonempty, and write a checksum capture record beside the raw file.
+
 ### `diagnose-temporal-split`
 
 Measure target balance and feature drift between temporal train/test partitions. Use this when holdout metrics look unstable or suspicious.

@@ -67,4 +67,6 @@ def _suffix(content_type: str, url: str) -> str:
         return ".wav"
     if "ogg" in value:
         return ".ogg"
+    if "cdf" in value:
+        return ".cdf"
     return ".bin"

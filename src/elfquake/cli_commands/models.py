@@ -352,7 +352,7 @@ def register_model_commands(subparsers: _SubParsersAction) -> None:
     transfer_suite.add_argument("--epochs", type=int, default=50)
     transfer_suite.add_argument("--pretrain-epochs", type=int, default=30)
     transfer_suite.add_argument("--precision-recall-floor", type=float, default=0.5)
-    transfer_suite.add_argument("--feature-mode", choices=("compact", "multiscale"), default="compact")
+    transfer_suite.add_argument("--feature-mode", choices=("compact", "multiscale", "relative"), default="compact")
     transfer_suite.add_argument("--seed", type=int, default=42)
     transfer_suite.set_defaults(func=_run_transfer_experiment_suite)
 
