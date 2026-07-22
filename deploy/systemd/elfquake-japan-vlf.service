@@ -1,0 +1,27 @@
+[Unit]
+Description=ELFQuake Japan ISEE VLF research-data refresh
+Documentation=file:/home/danny/github/elfquake/docs/vlf-japan-isee.md
+Wants=network-online.target
+After=network-online.target
+
+[Service]
+Type=oneshot
+User=danny
+Group=danny
+WorkingDirectory=/home/danny/github/elfquake
+Environment=PYTHONPATH=/home/danny/github/elfquake/src
+Environment=PYTHONDONTWRITEBYTECODE=1
+Environment=NUMBA_DISABLE_JIT=1
+Environment=MANIFEST=data/raw/vlf/japan/manifest.csv
+Environment=WINDOWS=data/derived/japan/japan.seismic_training_windows.csv
+Environment=LOOKBACK_MONTHS=1
+Environment=MAX_FILES=1
+EnvironmentFile=-/etc/default/elfquake
+ExecStart=/bin/bash /home/danny/github/elfquake/scripts/refresh-japan-vlf.sh
+TimeoutStartSec=20min
+TimeoutStopSec=30s
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=read-only
+ReadWritePaths=/home/danny/github/elfquake/data

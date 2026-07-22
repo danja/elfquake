@@ -1,0 +1,11 @@
+[Unit]
+Description=Periodic ELFQuake Japan ISEE VLF research-data refresh
+
+[Timer]
+OnBootSec=20min
+OnUnitActiveSec=6h
+Unit=elfquake-japan-vlf.service
+Persistent=true
+
+[Install]
+WantedBy=timers.target

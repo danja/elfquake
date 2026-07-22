@@ -39,8 +39,9 @@
 35. For the first ISEE sample, retain the CDF metadata JSON as the source contract. Confirm whether the archive variable is a scalar trace or a time-frequency array before adding a feature adapter; do not flatten a spectrum without preserving its time and frequency axes.
 36. The native CDF spectrum adapter is implemented in `extract-japan-vlf-cdf-features.sh`. Validate its band definitions against additional Moshiri months, preserve `research_use_only`, and compare features with Cumiana only in explicitly declared scientific experiments.
 37. Use `build-japan-vlf-cdf-window-features.sh` against Japan seismic windows after the Japan USGS history is populated; require nonempty overlap and retain Japan-only research reports before any cross-region representation experiment.
-38. Extend the Japan seismic history beyond the June 2025 sample by at least seven days, rebuild mature windows, and rerun both January and June CDF window aggregation. Report overlap duration and event-label support separately from feature extraction.
+38. Completed the initial Japan temporal extension through 2025-07-15: 319 normalized events, 26 mature windows, and one overlapping window for each Moshiri sample. Keep this as an ingestion gate only; it is not sufficient model coverage.
 39. Use `./scripts/process-japan-vlf-manifest.sh` as the standard Japan preprocessing entry point. Add more manifest rows only after station/date/permission metadata are recorded, then rerun the workflow and audit overlap before model training.
+40. Install and monitor `elfquake-japan-vlf.timer` as a separate Japan research-data collector. Confirm the archive's publication delay and adjust `LOOKBACK_MONTHS` or `MAX_FILES` only after checking storage and overlap growth.
 25. Use `./scripts/trial-weekly-event-forecast.sh` as the current end-to-end event-list contract smoke test, not as a validated predictor.
 26. Use `./scripts/balance-italy-synthetic-episode-rates.sh` only as an auditable training/observation-model diagnostic. It can thin overactive episodes, but it must not synthesize events for underactive episodes; the matched rerun is preferred.
 

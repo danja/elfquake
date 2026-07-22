@@ -15,7 +15,7 @@ The archive lists passive ground VLF/ELF stations including Athabasca, Gakona, H
 * Machine-readable CDF archive: verified.
 * Scientific-use permission: confirmed by the project contact; retain the archive caveats with any derived result.
 * Nonempty CDF samples: two verified locally from Moshiri, January and June 2025.
-* Japan seismic alignment: 296 normalized USGS events and 24 mature weekly windows; January has one overlapping VLF window, while the June sample needs a later seismic catalog refresh for its seven-day target horizon.
+* Japan seismic alignment: 319 normalized USGS events and 26 mature weekly windows; both January and June samples now have one overlapping mature window.
 * Decoder: `normalize-vlf-japan-cdf`, using optional `cdflib`.
 
 The decoder preserves the raw CDF, identifies an epoch variable, writes scalar time-series variables to CSV, and records global/variable attributes and non-scalar spectrum dimensions in JSON. It does not flatten spectra or assume that station channels, units, or frequency axes are interchangeable.
@@ -28,7 +28,9 @@ The first sample has 8,646 records at 0.4096-second resolution. `ch1` and `ch2` 
 
 `./scripts/process-japan-vlf-manifest.sh` is the repeatable ingestion workflow. It processes every CDF row in the manifest, skips already captured raw files, and optionally builds window features when `WINDOWS` is supplied. It is safe to rerun and all Japan outputs remain research-only.
 
-The first alignment run produced 3,589 native VLF rows in one January weekly window. The June sample produced no overlapping mature window because the current seismic history ended before that sample's forecast horizon; this is a coverage limitation, not a negative signal result.
+For unattended collection, `deploy/systemd/elfquake-japan-vlf.service` and `.timer` run `scripts/refresh-japan-vlf.sh` every six hours. The refresh discovers only the newest unrecorded CDF from the previous archive month and defaults to one file per run, limiting storage growth and network load. Downloads use a temporary file and atomic rename, so interrupted transfers are retried rather than treated as valid CDFs. This service is independent of the Italy VLF service.
+
+The alignment run produces 3,589 native VLF rows in one January weekly window and 3,589 in one June weekly window. This confirms temporal plumbing for both samples, but is still far too little coverage for model training or scientific association claims.
 
 ## Workflow
 
@@ -40,3 +42,16 @@ The first alignment run produced 3,589 native VLF rows in one January weekly win
 6. For repeatable processing, run `WINDOWS=data/derived/japan/japan.seismic_training_windows.csv ./scripts/process-japan-vlf-manifest.sh`.
 7. Use all Japan raw data and derived features only for scientific research; retain the archive caveats and contact requirement.
 8. Keep Japan evaluation separate from Italy model scores unless a cross-region experiment is explicitly declared.
+
+## Systemd Installation
+
+```sh
+sudo cp deploy/systemd/elfquake-japan-vlf.service /etc/systemd/system/
+sudo cp deploy/systemd/elfquake-japan-vlf.timer /etc/systemd/system/
+sudo systemctl daemon-reload
+sudo systemctl enable --now elfquake-japan-vlf.timer
+```
+
+Inspect with `systemctl list-timers elfquake-japan-vlf.timer` and `journalctl -u elfquake-japan-vlf.service`. A new hourly CDF is typically around 6--11 MB and may take several minutes to download. For a manual run without waiting in the terminal, use `sudo systemctl start --no-block elfquake-japan-vlf.service`. A successful run ends with `Deactivated successfully` and `Finished`. Japan raw and derived data are for scientific research only.
+
+The unit disables Numba JIT because the service imports the shared CLI, including simulation commands, but never runs simulation. This avoids Numba cache initialization under systemd and does not affect the CDF features.

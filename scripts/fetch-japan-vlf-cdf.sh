@@ -5,10 +5,15 @@ set -euo pipefail
 : "${URL:?Set URL to one exact ISEE VLF CDF file URL}"
 OUTPUT="${OUTPUT:-data/raw/vlf/japan/$(basename "${URL%%\?*}")}"
 META="${META:-${OUTPUT}.capture.json}"
+CURL_CONNECT_TIMEOUT="${CURL_CONNECT_TIMEOUT:-30}"
+CURL_MAX_TIME="${CURL_MAX_TIME:-900}"
+PARTIAL="${OUTPUT}.part.$$"
+trap 'rm -f "$PARTIAL"' EXIT
 
 mkdir -p "$(dirname "$OUTPUT")"
-curl --fail --location --retry 3 --output "$OUTPUT" "$URL"
-test -s "$OUTPUT"
+curl --fail --location --retry 3 --connect-timeout "$CURL_CONNECT_TIMEOUT" --max-time "$CURL_MAX_TIME" --output "$PARTIAL" "$URL"
+test -s "$PARTIAL"
+mv "$PARTIAL" "$OUTPUT"
 
 python3 - "$URL" "$OUTPUT" "$META" <<'PY'
 import hashlib

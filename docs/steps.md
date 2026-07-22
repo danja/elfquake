@@ -282,6 +282,10 @@ Aggregate native Japan CDF feature rows into the existing UTC training-window sh
 
 Run the Japan CDF ingestion and preprocessing chain for every manifest row. It fetches missing raw files, normalizes CDF metadata, extracts native spectrogram features, and optionally aggregates them to seismic windows with `WINDOWS=...`. All outputs are for scientific research only.
 
+### `refresh-japan-vlf.sh`
+
+Discover the newest unrecorded CDF from the previous archive month and run the manifest workflow. Use this from `elfquake-japan-vlf.timer`; it defaults to one new file per run.
+
 ### `fetch-japan-vlf-cdf.sh`
 
 Download one exact ISEE CDF URL unchanged, verify it is nonempty, and write a checksum capture record beside the raw file.

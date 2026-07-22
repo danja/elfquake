@@ -6,6 +6,7 @@ MANIFEST="${MANIFEST:-data/raw/vlf/japan/manifest.csv}"
 RAW_ROOT="${RAW_ROOT:-data/raw/vlf/japan}"
 FEATURE_ROOT="${FEATURE_ROOT:-data/derived/vlf/japan}"
 WINDOWS="${WINDOWS:-}"
+FORCE="${FORCE:-0}"
 
 mkdir -p "$RAW_ROOT" "$FEATURE_ROOT"
 
@@ -16,6 +17,7 @@ tail -n +2 "$MANIFEST" | while IFS=, read -r endpoint_id url content station lat
   filename="$(basename "${url%%\?*}")"
   raw="${RAW_ROOT}/${filename}"
   stem="${filename%.cdf}"
+  metadata="${FEATURE_ROOT}/${stem}.metadata.json"
   features="${FEATURE_ROOT}/${stem}.features.csv"
   windows_out="${FEATURE_ROOT}/${stem}.window_features.csv"
 
@@ -24,8 +26,16 @@ tail -n +2 "$MANIFEST" | while IFS=, read -r endpoint_id url content station lat
   else
     echo "raw exists: $raw"
   fi
-  INPUT="$raw" PYTHON_BIN="$PYTHON_BIN" ./scripts/normalize-japan-vlf-cdf.sh
-  INPUT="$raw" OUTPUT="$features" PYTHON_BIN="$PYTHON_BIN" ./scripts/extract-japan-vlf-cdf-features.sh
+  if [[ "$FORCE" == "1" || ! -s "$metadata" ]]; then
+    INPUT="$raw" PYTHON_BIN="$PYTHON_BIN" ./scripts/normalize-japan-vlf-cdf.sh
+  else
+    echo "metadata exists: $metadata"
+  fi
+  if [[ "$FORCE" == "1" || ! -s "$features" ]]; then
+    INPUT="$raw" OUTPUT="$features" PYTHON_BIN="$PYTHON_BIN" ./scripts/extract-japan-vlf-cdf-features.sh
+  else
+    echo "features exist: $features"
+  fi
   if [[ -n "$WINDOWS" ]]; then
     FEATURES="$features" WINDOWS="$WINDOWS" OUTPUT="$windows_out" PYTHON_BIN="$PYTHON_BIN" \
       ./scripts/build-japan-vlf-cdf-window-features.sh
