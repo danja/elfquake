@@ -42,6 +42,7 @@
 38. Completed the initial Japan temporal extension through 2025-07-15: 319 normalized events, 26 mature windows, and one overlapping window for each Moshiri sample. Keep this as an ingestion gate only; it is not sufficient model coverage.
 39. Use `./scripts/process-japan-vlf-manifest.sh` as the standard Japan preprocessing entry point. Add more manifest rows only after station/date/permission metadata are recorded, then rerun the workflow and audit overlap before model training.
 40. Install and monitor `elfquake-japan-vlf.timer` as a separate Japan research-data collector. Confirm the archive's publication delay and adjust `LOOKBACK_MONTHS` or `MAX_FILES` only after checking storage and overlap growth.
+41. Run `./scripts/build-japan-vlf-cdf-dataset.sh` after each refresh to produce one combined Japan VLF row per seismic window; use this artifact as the input to the Japan design-matrix join.
 25. Use `./scripts/trial-weekly-event-forecast.sh` as the current end-to-end event-list contract smoke test, not as a validated predictor.
 26. Use `./scripts/balance-italy-synthetic-episode-rates.sh` only as an auditable training/observation-model diagnostic. It can thin overactive episodes, but it must not synthesize events for underactive episodes; the matched rerun is preferred.
 

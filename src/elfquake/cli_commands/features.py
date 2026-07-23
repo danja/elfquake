@@ -78,7 +78,7 @@ def register_feature_commands(subparsers: _SubParsersAction) -> None:
     vlf_window_features.set_defaults(func=_build_vlf_window_features)
 
     japan_cdf_windows = subparsers.add_parser("build-japan-vlf-cdf-window-features")
-    japan_cdf_windows.add_argument("--features", type=Path, required=True)
+    japan_cdf_windows.add_argument("--features", type=Path, action="append", required=True)
     japan_cdf_windows.add_argument("--windows", type=Path, required=True)
     japan_cdf_windows.add_argument("--out", type=Path, required=True)
     japan_cdf_windows.set_defaults(func=_build_japan_cdf_window_features)
@@ -283,7 +283,7 @@ def _build_vlf_window_features(args: Namespace) -> int:
 
 
 def _build_japan_cdf_window_features(args: Namespace) -> int:
-    rows = build_japan_cdf_window_features(feature_csv=args.features, windows_csv=args.windows, out_path=args.out)
+    rows = build_japan_cdf_window_features(feature_csvs=args.features, windows_csv=args.windows, out_path=args.out)
     print(f"Japan CDF window rows: {len(rows)}")
     print(f"output: {args.out}")
     return 0

@@ -276,7 +276,11 @@ Convert native ISEE CDF spectrogram arrays into time-indexed logarithmic frequen
 
 ### `build-japan-vlf-cdf-window-features.sh`
 
-Aggregate native Japan CDF feature rows into the existing UTC training-window shape. Keep the resulting research-only rows separate from Italy datasets unless a cross-region experiment is explicitly declared.
+Aggregate one or more native Japan CDF feature files into the existing UTC training-window shape. Keep the resulting research-only rows separate from Italy datasets unless a cross-region experiment is explicitly declared.
+
+### `build-japan-vlf-cdf-dataset.sh`
+
+Combine all processed Japan CDF feature files into one row per Japan seismic window, preventing duplicate target rows when several captures overlap a window.
 
 ### `process-japan-vlf-manifest.sh`
 

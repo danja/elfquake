@@ -8,8 +8,10 @@ from pathlib import Path
 from elfquake.features.common import parse_utc
 
 
-def build_japan_cdf_window_features(*, feature_csv: Path, windows_csv: Path, out_path: Path) -> list[dict[str, str]]:
-    features = _read(feature_csv)
+def build_japan_cdf_window_features(*, feature_csvs: list[Path], windows_csv: Path, out_path: Path) -> list[dict[str, str]]:
+    features = []
+    for feature_csv in feature_csvs:
+        features.extend(_read(feature_csv))
     windows = _read(windows_csv)
     numeric_fields = [
         field for field in (features[0].keys() if features else [])
@@ -19,7 +21,7 @@ def build_japan_cdf_window_features(*, feature_csv: Path, windows_csv: Path, out
     output_fields.extend(f"japan_{field}_{stat}" for field in numeric_fields for stat in ("mean", "std", "max"))
     output_fields.append("research_use_only")
 
-    feature_times = [(parse_utc(row["time_utc"]), row) for row in features]
+    feature_times = sorted((parse_utc(row["time_utc"]), row) for row in features)
     rows = []
     for window in windows:
         start = parse_utc(window["window_start_utc"])

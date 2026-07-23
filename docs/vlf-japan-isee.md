@@ -24,7 +24,7 @@ The first sample has 8,646 records at 0.4096-second resolution. `ch1` and `ch2` 
 
 `./scripts/extract-japan-vlf-cdf-features.sh` converts the native arrays into one row per timestamp with eight logarithmic frequency bands per channel, active-bin fractions, valid-bin fractions, and `research_use_only=1`. The output is a compact feature representation for experiments; the raw CDF remains the authoritative record.
 
-`./scripts/build-japan-vlf-cdf-window-features.sh` aggregates those rows to the project window contract using mean, standard deviation, maximum, row count, and coverage duration. It is the boundary between native Japan data and model-ready windows.
+`./scripts/build-japan-vlf-cdf-window-features.sh` aggregates one or more CDF feature files to the project window contract using mean, standard deviation, maximum, row count, and coverage duration. It is the boundary between native Japan data and model-ready windows. `./scripts/build-japan-vlf-cdf-dataset.sh` discovers all processed CDF feature files and creates one combined row per Japan seismic window.
 
 `./scripts/process-japan-vlf-manifest.sh` is the repeatable ingestion workflow. It processes every CDF row in the manifest, skips already captured raw files, and optionally builds window features when `WINDOWS` is supplied. It is safe to rerun and all Japan outputs remain research-only.
 
