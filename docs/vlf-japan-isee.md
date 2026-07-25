@@ -14,7 +14,7 @@ The archive lists passive ground VLF/ELF stations including Athabasca, Gakona, H
 * Plot and archive pages: verified.
 * Machine-readable CDF archive: verified.
 * Scientific-use permission: confirmed by the project contact; retain the archive caveats with any derived result.
-* Nonempty CDF samples: two verified locally from Moshiri, January and June 2025.
+* Nonempty CDF samples: three verified locally from Moshiri, January and June 2025 plus June 2026.
 * Japan seismic alignment: 319 normalized USGS events and 26 mature weekly windows; both January and June samples now have one overlapping mature window.
 * Decoder: `normalize-vlf-japan-cdf`, using optional `cdflib`.
 
@@ -24,13 +24,13 @@ The first sample has 8,646 records at 0.4096-second resolution. `ch1` and `ch2` 
 
 `./scripts/extract-japan-vlf-cdf-features.sh` converts the native arrays into one row per timestamp with eight logarithmic frequency bands per channel, active-bin fractions, valid-bin fractions, and `research_use_only=1`. The output is a compact feature representation for experiments; the raw CDF remains the authoritative record.
 
-`./scripts/build-japan-vlf-cdf-window-features.sh` aggregates one or more CDF feature files to the project window contract using mean, standard deviation, maximum, row count, and coverage duration. It is the boundary between native Japan data and model-ready windows. `./scripts/build-japan-vlf-cdf-dataset.sh` discovers all processed CDF feature files and creates one combined row per Japan seismic window.
+`./scripts/build-japan-vlf-cdf-window-features.sh` aggregates one or more CDF feature files to the project window contract using mean, standard deviation, maximum, row count, and coverage duration. It is the boundary between native Japan data and model-ready windows. `./scripts/build-japan-vlf-cdf-dataset.sh` discovers all processed CDF feature files and creates one combined row per Japan seismic window. `./scripts/build-japan-model-input.sh` then joins those rows to the Japan seismic targets, retains windows without VLF coverage, and writes `quality_missing_japan_vlf` for explicit masking or ablation.
 
-`./scripts/process-japan-vlf-manifest.sh` is the repeatable ingestion workflow. It processes every CDF row in the manifest, skips already captured raw files, and optionally builds window features when `WINDOWS` is supplied. It is safe to rerun and all Japan outputs remain research-only.
+`./scripts/process-japan-vlf-manifest.sh` is the repeatable ingestion workflow. It processes every CDF row in the manifest, skips already captured raw files, and when `WINDOWS` is supplied rebuilds the combined CDF window table and Japan model-input table after processing. It is safe to rerun and all Japan outputs remain research-only.
 
 For unattended collection, `deploy/systemd/elfquake-japan-vlf.service` and `.timer` run `scripts/refresh-japan-vlf.sh` every six hours. The refresh discovers only the newest unrecorded CDF from the previous archive month and defaults to one file per run, limiting storage growth and network load. Downloads use a temporary file and atomic rename, so interrupted transfers are retried rather than treated as valid CDFs. This service is independent of the Italy VLF service.
 
-The alignment run produces 3,589 native VLF rows in one January weekly window and 3,589 in one June weekly window. This confirms temporal plumbing for both samples, but is still far too little coverage for model training or scientific association claims.
+The aligned range now extends through July 2026: it has 78 weekly windows and all three Moshiri samples overlap a window. At M3.0 every target is positive. An M5.0 diagnostic gives 49 positive and 29 negative windows, but only three windows contain VLF data. The first CPU tabular 80/20 chronological smoke test therefore remains a pipeline baseline: its learned ablations did not recover the negative class and did not beat the majority-class balanced-accuracy baseline.
 
 ## Workflow
 
@@ -42,6 +42,8 @@ The alignment run produces 3,589 native VLF rows in one January weekly window an
 6. For repeatable processing, run `WINDOWS=data/derived/japan/japan.seismic_training_windows.csv ./scripts/process-japan-vlf-manifest.sh`.
 7. Use all Japan raw data and derived features only for scientific research; retain the archive caveats and contact requirement.
 8. Keep Japan evaluation separate from Italy model scores unless a cross-region experiment is explicitly declared.
+9. Build the research-only model table with `./scripts/build-japan-model-input.sh`; use `japan_vlf` as a separate feature group and report missing-modality masks.
+10. Run `./scripts/probe-japan-target-thresholds.sh` after seismic or CDF refreshes to choose a target threshold from class balance and overlap, not model score.
 
 ## Systemd Installation
 

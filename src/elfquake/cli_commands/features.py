@@ -22,6 +22,7 @@ from elfquake.features.vlf_image_compare import compare_vlf_image_features
 from elfquake.features.vlf_image_windows import join_vlf_image_features_to_windows
 from elfquake.features.vlf_windows import build_vlf_window_features
 from elfquake.features.vlf_cdf_windows import build_japan_cdf_window_features
+from elfquake.features.japan_model_input import build_japan_model_input
 from elfquake.features.italy_coverage import build_italy_coverage_report
 from elfquake.features.vlf_event_association import build_vlf_event_association_report
 from elfquake.features.spatial_targets import label_spatial_multimodal_targets
@@ -82,6 +83,12 @@ def register_feature_commands(subparsers: _SubParsersAction) -> None:
     japan_cdf_windows.add_argument("--windows", type=Path, required=True)
     japan_cdf_windows.add_argument("--out", type=Path, required=True)
     japan_cdf_windows.set_defaults(func=_build_japan_cdf_window_features)
+
+    japan_model = subparsers.add_parser("build-japan-model-input")
+    japan_model.add_argument("--windows", type=Path, required=True)
+    japan_model.add_argument("--vlf-windows", type=Path, required=True)
+    japan_model.add_argument("--out", type=Path, required=True)
+    japan_model.set_defaults(func=_build_japan_model_input)
 
     vlf_image_features = subparsers.add_parser("extract-vlf-image-features")
     vlf_image_features.add_argument("--image", type=Path, action="append", default=[])
@@ -285,6 +292,19 @@ def _build_vlf_window_features(args: Namespace) -> int:
 def _build_japan_cdf_window_features(args: Namespace) -> int:
     rows = build_japan_cdf_window_features(feature_csvs=args.features, windows_csv=args.windows, out_path=args.out)
     print(f"Japan CDF window rows: {len(rows)}")
+    print(f"output: {args.out}")
+    return 0
+
+
+def _build_japan_model_input(args: Namespace) -> int:
+    rows = build_japan_model_input(
+        windows_csv=args.windows,
+        vlf_windows_csv=args.vlf_windows,
+        out_path=args.out,
+    )
+    missing = sum(row["quality_missing_japan_vlf"] == "1" for row in rows)
+    print(f"Japan model rows: {len(rows)}")
+    print(f"missing Japan VLF rows: {missing}")
     print(f"output: {args.out}")
     return 0
 

@@ -766,3 +766,11 @@ Capture verified passive broadband Japan ELF/VLF manifest entries on a repeatabl
 ### `build-japan-vlf-features.sh`
 
 Extract image features from verified Japan spectrogram captures using the same feature contract as Cumiana. Keep Japan and Italy split during validation.
+
+### `build-japan-model-input.sh`
+
+Join Japan seismic target windows with the combined native-CDF VLF windows. Retain every target window, mark missing VLF coverage explicitly, and write a research-only model-input table for later ablation tests.
+
+### `probe-japan-target-thresholds.sh`
+
+Compare Japan target class balance across magnitude thresholds and count VLF-overlap windows. Use this before selecting a smoke-training target; it does not measure predictive skill.

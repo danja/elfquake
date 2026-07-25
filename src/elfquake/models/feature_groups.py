@@ -38,11 +38,13 @@ VLF_IMAGE_PREFIXES = (
     "vlf_crop_",
 )
 SYNTHETIC_PIEZO_VLF_PREFIXES = ("synthetic_piezo_vlf_",)
+JAPAN_VLF_PREFIXES = ("japan_",)
 
 FEATURE_GROUP_PREFIXES = {
     "seismic": ("seismic_",),
     "astronomy": ("astro_",),
-    "vlf": VLF_METADATA_PREFIXES + VLF_IMAGE_PREFIXES + SYNTHETIC_PIEZO_VLF_PREFIXES,
+    "vlf": VLF_METADATA_PREFIXES + VLF_IMAGE_PREFIXES + SYNTHETIC_PIEZO_VLF_PREFIXES + JAPAN_VLF_PREFIXES,
+    "japan_vlf": JAPAN_VLF_PREFIXES,
     "vlf_metadata": VLF_METADATA_PREFIXES,
     "vlf_image": VLF_IMAGE_PREFIXES,
     "synthetic_seismic": ("synthetic_seismic_",),
@@ -54,7 +56,7 @@ FEATURE_GROUP_PREFIXES = {
 
 FEATURE_ROLE_GROUPS = {
     "seismic": ("seismic", "synthetic_seismic", "synthetic_direct_avalanche"),
-    "vlf": ("vlf_metadata", "vlf_image", "synthetic_piezo_vlf"),
+    "vlf": ("vlf_metadata", "vlf_image", "synthetic_piezo_vlf", "japan_vlf"),
     "astronomy": ("astronomy",),
     "quality": ("quality",),
 }
@@ -62,6 +64,8 @@ FEATURE_ROLE_GROUPS = {
 ABLATIONS = {
     "seismic_only": ("seismic",),
     "vlf_only": ("vlf",),
+    "japan_vlf_only": ("japan_vlf",),
+    "seismic_japan_vlf": ("seismic", "japan_vlf"),
     "seismic_vlf": ("seismic", "vlf_metadata", "vlf_image"),
     "seismic_vlf_unified": ("seismic", "vlf"),
     "seismic_astronomy": ("seismic", "astronomy"),

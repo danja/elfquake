@@ -8,6 +8,7 @@ from pathlib import Path
 
 from elfquake.models.feature_groups import (
     ID_FIELDS,
+    JAPAN_VLF_PREFIXES,
     SYNTHETIC_PIEZO_VLF_PREFIXES,
     TARGET_FIELDS,
     VLF_IMAGE_PREFIXES,
@@ -17,7 +18,8 @@ from elfquake.models.feature_groups import (
 
 MODALITY_PREFIXES: dict[str, tuple[str, ...]] = {
     "seismic": ("seismic_",),
-    "vlf": VLF_METADATA_PREFIXES + VLF_IMAGE_PREFIXES + SYNTHETIC_PIEZO_VLF_PREFIXES,
+    "vlf": VLF_METADATA_PREFIXES + VLF_IMAGE_PREFIXES + SYNTHETIC_PIEZO_VLF_PREFIXES + JAPAN_VLF_PREFIXES,
+    "japan_vlf": JAPAN_VLF_PREFIXES,
     "vlf_metadata": VLF_METADATA_PREFIXES,
     "vlf_image": VLF_IMAGE_PREFIXES,
     "astronomy": ("astro_", "astronomy_", "moon_", "solar_", "kp_", "ap_", "f107_"),

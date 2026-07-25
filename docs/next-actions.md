@@ -43,6 +43,9 @@
 39. Use `./scripts/process-japan-vlf-manifest.sh` as the standard Japan preprocessing entry point. Add more manifest rows only after station/date/permission metadata are recorded, then rerun the workflow and audit overlap before model training.
 40. Install and monitor `elfquake-japan-vlf.timer` as a separate Japan research-data collector. Confirm the archive's publication delay and adjust `LOOKBACK_MONTHS` or `MAX_FILES` only after checking storage and overlap growth.
 41. Run `./scripts/build-japan-vlf-cdf-dataset.sh` after each refresh to produce one combined Japan VLF row per seismic window; use this artifact as the input to the Japan design-matrix join.
+42. The Japan refresh now rebuilds the combined CDF windows and model-input table automatically when `WINDOWS` is set. The current table has 78 target windows but 75 missing VLF rows; acquire matching CDF dates before training or cross-region comparison.
+43. Use `data/derived/models/japan_vlf_model_input.m5.csv` as the current Japan smoke-training table only. Its M5.0 target has `49/29` positive/negative windows, but only three contain VLF; the first 80/20 tabular run did not beat the majority baseline. Do not tune a model until matching VLF coverage is materially longer.
+44. Run `./scripts/probe-japan-target-thresholds.sh` after each Japan refresh. Select thresholds using class balance and VLF overlap; do not optimize the threshold against model scores while only three VLF windows are observed.
 25. Use `./scripts/trial-weekly-event-forecast.sh` as the current end-to-end event-list contract smoke test, not as a validated predictor.
 26. Use `./scripts/balance-italy-synthetic-episode-rates.sh` only as an auditable training/observation-model diagnostic. It can thin overactive episodes, but it must not synthesize events for underactive episodes; the matched rerun is preferred.
 
@@ -155,6 +158,8 @@
 * Added synthetic aligned sequence/tensor paths, GRU and patch-Transformer smoke models, missing-modality checks, and model-run summaries.
 * Added direct avalanche-derived event extraction, synthetic event maps, and separate piezo/VLF-like signal outputs.
 * Added repo-local Codex skills for source ingest, data refresh, simulation, and synthetic modeling workflows.
+* Added the research-only Japan model-input builder and registered the `japan_vlf` feature group, ablation, tensor-spec modality, and missing-VLF quality mask. The current 26-row table has only two observed VLF windows and remains one-class at M3.0.
+* Extended Japan seismic coverage through 2026-07-08, rebuilt 78 aligned weekly windows, matched all three Moshiri CDF samples, and ran the first M5.0 CPU tabular smoke baseline. The target has `49/29` positive/negative windows, but VLF is present in only three; no predictive utility is demonstrated.
 * Fixed prospective-label maturity so a target is only labeled when the event catalog covers its complete horizon. The incremental refresh now rebuilds existing candidate rows, uses stable current catalog paths, and caches unchanged VLF image features.
 * Added causal pre-relaxation piezo-to-post-relaxation avalanche lead-time analysis. Old release signals are same-step effects; a new stored-potential sensor did not pass the spatially averaged nine-episode test. Event-nearest diagnostic support is not usable for prediction because it relies on future event coordinates.
 * Fixed mountain target refill so `TARGET_FILL_MODE=sources` deposits refill mass at persistent source locations instead of uniformly random cells. The episode batch now uses this localized loading mode by default.

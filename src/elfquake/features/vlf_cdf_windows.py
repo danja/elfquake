@@ -21,7 +21,10 @@ def build_japan_cdf_window_features(*, feature_csvs: list[Path], windows_csv: Pa
     output_fields.extend(f"japan_{field}_{stat}" for field in numeric_fields for stat in ("mean", "std", "max"))
     output_fields.append("research_use_only")
 
-    feature_times = sorted((parse_utc(row["time_utc"]), row) for row in features)
+    feature_times = sorted(
+        ((parse_utc(row["time_utc"]), row) for row in features),
+        key=lambda item: item[0],
+    )
     rows = []
     for window in windows:
         start = parse_utc(window["window_start_utc"])

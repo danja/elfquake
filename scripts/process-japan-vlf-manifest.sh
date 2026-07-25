@@ -36,9 +36,16 @@ tail -n +2 "$MANIFEST" | while IFS=, read -r endpoint_id url content station lat
   else
     echo "features exist: $features"
   fi
-  if [[ -n "$WINDOWS" ]]; then
+if [[ -n "$WINDOWS" ]]; then
     FEATURES="$features" WINDOWS="$WINDOWS" OUTPUT="$windows_out" PYTHON_BIN="$PYTHON_BIN" \
       ./scripts/build-japan-vlf-cdf-window-features.sh
   fi
   echo "processed ${endpoint_id} station=${station} region=${region_id} research_use_only=1"
 done
+
+if [[ -n "$WINDOWS" ]]; then
+  # Rebuild the combined table once after all manifest rows are processed.
+  WINDOWS="$WINDOWS" PYTHON_BIN="$PYTHON_BIN" ./scripts/build-japan-vlf-cdf-dataset.sh
+  WINDOWS="$WINDOWS" VLF_WINDOWS="data/derived/japan/japan.vlf_cdf_window_features.csv" \
+    PYTHON_BIN="$PYTHON_BIN" ./scripts/build-japan-model-input.sh
+fi
