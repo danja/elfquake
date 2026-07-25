@@ -31,6 +31,7 @@ def materialize_sequence_dataset(
     fill_value: float = 0.0,
     modality: str = "simulation",
     dataset_id: str = "",
+    channel_fields: list[str] | None = None,
     time_start_utc: str | None = None,
     time_step_seconds: int | None = None,
 ) -> dict[str, object]:
@@ -44,7 +45,7 @@ def materialize_sequence_dataset(
     if time_start_utc and time_step_seconds is None:
         raise ValueError("time_step_seconds is required when time_start_utc is set")
 
-    channel_fields = [
+    channel_fields = channel_fields or [
         field
         for field in fieldnames
         if field not in DEFAULT_EXCLUDED_FIELDS

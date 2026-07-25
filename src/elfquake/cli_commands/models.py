@@ -13,6 +13,9 @@ from elfquake.models.aligned_windows import build_aligned_window_dataset
 from elfquake.models.alignment_manifest import build_alignment_manifest
 from elfquake.models.candidates import write_model_candidates
 from elfquake.models.dataset_combine import combine_aligned_datasets
+from elfquake.models.common_window_fixture import build_common_window_fixture
+from elfquake.models.common_sequence_fixture import materialize_common_fixture_sequences
+from elfquake.models.common_alignment import audit_common_window_alignment
 from elfquake.models.event_catalog_alignment import (
     calibrate_synthetic_catalog,
     calibrate_synthetic_magnitudes,
@@ -291,6 +294,25 @@ def register_model_commands(subparsers: _SubParsersAction) -> None:
     combine_aligned.add_argument("--dataset-id", action="append")
     combine_aligned.add_argument("--out", type=Path, required=True)
     combine_aligned.set_defaults(func=_combine_aligned_datasets)
+
+    fixture = subparsers.add_parser("build-common-window-fixture")
+    fixture.add_argument("--input", type=Path, action="append", required=True)
+    fixture.add_argument("--dataset-id", action="append")
+    fixture.add_argument("--out", type=Path, required=True)
+    fixture.add_argument("--report", type=Path, required=True)
+    fixture.add_argument("--train-fraction", type=float, default=0.8)
+    fixture.set_defaults(func=_build_common_window_fixture)
+
+    fixture_sequences = subparsers.add_parser("materialize-common-fixture-sequences")
+    fixture_sequences.add_argument("--input", type=Path, required=True)
+    fixture_sequences.add_argument("--out-root", type=Path, required=True)
+    fixture_sequences.add_argument("--dataset-id", action="append")
+    fixture_sequences.set_defaults(func=_materialize_common_fixture_sequences)
+
+    alignment_audit = subparsers.add_parser("audit-common-window-alignment")
+    alignment_audit.add_argument("--input", type=Path, required=True)
+    alignment_audit.add_argument("--out", type=Path, required=True)
+    alignment_audit.set_defaults(func=_audit_common_window_alignment)
 
     trial_forecast = subparsers.add_parser("generate-trial-weekly-event-forecast")
     trial_forecast.add_argument("--real-events", type=Path, required=True)
@@ -896,6 +918,43 @@ def _combine_aligned_datasets(args: Namespace) -> int:
     print(f"rows: {len(rows)}")
     print(f"datasets: {len(args.input)}")
     print(f"output: {args.out}")
+    return 0
+
+
+def _build_common_window_fixture(args: Namespace) -> int:
+    report = build_common_window_fixture(
+        input_csvs=args.input,
+        dataset_ids=args.dataset_id,
+        out_path=args.out,
+        report_path=args.report,
+        train_fraction=args.train_fraction,
+    )
+    print(f"fixture rows: {report['row_count']}")
+    print(f"fixture datasets: {report['dataset_count']}")
+    print(f"output: {args.out}")
+    print(f"report: {args.report}")
+    return 0
+
+
+def _materialize_common_fixture_sequences(args: Namespace) -> int:
+    report = materialize_common_fixture_sequences(
+        input_csv=args.input,
+        out_root=args.out_root,
+        dataset_ids=args.dataset_id,
+    )
+    print(f"fixture sequence manifests: {report['manifest_count']}")
+    print(f"manifest index: {report['manifest_index']}")
+    return 0
+
+
+def _audit_common_window_alignment(args: Namespace) -> int:
+    report = audit_common_window_alignment(input_csv=args.input, out_path=args.out)
+    print(f"rows: {report['row_count']}")
+    print(f"datasets: {report['dataset_count']}")
+    print(f"Italy seismic/VLF/astronomy rows: {report['gates']['coobserved_seismic_italy_vlf_astronomy']}")
+    print(f"Japan seismic/VLF rows: {report['gates']['coobserved_seismic_japan_vlf']}")
+    print(f"synthetic VLF/direct rows: {report['gates']['coobserved_synthetic_vlf_and_direct']}")
+    print(f"report: {args.out}")
     return 0
 
 

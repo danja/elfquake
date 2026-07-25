@@ -665,6 +665,22 @@ Materialize sensor or simulation time-series CSVs into time/entity/channel value
 
 Materialize the current Cumiana image-feature table into the same sequence-manifest shape used by synthetic sequence models. This prepares real VLF data for later aligned multimodal training.
 
+### `build-common-transformer-fixture.sh`
+
+Union the current synthetic, Italy, and Japan window tables into one provenance-preserving fixture with chronological per-dataset splits and explicit modality-presence flags. It materializes a tensor spec and masks; it does not cross-join unrelated time ranges.
+
+### `materialize-common-transformer-sequences.sh`
+
+Materialize the common fixture into dataset- and modality-specific sequence manifests. Missing modalities are retained as zero-filled channels with explicit masks, allowing a CPU patch-Transformer interface smoke test without pretending that unrelated source periods are continuous.
+
+### `audit-common-transformer-alignment.sh`
+
+Audit exact same-row modality presence, interval overlap, and observed-window matches in the common fixture. Run this before training; zero-valued missing counts do not qualify as observations, and the report is the gate for deciding whether a result is only an interface test.
+
+### `train-torch-patch-transformer-split-holdout`
+
+Train a small CPU patch Transformer over the common sequence manifest index with `--evaluation sequence_common_multimodal`. Use the output only to verify tensor shapes, provenance, chronological splitting, and missing-modality handling until source coverage is aligned.
+
 ### `prepare-real-model-inputs.sh`
 
 Build real prospective tensor specs, tensor manifests, alignment manifests, aligned window CSVs, and readiness reports for the current all-Italy and central-Italy VLF image tables. This is scaffold-only until each table has both target classes.
