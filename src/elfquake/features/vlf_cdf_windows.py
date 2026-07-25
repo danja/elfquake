@@ -70,7 +70,11 @@ def _coverage_seconds(rows: list[dict[str, str]]) -> int:
 
 def _source_dataset_id(rows: list[dict[str, str]]) -> str:
     source_ids = sorted({row.get("_source_dataset_id", "") for row in rows if row.get("_source_dataset_id", "")})
-    return source_ids[0] if len(source_ids) == 1 else ""
+    if len(source_ids) == 1:
+        return source_ids[0]
+    if source_ids:
+        return "multiple:" + "+".join(source_ids)
+    return ""
 
 
 def _float(value: str) -> float | None:

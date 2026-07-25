@@ -14,7 +14,9 @@ The archive lists passive ground VLF/ELF stations including Athabasca, Gakona, H
 * Plot and archive pages: verified.
 * Machine-readable CDF archive: verified.
 * Scientific-use permission: confirmed by the project contact; retain the archive caveats with any derived result.
-* Nonempty CDF samples: three verified locally from Moshiri, January and June 2025 plus June 2026.
+* Nonempty CDF samples: six verified locally from Moshiri, including January and June 2025 plus four June 2026 captures.
+* Additional public coverage: the ISEE quick-look archive exposes 2026 daily spectrogram directories for Kagoshima and a 2026 network viewer. These are image products, not a substitute for native CDF samples.
+* CDF discovery limitation: the ERGSC directory currently lists Moshiri year directories through 2025, although a direct June 2026 Moshiri CDF URL has already been captured locally. Further CDF dates should therefore be discovered from exact URLs or archive responses, not inferred from directory timestamps.
 * Japan seismic alignment: 319 normalized USGS events and 26 mature weekly windows; both January and June samples now have one overlapping mature window.
 * Decoder: `normalize-vlf-japan-cdf`, using optional `cdflib`.
 
@@ -30,7 +32,7 @@ The first sample has 8,646 records at 0.4096-second resolution. `ch1` and `ch2` 
 
 For unattended collection, `deploy/systemd/elfquake-japan-vlf.service` and `.timer` run `scripts/refresh-japan-vlf.sh` every six hours. The refresh discovers only the newest unrecorded CDF from the previous archive month and defaults to one file per run, limiting storage growth and network load. Downloads use a temporary file and atomic rename, so interrupted transfers are retried rather than treated as valid CDFs. This service is independent of the Italy VLF service.
 
-The aligned range now extends through July 2026: it has 78 weekly windows and all three Moshiri samples overlap a window. At M3.0 every target is positive. An M5.0 diagnostic gives 49 positive and 29 negative windows, but only three windows contain VLF data. The first CPU tabular 80/20 chronological smoke test therefore remains a pipeline baseline: its learned ablations did not recover the negative class and did not beat the majority-class balanced-accuracy baseline.
+The aligned range now extends through July 2026: it has 78 weekly windows and five windows contain observed Moshiri VLF, including three in the later/test-era period. At M3.0 every target is positive. An M5.0 diagnostic gives 49 positive and 29 negative windows, but coverage remains too sparse for a meaningful supervised VLF evaluation. The first CPU tabular 80/20 chronological smoke test therefore remains a pipeline baseline: its learned ablations did not recover the negative class and did not beat the majority-class balanced-accuracy baseline.
 
 ## Workflow
 
@@ -45,7 +47,8 @@ The aligned range now extends through July 2026: it has 78 weekly windows and al
 9. Build the research-only model table with `./scripts/build-japan-model-input.sh`; use `japan_vlf` as a separate feature group and report missing-modality masks.
 10. Run `./scripts/probe-japan-target-thresholds.sh` after seismic or CDF refreshes to choose a target threshold from class balance and overlap, not model score.
 11. Run `./scripts/materialize-japan-vlf-sequence.sh` to create one Transformer-compatible `japan_vlf_cdf` manifest per continuous capture; pass the paths in `data/derived/models/japan_moshiri_sequences/manifests.txt` to the first interface smoke test.
-12. The capture-safe Transformer smoke fixture currently has three observed windows, all in training time, and none in the test period. A valid Japan VLF evaluation therefore remains blocked until a later capture overlaps held-out target windows.
+12. The capture-safe Transformer smoke fixture now has five observed windows, three in the later/test-era period. This removes the absolute zero-coverage blocker, but the sample count remains too small for a reliable Japan VLF evaluation; require substantially more observed windows and both target classes before interpreting scores. The current one-epoch patch-Transformer run correctly returns `insufficient_split_rows` because the 78-row M3 target remains one-class.
+13. For the next acquisition pass, prioritize exact Moshiri CDF URLs for dates overlapping held-out Japan seismic windows. In parallel, capture Kagoshima 10-minute spectrogram JPGs as a separate image-only research track; do not merge JPG-derived features with CDF features without a declared modality and calibration check.
 
 ## Systemd Installation
 
