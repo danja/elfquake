@@ -30,6 +30,7 @@ def materialize_sequence_dataset(
     entity_field: str | None = "sensor_id",
     fill_value: float = 0.0,
     modality: str = "simulation",
+    dataset_id: str = "",
     time_start_utc: str | None = None,
     time_step_seconds: int | None = None,
 ) -> dict[str, object]:
@@ -118,6 +119,7 @@ def materialize_sequence_dataset(
         "time_field": time_field,
         "entity_field": entity_field or "",
         "modality": modality,
+        "dataset_id": dataset_id,
         "fill_value": fill_value,
         "values_csv": str(values_path),
         "masks_csv": str(masks_path),

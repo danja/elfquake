@@ -7,7 +7,7 @@ from pathlib import Path
 
 
 def build_japan_model_input(
-    *, windows_csv: Path, vlf_windows_csv: Path, out_path: Path
+    *, windows_csv: Path, vlf_windows_csv: Path, out_path: Path, dataset_id: str = "japan_moshiri"
 ) -> list[dict[str, str]]:
     """Join Japan seismic windows to native-CDF VLF features by ``window_id``.
 
@@ -23,11 +23,14 @@ def build_japan_model_input(
         if field not in window_fields
         and field not in {"window_start_utc", "window_end_utc", "region_id"}
     ]
-    fieldnames = window_fields + added_fields + ["quality_missing_japan_vlf"]
+    fieldnames = [field for field in window_fields if field != "dataset_id"]
+    fieldnames.insert(0, "dataset_id")
+    fieldnames += added_fields + ["quality_missing_japan_vlf"]
     rows = []
     for window in windows:
         vlf = vlf_by_window.get(window["window_id"], {})
         merged = dict(window)
+        merged["dataset_id"] = vlf.get("japan_vlf_source_dataset_id", "") or dataset_id
         for field in added_fields:
             merged[field] = vlf.get(field, "")
         merged["quality_missing_japan_vlf"] = "1" if _missing(vlf) else "0"

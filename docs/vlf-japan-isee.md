@@ -44,6 +44,8 @@ The aligned range now extends through July 2026: it has 78 weekly windows and al
 8. Keep Japan evaluation separate from Italy model scores unless a cross-region experiment is explicitly declared.
 9. Build the research-only model table with `./scripts/build-japan-model-input.sh`; use `japan_vlf` as a separate feature group and report missing-modality masks.
 10. Run `./scripts/probe-japan-target-thresholds.sh` after seismic or CDF refreshes to choose a target threshold from class balance and overlap, not model score.
+11. Run `./scripts/materialize-japan-vlf-sequence.sh` to create one Transformer-compatible `japan_vlf_cdf` manifest per continuous capture; pass the paths in `data/derived/models/japan_moshiri_sequences/manifests.txt` to the first interface smoke test.
+12. The capture-safe Transformer smoke fixture currently has three observed windows, all in training time, and none in the test period. A valid Japan VLF evaluation therefore remains blocked until a later capture overlaps held-out target windows.
 
 ## Systemd Installation
 

@@ -385,6 +385,8 @@ def _parse_utc(value: str) -> datetime:
 
 
 def _infer_dataset_id(path: Path, manifest: dict[str, object]) -> str:
+    if manifest.get("dataset_id"):
+        return str(manifest["dataset_id"])
     match = re.search(r"seed(\d+)", f"{path} {manifest.get('input_csv', '')}")
     return f"seed{match.group(1)}" if match else path.parent.name.removesuffix("_sequence")
 

@@ -23,6 +23,7 @@ SEQUENCE_EVALUATIONS = {
     "sequence_direct_avalanche_piezo_vlf": ("synthetic_direct_avalanche", "synthetic_piezo_vlf"),
     "sequence_full": ("synthetic_direct_avalanche", "synthetic_piezo_vlf", "synthetic_summary"),
     "sequence_real_vlf_image_only": ("real_vlf_image",),
+    "sequence_japan_vlf_only": ("japan_vlf_cdf",),
 }
 
 

@@ -771,6 +771,10 @@ Extract image features from verified Japan spectrogram captures using the same f
 
 Join Japan seismic target windows with the combined native-CDF VLF windows. Retain every target window, mark missing VLF coverage explicitly, and write a research-only model-input table for later ablation tests.
 
+### `materialize-japan-vlf-sequence.sh`
+
+Convert each processed Japan CDF capture into its own continuous UTC sequence manifest with a stable capture-specific dataset ID, 20 VLF channels, and explicit research-only provenance. The script writes a manifest index for training. Separate manifests prevent lookback windows crossing multi-month gaps between captures.
+
 ### `probe-japan-target-thresholds.sh`
 
 Compare Japan target class balance across magnitude thresholds and count VLF-overlap windows. Use this before selecting a smoke-training target; it does not measure predictive skill.

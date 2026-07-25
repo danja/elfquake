@@ -23,6 +23,7 @@ from elfquake.features.vlf_image_windows import join_vlf_image_features_to_windo
 from elfquake.features.vlf_windows import build_vlf_window_features
 from elfquake.features.vlf_cdf_windows import build_japan_cdf_window_features
 from elfquake.features.japan_model_input import build_japan_model_input
+from elfquake.features.japan_cdf_sequence import materialize_japan_cdf_sequence
 from elfquake.features.italy_coverage import build_italy_coverage_report
 from elfquake.features.vlf_event_association import build_vlf_event_association_report
 from elfquake.features.spatial_targets import label_spatial_multimodal_targets
@@ -88,7 +89,14 @@ def register_feature_commands(subparsers: _SubParsersAction) -> None:
     japan_model.add_argument("--windows", type=Path, required=True)
     japan_model.add_argument("--vlf-windows", type=Path, required=True)
     japan_model.add_argument("--out", type=Path, required=True)
+    japan_model.add_argument("--dataset-id", default="japan_moshiri")
     japan_model.set_defaults(func=_build_japan_model_input)
+
+    japan_sequence = subparsers.add_parser("materialize-japan-vlf-cdf-sequence")
+    japan_sequence.add_argument("--features", type=Path, action="append", required=True)
+    japan_sequence.add_argument("--out-dir", type=Path, required=True)
+    japan_sequence.add_argument("--dataset-id", default="japan_moshiri")
+    japan_sequence.set_defaults(func=_materialize_japan_cdf_sequence)
 
     vlf_image_features = subparsers.add_parser("extract-vlf-image-features")
     vlf_image_features.add_argument("--image", type=Path, action="append", default=[])
@@ -301,11 +309,24 @@ def _build_japan_model_input(args: Namespace) -> int:
         windows_csv=args.windows,
         vlf_windows_csv=args.vlf_windows,
         out_path=args.out,
+        dataset_id=args.dataset_id,
     )
     missing = sum(row["quality_missing_japan_vlf"] == "1" for row in rows)
     print(f"Japan model rows: {len(rows)}")
     print(f"missing Japan VLF rows: {missing}")
     print(f"output: {args.out}")
+    return 0
+
+
+def _materialize_japan_cdf_sequence(args: Namespace) -> int:
+    manifest = materialize_japan_cdf_sequence(
+        feature_csvs=args.features,
+        out_dir=args.out_dir,
+        dataset_id=args.dataset_id,
+    )
+    print(f"Japan sequence rows: {manifest['row_count']}")
+    print(f"Japan sequence channels: {manifest['channel_count']}")
+    print(f"output: {args.out_dir / 'manifest.json'}")
     return 0
 
 

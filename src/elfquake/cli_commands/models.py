@@ -264,6 +264,7 @@ def register_model_commands(subparsers: _SubParsersAction) -> None:
     sequence_materialize.add_argument("--no-entity-field", action="store_true")
     sequence_materialize.add_argument("--fill-value", type=float, default=0.0)
     sequence_materialize.add_argument("--modality", default="simulation")
+    sequence_materialize.add_argument("--dataset-id", default="")
     sequence_materialize.add_argument("--time-start-utc")
     sequence_materialize.add_argument("--time-step-seconds", type=int)
     sequence_materialize.set_defaults(func=_materialize_sequence_dataset)
@@ -853,6 +854,7 @@ def _materialize_sequence_dataset(args: Namespace) -> int:
         entity_field=None if args.no_entity_field else args.entity_field,
         fill_value=args.fill_value,
         modality=args.modality,
+        dataset_id=args.dataset_id,
         time_start_utc=args.time_start_utc,
         time_step_seconds=args.time_step_seconds,
     )
