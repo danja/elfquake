@@ -55,6 +55,8 @@
 51. Use `./scripts/compare-japan-synthetic-shapes.sh` and [Japan And Synthetic Shape Comparison](japan-synthetic-shape-comparison.md) as the current signal-shape gate. The first run finds Japan VLF low-band power `0.771` versus synthetic piezo `0.361`, and Japan seismic event energy is much sparser and heavier-tailed than the synthetic catalog. Tune rate/clustering and the causal piezo envelope before another transfer sweep.
 52. Run `./scripts/evaluate-piezo-japan-shape-variants.sh`. Retain a slow-envelope setting only if it moves the piezo PSD and low-band ratio toward the Japan feature trace across multiple seeds without creating an artificial trend.
 53. Run `./scripts/tune-japan-avalanche-events.sh` over multiple seeds and time-held-out episodes. Treat the current 25-event candidate as a rate-calibration control only; improve clustering without relying on a global event cap.
+54. Use `data/derived/reports/japan-avalanche-policy-seeds/summary.csv` as the current multi-seed gate. The fixed policy is rate-stable enough for a control but fails clustering, so do not promote it as the simulator default.
+55. Add a configurable clustered-loading/relaxation regime to the sandpile simulation, preserving localized source locations and deterministic seeds. Compare event inter-arrival and burst-run statistics against the current control before rebuilding model fixtures.
 25. Use `./scripts/trial-weekly-event-forecast.sh` as the current end-to-end event-list contract smoke test, not as a validated predictor.
 26. Use `./scripts/balance-italy-synthetic-episode-rates.sh` only as an auditable training/observation-model diagnostic. It can thin overactive episodes, but it must not synthesize events for underactive episodes; the matched rerun is preferred.
 

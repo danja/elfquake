@@ -10,6 +10,10 @@ Apply causal slow-envelope observation variants to the seed-40 piezo signal and 
 
 Run a bounded, research-only extraction grid against the Japan seismic catalog. This produces a ranked diagnostic table; it does not change the simulator or promote a production event policy.
 
+### `scripts/evaluate-japan-avalanche-policy-seeds.sh`
+
+Apply one fixed event-extraction policy across multiple synthetic seeds and compare rate, clustering, tails, and PSD statistics with Japan seismicity. Use this before promoting any tuned extraction settings.
+
 ## 1. Plan Seismic Acquisition
 
 ### `plan-ingv-backfill`
