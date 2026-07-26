@@ -19,7 +19,7 @@ The artifact is an alignment and provenance fixture, not yet a single valid mixe
 1. train separate modality/domain ablations with time-safe splits, or
 2. use a dataset builder that creates one row per domain window and emits missing-modality masks for unavailable sources.
 
-The common window table satisfies the tabular interface and is marked `ready_for_smoke_training` with 5,546 rows, 5,508 labeled rows, and 208 numeric features. The derived sequence fixture at `data/derived/models/common_transformer_fixture_sequences/fixture.json` now contains 48 capture- and dataset-specific manifests covering eight modality groups. Missing groups are represented by zero-filled channels with zero-valued presence masks, rather than by dropping the modality.
+The common window table satisfies the tabular interface and is marked `ready_for_smoke_training` with 5,546 rows, 5,508 labeled rows, and 208 numeric features. After the latest Japan refresh, the derived sequence fixture at `data/derived/models/common_transformer_fixture_sequences/fixture.json` contains 88 capture- and dataset-specific manifests covering eight modality groups and 11 dataset IDs. Missing groups are represented by zero-filled channels with zero-valued presence masks, rather than by dropping the modality.
 
 A two-epoch CPU patch-Transformer smoke run is stored at `data/derived/models/common_transformer_fixture_patch_transformer.json`. It completed with 1,072 test rows and calibrated balanced accuracy `0.489320`, below the majority baseline of `0.5`. This is an interface and missing-modality test, not evidence of predictive utility: the fixture combines different time periods and source domains, and its Japan VLF observations are sparse and research-only.
 

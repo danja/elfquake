@@ -9,6 +9,7 @@ from elfquake.cli_commands.common import resolve_image_paths
 from elfquake.features.signal_shape_compare import (
     compare_signal_shapes,
     event_energy_series,
+    japan_vlf_feature_series,
     scan_sensor_signal_shapes,
     sensor_signal_series,
     vlf_image_column_series,
@@ -83,6 +84,8 @@ def register_piezo_commands(subparsers: _SubParsersAction) -> None:
     shape_compare.add_argument("--real-vlf-image", type=Path, action="append", default=[])
     shape_compare.add_argument("--real-vlf-image-root", type=Path, action="append", default=[])
     shape_compare.add_argument("--real-vlf-filename-prefix", action="append", default=["last_E_VLF"])
+    shape_compare.add_argument("--japan-vlf-feature", type=Path, action="append", default=[])
+    shape_compare.add_argument("--japan-vlf-sample-seconds", type=float, default=0.4096)
     shape_compare.add_argument("--sim-piezo", type=Path)
     shape_compare.add_argument("--sim-piezo-sensor-id", type=int)
     shape_compare.add_argument("--sim-avalanche", type=Path)
@@ -120,6 +123,8 @@ def register_piezo_commands(subparsers: _SubParsersAction) -> None:
     piezo_transform.add_argument("--near-threshold-floor", type=float, default=0.75)
     piezo_transform.add_argument("--release-mix", type=float, default=0.0)
     piezo_transform.add_argument("--gain-contrast", type=float, default=0.0)
+    piezo_transform.add_argument("--slow-envelope-decay", type=float, default=0.995)
+    piezo_transform.add_argument("--slow-envelope-mix", type=float, default=0.0)
     piezo_transform.set_defaults(func=_transform_piezo_signal)
 
     lead_time = subparsers.add_parser("analyze-piezo-event-lead-time")
@@ -251,6 +256,12 @@ def _compare_signal_shapes(args: Namespace) -> int:
         ))
     if args.real_vlf_image or args.real_vlf_image_root:
         series.append(_real_vlf_column_series(args))
+    if args.japan_vlf_feature:
+        series.append(japan_vlf_feature_series(
+            series_id="japan_vlf_cdf_log_power",
+            feature_csvs=args.japan_vlf_feature,
+            sample_seconds=args.japan_vlf_sample_seconds,
+        ))
     if args.sim_piezo:
         series.append(sensor_signal_series(
             series_id="synthetic_piezo_vlf_signal",
@@ -307,6 +318,8 @@ def _transform_piezo_signal(args: Namespace) -> int:
         near_threshold_floor=args.near_threshold_floor,
         release_mix=args.release_mix,
         gain_contrast=args.gain_contrast,
+        slow_envelope_decay=args.slow_envelope_decay,
+        slow_envelope_mix=args.slow_envelope_mix,
     )
     print(f"rows: {report['row_count']}")
     print(f"sensors: {report['sensor_count']}")

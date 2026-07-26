@@ -259,6 +259,39 @@ def vlf_image_column_series(
     return SignalSeries(series_id, "vlf_image_column_intensity", tuple(sorted(image_paths)), float(sample_seconds), values)
 
 
+def japan_vlf_feature_series(
+    *,
+    series_id: str,
+    feature_csvs: list[Path],
+    sample_seconds: float = 0.4096,
+) -> SignalSeries:
+    """Aggregate native Japan CDF log-power bands into one VLF intensity trace.
+
+    The trace is a diagnostic projection only. It preserves the native CDF time
+    sampling but concatenates captured files, so gaps between captures must not
+    be interpreted as continuous physical time.
+    """
+    if sample_seconds <= 0:
+        raise ValueError("sample_seconds must be positive")
+    values_by_time: dict[str, float] = {}
+    channel_fields: list[str] = []
+    for path in sorted(feature_csvs):
+        with path.open(newline="", encoding="utf-8") as handle:
+            reader = csv.DictReader(handle)
+            fields = [
+                field for field in (reader.fieldnames or [])
+                if field.startswith(("ch1_band_", "ch2_band_")) and field.endswith("_log10_power")
+            ]
+            channel_fields = sorted(set(channel_fields).union(fields))
+            for row in reader:
+                timestamp = row.get("time_utc", "")
+                powers = [metric_float(row.get(field, ""), 0.0) for field in fields]
+                if timestamp and powers:
+                    values_by_time[timestamp] = float(np.mean(powers))
+    values = np.asarray([values_by_time[key] for key in sorted(values_by_time)], dtype=np.float64)
+    return SignalSeries(series_id, "japan_vlf_cdf_log_power", tuple(sorted(feature_csvs)), sample_seconds, values)
+
+
 def _series_row(series: SignalSeries) -> dict[str, str]:
     stats = shape_stats(series.values, sample_seconds=series.sample_seconds)
     row = {

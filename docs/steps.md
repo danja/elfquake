@@ -2,6 +2,14 @@
 
 Recommended command order for ELFQuake workflows. Run commands from the repository root with `PYTHONPATH=src`; use the project venv when optional dependencies are needed. Shell wrappers live under `scripts/`, for example `./scripts/run-all.sh`.
 
+### `scripts/evaluate-piezo-japan-shape-variants.sh`
+
+Apply causal slow-envelope observation variants to the seed-40 piezo signal and compare their time/frequency shape with Japan VLF features and seismic events. Outputs are written under `data/derived/reports/piezo-japan-shape-variants/`.
+
+### `scripts/tune-japan-avalanche-events.sh`
+
+Run a bounded, research-only extraction grid against the Japan seismic catalog. This produces a ranked diagnostic table; it does not change the simulator or promote a production event policy.
+
 ## 1. Plan Seismic Acquisition
 
 ### `plan-ingv-backfill`
@@ -754,6 +762,10 @@ Render the current VLF-like piezo summary image using the display mapping intend
 ### `compare-signal-shapes`
 
 Compare real seismic/VLF series with synthetic seismic, piezo, and avalanche series in time and frequency domains. Use this to guide simulation tuning.
+
+### `compare-japan-synthetic-shapes.sh`
+
+Compare native Japan CDF-derived VLF log-power features and Japan seismic event energy with one synthetic avalanche episode. Review the generated series and pair CSVs together with [Japan And Synthetic Shape Comparison](japan-synthetic-shape-comparison.md); this is a shape diagnostic, not a predictive evaluation.
 
 ### `scan-piezo-sensors`
 

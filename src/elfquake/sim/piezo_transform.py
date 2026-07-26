@@ -22,6 +22,8 @@ def transform_piezo_signal_csv(
     near_threshold_floor: float = 0.75,
     release_mix: float = 0.0,
     gain_contrast: float = 0.0,
+    slow_envelope_decay: float = 0.995,
+    slow_envelope_mix: float = 0.0,
 ) -> dict[str, object]:
     if not 0 <= highpass_decay <= 1:
         raise ValueError("highpass_decay must be between 0 and 1")
@@ -39,6 +41,10 @@ def transform_piezo_signal_csv(
         raise ValueError("release_mix must be non-negative")
     if gain_contrast < 0:
         raise ValueError("gain_contrast must be non-negative")
+    if not 0 <= slow_envelope_decay <= 1:
+        raise ValueError("slow_envelope_decay must be between 0 and 1")
+    if slow_envelope_mix < 0:
+        raise ValueError("slow_envelope_mix must be non-negative")
 
     rows = _read_rows(input_csv)
     if not rows:
@@ -65,6 +71,11 @@ def transform_piezo_signal_csv(
             value + envelope_mix * envelope[index]
             for index, value in enumerate(highpassed)
         ]
+        shaped = _slow_envelope_modulate(
+            shaped,
+            decay=slow_envelope_decay,
+            mix=slow_envelope_mix,
+        )
         scaled = _burst_shape(shaped, power=burst_power)
         gain = _sensor_gain(sensor_id, contrast=gain_contrast)
         for index, value in zip(indices, scaled):
@@ -99,6 +110,8 @@ def transform_piezo_signal_csv(
         "near_threshold_floor": near_threshold_floor,
         "release_mix": release_mix,
         "gain_contrast": gain_contrast,
+        "slow_envelope_decay": slow_envelope_decay,
+        "slow_envelope_mix": slow_envelope_mix,
         "before": _series_stats(before),
         "after": _series_stats(after),
     }
@@ -163,6 +176,20 @@ def _burst_shape(values: list[float], *, power: float) -> list[float]:
         normalized = value / scale
         shaped.append(math.copysign(abs(normalized) ** power, normalized) * scale)
     return shaped
+
+
+def _slow_envelope_modulate(
+    values: list[float], *, decay: float, mix: float
+) -> list[float]:
+    """Apply causal stress-activity modulation without adding new events."""
+    if not values or mix == 0:
+        return values
+    activity = _positive_envelope([abs(value) for value in values], decay=decay)
+    scale = _quantile(activity, 0.90) or 1.0
+    return [
+        value * (1.0 + mix * min(3.0, envelope / scale))
+        for value, envelope in zip(values, activity)
+    ]
 
 
 def _sensor_gain(sensor_id: str, *, contrast: float) -> float:

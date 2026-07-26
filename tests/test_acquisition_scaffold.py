@@ -3254,6 +3254,8 @@ class AcquisitionScaffoldTests(unittest.TestCase):
                 near_threshold_weight=1.0,
                 release_mix=0.1,
                 gain_contrast=0.1,
+                slow_envelope_decay=0.9,
+                slow_envelope_mix=0.4,
             )
 
             self.assertEqual(report["schema"], "elfquake.piezo_signal_transform.v1")
@@ -3263,6 +3265,8 @@ class AcquisitionScaffoldTests(unittest.TestCase):
             self.assertIn("piezo_signal", transformed.splitlines()[0])
             self.assertNotEqual(source.read_text(encoding="utf-8"), transformed)
             self.assertTrue((root / "piezo_transformed.json").exists())
+            self.assertEqual(report["slow_envelope_decay"], 0.9)
+            self.assertEqual(report["slow_envelope_mix"], 0.4)
 
     def test_balanced_split_assigns_test_rows_by_group_and_label(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
