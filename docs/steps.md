@@ -14,6 +14,28 @@ Run a bounded, research-only extraction grid against the Japan seismic catalog. 
 
 Apply one fixed event-extraction policy across multiple synthetic seeds and compare rate, clustering, tails, and PSD statistics with Japan seismicity. Use this before promoting any tuned extraction settings.
 
+### `scripts/probe-avalanche-burst-extractor.sh`
+
+Compare causal baseline-memory and episode-gap settings for avalanche event extraction. The probe uses no independent noise or future event data and writes shape diagnostics under `data/derived/reports/avalanche-burst-extractor/`.
+
+### `scripts/evaluate-avalanche-burst-seeds.sh`
+
+Apply the selected causal burst policy across multiple synthetic seeds and compare event rate, clustering, tails, and PSD statistics with the Japan seismic reference.
+
+### `scripts/evaluate-avalanche-burst-train-test.sh`
+
+Estimate one burst threshold from training seeds and apply it unchanged to held-out seeds. Use this to prevent per-episode threshold leakage before creating model fixtures.
+
+### `SOURCE_STRESS_*` simulation options
+
+Use the source stress environment variables with `scripts/sim.sh` for an opt-in localized stress-release experiment. Keep `SOURCE_STRESS_MAX_RELEASES_PER_STEP` bounded, optionally set `SOURCE_STRESS_RELEASE_COOLDOWN_STEPS` for per-source refractory timing, and write a tagged output with `OUTPUT_TAG`.
+
+The simulation also writes sparse `*.source_stress.csv` release records. Use these with avalanche activity to test whether source-local releases precede spatially nearby bursts.
+
+The optional `*.avalanche_regions.csv` output aggregates post-relaxation topples into an 8x8 regional grid. Set `AVALANCHE_REGION_COUNT` to change the grid resolution when testing spatial locality.
+
+Run `SOURCE_STRESS_CSV=... AVALANCHE_ACTIVITY_CSV=... ./scripts/analyze-source-stress-alignment.sh` to produce the release-aware lead/lag table. Adjust `LOCAL_RADIUS`, `RESPONSE_HORIZON`, and `BASELINE_DECAY` for a diagnostic sweep.
+
 ## 1. Plan Seismic Acquisition
 
 ### `plan-ingv-backfill`

@@ -408,6 +408,32 @@ Run the full local demo pipeline:
 
 This runs `sim.sh`, builds direct seismic synthetic events, renders the VLF-shaped piezo analogue, writes the piezo WAV sonification, builds the heatmap video, and renders the synthetic event map. It defaults to `mountain_256x256_seed42_10000`. Set `RUN_SIM=0` to reuse existing simulation files, `RUN_HEATMAPS=0` to skip snapshot and heatmap PNG generation, `RUN_VIDEO=0` to skip MP4 generation, `RUN_AUDIO=0` to skip WAV output, or `RUN_FFT=1` to also render the older FFT diagnostic PNG.
 
+Set `OUTPUT_TAG=.experiment-name` when running an alternate regime so generated files remain separate from canonical seed artifacts. For example, `OUTPUT_TAG=.clustered SOURCE_ACTIVITY_DECAY=0.6 SOURCE_ACTIVITY_BOOST=0.8 ./scripts/sim.sh` writes a tagged episode.
+
+`SOURCE_ACTIVITY_DECAY` and `SOURCE_ACTIVITY_BOOST` add per-source persistence to the localized loading process. A source that deposits material can remain more likely to deposit on nearby later steps. The default values are zero, preserving independent source sampling. The first tagged smoke run was stable but did not reproduce the observed event clustering; a shared loading-regime experiment is therefore still required.
+
+`SOURCE_REGIME_DECAY` and `SOURCE_REGIME_BOOST` provide that shared experiment. The regime tracks the exponentially smoothed fraction of active fixed sources and modulates all source probabilities together. Keep the regime bounded and compare its state trace with event bursts; it is a synthetic mechanism for testing clustering, not a claim about a specific geological process.
+
+A 1,000-step probe with deposition probability `0.3`, regime decay `0.2`, and regime boost `0.8` kept the shared state between `0.327` and `0.577`, avoiding the saturation seen with decay `0.5`. This is only a state-dynamics check; the next run must be long enough for event-shape evaluation.
+
+The subsequent 5,000-step refill-gated probe used `TARGET_FILL_REGIME_FLOOR=0.25` and remained bounded, but its extracted event trace still had four burst runs, lag-1 correlation `-0.320`, and PSD slope `0.638`. Shared loading and refill modulation are therefore useful controls but do not yet solve temporal event-shape alignment.
+
+The opt-in source stress reservoir is controlled by `SOURCE_STRESS_DECAY`, `SOURCE_STRESS_COUPLING`, `SOURCE_STRESS_THRESHOLD`, `SOURCE_STRESS_RELEASE_MASS`, `SOURCE_STRESS_MAX_RELEASES_PER_STEP`, and `SOURCE_STRESS_RELEASE_COOLDOWN_STEPS`. A bounded 500-step probe using `0.98`, `0.5`, `10`, `2`, and `1` produced 458 localized releases across 267 steps, with no safety release and maximum height 152. The cooldown applies per source and lets a source rebuild stress before releasing again; it does not force the aggregate signal to be sparse. These settings are not defaults.
+
+The 5,000-step follow-up with the same stress settings released 5,824 times and 11,648 mass units, stayed below maximum height 423, and produced no safety release. However, the causal burst extractor selected only one event. The reservoir is therefore a stable dynamics experiment but not yet a useful direct-event generator.
+
+A 5,000-step cooldown probe with `SOURCE_STRESS_RELEASE_COOLDOWN_STEPS=120` released 5,097 times and 10,194 mass units, reached maximum height 423, and remained safety-release free, but the direct extractor still selected one event. The cooldown is therefore a stable negative control, not a sufficient event-shape fix.
+
+When requested by `scripts/sim.sh`, sparse `*.source_stress.csv` rows record the source coordinates and release mass for each stress release. This preserves an auditable bridge from localized source stress to later episode diagnostics without adding an independent signal.
+
+The first release-aware diagnostic on a 1,000-step cooldown episode found positive local excess activity after only `5.9%` of releases. Local excess area was `3.7%` of global excess area, with a median local peak lag of 96 steps. This is currently evidence against promoting source stress as a precursor mechanism, not evidence of a useful signal.
+
+A four-seed radius sweep confirmed the result. Positive local response was `2.2%`, `6.8%`, and `23.5%` for radii 16, 32, and 64 cells; local/global excess-AUC ratios were `0.010`, `0.043`, and `0.188`. The larger-radius increase is expected from spatial averaging and does not demonstrate localization. The reservoir is retained only as a negative control while the activity output is made more spatially informative.
+
+The simulator now optionally writes `*.avalanche_regions.csv`, an 8x8 regional aggregation of post-relaxation topples. This preserves spatial information for the next diagnostic without altering the deterministic sandpile trajectory.
+
+A 5,000-step cooldown probe with `SOURCE_STRESS_RELEASE_COOLDOWN_STEPS=120` released 5,097 times and 10,194 mass units, reached maximum height 423, and remained safety-release free, but the direct extractor still selected one event. This is a negative control: per-source refractory timing alone does not create the required global event episodes.
+
 Create a video from generated PNG heatmaps:
 
 ```sh

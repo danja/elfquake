@@ -6,6 +6,7 @@ from argparse import Namespace, _SubParsersAction
 from pathlib import Path
 
 from elfquake.sim.avalanche_tuning import tune_avalanche_event_extraction
+from elfquake.sim.source_stress_alignment import analyze_source_stress_alignment
 from elfquake.sim.synthetic_events import build_avalanche_signal_event_list, build_synthetic_event_list
 
 
@@ -40,6 +41,12 @@ def register_synthetic_commands(subparsers: _SubParsersAction) -> None:
     avalanche_events.add_argument("--min-signal-quantile", type=float, default=0.0)
     avalanche_events.add_argument("--local-max-window", type=int, default=0)
     avalanche_events.add_argument("--max-events", type=int, default=0)
+    avalanche_events.add_argument("--burst-baseline-decay", type=float, default=0.0)
+    avalanche_events.add_argument("--burst-threshold-quantile", type=float, default=0.0)
+    avalanche_events.add_argument("--burst-threshold", type=float)
+    avalanche_events.add_argument("--burst-score-scale", type=float)
+    avalanche_events.add_argument("--burst-relative-baseline", action="store_true")
+    avalanche_events.add_argument("--burst-gap-steps", type=int, default=0)
     avalanche_events.add_argument("--lat-min", type=float, default=41.5)
     avalanche_events.add_argument("--lat-max", type=float, default=43.5)
     avalanche_events.add_argument("--lon-min", type=float, default=12.0)
@@ -66,6 +73,15 @@ def register_synthetic_commands(subparsers: _SubParsersAction) -> None:
     avalanche_tuning.add_argument("--step-seconds", type=int, default=60)
     avalanche_tuning.add_argument("--event-bin-seconds", type=int, default=3600)
     avalanche_tuning.set_defaults(func=_tune_avalanche_event_extraction)
+
+    stress_alignment = subparsers.add_parser("analyze-source-stress-alignment")
+    stress_alignment.add_argument("--source-stress", type=Path, required=True)
+    stress_alignment.add_argument("--activity", type=Path, required=True)
+    stress_alignment.add_argument("--out", type=Path, required=True)
+    stress_alignment.add_argument("--local-radius", type=float, default=32.0)
+    stress_alignment.add_argument("--response-horizon", type=int, default=120)
+    stress_alignment.add_argument("--baseline-decay", type=float, default=0.99)
+    stress_alignment.set_defaults(func=_analyze_source_stress_alignment)
 
 
 def _build_synthetic_event_list(args: Namespace) -> int:
@@ -104,6 +120,12 @@ def _build_avalanche_signal_event_list(args: Namespace) -> int:
         min_signal_quantile=args.min_signal_quantile,
         local_max_window=args.local_max_window,
         max_events=args.max_events,
+        burst_baseline_decay=args.burst_baseline_decay,
+        burst_threshold_quantile=args.burst_threshold_quantile,
+        burst_threshold=args.burst_threshold,
+        burst_score_scale=args.burst_score_scale,
+        burst_relative_baseline=args.burst_relative_baseline,
+        burst_gap_steps=args.burst_gap_steps,
         lat_min=args.lat_min,
         lat_max=args.lat_max,
         lon_min=args.lon_min,
@@ -145,5 +167,19 @@ def _tune_avalanche_event_extraction(args: Namespace) -> int:
             f"shape_score={rows[0]['shape_score']} "
             f"distance={rows[0]['normalized_distance']}"
         )
+    print(f"output: {args.out}")
+    return 0
+
+
+def _analyze_source_stress_alignment(args: Namespace) -> int:
+    rows = analyze_source_stress_alignment(
+        source_stress_csv=args.source_stress,
+        activity_csv=args.activity,
+        out_path=args.out,
+        local_radius=args.local_radius,
+        response_horizon=args.response_horizon,
+        baseline_decay=args.baseline_decay,
+    )
+    print(f"source stress alignment rows: {len(rows)}")
     print(f"output: {args.out}")
     return 0

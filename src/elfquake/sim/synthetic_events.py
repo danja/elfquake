@@ -8,6 +8,13 @@ from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
 from elfquake.normalize.ingv import NORMALIZED_FIELDS
+from elfquake.sim.avalanche_bursts import (
+    causal_baseline_subtracted_scores,
+    causal_baseline_relative_scores,
+    quantile_threshold,
+    robust_score_scale,
+    segment_burst_peaks,
+)
 
 
 SYNTHETIC_EVENT_FIELDS = NORMALIZED_FIELDS + [
@@ -128,6 +135,12 @@ def build_avalanche_signal_event_list(
     min_signal_quantile: float = 0.0,
     local_max_window: int = 0,
     max_events: int = 0,
+    burst_baseline_decay: float = 0.0,
+    burst_threshold_quantile: float = 0.0,
+    burst_threshold: float | None = None,
+    burst_score_scale: float | None = None,
+    burst_relative_baseline: bool = False,
+    burst_gap_steps: int = 0,
     lat_min: float = 41.5,
     lat_max: float = 43.5,
     lon_min: float = 12.0,
@@ -150,6 +163,16 @@ def build_avalanche_signal_event_list(
         raise ValueError("local_max_window must be non-negative")
     if max_events < 0:
         raise ValueError("max_events must be non-negative")
+    if burst_baseline_decay < 0 or burst_baseline_decay >= 1:
+        raise ValueError("burst_baseline_decay must be 0 or between 0 and 1")
+    if not 0 <= burst_threshold_quantile < 1:
+        raise ValueError("burst_threshold_quantile must be at least 0 and below 1")
+    if burst_threshold is not None and burst_threshold < 0:
+        raise ValueError("burst_threshold must be non-negative")
+    if burst_score_scale is not None and burst_score_scale <= 0:
+        raise ValueError("burst_score_scale must be positive")
+    if burst_gap_steps < 0:
+        raise ValueError("burst_gap_steps must be non-negative")
     if not (lat_min < lat_max and lon_min < lon_max):
         raise ValueError("latitude and longitude bounds must be increasing")
     if spatial_profile not in {"central_italy", "italy_apennines"}:
@@ -168,11 +191,36 @@ def build_avalanche_signal_event_list(
         score = max(signal, total_source)
         candidates.append((step, strongest, signal, total_source, score))
 
-    threshold = max(min_signal, _quantile([item[4] for item in candidates], min_signal_quantile))
-    candidates = [
-        item for item in candidates
-        if item[4] > threshold and _is_local_maximum(item[0], item[4], candidates, local_max_window)
+    scores = [item[4] for item in candidates]
+    if burst_baseline_decay > 0:
+        if burst_relative_baseline:
+            scores = causal_baseline_relative_scores(scores, decay=burst_baseline_decay)
+        else:
+            scores = causal_baseline_subtracted_scores(scores, decay=burst_baseline_decay)
+    if burst_score_scale is not None:
+        scores = [score / burst_score_scale for score in scores]
+    threshold = max(
+        min_signal,
+        burst_threshold
+        if burst_threshold is not None
+        else quantile_threshold(scores, burst_threshold_quantile or min_signal_quantile),
+    )
+    scored_candidates = [
+        (*item[:4], scores[index]) for index, item in enumerate(candidates)
+        if scores[index] > threshold
     ]
+    if burst_baseline_decay > 0 and burst_gap_steps > 0:
+        peak_indices = set(segment_burst_peaks(scores, threshold=threshold, gap_steps=burst_gap_steps))
+        candidates = [
+            (*candidates[index][:4], scores[index])
+            for index in peak_indices
+            if scores[index] > threshold
+        ]
+    else:
+        candidates = [
+            item for item in scored_candidates
+            if _is_local_maximum(item[0], item[4], scored_candidates, local_max_window)
+        ]
     if max_events > 0 and len(candidates) > max_events:
         strongest_candidates = sorted(candidates, key=lambda item: (item[4], item[0]), reverse=True)[:max_events]
         candidates = sorted(strongest_candidates, key=lambda item: item[0])
@@ -240,6 +288,31 @@ def build_avalanche_signal_event_list(
         writer.writeheader()
         writer.writerows(rows)
     return rows
+
+
+def read_avalanche_burst_scores(
+    *, avalanche_csv: Path, baseline_decay: float, relative_baseline: bool = False
+) -> list[float]:
+    """Compute one episode's causal burst scores for train-only calibration."""
+    if not 0 < baseline_decay < 1:
+        raise ValueError("baseline_decay must be between 0 and 1")
+    grouped = _read_avalanche_signal_by_step(avalanche_csv)
+    values = []
+    for step in sorted(grouped):
+        strongest = max(grouped[step], key=_avalanche_signal_value)
+        values.append(max(_avalanche_signal_value(strongest), _avalanche_total_source_value(strongest)))
+    if relative_baseline:
+        return causal_baseline_relative_scores(values, decay=baseline_decay)
+    return causal_baseline_subtracted_scores(values, decay=baseline_decay)
+
+
+def calibrate_avalanche_burst_scale(
+    *, avalanche_csvs: list[Path], baseline_decay: float, fraction: float = 0.90
+) -> float:
+    scores = []
+    for avalanche_csv in avalanche_csvs:
+        scores.extend(read_avalanche_burst_scores(avalanche_csv=avalanche_csv, baseline_decay=baseline_decay))
+    return robust_score_scale(scores, fraction=fraction)
 
 
 def _read_sensors_by_step(sensors_csv: Path) -> dict[int, list[dict[str, str]]]:

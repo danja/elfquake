@@ -3906,8 +3906,48 @@ class AcquisitionScaffoldTests(unittest.TestCase):
                 "relaxation_converged,unstable_cell_count,safety_released_mass,target_fill_count,"
                 "bottom_layer_removed_mass,pre_relax_damage_total,pre_relax_damage_max,"
                 "pre_relax_damage_active_cell_count,pre_relax_mature_weakness_total,"
-                "pre_relax_mature_weakness_max,pre_relax_mature_weakness_active_cell_count",
+                "pre_relax_mature_weakness_max,pre_relax_mature_weakness_active_cell_count,"
+                "source_activity_mean,source_activity_max,source_regime_state,"
+                "source_stress_total,source_stress_release_count,source_stress_release_mass",
             )
+
+    @unittest.skipIf(importlib.util.find_spec("numba") is None, "numba not installed")
+    def test_sandpile_clustered_source_activity_is_deterministic_and_reported(self) -> None:
+        from elfquake.sim.sandpile import SandpileConfig, run_sandpile_simulation
+
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            config = SandpileConfig(
+                width=8,
+                height=8,
+                steps=6,
+                threshold=4,
+                source_count=2,
+                sensor_count=1,
+                deposition_probability=0.2,
+                source_activity_decay=0.8,
+                source_activity_boost=2.0,
+                source_regime_decay=0.8,
+                source_regime_boost=1.0,
+                target_fill_regime_floor=0.5,
+                source_stress_decay=0.9,
+                source_stress_coupling=1.0,
+                source_stress_threshold=2.0,
+                source_stress_release_mass=3,
+                source_stress_max_releases_per_step=1,
+                seed=11,
+            )
+            first, _ = run_sandpile_simulation(
+                config=config, summary_out=root / "first.csv", sensors_out=root / "first.sensors.csv"
+            )
+            second, _ = run_sandpile_simulation(
+                config=config, summary_out=root / "second.csv", sensors_out=root / "second.sensors.csv"
+            )
+            self.assertEqual(first, second)
+            self.assertIn("source_activity_mean", first[0])
+            self.assertGreaterEqual(float(max(row["source_activity_max"] for row in first)), 1.0)
+            self.assertGreaterEqual(float(max(row["source_regime_state"] for row in first)), 1.0)
+            self.assertGreater(int(max(row["source_stress_release_count"] for row in first)), 0)
 
     @unittest.skipIf(importlib.util.find_spec("numba") is None, "numba not installed")
     def test_sandpile_relaxation_drains_unstable_cells_when_sweep_limit_is_hit(self) -> None:
@@ -4461,6 +4501,19 @@ class AcquisitionScaffoldTests(unittest.TestCase):
             )
 
             self.assertEqual([row["step"] for row in rows], ["1", "3"])
+
+    def test_causal_burst_segmenter_uses_one_peak_per_episode(self) -> None:
+        from elfquake.sim.avalanche_bursts import (
+            causal_baseline_relative_scores,
+            causal_baseline_subtracted_scores,
+            segment_burst_peaks,
+        )
+
+        scores = causal_baseline_subtracted_scores(
+            [1.0, 1.0, 1.0, 5.0, 4.0, 1.0, 1.0, 6.0], decay=0.8
+        )
+        self.assertEqual(segment_burst_peaks(scores, threshold=1.0, gap_steps=1), [3, 7])
+        self.assertEqual(causal_baseline_relative_scores([10.0, 10.0, 20.0], decay=0.9), [0.0, 0.0, 1.0])
 
     def test_tune_avalanche_event_extraction_writes_ranked_grid(self) -> None:
         with tempfile.TemporaryDirectory() as directory:

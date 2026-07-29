@@ -5,11 +5,23 @@ width="${WIDTH:-256}"
 height="${HEIGHT:-256}"
 steps="${STEPS:-10000}"
 seed="${SEED:-42}"
+output_tag="${OUTPUT_TAG:-}"
 snapshot_interval="${SNAPSHOT_INTERVAL:-10}"
 progress_interval="${PROGRESS_INTERVAL:-100}"
 bottom_layer_interval="${BOTTOM_LAYER_INTERVAL:-100}"
 deposition_mode="${DEPOSITION_MODE:-sources}"
 deposition_probability="${DEPOSITION_PROBABILITY:-0.7}"
+source_activity_decay="${SOURCE_ACTIVITY_DECAY:-0}"
+source_activity_boost="${SOURCE_ACTIVITY_BOOST:-0}"
+source_regime_decay="${SOURCE_REGIME_DECAY:-0}"
+source_regime_boost="${SOURCE_REGIME_BOOST:-0}"
+target_fill_regime_floor="${TARGET_FILL_REGIME_FLOOR:-1}"
+source_stress_decay="${SOURCE_STRESS_DECAY:-0.99}"
+source_stress_coupling="${SOURCE_STRESS_COUPLING:-0}"
+source_stress_threshold="${SOURCE_STRESS_THRESHOLD:-10}"
+source_stress_release_mass="${SOURCE_STRESS_RELEASE_MASS:-0}"
+source_stress_max_releases_per_step="${SOURCE_STRESS_MAX_RELEASES_PER_STEP:-1}"
+source_stress_release_cooldown_steps="${SOURCE_STRESS_RELEASE_COOLDOWN_STEPS:-0}"
 initial_fill_mode="${INITIAL_FILL_MODE:-none}"
 initial_fill_mean_height="${INITIAL_FILL_MEAN_HEIGHT:-0}"
 initial_fill_variation="${INITIAL_FILL_VARIATION:-0}"
@@ -64,7 +76,7 @@ slope_threshold="${SLOPE_THRESHOLD:-$(( width / 16 ))}"
 if [[ "$slope_threshold" -lt 4 ]]; then
   slope_threshold=4
 fi
-prefix="data/derived/sim/mountain_${width}x${height}_seed${seed}_${steps}"
+prefix="data/derived/sim/mountain_${width}x${height}_seed${seed}_${steps}${output_tag}"
 
 args=(
   -m elfquake.cli run-sandpile-sim
@@ -74,6 +86,17 @@ args=(
   --deposition-mode "$deposition_mode" \
   --source-count "$source_count" --sensor-count 16 \
   --deposition-probability "$deposition_probability" --seed "$seed" \
+  --source-activity-decay "$source_activity_decay" \
+  --source-activity-boost "$source_activity_boost" \
+  --source-regime-decay "$source_regime_decay" \
+  --source-regime-boost "$source_regime_boost" \
+  --target-fill-regime-floor "$target_fill_regime_floor" \
+  --source-stress-decay "$source_stress_decay" \
+  --source-stress-coupling "$source_stress_coupling" \
+  --source-stress-threshold "$source_stress_threshold" \
+  --source-stress-release-mass "$source_stress_release_mass" \
+  --source-stress-max-releases-per-step "$source_stress_max_releases_per_step" \
+  --source-stress-release-cooldown-steps "$source_stress_release_cooldown_steps" \
   --target-fill-limit "$target_fill_limit" \
   --target-fill-mode "$target_fill_mode" \
   --bottom-layer-removal-interval "$bottom_layer_interval" \
@@ -98,6 +121,9 @@ args=(
   --piezo-out "${prefix}.piezo.csv" \
   --avalanche-signal-out "${prefix}.avalanche_signal.csv" \
   --avalanche-activity-out "${prefix}.avalanche_activity.csv" \
+  --source-stress-out "${prefix}.source_stress.csv" \
+  --avalanche-regions-out "${prefix}.avalanche_regions.csv" \
+  --avalanche-region-count "${AVALANCHE_REGION_COUNT:-8}" \
   --piezo-sensor-count "$piezo_sensor_count" \
   --piezo-cluster-count "$piezo_cluster_count" \
   --piezo-activation-ratio "$piezo_activation_ratio" \

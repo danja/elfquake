@@ -21,6 +21,17 @@ def register_sandpile_commands(subparsers: _SubParsersAction) -> None:
     sandpile.add_argument("--source-count", type=int, default=16)
     sandpile.add_argument("--sensor-count", type=int, default=16)
     sandpile.add_argument("--deposition-probability", type=float, default=0.5)
+    sandpile.add_argument("--source-activity-decay", type=float, default=0.0)
+    sandpile.add_argument("--source-activity-boost", type=float, default=0.0)
+    sandpile.add_argument("--source-regime-decay", type=float, default=0.0)
+    sandpile.add_argument("--source-regime-boost", type=float, default=0.0)
+    sandpile.add_argument("--target-fill-regime-floor", type=float, default=1.0)
+    sandpile.add_argument("--source-stress-decay", type=float, default=0.99)
+    sandpile.add_argument("--source-stress-coupling", type=float, default=0.0)
+    sandpile.add_argument("--source-stress-threshold", type=float, default=10.0)
+    sandpile.add_argument("--source-stress-release-mass", type=int, default=0)
+    sandpile.add_argument("--source-stress-max-releases-per-step", type=int, default=1)
+    sandpile.add_argument("--source-stress-release-cooldown-steps", type=int, default=0)
     sandpile.add_argument("--seed", type=int, default=1)
     sandpile.add_argument("--max-relaxation-sweeps", type=int, default=10000)
     sandpile.add_argument("--deposition-mode", choices=["sources", "uniform"], default="sources")
@@ -52,6 +63,9 @@ def register_sandpile_commands(subparsers: _SubParsersAction) -> None:
     sandpile.add_argument("--piezo-out", type=Path)
     sandpile.add_argument("--avalanche-signal-out", type=Path)
     sandpile.add_argument("--avalanche-activity-out", type=Path)
+    sandpile.add_argument("--source-stress-out", type=Path)
+    sandpile.add_argument("--avalanche-regions-out", type=Path)
+    sandpile.add_argument("--avalanche-region-count", type=int, default=8)
     sandpile.add_argument("--piezo-avalanche-out", type=Path)
     sandpile.add_argument("--piezo-sensor-count", type=int, default=16)
     sandpile.add_argument("--piezo-susceptibility-base", type=float, default=0.15)
@@ -148,6 +162,17 @@ def _run_sandpile_sim(args: Namespace) -> int:
             source_count=args.source_count,
             sensor_count=args.sensor_count,
             deposition_probability=args.deposition_probability,
+            source_activity_decay=args.source_activity_decay,
+            source_activity_boost=args.source_activity_boost,
+            source_regime_decay=args.source_regime_decay,
+            source_regime_boost=args.source_regime_boost,
+            target_fill_regime_floor=args.target_fill_regime_floor,
+            source_stress_decay=args.source_stress_decay,
+            source_stress_coupling=args.source_stress_coupling,
+            source_stress_threshold=args.source_stress_threshold,
+            source_stress_release_mass=args.source_stress_release_mass,
+            source_stress_max_releases_per_step=args.source_stress_max_releases_per_step,
+            source_stress_release_cooldown_steps=args.source_stress_release_cooldown_steps,
             seed=args.seed,
             max_relaxation_sweeps=args.max_relaxation_sweeps,
             deposition_mode=args.deposition_mode,
@@ -183,6 +208,9 @@ def _run_sandpile_sim(args: Namespace) -> int:
         piezo_out=args.piezo_out,
         avalanche_signal_out=args.avalanche_signal_out,
         avalanche_activity_out=args.avalanche_activity_out,
+        source_stress_out=args.source_stress_out,
+        avalanche_regions_out=args.avalanche_regions_out,
+        avalanche_region_count=args.avalanche_region_count,
         piezo_avalanche_out=args.piezo_avalanche_out,
         piezo_config=_piezo_config(args) if args.piezo_out or args.avalanche_signal_out or args.piezo_avalanche_out else None,
         avalanche_signal_config=PiezoConfig(
@@ -208,6 +236,10 @@ def _run_sandpile_sim(args: Namespace) -> int:
         print(f"avalanche signal output: {direct_avalanche_out}")
     if args.avalanche_activity_out:
         print(f"avalanche activity output: {args.avalanche_activity_out}")
+    if args.source_stress_out:
+        print(f"source stress output: {args.source_stress_out}")
+    if args.avalanche_regions_out:
+        print(f"avalanche regions output: {args.avalanche_regions_out}")
     if args.snapshot_dir:
         print(f"snapshot dir: {args.snapshot_dir}")
     if args.heatmap_dir:

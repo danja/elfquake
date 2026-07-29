@@ -9,6 +9,7 @@ from typing import Callable
 import numpy as np
 
 from elfquake.sim.avalanche_activity import AVALANCHE_ACTIVITY_FIELDS, build_avalanche_activity_row
+from elfquake.sim.avalanche_regions import AVALANCHE_REGION_FIELDS, build_avalanche_region_rows
 from elfquake.sim.damage import DamageConfig, relax_with_damage, reset_toppled_damage, update_damage, validate_damage_config
 from elfquake.sim.mature_weakness import (
     MatureWeaknessConfig,
@@ -53,6 +54,12 @@ SUMMARY_FIELDS = [
     "pre_relax_mature_weakness_total",
     "pre_relax_mature_weakness_max",
     "pre_relax_mature_weakness_active_cell_count",
+    "source_activity_mean",
+    "source_activity_max",
+    "source_regime_state",
+    "source_stress_total",
+    "source_stress_release_count",
+    "source_stress_release_mass",
 ]
 
 SENSOR_FIELDS = [
@@ -64,6 +71,8 @@ SENSOR_FIELDS = [
     "local_topple_count",
 ]
 
+SOURCE_STRESS_FIELDS = ["step", "source_id", "x", "y", "release_count", "release_mass"]
+
 
 @dataclass(frozen=True)
 class SandpileConfig:
@@ -74,6 +83,17 @@ class SandpileConfig:
     source_count: int = 16
     sensor_count: int = 16
     deposition_probability: float = 0.5
+    source_activity_decay: float = 0.0
+    source_activity_boost: float = 0.0
+    source_regime_decay: float = 0.0
+    source_regime_boost: float = 0.0
+    target_fill_regime_floor: float = 1.0
+    source_stress_decay: float = 0.99
+    source_stress_coupling: float = 0.0
+    source_stress_threshold: float = 10.0
+    source_stress_release_mass: int = 0
+    source_stress_max_releases_per_step: int = 1
+    source_stress_release_cooldown_steps: int = 0
     seed: int = 1
     max_relaxation_sweeps: int = 10000
     deposition_mode: str = "sources"
@@ -98,6 +118,9 @@ def run_sandpile_simulation(
     piezo_out: Path | None = None,
     avalanche_signal_out: Path | None = None,
     avalanche_activity_out: Path | None = None,
+    source_stress_out: Path | None = None,
+    avalanche_regions_out: Path | None = None,
+    avalanche_region_count: int = 8,
     piezo_avalanche_out: Path | None = None,
     piezo_config: PiezoConfig | None = None,
     avalanche_signal_config: PiezoConfig | None = None,
@@ -124,12 +147,19 @@ def run_sandpile_simulation(
     mature_weakness = np.zeros((config.height, config.width), dtype=np.float64)
     mature_weakness_dwell = np.zeros((config.height, config.width), dtype=np.int64)
     sources = _random_points(rng, config.width, config.height, config.source_count)
+    source_activity = np.zeros(config.source_count, dtype=np.float64)
+    source_regime = np.zeros(1, dtype=np.float64)
+    source_stress = np.zeros(config.source_count, dtype=np.float64)
+    source_active = np.zeros(config.source_count, dtype=np.bool_)
+    source_stress_cooldown = np.zeros(config.source_count, dtype=np.int64)
     sensors = _random_points(rng, config.width, config.height, config.sensor_count)
     if config.initial_fill_mode != "none":
         _apply_initial_fill(grid, config)
     piezo_rows = []
     avalanche_signal_rows = []
     avalanche_activity_rows = []
+    source_stress_rows = []
+    avalanche_region_rows = []
     piezo_sensors = None
     piezo_susceptibility = None
     piezo_charge = None
@@ -163,6 +193,11 @@ def run_sandpile_simulation(
         _advance_unrecorded_step(
             grid=grid, damage=damage, mature_weakness=mature_weakness, mature_weakness_dwell=mature_weakness_dwell,
             rng=rng, config=config, sources=sources, absolute_step=warmup_step,
+            source_activity=source_activity,
+            source_regime=source_regime,
+            source_stress=source_stress,
+            source_active=source_active,
+            source_stress_cooldown=source_stress_cooldown,
         )
     previous_grid = grid.copy()
 
@@ -173,8 +208,22 @@ def run_sandpile_simulation(
             rng=rng,
             config=config,
             sources=sources,
+            source_activity=source_activity,
+            source_regime=source_regime,
+            source_active=source_active,
         )
-        target_fill_count = _fill_to_target_mean(grid, rng, config, sources)
+        _update_source_stress(
+            source_stress=source_stress, source_active=source_active,
+            source_stress_cooldown=source_stress_cooldown, config=config,
+        )
+        stress_release_count, stress_release_mass, release_rows = _apply_source_stress_release(
+            grid=grid, sources=sources, source_stress=source_stress,
+            source_active=source_active, source_stress_cooldown=source_stress_cooldown, config=config,
+        )
+        if source_stress_out is not None:
+            for row in release_rows:
+                source_stress_rows.append({"step": str(step), **row})
+        target_fill_count = _fill_to_target_mean(grid, rng, config, sources, source_regime)
         if config.damage.enabled:
             update_damage(grid=grid, damage=damage, threshold=config.threshold, config=config.damage)
         if config.mature_weakness.enabled:
@@ -227,6 +276,12 @@ def run_sandpile_simulation(
             )
         if avalanche_activity_out is not None:
             avalanche_activity_rows.append(build_avalanche_activity_row(step=step, topple_counts=topple_counts))
+        if avalanche_regions_out is not None:
+            avalanche_region_rows.extend(
+                build_avalanche_region_rows(
+                    step=step, topple_counts=topple_counts, region_count=avalanche_region_count,
+                )
+            )
         if resolved_avalanche_signal_out is not None:
             assert resolved_piezo_config is not None
             assert resolved_avalanche_signal_config is not None
@@ -266,6 +321,12 @@ def run_sandpile_simulation(
             "pre_relax_mature_weakness_total": f"{weakness_total:.9f}",
             "pre_relax_mature_weakness_max": f"{weakness_max:.9f}",
             "pre_relax_mature_weakness_active_cell_count": str(weakness_active_count),
+            "source_activity_mean": f"{float(source_activity.mean()):.6f}",
+            "source_activity_max": f"{float(source_activity.max()):.6f}",
+            "source_regime_state": f"{float(source_regime[0]):.6f}",
+            "source_stress_total": f"{float(source_stress.sum()):.6f}",
+            "source_stress_release_count": str(stress_release_count),
+            "source_stress_release_mass": str(stress_release_mass),
         }
         summary_rows.append(summary_row)
         sensor_rows.extend(_sensor_rows(step, sensors, grid, topple_counts))
@@ -280,6 +341,10 @@ def run_sandpile_simulation(
 
     write_csv(summary_out, SUMMARY_FIELDS, summary_rows)
     write_csv(sensors_out, SENSOR_FIELDS, sensor_rows)
+    if source_stress_out is not None:
+        write_csv(source_stress_out, SOURCE_STRESS_FIELDS, source_stress_rows)
+    if avalanche_regions_out is not None:
+        write_csv(avalanche_regions_out, AVALANCHE_REGION_FIELDS, avalanche_region_rows)
     if piezo_out is not None:
         write_csv(piezo_out, PIEZO_SENSOR_FIELDS, piezo_rows)
     if resolved_avalanche_signal_out is not None:
@@ -302,6 +367,28 @@ def validate_config(config: SandpileConfig) -> None:
         raise ValueError("source_count and sensor_count must be at least 1")
     if not 0 <= config.deposition_probability <= 1:
         raise ValueError("deposition_probability must be between 0 and 1")
+    if not 0 <= config.source_activity_decay <= 1:
+        raise ValueError("source_activity_decay must be between 0 and 1")
+    if config.source_activity_boost < 0:
+        raise ValueError("source_activity_boost must be non-negative")
+    if not 0 <= config.source_regime_decay <= 1:
+        raise ValueError("source_regime_decay must be between 0 and 1")
+    if config.source_regime_boost < 0:
+        raise ValueError("source_regime_boost must be non-negative")
+    if not 0 < config.target_fill_regime_floor <= 1:
+        raise ValueError("target_fill_regime_floor must be in (0, 1]")
+    if not 0 <= config.source_stress_decay <= 1:
+        raise ValueError("source_stress_decay must be between 0 and 1")
+    if config.source_stress_coupling < 0:
+        raise ValueError("source_stress_coupling must be non-negative")
+    if config.source_stress_threshold <= 0:
+        raise ValueError("source_stress_threshold must be positive")
+    if config.source_stress_release_mass < 0:
+        raise ValueError("source_stress_release_mass must be non-negative")
+    if config.source_stress_max_releases_per_step < 1:
+        raise ValueError("source_stress_max_releases_per_step must be at least 1")
+    if config.source_stress_release_cooldown_steps < 0:
+        raise ValueError("source_stress_release_cooldown_steps must be non-negative")
     if config.max_relaxation_sweeps < 1:
         raise ValueError("max_relaxation_sweeps must be at least 1")
     if config.deposition_mode not in {"sources", "uniform"}:
@@ -340,9 +427,26 @@ def _advance_unrecorded_step(
     config: SandpileConfig,
     sources: np.ndarray,
     absolute_step: int,
+    source_activity: np.ndarray,
+    source_regime: np.ndarray,
+    source_stress: np.ndarray,
+    source_active: np.ndarray,
+    source_stress_cooldown: np.ndarray,
 ) -> None:
-    _apply_deposition(grid=grid, rng=rng, config=config, sources=sources)
-    _fill_to_target_mean(grid, rng, config, sources)
+    _apply_deposition(
+        grid=grid, rng=rng, config=config, sources=sources,
+        source_activity=source_activity, source_regime=source_regime,
+        source_active=source_active,
+    )
+    _update_source_stress(
+        source_stress=source_stress, source_active=source_active,
+        source_stress_cooldown=source_stress_cooldown, config=config,
+    )
+    _apply_source_stress_release(
+        grid=grid, sources=sources, source_stress=source_stress,
+        source_active=source_active, source_stress_cooldown=source_stress_cooldown, config=config,
+    )
+    _fill_to_target_mean(grid, rng, config, sources, source_regime)
     if config.damage.enabled:
         update_damage(grid=grid, damage=damage, threshold=config.threshold, config=config.damage)
     if config.mature_weakness.enabled:
@@ -435,9 +539,36 @@ def _random_points(rng, width: int, height: int, count: int) -> np.ndarray:
     return np.column_stack((ys, xs)).astype(np.int64)
 
 
-def _apply_deposition(*, grid: np.ndarray, rng, config: SandpileConfig, sources: np.ndarray) -> int:
-    active_sources = rng.random(config.source_count) < config.deposition_probability
+def _apply_deposition(
+    *, grid: np.ndarray, rng, config: SandpileConfig, sources: np.ndarray,
+    source_activity: np.ndarray, source_regime: np.ndarray, source_active: np.ndarray,
+) -> int:
+    if (
+        config.source_activity_decay == 0
+        and config.source_activity_boost == 0
+        and config.source_regime_decay == 0
+        and config.source_regime_boost == 0
+    ):
+        active_sources = rng.random(config.source_count) < config.deposition_probability
+    else:
+        probabilities = config.deposition_probability * (
+            1.0
+            + config.source_activity_boost * source_activity
+            + config.source_regime_boost * source_regime[0]
+        )
+        active_sources = rng.random(config.source_count) < np.minimum(probabilities, 1.0)
+        if config.source_activity_boost > 0:
+            source_activity *= config.source_activity_decay
+        if config.source_regime_boost > 0:
+            source_regime[0] = min(
+                1.0,
+                config.source_regime_decay * source_regime[0]
+                + float(active_sources.mean()),
+            )
+        if config.source_activity_boost > 0:
+            source_activity[active_sources] = 1.0
     deposition_count = int(active_sources.sum())
+    source_active[:] = active_sources
     if config.deposition_mode == "sources":
         _deposit(grid, sources, active_sources)
         return deposition_count
@@ -446,11 +577,55 @@ def _apply_deposition(*, grid: np.ndarray, rng, config: SandpileConfig, sources:
     return deposition_count
 
 
+def _update_source_stress(
+    *, source_stress: np.ndarray, source_active: np.ndarray,
+    source_stress_cooldown: np.ndarray, config: SandpileConfig,
+) -> None:
+    if config.source_stress_coupling <= 0:
+        return
+    source_stress *= config.source_stress_decay
+    source_stress_cooldown[source_stress_cooldown > 0] -= 1
+    source_stress += config.source_stress_coupling * (
+        source_active & (source_stress_cooldown == 0)
+    )
+
+
+def _apply_source_stress_release(
+    *, grid: np.ndarray, sources: np.ndarray, source_stress: np.ndarray,
+    source_active: np.ndarray, source_stress_cooldown: np.ndarray, config: SandpileConfig,
+) -> tuple[int, int, list[dict[str, str]]]:
+    if config.source_stress_coupling <= 0 or config.source_stress_release_mass <= 0:
+        return 0, 0, []
+    release_count = 0
+    release_mass = 0
+    release_rows = []
+    for index, stress in enumerate(source_stress):
+        releases = min(
+            int(stress // config.source_stress_threshold),
+            config.source_stress_max_releases_per_step,
+        )
+        if releases <= 0:
+            continue
+        y, x = sources[index]
+        mass = releases * config.source_stress_release_mass
+        grid[y, x] += mass
+        source_stress[index] -= releases * config.source_stress_threshold
+        source_stress_cooldown[index] = config.source_stress_release_cooldown_steps
+        release_rows.append({
+            "source_id": str(index), "x": str(int(x)), "y": str(int(y)),
+            "release_count": str(releases), "release_mass": str(mass),
+        })
+        release_count += releases
+        release_mass += mass
+    return release_count, release_mass, release_rows
+
+
 def _fill_to_target_mean(
     grid: np.ndarray,
     rng,
     config: SandpileConfig,
     sources: np.ndarray,
+    source_regime: np.ndarray,
 ) -> int:
     if config.target_mean_height <= 0:
         return 0
@@ -460,6 +635,9 @@ def _fill_to_target_mean(
         return 0
     if config.target_fill_limit > 0:
         deficit = min(deficit, config.target_fill_limit)
+    if config.source_regime_boost > 0 and config.target_fill_regime_floor < 1:
+        fill_scale = max(config.target_fill_regime_floor, float(source_regime[0]))
+        deficit = max(1, int(round(deficit * fill_scale)))
     if config.target_fill_mode == "sources":
         source_indices = rng.integers(0, sources.shape[0], size=deficit)
         _deposit_points(grid, sources[source_indices])
