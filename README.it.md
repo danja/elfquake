@@ -15,6 +15,8 @@ Stato: è ora disponibile la prima suite riproducibile di trasferimento sintetic
 
 Il focus attuale è sulla validazione cronologica rolling, sull’espansione del corpus sintetico e sulla raccolta di abbastanza dati VLF Cumiana da ottenere entrambe le classi di target, positiva e negativa. La suite attuale contiene 79.976 record sintetici e 190 campioni spaziali settimanali; VLF e astronomia restano input esplicitamente mancanti nell’holdout reale perché la loro sovrapposizione storica validata non è ancora abbastanza lunga. Vedi [report.md](docs/report.md), [model-comparison.md](docs/model-comparison.md) e [docs/2026-07-15_elfquake-progress.md](docs/2026-07-15_elfquake-progress.md).
 
+Esiste inoltre un percorso separato di ricerca sul Giappone, basato sugli spettri VLF CDF della stazione ISEE di Moshiri e sui cataloghi sismici giapponesi. I dati giapponesi sono usati esclusivamente per confronti scientifici e analisi della forma dei segnali; non fanno parte dell’ambito operativo italiano. Vedi [vlf-japan-isee.md](docs/vlf-japan-isee.md) e [japan-earthquake-vlf-window.md](docs/japan-earthquake-vlf-window.md).
+
 ### Mappa del trial di trasferimento held-out
 
 ![simulated earthquake map](docs/images/map_2026-07-15.png)
@@ -54,47 +56,7 @@ Questo lavoro è stato inizialmente ispirato dalla tragedia del terremoto dell�
 * Un episodio CPU di 20.000 passi con seed `4300`, che porta il corpus sintetico denso per il transfer a 79.976 record e 190 campioni spaziali settimanali su quattro episodi lunghi.
 * Simulazione sandpile con uscite separate simili a eventi sismici e uscite analoghe piezo/VLF.
 
-Esegui il percorso predefinito di pretraining self-supervised su VLF reale con:
-
-```sh
-./scripts/pretrain-real-vlf-self-supervised.sh
-```
-
-Confronta le strategie di inizializzazione self-supervised del Transformer con:
-
-```sh
-./scripts/evaluate-self-supervised-transformer.sh
-```
-
-Esegui lo smoke forecast VLF a 7 giorni, senza etichette, con:
-
-```sh
-./score-real-vlf-anomaly-forecast.sh
-```
-
-Esegui lo smoke forecast end-to-end settimanale `>M2` con lista eventi:
-
-```sh
-./trial-weekly-event-forecast.sh
-```
-
-Confronta il dominio di embedding VLF reale con gli analoghi piezo/VLF sintetici con:
-
-```sh
-./compare-vlf-embedding-domains.sh
-```
-
-Esegui la diagnostica di transfer da inlier sintetici con:
-
-```sh
-./evaluate-vlf-synthetic-inlier-transfer.sh
-```
-
-Esegui la diagnostica di allineamento VLF mixed-domain con:
-
-```sh
-./evaluate-vlf-mixed-domain-alignment.sh
-```
+La sequenza completa dei comandi per acquisizione, preprocessing, simulazione, training, valutazione e servizi è in [docs/steps.md](docs/steps.md).
 
 ## Simulazione
 
@@ -102,27 +64,9 @@ La simulazione è una griglia artificiale simile a una montagna in cui un carica
 
 Include anche sensori tipo piezo che osservano regioni suscettibili simili al quarzo prossime al cedimento e producono il canale analogico VLF/WAV. I dati diretti simili agli eventi sismici restano separati e derivano dal comportamento di avalanga/toppling.
 
-Esegui il pipeline demo della simulazione locale con:
-
-```sh
-./run-all.sh
-```
-
 Gli output predefiniti usano `data/derived/sim/mountain_256x256_seed42_10000` come prefisso. L’immagine piezo normale è `*.piezo_vlf_summary.png` da `*.piezo.csv`; l’analogo diretto degli eventi sismici è `*.avalanche_events.csv`. La vecchia diagnostica FFT è opzionale con `RUN_FFT=1`.
 
 La demo event-map proietta le location derivate dalle avalanghe su una fascia italiana in stile Appennini e usa la dimensione del punto per la magnitudo sintetica.
-
-Per renderizzare una demo overlay degli eventi sintetici di avalanga e dei hit positivi previsti da PyTorch per la finestra target:
-
-```sh
-./prediction-event-map.sh
-```
-
-Per confrontare l’immagine VLF simulata con gli spettrogrammi Cumiana acquisiti:
-
-```sh
-./compare-piezo-vlf.sh
-```
 
 Questa è un’analogia semplificata di stress-and-release, non un modello geologico. Il suo valore dipende dal fatto che i dati generati abbiano una somiglianza strutturale utile con le osservazioni reali. Anche buone prestazioni sulle avalanghe simulate mostrerebbero solo che gli strumenti possono apprendere pattern sintetici; le affermazioni reali richiedono ancora dati sismici, VLF e astronomici held-out.
 
@@ -132,6 +76,7 @@ Questa è un’analogia semplificata di stress-and-release, non un modello geolo
 * [Documentation Index](docs/README.md)
 * [Processing Graph](docs/processing-graph.md)
 * [Next Actions](docs/next-actions.md)
+* [Command Steps](docs/steps.md)
 * [Development Environment](docs/development-environment.md)
 * [Source Inventory](docs/source-inventory.md)
 * [Multimodal Feasibility](docs/multimodal-feasibility.md)
@@ -140,3 +85,5 @@ Questa è un’analogia semplificata di stress-and-release, non un modello geolo
 * [Model Comparison](docs/model-comparison.md)
 * [Model Scaling Requirements](docs/model-scaling-requirements.md)
 * [Sandpile Simulation](docs/sandpile-simulation.md)
+* [Japan ISEE VLF](docs/vlf-japan-isee.md)
+* [Japan Earthquake/VLF Window](docs/japan-earthquake-vlf-window.md)

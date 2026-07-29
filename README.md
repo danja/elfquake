@@ -9,7 +9,7 @@ ELFQuake is a research project examining whether [Extremely](https://en.wikipedi
 The core hypothesis is that natural ELF/VLF radio anomalies may contain signal that is not present in seismic event history alone. At least [one study](https://pubs.geoscienceworld.org/ssa/bssa/article-abstract/113/6/2461/627949/Earthquake-Forecasting-Using-Big-Data-and)
  suggests this may be a viable approach.
 
-We wish to exploit more modern machine learning/AI techniques to create a predictive model based on the transformer architecture. A key consideration is the availability of real-world data for training. The plan is to build a system (based around an avalanche model) with similar chacteristics to the geological system and use this to generate synthetic data for baseline training. After validation of this stage, real-world data will be used for fine-tuning.
+We wish to exploit more modern machine learning/AI techniques to create a predictive model based on the transformer architecture. A key consideration is the availability of real-world data for training. The plan is to build a system (based around an avalanche model) with similar characteristics to the geological system and use this to generate synthetic data for baseline training. After validation of this stage, real-world data will be used for fine-tuning.
 
 *To be useful any claims must be demonstrated against reproducible seismic-only baselines, held-out time periods, and multimodal ablations.*
 
@@ -18,6 +18,8 @@ We wish to exploit more modern machine learning/AI techniques to create a predic
 Status: the first reproducible synthetic-to-real transfer suite is now running on Italy-scoped data. On a chronological 80/20 holdout for seven-day M2.5+ events in fixed geographic cells, synthetic pretraining reached `0.680722` balanced accuracy and `0.307054` precision, below the historical spatial-rate baseline at `0.686013` and `0.343915`; **no earthquake prediction capability is claimed**.
 
 The current focus is on rolling chronological validation, expanding the synthetic corpus, and collecting enough Cumiana VLF data to obtain both positive and negative target classes. The latest transfer suite contains 79,976 synthetic records and 190 weekly spatial samples; VLF and astronomy remain explicit missing inputs in the real holdout because their validated historical overlap is not yet long enough. See [report.md](docs/report.md), [model-comparison.md](docs/model-comparison.md), and [docs/2026-07-15_elfquake-progress.md](docs/2026-07-15_elfquake-progress.md).
+
+The project also maintains a separate Japan research track using ISEE Moshiri CDF VLF spectra and Japanese seismic catalogs. Japan data is used for scientific comparison and signal-shape analysis only; it is not mixed into the Italy operational scope. See [vlf-japan-isee.md](docs/vlf-japan-isee.md) and [japan-earthquake-vlf-window.md](docs/japan-earthquake-vlf-window.md).
 
 ### Held-out Transfer Trial Map
 
@@ -64,59 +66,7 @@ This work was initially prompted by the tragedy of the [2009 L'Aquila earthquake
 * A 20,000-step CPU simulation episode at seed `4300`, expanding the dense synthetic transfer corpus to 79,976 records and 190 weekly spatial samples across four long episodes.
 * Sandpile simulation with separate seismic-like avalanche outputs and piezo/VLF analogue outputs.
 
-Run the default label-free real VLF pretraining path with:
-
-```sh
-./scripts/pretrain-real-vlf-self-supervised.sh
-```
-
-Compare self-supervised Transformer initialization strategies with:
-
-```sh
-./scripts/evaluate-self-supervised-transformer.sh
-```
-
-Run the current label-free 7-day VLF anomaly smoke forecast with:
-
-```sh
-./scripts/score-real-vlf-anomaly-forecast.sh
-```
-
-Run the current end-to-end trial `>M2` weekly event-list forecast with:
-
-```sh
-./scripts/trial-weekly-event-forecast.sh
-```
-
-Run the synthetic-trained learned weekly event-list forecast with:
-
-```sh
-./scripts/learned-weekly-event-forecast.sh
-```
-
-Run the current synthetic event-list patch Transformer smoke with:
-
-```sh
-./scripts/train-synthetic-event-list-patch-transformer.sh
-```
-
-Compare the current real VLF embedding domain against synthetic piezo/VLF analogues with:
-
-```sh
-./scripts/compare-vlf-embedding-domains.sh
-```
-
-Run the synthetic-inlier transfer diagnostic with:
-
-```sh
-./scripts/evaluate-vlf-synthetic-inlier-transfer.sh
-```
-
-Run the mixed-domain VLF alignment diagnostic with:
-
-```sh
-./scripts/evaluate-vlf-mixed-domain-alignment.sh
-```
+The complete command sequence for acquisition, preprocessing, simulation, model training, evaluation, and service operation is maintained in [docs/steps.md](docs/steps.md).
 
 ## Simulation
 
@@ -124,27 +74,9 @@ The simulation is an artificial mountain-like grid where broad background loadin
 
 It also includes piezo-like sensors that watch quartz-like susceptible regions near failure and produce the VLF/WAV analogue channel. Direct seismic-like event data is kept separate and is derived from avalanche/toppling behavior.
 
-Run the local simulation demo pipeline with:
-
-```sh
-./scripts/run-all.sh
-```
-
 Default outputs use `data/derived/sim/mountain_256x256_seed42_10000` as the prefix. The normal piezo image is `*.piezo_vlf_summary.png` from `*.piezo.csv`; the direct seismic event analogue is `*.avalanche_events.csv`. The older FFT diagnostic is opt-in with `RUN_FFT=1`.
 
 The event-map demo projects avalanche-derived locations over an Apennine-style Italy belt and uses point size for synthetic magnitude.
-
-Render a demo overlay of actual synthetic avalanche events and PyTorch predicted-positive target-window hits with:
-
-```sh
-./scripts/prediction-event-map.sh
-```
-
-Compare the simulated VLF analogue image against captured Cumiana VLF spectrograms with:
-
-```sh
-./scripts/compare-piezo-vlf.sh
-```
 
 This is a simplified stress-and-release analogy, not a geological model. Its value depends on whether the generated data has useful structural similarity to real observations. Good performance on simulated avalanches would only show that the tooling can learn synthetic patterns; real claims still require held-out seismic, VLF, and astronomical data.
 
@@ -154,6 +86,7 @@ This is a simplified stress-and-release analogy, not a geological model. Its val
 * [Documentation Index](docs/README.md)
 * [Processing Graph](docs/processing-graph.md)
 * [Next Actions](docs/next-actions.md)
+* [Command Steps](docs/steps.md)
 * [Forecast Interface](docs/forecast-interface.md)
 * [Success Criteria](docs/success-criteria.md)
 * [Development Environment](docs/development-environment.md)
@@ -164,3 +97,5 @@ This is a simplified stress-and-release analogy, not a geological model. Its val
 * [Model Comparison](docs/model-comparison.md)
 * [Model Scaling Requirements](docs/model-scaling-requirements.md)
 * [Sandpile Simulation](docs/sandpile-simulation.md)
+* [Japan ISEE VLF](docs/vlf-japan-isee.md)
+* [Japan Earthquake/VLF Window](docs/japan-earthquake-vlf-window.md)

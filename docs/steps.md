@@ -156,6 +156,10 @@ Build astronomy context features for one time window. It reports capture provena
 
 Compare a simulated VLF-like image with real Cumiana image features. Use this for sanity checks on synthetic VLF rendering.
 
+### `evaluate-piezo-vlf-variant-seeds.sh`
+
+Evaluate current, `gain_burst`, and `fast_burst` piezo transforms separately across simulation seeds. Use the summary to check that an apparent alignment improvement is not caused by pooling trajectories.
+
 ### `join-vlf-image-features`
 
 Join extracted VLF image features onto prospective or training windows by capture time. Run this after image feature extraction.

@@ -33,29 +33,9 @@ ELFQuake は、極低周波（ELF）・超低周波（VLF）の自然電波観�
 
 日本のデータおよびそこから作成した特徴量は **科学研究目的に限って使用** します。アーカイブの利用条件、原始 CDF、チェックサム、観測点メタデータを必ず保持してください。詳細は [docs/vlf-japan-isee.md](docs/vlf-japan-isee.md) を参照してください。
 
-日本の CDF 取得・前処理を実行するには、次を使用します。
-
-```sh
-WINDOWS=data/derived/japan/japan.seismic_training_windows.csv \
-  ./scripts/process-japan-vlf-manifest.sh
-```
-
-処理済みの複数 CDF ファイルを、重複しない地震ウィンドウ単位の特徴量にまとめるには、次を使用します。
-
-```sh
-WINDOWS=data/derived/japan/japan.seismic_training_windows.csv \
-  ./scripts/build-japan-vlf-cdf-dataset.sh
-```
-
 ## 自己教師あり学習
 
 実 VLF ラベルが不足している間は、自己教師あり学習を既定の開発経路とします。これは、観測信号の一部を復元するなどの方法で表現を学習し、地震イベントの教師ラベルを直接仮定しない方法です。実データで正例と負例の両方が得られた後に、教師あり微調整を行います。
-
-```sh
-./scripts/pretrain-real-vlf-self-supervised.sh
-./scripts/evaluate-self-supervised-transformer.sh
-./scripts/score-real-vlf-anomaly-forecast.sh
-```
 
 ## シミュレーション
 
@@ -63,11 +43,9 @@ WINDOWS=data/derived/japan/japan.seismic_training_windows.csv \
 
 目的は、実際の地震データに十分近い構造を持つ合成時系列を作り、実データが少ない段階の深層学習モデルの訓練に利用できるかを調べることです。雪崩から得る直接的な地震様イベントと、piezo/VLF 類似センサー信号は別のモダリティとして保存されます。
 
-```sh
-./scripts/run-all.sh
-```
-
 これは地質学的モデルではなく、応力と解放の簡略化された類推です。合成データでの性能は、実際の地震予測能力を示しません。
+
+取得、前処理、シミュレーション、学習、評価、サービス運用のコマンド手順は [docs/steps.md](docs/steps.md) にまとめています。
 
 ## 評価方針
 
@@ -81,6 +59,7 @@ WINDOWS=data/derived/japan/japan.seismic_training_windows.csv \
 * [ドキュメント一覧](docs/README.md)
 * [処理グラフ](docs/processing-graph.md)
 * [次のアクション](docs/next-actions.md)
+* [コマンド手順](docs/steps.md)
 * [成功基準](docs/success-criteria.md)
 * [開発環境](docs/development-environment.md)
 * [データソース一覧](docs/source-inventory.md)
