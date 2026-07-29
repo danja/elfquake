@@ -51,19 +51,23 @@ def run_real_transfer_trial(
     pretrain_epochs: int = 30,
     finetune_epochs: int = 80,
     seed: int = 42,
+    feature_ablation: str = "full",
+    synthetic_pretraining: bool = True,
 ) -> dict[str, object]:
     """Pretrain an MLP on synthetic cells then fine-tune on chronological INGV cells."""
     if not 0 < train_fraction < 1:
         raise ValueError("train_fraction must be between zero and one")
     if horizon_days < 1 or cell_degrees <= 0:
         raise ValueError("horizon_days and cell_degrees must be positive")
+    if feature_ablation not in {"full", "seismic_history", "vlf_mask", "seismic_vlf_mask"}:
+        raise ValueError("unknown feature_ablation")
     real_events = _read_events(real_events_csv)
     synthetic_events = _read_synthetic_corpus(synthetic_event_csvs)
     if len(real_events) < 10:
         raise ValueError("real event catalog is too small")
     cells = _cells(cell_degrees)
-    real_samples = _weekly_samples(real_events, cells, magnitude_threshold, horizon_days, cell_degrees)
-    synthetic_samples = _weekly_samples(synthetic_events, cells, magnitude_threshold, horizon_days, cell_degrees)
+    real_samples = _ablate_samples(_weekly_samples(real_events, cells, magnitude_threshold, horizon_days, cell_degrees), feature_ablation)
+    synthetic_samples = _ablate_samples(_weekly_samples(synthetic_events, cells, magnitude_threshold, horizon_days, cell_degrees), feature_ablation)
     train_count = int(len({sample.week_start for sample in real_samples}) * train_fraction)
     week_starts = sorted({sample.week_start for sample in real_samples})
     train_weeks = set(week_starts[:train_count])
@@ -76,9 +80,11 @@ def run_real_transfer_trial(
     _seed(torch, seed)
     model = _model(torch, len(train[0].values))
     synthetic_status = "skipped_insufficient_class_variation"
-    if synthetic_samples and len({sample.label for sample in synthetic_samples}) == 2:
+    if synthetic_pretraining and synthetic_samples and len({sample.label for sample in synthetic_samples}) == 2:
         _fit(torch, model, synthetic_samples, pretrain_epochs, seed)
         synthetic_status = "pretrained"
+    elif not synthetic_pretraining:
+        synthetic_status = "disabled"
     _fit(torch, model, train, finetune_epochs, seed + 1)
     train_probabilities = _predict(torch, model, train)
     test_probabilities = _predict(torch, model, test)
@@ -129,8 +135,9 @@ def run_real_transfer_trial(
         "model": {
             "type": "CPU PyTorch MLP",
             "transfer": f"synthetic_pretraining={synthetic_status}; chronological_real_finetuning=yes",
-            "feature_names": _feature_names(),
+            "feature_names": _feature_names(feature_ablation),
             "missing_modality_features": ["vlf_present", "astro_present"],
+            "feature_ablation": feature_ablation,
         },
         "evaluation": {
             "selection": "threshold calibrated only on the chronological real training partition",
@@ -176,6 +183,19 @@ def _read_synthetic_corpus(paths: list[Path]) -> list[Event]:
         offset = timedelta(days=21 * index)
         events.extend(Event(event.time + offset, event.latitude, event.longitude, event.magnitude) for event in _read_events(path))
     return sorted(events, key=lambda event: event.time)
+
+
+def _ablate_samples(samples: list[Sample], ablation: str) -> list[Sample]:
+    """Apply modality ablations while keeping the weekly target unchanged."""
+    if ablation == "full":
+        return samples
+    if ablation == "seismic_history":
+        indexes = (0, 1, 2, 3, 4, 5)
+    elif ablation == "vlf_mask":
+        indexes = (4, 5, 6, 7)
+    else:
+        indexes = (0, 1, 2, 3, 4, 5, 6)
+    return [Sample(sample.week_start, sample.lat, sample.lon, tuple(sample.values[index] for index in indexes), sample.label) for sample in samples]
 
 
 def _cells(size: float) -> list[tuple[float, float]]:
@@ -262,8 +282,15 @@ def _features(short: list[Event], long: list[Event], lat: float, lon: float) -> 
     )
 
 
-def _feature_names() -> list[str]:
-    return ["seismic_log_count_7d", "seismic_log_count_28d", "seismic_max_magnitude_28d", "seismic_log_energy_28d", "spatial_lat", "spatial_lon", "vlf_present", "astro_present"]
+def _feature_names(ablation: str = "full") -> list[str]:
+    names = ["seismic_log_count_7d", "seismic_log_count_28d", "seismic_max_magnitude_28d", "seismic_log_energy_28d", "spatial_lat", "spatial_lon", "vlf_present", "astro_present"]
+    if ablation == "seismic_history":
+        return names[:6]
+    if ablation == "vlf_mask":
+        return names[4:]
+    if ablation == "seismic_vlf_mask":
+        return names[:7]
+    return names
 
 
 def _multiscale_features(

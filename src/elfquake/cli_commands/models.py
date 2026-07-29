@@ -362,6 +362,9 @@ def register_model_commands(subparsers: _SubParsersAction) -> None:
     transfer_trial.add_argument("--pretrain-epochs", type=int, default=30)
     transfer_trial.add_argument("--finetune-epochs", type=int, default=80)
     transfer_trial.add_argument("--seed", type=int, default=42)
+    transfer_trial.add_argument("--feature-ablation", choices=("full", "seismic_history", "vlf_mask", "seismic_vlf_mask"), default="full")
+    transfer_trial.add_argument("--no-synthetic-pretraining", action="store_false", dest="synthetic_pretraining")
+    transfer_trial.set_defaults(synthetic_pretraining=True)
     transfer_trial.set_defaults(func=_run_real_transfer_trial)
 
     transfer_suite = subparsers.add_parser("run-transfer-experiment-suite")
@@ -626,6 +629,8 @@ def _run_real_transfer_trial(args: Namespace) -> int:
         pretrain_epochs=args.pretrain_epochs,
         finetune_epochs=args.finetune_epochs,
         seed=args.seed,
+        feature_ablation=args.feature_ablation,
+        synthetic_pretraining=args.synthetic_pretraining,
     )
     metrics = report["evaluation"]
     print(f"status: {report['status']}")
