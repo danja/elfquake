@@ -4,7 +4,7 @@
 
 This exploratory check covers the 14 days before the 28 July 2026 Kyushu earthquake. The local Japan seismic refresh found a main event at `2026-07-28T07:27:15Z`, magnitude `6.8`, depth `10 km`, at `32.6817, 130.722`, followed by a `M5.6` event and smaller aftershocks. NIED Hi-net lists the corresponding local-time event at `2026/07/28 16:27:15 JST`; contemporary reporting described it as approximately M7.1. See [Hi-net](https://www.hinet.bosai.go.jp/backnumber/?LANG=en) and [AP News](https://apnews.com/article/japan-earthquake-tsunami-09e6f40acbcc96053946c9c104e7a242).
 
-The VLF sample contains 13 daily Moshiri CDF captures at 00:00 UTC from 15–27 July, each with 8,646 spectral rows and both channels. The ISEE archive had not yet exposed 28 July files when this analysis ran, so there is no direct VLF observation of the mainshock or its immediate aftermath.
+The VLF sample contains 13 daily Moshiri CDF captures at 00:00 UTC from 15–27 July, each with 8,646 spectral rows and both channels. A further archive check on 29 July still returned zero 28 July CDF files, so there is no direct VLF observation of the mainshock or its immediate aftermath yet.
 
 ## Method
 

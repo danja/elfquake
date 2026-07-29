@@ -2,7 +2,7 @@
 
 ## Immediate Priority
 
-1. Run `./scripts/run-real-transfer-trial.sh` after each INGV refresh. It is the first chronological 80/20 real-data check at M2.5, expressed as seven-day fixed Italy spatial-cell targets; interpret its held-out map and scores only as an experimental baseline.
+1. Run `./scripts/run-real-transfer-trial.sh` after each INGV refresh. The 2026-07-29 rerun scored held-out balanced accuracy `0.693435` versus the historical spatial-rate baseline `0.686013`, with precision `0.315353` and recall `0.783505`. VLF and astronomy were missing-mask features, so this remains an experimental seismic-history baseline, not evidence of multimodal prediction.
 2. Use `./scripts/evaluate-piezo-group-holdout.sh` as the primary synthetic stability check. Its fixed three-seed ensemble averages `0.632634`, but passes both recall floors on only 6 of 9 episodes.
 3. Keep random-init piezo/VLF-only as the leading controlled Transformer architecture. It averages `0.619033` within episodes, but has not passed unseen-episode stability; direct and summary branches remain disabled by default.
 4. Keep label-free real VLF pretraining as the default real-data path while supervised VLF-aligned labels remain one-class or sparse; require reconstruction to beat both zero and last-patch baselines.
@@ -74,6 +74,7 @@
 70. Improve the spatial avalanche activity representation before further simulator tuning. Compact `*.avalanche_regions.csv` output is now available as a configurable regional grid, preserving locality without per-cell output. Use it to rerun the source-stress diagnostic and compare against the existing global signal.
 71. Add a region-aware source-stress diagnostic using the regional table. Report activity in the release region versus matched non-release regions, with time-held-out seeds.
 72. Track the Japan VLF archive until 28 July data are available. The first pre-event check covers 13 daily Moshiri CDFs from 15–27 July; July 26 is the highest robust-deviation day, but earlier elevated days prevent a precursor claim. Re-run with hourly event-day/post-event coverage and matched controls.
+73. Keep the Italy transfer-trial artifact at `data/derived/models/real_transfer_trial/report.json` as the current chronological baseline. Compare future multimodal runs against its confusion matrix and historical-rate control, with missing-modality masks reported explicitly.
 25. Use `./scripts/trial-weekly-event-forecast.sh` as the current end-to-end event-list contract smoke test, not as a validated predictor.
 26. Use `./scripts/balance-italy-synthetic-episode-rates.sh` only as an auditable training/observation-model diagnostic. It can thin overactive episodes, but it must not synthesize events for underactive episodes; the matched rerun is preferred.
 
