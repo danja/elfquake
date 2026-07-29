@@ -6,6 +6,7 @@ ROOT="${ROOT:-data/derived/models/piezo_vlf_alignment_seed_holdout}"
 REAL_SEQUENCE="${REAL_SEQUENCE:-data/derived/models/cumiana_vlf_image_sequence/manifest.json}"
 SEEDS="${SEEDS:-40 41 42}"
 VARIANTS="${VARIANTS:-current gain_burst fast_burst}"
+ALIGN_SEEDS="${ALIGN_SEEDS:-42 99}"
 mkdir -p "$ROOT"
 
 for variant in $VARIANTS; do
@@ -16,10 +17,11 @@ for variant in $VARIANTS; do
       manifest="data/derived/models/piezo_vlf_alignment_sweep/${variant}/mountain_256x256_seed${seed}_20000_${variant}_piezo_sequence/manifest.json"
     fi
     [[ -f "$manifest" ]] || { echo "error: missing manifest: $manifest" >&2; exit 2; }
+    for align_seed in $ALIGN_SEEDS; do
     PYTHONDONTWRITEBYTECODE=1 PYTHONPATH=src "$PYTHON_BIN" -m elfquake.cli evaluate-mixed-domain-alignment \
       --real-sequence-manifest "$REAL_SEQUENCE" \
       --synthetic-sequence-manifest "$manifest" \
-      --out "$ROOT/${variant}_seed${seed}.json" \
+      --out "$ROOT/${variant}_seed${seed}_modelseed${align_seed}.json" \
       --real-modality real_vlf_image \
       --synthetic-modality synthetic_piezo_vlf \
       --descriptor-profile shape \
@@ -28,8 +30,9 @@ for variant in $VARIANTS; do
       --control-method centroid --control-method random --control-method full \
       --max-synthetic-train-windows 6000 --coral-weight 0.1 \
       --epochs "${ALIGN_EPOCHS:-10}" --learning-rate 0.0003 \
-      --hidden-units 32 --embedding-units 8 --batch-size 64 --seed 42 \
-      --embeddings-out "$ROOT/${variant}_seed${seed}.embeddings.csv"
+      --hidden-units 32 --embedding-units 8 --batch-size 64 --seed "$align_seed" \
+      --embeddings-out "$ROOT/${variant}_seed${seed}_modelseed${align_seed}.embeddings.csv"
+    done
   done
 done
 
@@ -47,8 +50,9 @@ for path in sorted(root.glob("*.json")):
     comparison = report["primary"]["embedding_comparison"]
     rows.append({
         "run": path.stem,
-        "variant": path.stem.rsplit("_seed", 1)[0],
-        "seed": path.stem.rsplit("_seed", 1)[1],
+        "variant": path.stem.split("_seed", 1)[0],
+        "simulation_seed": path.stem.split("_seed", 1)[1].split("_modelseed", 1)[0],
+        "model_seed": path.stem.split("_modelseed", 1)[1],
         "centroid_distance": comparison.get("centroid_euclidean_distance", ""),
         "nearest_mean_distance": comparison.get("synthetic_to_real_nearest_mean_distance", ""),
         "scale_mean_absolute_delta": comparison.get("scale_mean_absolute_delta", ""),
