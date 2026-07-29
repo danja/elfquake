@@ -408,6 +408,10 @@ Train a label-free descriptor autoencoder on a materialized sequence manifest, s
 
 Run the default real Cumiana VLF anomaly scorer and emit a 7-day label-free smoke forecast under `data/derived/models/self_supervised/`.
 
+### `render-vlf-anomaly-chart.sh`
+
+Render the anomaly score CSV with the exploratory threshold and peak marked. Lines are broken across observation gaps, so sparse captures are not presented as continuous trends. The default output is `docs/images/anomaly.png`.
+
 ### `report-italy-data-coverage.sh`
 
 Summarize INGV, Cumiana capture, VLF anomaly, and weekly overlap coverage without fitting a supervised earthquake model. Use after each refresh.

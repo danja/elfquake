@@ -6,11 +6,20 @@ from argparse import Namespace, _SubParsersAction
 from pathlib import Path
 
 from elfquake.visualization.event_map import DEFAULT_BASEMAP_GEOJSON, render_event_map
+from elfquake.visualization.anomaly_chart import render_anomaly_chart
 from elfquake.visualization.prediction_map import render_prediction_event_map
 from elfquake.visualization.transfer_trial_map import render_transfer_trial_map
 
 
 def register_visualization_commands(subparsers: _SubParsersAction) -> None:
+    anomaly = subparsers.add_parser("render-vlf-anomaly-chart")
+    anomaly.add_argument("--scores", type=Path, required=True)
+    anomaly.add_argument("--out", type=Path, required=True)
+    anomaly.add_argument("--alert-threshold", type=float, default=0.8)
+    anomaly.add_argument("--max-gap-hours", type=float, default=1.0)
+    anomaly.add_argument("--title", default="Cumiana VLF self-supervised anomaly score")
+    anomaly.set_defaults(func=_render_anomaly_chart)
+
     event_map = subparsers.add_parser("render-event-map")
     event_map.add_argument("--events", type=Path, required=True)
     event_map.add_argument("--out", type=Path, required=True)
@@ -66,6 +75,22 @@ def _render_event_map(args: Namespace) -> int:
     print(f"type: {report['map_type']}")
     if args.metadata_out:
         print(f"metadata: {args.metadata_out}")
+    return 0
+
+
+def _render_anomaly_chart(args: Namespace) -> int:
+    report = render_anomaly_chart(
+        scores_csv=args.scores,
+        out_path=args.out,
+        alert_threshold=args.alert_threshold,
+        max_gap_hours=args.max_gap_hours,
+        title=args.title,
+    )
+    print(f"chart: {report['chart_file']}")
+    print(f"rows: {report['row_count']}")
+    print(f"peak score: {report['peak_score']}")
+    print(f"peak time: {report['peak_time_utc']}")
+    print(f"gaps: {report['gap_count']}")
     return 0
 
 
