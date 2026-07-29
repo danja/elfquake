@@ -48,6 +48,8 @@ The latest coverage report still combines `4,836` historical normalized INGV eve
 
 ![Cumiana VLF anomaly score](images/anomaly.png)
 
+The chart leaves gaps where no VLF windows were observed; it does not interpolate between the July 6, July 11, July 16, and July 29 captures.
+
 A permutation-controlled association check gives the same conclusion. Using the refreshed 29 June--29 July event file, there are still only three VLF-observed weeks. At M2.5+ there are three event weeks and no controls; at M3+ there are two event weeks and one control. The report returns `insufficient_controls` rather than a p-value. The apparent anomaly differences are not evidence of a precursor. The refreshed diagnostic is `data/derived/reports/italy_vlf_event_association_20260729.json`.
 
 ### Label-scope audit
