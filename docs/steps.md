@@ -60,9 +60,15 @@ Fetch the configured Cumiana live image endpoints once. This is the primary usab
 
 Run repeated Cumiana image captures at a configured interval. Use this under service supervision for prospective data collection.
 
+After changing `deploy/systemd/elfquake.service`, install the unit and reload it with `sudo systemctl daemon-reload`, `sudo systemctl reset-failed elfquake.service`, `sudo systemctl restart elfquake.service`, then check `sudo systemctl status elfquake.service` and `journalctl -u elfquake.service`. The unit uses `.venv/bin/python`, so optional packages installed in the project venv are available. Numba disk caching is disabled for the protected service; normal simulation runs retain caching by default.
+
 ### `refresh-prospective-labels.sh`
 
 Fetch the latest INGV Italy events for the configured date window, normalize/combine them, relabel matured prospective VLF image rows, and refresh prospective summary/readiness reports.
+
+### `report-vlf-capture-gaps.sh`
+
+Report gaps in Cumiana `last_E_VLF` captures. Use this to distinguish total source history from continuous coverage; the JSON output defaults to `data/derived/reports/cumiana_vlf_capture_gaps.json`.
 
 ### `record-vlf-abelian-cumiana`
 

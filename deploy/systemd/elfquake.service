@@ -1,20 +1,25 @@
 [Unit]
 Description=ELFQuake VLF capture service
-Documentation=file:/home/danny/github/elfquake/docs/systemd-service.md
+Documentation=file:/chalet/github/elfquake/docs/systemd-service.md
 Wants=network-online.target
 After=network-online.target
+StartLimitIntervalSec=300
+StartLimitBurst=5
 
 [Service]
 Type=simple
 User=danny
 Group=danny
-WorkingDirectory=/home/danny/github/elfquake
-Environment=PYTHONPATH=/home/danny/github/elfquake/src
+WorkingDirectory=/chalet/github/elfquake
+Environment=PYTHONPATH=/chalet/github/elfquake/src
 Environment=PYTHONDONTWRITEBYTECODE=1
+Environment=ELFQUAKE_NUMBA_CACHE=0
+Environment=NUMBA_CACHE_DIR=/chalet/github/elfquake/data/derived/numba_cache
+Environment=NUMBA_CACHE_LOCATOR_CLASSES=UserProvidedCacheLocator
 Environment=ELFQUAKE_VLF_INTERVAL_SECONDS=1800
 EnvironmentFile=-/etc/default/elfquake
-ExecStart=/usr/bin/python3 -m elfquake.cli capture-vlf-cumiana-loop --only last_E_VLF --cycles 0 --interval-seconds ${ELFQUAKE_VLF_INTERVAL_SECONDS}
-Restart=on-failure
+ExecStart=/chalet/github/elfquake/.venv/bin/python -m elfquake.cli capture-vlf-cumiana-loop --only last_E_VLF --cycles 0 --interval-seconds ${ELFQUAKE_VLF_INTERVAL_SECONDS}
+Restart=always
 RestartSec=60
 TimeoutStopSec=30
 SyslogIdentifier=elfquake
@@ -22,7 +27,7 @@ NoNewPrivileges=true
 PrivateTmp=true
 ProtectSystem=strict
 ProtectHome=read-only
-ReadWritePaths=/home/danny/github/elfquake/data
+ReadWritePaths=/chalet/github/elfquake/data
 
 [Install]
 WantedBy=multi-user.target

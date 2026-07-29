@@ -5,7 +5,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 
 import numpy as np
-from numba import njit
+from elfquake.sim.numba_config import njit
 
 from elfquake.sim.damage_sensors import measure_local_damage
 from elfquake.sim.spatial_state import measure_pre_relax_spatial_state

@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import numpy as np
-from numba import njit
+from elfquake.sim.numba_config import njit
 
 
 def measure_local_damage(

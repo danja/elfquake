@@ -29,10 +29,7 @@ from elfquake.sim.piezo import (
 )
 from elfquake.sim.sandpile_outputs import write_csv, write_snapshot
 
-try:
-    from numba import njit
-except ImportError as error:  # pragma: no cover - exercised by runtime environment.
-    raise RuntimeError("numba is required for sandpile simulation; activate the project venv") from error
+from elfquake.sim.numba_config import njit
 
 
 SUMMARY_FIELDS = [
