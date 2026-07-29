@@ -17,10 +17,13 @@ def build_multimodal_patch_transformer(
     layers: int,
     heads: int,
     dropout: float,
+    coordinate_slots: int = 1,
     initialization_seed: int | None = None,
 ):
     if d_model % heads:
         raise ValueError("heads must divide d_model")
+    if coordinate_slots < 1:
+        raise ValueError("coordinate_slots must be at least 1")
     patch_count = math.ceil(lookback_steps / patch_steps)
 
     class MultimodalPatchTransformer(torch.nn.Module):
@@ -63,6 +66,9 @@ def build_multimodal_patch_transformer(
                 enable_nested_tensor=False,
             )
             self.occurrence_head = torch.nn.Linear(d_model, 1)
+            # Normalized latitude, longitude, and magnitude for event-list output.
+            self.coordinate_slots = coordinate_slots
+            self.coordinate_head = torch.nn.Linear(d_model, coordinate_slots * 3)
             torch.nn.init.normal_(self.position, mean=0.0, std=0.02)
             for parameters in (self.modality_embeddings, self.mask_tokens, self.missing_tokens):
                 for value in parameters.values():
@@ -142,6 +148,16 @@ def build_multimodal_patch_transformer(
             dropped_modalities: set[str] | None = None,
         ):
             return self.occurrence_head(self.embedding(inputs, observed, dropped_modalities=dropped_modalities))
+
+        def coordinates(
+            self,
+            inputs: dict[str, object],
+            observed: dict[str, object],
+            *,
+            dropped_modalities: set[str] | None = None,
+        ):
+            values = self.coordinate_head(self.embedding(inputs, observed, dropped_modalities=dropped_modalities))
+            return values.reshape(values.shape[0], self.coordinate_slots, 3)
 
         def modality_pretraining_parameters(self, modality: str) -> list[object]:
             return [

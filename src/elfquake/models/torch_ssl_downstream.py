@@ -47,6 +47,7 @@ def train_downstream(
     optimizer_parameters=None,
     trainable_scope="all",
     include_probabilities=False,
+    coordinate_targets=None,
     seed,
     torch,
 ):
@@ -82,7 +83,23 @@ def train_downstream(
             )
             dropped = _supervised_dropout(modalities, modality_dropout_probability, rng)
             optimizer.zero_grad()
-            loss = criterion(model(inputs, observed, dropped_modalities=dropped), labels)
+            logits = model(inputs, observed, dropped_modalities=dropped)
+            loss = criterion(logits, labels)
+            if coordinate_targets is not None:
+                selected_targets = [coordinate_targets[index] for index in selected]
+                valid = [
+                    (batch_index, slot_index, target)
+                    for batch_index, slots in enumerate(selected_targets)
+                    for slot_index, target in enumerate(slots)
+                    if target is not None
+                ]
+                if valid:
+                    target = torch.tensor([item[2] for item in valid], dtype=torch.float32)
+                    coordinates = model.coordinates(inputs, observed, dropped_modalities=dropped)
+                    coordinate_prediction = coordinates[
+                        [item[0] for item in valid], [item[1] for item in valid]
+                    ]
+                    loss = loss + 0.25 * torch.nn.functional.mse_loss(coordinate_prediction, target)
             loss.backward()
             optimizer.step()
             loss_sum += float(loss.item()) * len(selected)
@@ -121,6 +138,10 @@ def train_downstream(
         }
         if include_probabilities:
             evaluation["probabilities"] = [round(float(value), 8) for value in probabilities]
+            if coordinate_targets is not None:
+                evaluation["coordinate_predictions"] = _coordinate_predictions(
+                    model, test_refs, sequences, normalizations, modalities, lookback_steps, batch_size, dropped, torch
+                )
         evaluations[name] = evaluation
     result = {
         "modalities": list(modalities),
@@ -146,7 +167,8 @@ def summarize_downstream_runs(runs: list[dict[str, object]], regimes: tuple[str,
         if not selected:
             continue
         downstream_models = {}
-        for config_name in DOWNSTREAM_CONFIGS:
+        config_names = sorted({name for run in selected for name in run["downstream_models"]})
+        for config_name in config_names:
             probe = [_balanced_accuracy(run, config_name, "linear_probe") for run in selected]
             fine = [_balanced_accuracy(run, config_name, "fine_tune") for run in selected]
             evaluation_names = selected[0]["downstream_models"][config_name]["fine_tune"]["evaluations"]
@@ -188,6 +210,23 @@ def _probabilities(model, refs, sequences, normalizations, modalities, lookback,
             )
             result.extend(torch.sigmoid(model(inputs, observed, dropped_modalities=dropped)).squeeze(1).tolist())
     return [float(value) for value in result]
+
+
+def _coordinate_predictions(model, refs, sequences, normalizations, modalities, lookback, batch_size, dropped, torch):
+    result = []
+    model.eval()
+    with torch.no_grad():
+        for start in range(0, len(refs), batch_size):
+            batch_refs = refs[start:start + batch_size]
+            inputs, _, observed = build_window_batch(
+                batch_refs, sequences, modalities=modalities, lookback_steps=lookback,
+                normalizations=normalizations, torch=torch,
+            )
+            result.extend(model.coordinates(inputs, observed, dropped_modalities=dropped).tolist())
+    return [
+        [[round(float(value), 8) for value in slot] for slot in row]
+        for row in result
+    ]
 
 
 def _supervised_dropout(modalities: tuple[str, ...], probability: float, rng: random.Random) -> set[str]:

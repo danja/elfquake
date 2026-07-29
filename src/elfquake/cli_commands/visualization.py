@@ -53,6 +53,7 @@ def register_visualization_commands(subparsers: _SubParsersAction) -> None:
     transfer_map.add_argument("--out", type=Path, required=True)
     transfer_map.add_argument("--metadata-out", type=Path)
     transfer_map.add_argument("--title", default="ELFQuake held-out Italy week: actual vs predicted cells")
+    transfer_map.add_argument("--prediction-label", default="predicted spatial cell")
     transfer_map.set_defaults(func=_render_transfer_trial_map)
 
 
@@ -125,8 +126,9 @@ def _render_transfer_trial_map(args: Namespace) -> int:
         out_path=args.out,
         metadata_out=args.metadata_out,
         title=args.title,
+        prediction_label=args.prediction_label,
     )
     print(f"map: {report['map_file']}")
     print(f"actual events: {report['actual_event_count']}")
-    print(f"predicted cells: {report['predicted_cell_count']}")
+    print(f"predicted items: {report['predicted_count']}")
     return 0

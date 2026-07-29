@@ -9,6 +9,8 @@ Exercise the intended transfer path end to end:
 3. Fine-tune the event head on Italy data, holding out the latest mature Italy week.
 4. Emit selected probabilities over fixed Italy cells and render them beside the actual held-out events.
 
+The first CPU run completed with 45 Japan self-supervised training windows, 3 Japan held-out reconstruction windows, 4,240 Italy training rows, 1,023 Italy held-out rows, 3 actual M>=2.5 events, and 19 generated cells. These counts confirm pipeline wiring only; they are not evidence of useful earthquake prediction.
+
 This is a pipeline and visualization test, not a prediction experiment. It must not be presented as evidence of earthquake forecasting ability.
 
 ## Data Policy
@@ -19,7 +21,7 @@ The core target remains Italy-scoped. Japan ISEE data and derived features are u
 
 * **Synthetic:** masked sequence reconstruction plus optional synthetic event-list supervision using the existing seismic, direct-avalanche, piezo/VLF, and summary branches.
 * **Japan:** self-supervised continuation on native Moshiri CDF sequence features. Do not use Japan target labels while the observed VLF coverage remains sparse.
-* **Italy:** supervised fine-tuning on fixed 1.5-degree Italy cells with seismic history, VLF image features, astronomy features, and explicit missing-data masks.
+* **Italy:** supervised fine-tuning on fixed 1.5-degree Italy cells with seismic history, VLF image features, astronomy features, and explicit missing-data masks. Every qualifying INGV event in each target cell/horizon is retained in a two-slot target tensor; each slot contains latitude, longitude, magnitude, and presence. The occurrence head selects a small event budget; the coordinate/magnitude head emits continuous event-list rows.
 
 The encoder and modality adapters are retained between stages. The Italy event head is reinitialized or fine-tuned only after the Italy feature schema is checked against the checkpoint schema.
 
@@ -29,10 +31,10 @@ Use the latest mature Italy VLF-anchored week. Exclude its target horizon and al
 
 ## Output
 
-Write a stable event-list CSV containing forecast week, cell centre, probability, and rank. Render predicted cell centres as red crosses and actual INGV events above the selected magnitude threshold as blue circles, using the existing Italy basemap and magnitude scaling.
+Write a stable event-list CSV containing event time, continuous latitude/longitude, magnitude proxy, probability, and provenance. The fixed cells remain an internal training scaffold; the rendered red crosses are coordinate-head outputs and must not be described as cell centres.
 
 Report the historical-rate and always-negative controls, train/test class counts, selected threshold, and missing-modality rates beside the image. Do not report the map as a forecast.
 
 ## Gates
 
-The smoke test is successful when all stages run without schema leakage, Japan data remains provenance-labelled, the Italy holdout is chronological, and the map contains both actual and model-derived layers. It fails as a model-evidence test if the holdout is one-class, if Japan labels leak into Italy targets, or if thresholds are selected on the held-out week.
+The smoke test is successful when all stages run without schema leakage, Japan data remains provenance-labelled, the Italy holdout is chronological, and the map contains both actual and model-derived layers. It fails as a model-evidence test if the holdout is one-class, if Japan labels leak into Italy targets, if thresholds are selected on the held-out week, or if coordinate outputs collapse to a single location or leave Italy before boundary projection.

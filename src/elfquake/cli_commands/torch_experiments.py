@@ -26,6 +26,11 @@ def register_torch_experiment_commands(subparsers: _SubParsersAction) -> None:
     transformer.add_argument("--mask-probability", type=float, default=0.30)
     transformer.add_argument("--modality-dropout-probability", type=float, default=0.25)
     transformer.add_argument("--max-pretrain-windows", type=int, default=4096)
+    transformer.add_argument("--japan-sequence-manifest", type=Path, action="append", default=[])
+    transformer.add_argument("--italy-sequence-manifest", type=Path, action="append", default=[])
+    transformer.add_argument("--japan-modality", default="japan_vlf")
+    transformer.add_argument("--italy-modality", action="append", default=[])
+    transformer.add_argument("--target-dataset-id")
     transformer.set_defaults(func=_evaluate_self_supervised_transformer)
 
     late_fusion = subparsers.add_parser("evaluate-late-gated-fusion")
@@ -128,6 +133,11 @@ def _evaluate_self_supervised_transformer(args: Namespace) -> int:
         mask_probability=args.mask_probability,
         modality_dropout_probability=args.modality_dropout_probability,
         max_pretrain_windows=args.max_pretrain_windows,
+        japan_manifest_paths=args.japan_sequence_manifest or None,
+        italy_manifest_paths=args.italy_sequence_manifest or None,
+        japan_modality=args.japan_modality,
+        italy_modalities=tuple(args.italy_modality) or None,
+        target_dataset_id=args.target_dataset_id,
     )
     print(f"status: {report['status']}")
     for regime, row in report["summary"].items():

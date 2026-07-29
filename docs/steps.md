@@ -386,6 +386,10 @@ Compare random, synthetic, real VLF, sequential synthetic-to-real, and balanced 
 
 Prepare the h6 target split and run the seven-regime, three-seed CPU evaluation on current warmed synthetic sequences plus the real Cumiana VLF sequence. Each initialization trains separate full-input and piezo/VLF-only downstream models.
 
+### `run-cross-region-generative-smoke.sh`
+
+Run the explicit synthetic -> Japan ISEE VLF -> Italy Transformer pipeline on the common fixture. It holds out the latest mature chronological Italy partition, trains an occurrence head plus continuous coordinate/magnitude head, writes seismic-shaped event-list CSVs, and renders `docs/images/cross-region-generative-smoke.png`. This is a reproducible engineering smoke test, not a forecast; Japan data remain research-use-only.
+
 ### `evaluate-self-supervised-transfer.sh`
 
 Run the reproducible transfer-preservation configuration with six pretraining epochs, twelve supervised epochs, and a 2,048-window synthetic cap. Results are written under `data/derived/models/self_supervised_transformer_transfer/`.

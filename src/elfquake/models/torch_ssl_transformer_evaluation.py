@@ -42,6 +42,7 @@ REGIMES = (
     "synthetic_then_real_frozen",
     "synthetic_then_real_rehearsal",
     "joint_synthetic_real",
+    "synthetic_then_japan_then_italy",
 )
 
 
@@ -72,6 +73,11 @@ def evaluate_self_supervised_transformer(
     mask_probability: float = 0.30,
     modality_dropout_probability: float = 0.25,
     max_pretrain_windows: int = 4096,
+    japan_manifest_paths: list[Path] | None = None,
+    italy_manifest_paths: list[Path] | None = None,
+    japan_modality: str = "japan_vlf",
+    italy_modalities: tuple[str, ...] | None = None,
+    target_dataset_id: str | None = None,
 ) -> dict[str, object]:
     selected_regimes = tuple(regimes or REGIMES)
     unknown = sorted(set(selected_regimes) - set(REGIMES))
@@ -79,10 +85,15 @@ def evaluate_self_supervised_transformer(
         raise ValueError(f"unknown self-supervised regime(s): {', '.join(unknown)}")
     selected_seeds = tuple(seeds or (7, 42, 99))
     torch = _import_torch()
-    manifest_paths = [*synthetic_manifest_paths, real_manifest_path]
+    manifest_paths = [*synthetic_manifest_paths, real_manifest_path, *(japan_manifest_paths or []), *(italy_manifest_paths or [])]
     sequences = load_modality_sequences(manifest_paths)
     normalizations = fit_normalizations(sequences, train_fraction=train_fraction)
     real_modality = _real_modality(sequences)
+    cross_region = "synthetic_then_japan_then_italy" in selected_regimes
+    downstream_configs = (
+        {"italy_multimodal": tuple(italy_modalities or ("seismic", "italy_vlf", "astronomy"))}
+        if cross_region else DOWNSTREAM_CONFIGS
+    )
     synthetic_task = _pretrain_task(
         "synthetic",
         sequences=sequences,
@@ -101,26 +112,52 @@ def evaluate_self_supervised_transformer(
         train_fraction=train_fraction,
         stride=1,
     )
+    japan_task = None
+    italy_task = None
+    if cross_region:
+        japan_task = _pretrain_task(
+            "japan_vlf",
+            sequences=sequences,
+            modalities=(japan_modality,),
+            anchor_modality=japan_modality,
+            lookback_steps=lookback_steps,
+            train_fraction=train_fraction,
+            stride=1,
+        )
+        italy_task = _pretrain_task(
+            "italy_multimodal",
+            sequences=sequences,
+            modalities=tuple(italy_modalities or ("seismic", "italy_vlf", "astronomy")),
+            anchor_modality="italy_vlf",
+            lookback_steps=lookback_steps,
+            train_fraction=train_fraction,
+            stride=1,
+        )
     train_rows, test_rows = _split_rows(
         target_csv,
         split_field=split_field,
         train_value=train_value,
         test_value=test_value,
+        dataset_id=target_dataset_id,
     )
+    downstream_modalities = tuple(italy_modalities or ("seismic", "italy_vlf", "astronomy")) if cross_region else SYNTHETIC_MODALITIES
     train_refs, train_rows = refs_for_rows(
         train_rows,
         sequences,
-        modalities=SYNTHETIC_MODALITIES,
+        modalities=downstream_modalities,
         lookback_steps=lookback_steps,
     )
     test_refs, test_rows = refs_for_rows(
         test_rows,
         sequences,
-        modalities=SYNTHETIC_MODALITIES,
+        modalities=downstream_modalities,
         lookback_steps=lookback_steps,
     )
     train_labels = [int(row["target_occurred"]) for row in train_rows]
     test_labels = [int(row["target_occurred"]) for row in test_rows]
+    train_coordinate_targets = [_coordinate_targets(row) for row in train_rows]
+    test_coordinate_targets = [_coordinate_targets(row) for row in test_rows]
+    coordinate_slots = max(1, max((len(value) for value in train_coordinate_targets), default=1)) if cross_region else 1
     if not train_labels or not test_labels or len(set(train_labels)) < 2:
         raise ValueError("downstream target split requires train class variation and held-out rows")
 
@@ -133,7 +170,7 @@ def evaluate_self_supervised_transformer(
         "synthetic_sequence_manifests": [str(path) for path in synthetic_manifest_paths],
         "real_sequence_manifest": str(real_manifest_path),
         "regimes": list(selected_regimes),
-        "downstream_configs": {name: list(modalities) for name, modalities in DOWNSTREAM_CONFIGS.items()},
+        "downstream_configs": {name: list(modalities) for name, modalities in downstream_configs.items()},
         "seeds": list(selected_seeds),
         "lookback_steps": lookback_steps,
         "patch_steps": patch_steps,
@@ -150,6 +187,7 @@ def evaluate_self_supervised_transformer(
         "mask_probability": mask_probability,
         "modality_dropout_probability": modality_dropout_probability,
         "max_pretrain_windows": max_pretrain_windows,
+        "coordinate_slots": coordinate_slots,
         "initialization_strategy": "stable_named_parameters_v1",
         "excluded_real_vlf_reconstruction_fields": sorted(VLF_SIGNAL_EXCLUDES),
         "real_vlf_feature_names": list(next(item.feature_names for item in sequences.values() if item.modality == real_modality)),
@@ -157,6 +195,8 @@ def evaluate_self_supervised_transformer(
         "synthetic_pretrain_test_windows": len(synthetic_task.test_refs),
         "real_pretrain_train_windows": len(real_task.train_refs),
         "real_pretrain_test_windows": len(real_task.test_refs),
+        "japan_pretrain_train_windows": len(japan_task.train_refs) if japan_task else 0,
+        "japan_pretrain_test_windows": len(japan_task.test_refs) if japan_task else 0,
         "downstream_train_rows": len(train_rows),
         "downstream_test_rows": len(test_rows),
         "downstream_train_positive_count": sum(train_labels),
@@ -174,10 +214,16 @@ def evaluate_self_supervised_transformer(
                 normalizations=normalizations,
                 synthetic_task=synthetic_task,
                 real_task=real_task,
+                japan_task=japan_task,
+                italy_task=italy_task,
+                downstream_configs=downstream_configs,
                 train_refs=train_refs,
                 train_labels=train_labels,
                 test_refs=test_refs,
                 test_labels=test_labels,
+                train_coordinate_targets=train_coordinate_targets,
+                test_coordinate_targets=test_coordinate_targets,
+                coordinate_slots=coordinate_slots,
                 lookback_steps=lookback_steps,
                 patch_steps=patch_steps,
                 ssl_epochs=ssl_epochs,
@@ -209,10 +255,16 @@ def _evaluate_run(
     normalizations: dict,
     synthetic_task: PretrainTask,
     real_task: PretrainTask,
+    japan_task: PretrainTask | None,
+    italy_task: PretrainTask | None,
+    downstream_configs: dict[str, tuple[str, ...]],
     train_refs: list,
     train_labels: list[int],
     test_refs: list,
     test_labels: list[int],
+    train_coordinate_targets: list[tuple[float, float, float] | None],
+    test_coordinate_targets: list[tuple[float, float, float] | None],
+    coordinate_slots: int,
     lookback_steps: int,
     patch_steps: int,
     ssl_epochs: int,
@@ -240,6 +292,7 @@ def _evaluate_run(
         layers=layers,
         heads=heads,
         dropout=dropout,
+        coordinate_slots=coordinate_slots,
         initialization_seed=seed,
     )
     stages = []
@@ -277,6 +330,11 @@ def _evaluate_run(
         stages.append(_pretrain_stage(model, [synthetic_task, real_task], True, seed + 1, sequences, normalizations, lookback_steps, patch_steps, ssl_epochs, learning_rate, batch_size, mask_probability, modality_dropout_probability, max_pretrain_windows, torch))
     elif regime == "joint_synthetic_real":
         stages.append(_pretrain_stage(model, [synthetic_task, real_task], True, seed, sequences, normalizations, lookback_steps, patch_steps, ssl_epochs, learning_rate, batch_size, mask_probability, modality_dropout_probability, max_pretrain_windows, torch))
+    elif regime == "synthetic_then_japan_then_italy":
+        if japan_task is None:
+            raise ValueError("Japan task is required for the cross-region regime")
+        stages.append(_pretrain_stage(model, [synthetic_task], False, seed, sequences, normalizations, lookback_steps, patch_steps, ssl_epochs, learning_rate, batch_size, mask_probability, modality_dropout_probability, max_pretrain_windows, torch))
+        stages.append(_pretrain_stage(model, [japan_task], False, seed + 1, sequences, normalizations, lookback_steps, patch_steps, ssl_epochs, learning_rate, batch_size, mask_probability, modality_dropout_probability, max_pretrain_windows, torch))
 
     final_reconstruction = {
         task.name: evaluate_masked_reconstruction(
@@ -292,11 +350,11 @@ def _evaluate_run(
             seed=seed + 20_000,
             torch=torch,
         )
-        for task in (synthetic_task, real_task)
+        for task in (synthetic_task, real_task, *( [japan_task] if japan_task else [] ))
     }
     pretrained_state = clone_state(model)
     downstream_models = {}
-    for config_name, modalities in DOWNSTREAM_CONFIGS.items():
+    for config_name, modalities in downstream_configs.items():
         load_compatible_state(model, pretrained_state)
         _set_seed(torch, seed)
         linear_probe = train_downstream(
@@ -314,6 +372,8 @@ def _evaluate_run(
             batch_size=batch_size,
             modality_dropout_probability=0.0,
             freeze_backbone=True,
+            include_probabilities=regime == "synthetic_then_japan_then_italy",
+            coordinate_targets=train_coordinate_targets if regime == "synthetic_then_japan_then_italy" else None,
             seed=seed,
             torch=torch,
         )
@@ -334,6 +394,8 @@ def _evaluate_run(
             batch_size=batch_size,
             modality_dropout_probability=modality_dropout_probability,
             freeze_backbone=False,
+            include_probabilities=regime == "synthetic_then_japan_then_italy",
+            coordinate_targets=train_coordinate_targets if regime == "synthetic_then_japan_then_italy" else None,
             seed=seed,
             torch=torch,
         )
@@ -393,9 +455,27 @@ def _pretrain_task(name, *, sequences, modalities, anchor_modality, lookback_ste
     )
 
 
-def _split_rows(path: Path, *, split_field: str, train_value: str, test_value: str):
+def _coordinate_targets(row: dict[str, str]) -> tuple[tuple[float, float, float] | None, ...]:
+    try:
+        values = json.loads(row.get("target_event_slots_json", "[]") or "[]")
+    except json.JSONDecodeError:
+        values = []
+    targets = []
+    for value in values:
+        try:
+            targets.append((float(value["latitude"]) / 50.0, float(value["longitude"]) / 20.0, float(value["magnitude"]) / 5.0))
+        except (KeyError, TypeError, ValueError):
+            continue
+    return tuple(targets)
+
+
+def _split_rows(path: Path, *, split_field: str, train_value: str, test_value: str, dataset_id: str | None = None):
     with path.open(newline="", encoding="utf-8") as handle:
-        rows = [row for row in csv.DictReader(handle) if row.get("target_occurred") in {"0", "1"}]
+        rows = [
+            row for row in csv.DictReader(handle)
+            if row.get("target_occurred") in {"0", "1"}
+            and (dataset_id is None or row.get("dataset_id") == dataset_id)
+        ]
     return (
         [row for row in rows if row.get(split_field) == train_value],
         [row for row in rows if row.get(split_field) == test_value],
@@ -404,6 +484,8 @@ def _split_rows(path: Path, *, split_field: str, train_value: str, test_value: s
 
 def _real_modality(sequences: dict) -> str:
     modalities = sorted({sequence.modality for sequence in sequences.values() if sequence.modality.startswith("real_")})
+    if not modalities:
+        modalities = sorted({sequence.modality for sequence in sequences.values() if sequence.modality == "italy_vlf"})
     if len(modalities) != 1:
         raise ValueError(f"expected one real modality, found: {', '.join(modalities)}")
     return modalities[0]

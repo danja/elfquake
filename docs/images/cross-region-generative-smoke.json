@@ -1,0 +1,8 @@
+{
+  "actual_event_count": 3,
+  "map_file": "docs/images/cross-region-generative-smoke.png",
+  "map_type": "natural_earth_line_italy",
+  "note": "Prediction coordinates are independently generated and are not matched actual events.",
+  "predicted_count": 5,
+  "prediction_label": "generated event coordinate"
+}
