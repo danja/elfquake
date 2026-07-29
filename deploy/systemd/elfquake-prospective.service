@@ -1,6 +1,6 @@
 [Unit]
 Description=ELFQuake prospective VLF row update
-Documentation=file:/home/danny/github/elfquake/docs/systemd-service.md
+Documentation=file:/chalet/github/elfquake/docs/systemd-service.md
 Wants=network-online.target
 After=network-online.target
 
@@ -8,9 +8,10 @@ After=network-online.target
 Type=oneshot
 User=danny
 Group=danny
-WorkingDirectory=/home/danny/github/elfquake
-Environment=PYTHONPATH=/home/danny/github/elfquake/src
+WorkingDirectory=/chalet/github/elfquake
+Environment=PYTHONPATH=/chalet/github/elfquake/src
 Environment=PYTHONDONTWRITEBYTECODE=1
+Environment=ELFQUAKE_NUMBA_CACHE=0
 Environment=ELFQUAKE_LOOKBACK_HOURS=24
 Environment=ELFQUAKE_HORIZON_DAYS=7
 Environment=ELFQUAKE_TARGET_MAGNITUDE_MIN=3.0
@@ -29,17 +30,17 @@ Environment=ELFQUAKE_ALL_ITALY_IMAGE_SUMMARY=data/derived/multimodal/all_italy.p
 Environment=ELFQUAKE_CENTRAL_READINESS=data/derived/multimodal/central_italy.prospective_vlf_image_windows.readiness.json
 Environment=ELFQUAKE_ALL_ITALY_READINESS=data/derived/multimodal/all_italy.prospective_vlf_image_windows.readiness.json
 EnvironmentFile=-/etc/default/elfquake
-ExecStart=/usr/bin/python3 -m elfquake.cli extract-vlf-image-features --image-root ${ELFQUAKE_VLF_METADATA_ROOT} --filename-prefix last_E_VLF --out ${ELFQUAKE_VLF_IMAGE_FEATURES}
-ExecStart=/usr/bin/python3 -m elfquake.cli update-prospective-vlf-table --table ${ELFQUAKE_CENTRAL_TABLE} --events ${ELFQUAKE_CENTRAL_EVENTS} --vlf-metadata-root ${ELFQUAKE_VLF_METADATA_ROOT} --astronomy-metadata-root ${ELFQUAKE_ASTRONOMY_METADATA_ROOT} --region-id central_italy --lookback-hours ${ELFQUAKE_LOOKBACK_HOURS} --horizon-days ${ELFQUAKE_HORIZON_DAYS} --min-anchor-gap-seconds ${ELFQUAKE_MIN_ANCHOR_GAP_SECONDS} --target-magnitude-min ${ELFQUAKE_TARGET_MAGNITUDE_MIN} --out ${ELFQUAKE_CENTRAL_TABLE}
-ExecStart=/usr/bin/python3 -m elfquake.cli update-prospective-vlf-table --table ${ELFQUAKE_ALL_ITALY_TABLE} --events ${ELFQUAKE_ALL_ITALY_EVENTS} --vlf-metadata-root ${ELFQUAKE_VLF_METADATA_ROOT} --astronomy-metadata-root ${ELFQUAKE_ASTRONOMY_METADATA_ROOT} --region-id all_italy --lookback-hours ${ELFQUAKE_LOOKBACK_HOURS} --horizon-days ${ELFQUAKE_HORIZON_DAYS} --min-anchor-gap-seconds ${ELFQUAKE_MIN_ANCHOR_GAP_SECONDS} --target-magnitude-min ${ELFQUAKE_TARGET_MAGNITUDE_MIN} --out ${ELFQUAKE_ALL_ITALY_TABLE}
-ExecStart=/usr/bin/python3 -m elfquake.cli join-vlf-image-features --windows ${ELFQUAKE_CENTRAL_TABLE} --image-features ${ELFQUAKE_VLF_IMAGE_FEATURES} --out ${ELFQUAKE_CENTRAL_IMAGE_TABLE}
-ExecStart=/usr/bin/python3 -m elfquake.cli join-vlf-image-features --windows ${ELFQUAKE_ALL_ITALY_TABLE} --image-features ${ELFQUAKE_VLF_IMAGE_FEATURES} --out ${ELFQUAKE_ALL_ITALY_IMAGE_TABLE}
-ExecStart=/usr/bin/python3 -m elfquake.cli summarize-prospective-table --input ${ELFQUAKE_CENTRAL_IMAGE_TABLE} --out ${ELFQUAKE_CENTRAL_IMAGE_SUMMARY}
-ExecStart=/usr/bin/python3 -m elfquake.cli summarize-prospective-table --input ${ELFQUAKE_ALL_ITALY_IMAGE_TABLE} --out ${ELFQUAKE_ALL_ITALY_IMAGE_SUMMARY}
-ExecStart=/usr/bin/python3 -m elfquake.cli summarize-model-readiness --input ${ELFQUAKE_CENTRAL_IMAGE_TABLE} --out ${ELFQUAKE_CENTRAL_READINESS}
-ExecStart=/usr/bin/python3 -m elfquake.cli summarize-model-readiness --input ${ELFQUAKE_ALL_ITALY_IMAGE_TABLE} --out ${ELFQUAKE_ALL_ITALY_READINESS}
+ExecStart=/chalet/github/elfquake/.venv/bin/python -m elfquake.cli extract-vlf-image-features --image-root ${ELFQUAKE_VLF_METADATA_ROOT} --filename-prefix last_E_VLF --out ${ELFQUAKE_VLF_IMAGE_FEATURES}
+ExecStart=/chalet/github/elfquake/.venv/bin/python -m elfquake.cli update-prospective-vlf-table --table ${ELFQUAKE_CENTRAL_TABLE} --events ${ELFQUAKE_CENTRAL_EVENTS} --vlf-metadata-root ${ELFQUAKE_VLF_METADATA_ROOT} --astronomy-metadata-root ${ELFQUAKE_ASTRONOMY_METADATA_ROOT} --region-id central_italy --lookback-hours ${ELFQUAKE_LOOKBACK_HOURS} --horizon-days ${ELFQUAKE_HORIZON_DAYS} --min-anchor-gap-seconds ${ELFQUAKE_MIN_ANCHOR_GAP_SECONDS} --target-magnitude-min ${ELFQUAKE_TARGET_MAGNITUDE_MIN} --out ${ELFQUAKE_CENTRAL_TABLE}
+ExecStart=/chalet/github/elfquake/.venv/bin/python -m elfquake.cli update-prospective-vlf-table --table ${ELFQUAKE_ALL_ITALY_TABLE} --events ${ELFQUAKE_ALL_ITALY_EVENTS} --vlf-metadata-root ${ELFQUAKE_VLF_METADATA_ROOT} --astronomy-metadata-root ${ELFQUAKE_ASTRONOMY_METADATA_ROOT} --region-id all_italy --lookback-hours ${ELFQUAKE_LOOKBACK_HOURS} --horizon-days ${ELFQUAKE_HORIZON_DAYS} --min-anchor-gap-seconds ${ELFQUAKE_MIN_ANCHOR_GAP_SECONDS} --target-magnitude-min ${ELFQUAKE_TARGET_MAGNITUDE_MIN} --out ${ELFQUAKE_ALL_ITALY_TABLE}
+ExecStart=/chalet/github/elfquake/.venv/bin/python -m elfquake.cli join-vlf-image-features --windows ${ELFQUAKE_CENTRAL_TABLE} --image-features ${ELFQUAKE_VLF_IMAGE_FEATURES} --out ${ELFQUAKE_CENTRAL_IMAGE_TABLE}
+ExecStart=/chalet/github/elfquake/.venv/bin/python -m elfquake.cli join-vlf-image-features --windows ${ELFQUAKE_ALL_ITALY_TABLE} --image-features ${ELFQUAKE_VLF_IMAGE_FEATURES} --out ${ELFQUAKE_ALL_ITALY_IMAGE_TABLE}
+ExecStart=/chalet/github/elfquake/.venv/bin/python -m elfquake.cli summarize-prospective-table --input ${ELFQUAKE_CENTRAL_IMAGE_TABLE} --out ${ELFQUAKE_CENTRAL_IMAGE_SUMMARY}
+ExecStart=/chalet/github/elfquake/.venv/bin/python -m elfquake.cli summarize-prospective-table --input ${ELFQUAKE_ALL_ITALY_IMAGE_TABLE} --out ${ELFQUAKE_ALL_ITALY_IMAGE_SUMMARY}
+ExecStart=/chalet/github/elfquake/.venv/bin/python -m elfquake.cli summarize-model-readiness --input ${ELFQUAKE_CENTRAL_IMAGE_TABLE} --out ${ELFQUAKE_CENTRAL_READINESS}
+ExecStart=/chalet/github/elfquake/.venv/bin/python -m elfquake.cli summarize-model-readiness --input ${ELFQUAKE_ALL_ITALY_IMAGE_TABLE} --out ${ELFQUAKE_ALL_ITALY_READINESS}
 NoNewPrivileges=true
 PrivateTmp=true
 ProtectSystem=strict
 ProtectHome=read-only
-ReadWritePaths=/home/danny/github/elfquake/data
+ReadWritePaths=/chalet/github/elfquake/data

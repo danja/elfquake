@@ -90,6 +90,7 @@
 86. Configured Numba’s `UserProvidedCacheLocator` with writable cache directory `/chalet/github/elfquake/data/derived/numba_cache`, resolving the `no locator available` failure caused by systemd filesystem protection. Reinstall and restart the unit, then verify a capture in the journal.
 87. Made Numba caching explicitly configurable through `ELFQUAKE_NUMBA_CACHE`; the systemd service disables disk caching while ordinary simulation runs keep it enabled. Service output now confirms the import-time cache failure is resolved.
 88. Leave the collector running and rerun `./scripts/report-vlf-capture-gaps.sh` after several 30-minute intervals. Confirm that new captures are being added and that no multi-hour gaps recur before using future VLF anomaly windows in analysis.
+89. Hardened `elfquake-prospective.service` with the real `/chalet` paths, the project venv, and service-mode Numba settings. Reinstall both the service and timer, then run one manual prospective update before relying on the timer.
 25. Use `./scripts/trial-weekly-event-forecast.sh` as the current end-to-end event-list contract smoke test, not as a validated predictor.
 26. Use `./scripts/balance-italy-synthetic-episode-rates.sh` only as an auditable training/observation-model diagnostic. It can thin overactive episodes, but it must not synthesize events for underactive episodes; the matched rerun is preferred.
 
