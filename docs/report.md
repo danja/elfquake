@@ -44,13 +44,13 @@ The prospective-label pipeline only marks a target mature when the fetched INGV 
 
 ### Latest Italy coverage check
 
-The latest coverage report still combines `4,836` historical normalized INGV events through 2026-07-07 with `284` Cumiana capture metadata records through 2026-07-29. The refreshed self-supervised sequence now contains `257` causal windows through 2026-07-29; the newest window has anomaly score `0.960976`, and 41 windows exceed the exploratory `0.8` alert threshold. These are novelty measurements, not earthquake predictions. The new capture does not yet increase completed overlap: only three VLF-observed weeks exist and just two overlap seismic activity. The machine-readable outputs are `data/derived/reports/italy_data_coverage.json`, `data/derived/reports/italy_data_coverage_weekly.csv`, and `data/derived/models/self_supervised/real_vlf_anomaly_scores.csv`.
+The latest coverage report still combines `4,836` historical normalized INGV events through 2026-07-07 with `284` Cumiana capture metadata records through 2026-07-29. The refreshed self-supervised sequence now contains `257` causal windows through 2026-07-29; the newest window has anomaly score `0.960976`, and 41 windows exceed the exploratory `0.8` alert threshold. These are novelty measurements, not earthquake predictions. The new capture adds a fourth VLF-observed week to the descriptive anomaly table, although its target remains pending. The machine-readable outputs are `data/derived/reports/italy_data_coverage.json`, `data/derived/reports/italy_data_coverage_weekly.csv`, and `data/derived/models/self_supervised/real_vlf_anomaly_scores.csv`.
 
 ![Cumiana VLF anomaly score](images/anomaly.png)
 
 The chart leaves gaps where no VLF windows were observed; it does not interpolate between the July 6, July 11, July 16, and July 29 captures.
 
-A permutation-controlled association check gives the same conclusion. Using the refreshed 29 June--29 July event file, there are still only three VLF-observed weeks. At M2.5+ there are three event weeks and no controls; at M3+ there are two event weeks and one control. The report returns `insufficient_controls` rather than a p-value. The apparent anomaly differences are not evidence of a precursor. The refreshed diagnostic is `data/derived/reports/italy_vlf_event_association_20260729.json`.
+A permutation-controlled association check gives the same conclusion. Using the refreshed 29 June--29 July event file, there are four VLF-observed weeks. At M2.5+ all four are event weeks; at M3+ there are two event weeks and two controls. The report still returns `insufficient_controls` rather than a p-value because at least three of each are required. The observed M3+ anomaly difference of `-0.3563` is not evidence of a precursor. The refreshed diagnostic is `data/derived/reports/italy_vlf_event_association_20260729.json`.
 
 ### Label-scope audit
 
