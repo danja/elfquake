@@ -9,7 +9,7 @@ The project should proceed cautiously: no prediction capability is assumed until
 ## Documentation Entry Points
 
 Start with:
-*   [Documentation Index](README.md) - Map of all documents
+*   [Site home](index.md) - Current project entry point
 *   [Next Actions](next-actions.md) - Immediate work queue
 *   [Analysis Report](report.md) - Current analysis status and caveats
 *   [Processing Graph](processing-graph.md) - Current source-to-model data flow
@@ -68,4 +68,3 @@ The architecture is modular so data sources, features, and models can be replace
 
 ### Minimum Outputs
 The minimum useful outputs are normalized datasets, feature tables, model artifacts, evaluation reports, and run metadata.
-

@@ -2,6 +2,10 @@
 
 Recommended command order for ELFQuake workflows. Run commands from the repository root with `PYTHONPATH=src`; use the project venv when optional dependencies are needed. Shell wrappers live under `scripts/`, for example `./scripts/run-all.sh`.
 
+### Site authoring
+
+Create or activate the project venv, install `requirements-site.txt`, then run `mkdocs serve` for a local preview. Run `mkdocs build --strict` before publishing; the GitHub Pages workflow performs the same strict build automatically.
+
 ### `scripts/evaluate-piezo-japan-shape-variants.sh`
 
 Apply causal slow-envelope observation variants to the seed-40 piezo signal and compare their time/frequency shape with Japan VLF features and seismic events. Outputs are written under `data/derived/reports/piezo-japan-shape-variants/`.

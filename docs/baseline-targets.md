@@ -7,7 +7,7 @@ This document defines the naive baseline targets and model metrics used as refer
 Predict whether at least one seismic event with magnitude `>= 3.0` occurs in Central Italy within the next `7` days.
 
 *   **Input Schema**: Defined under [Multimodal Window Schema and Feature Extraction](multimodal-window-schema.md).
-*   **Historical Smoke Run Logs**: Relocated to the [archive/](archive/) directory for reference (such as `archive/baseline-run-smoke.md` and `archive/baseline-input.md`).
+*   **Historical Smoke Run Logs**: Retained in the repository archive for reference.
 
 ## 2. Baseline Model Definition
 
@@ -30,4 +30,3 @@ Compare all candidate models against the historical-rate baseline using:
 All baseline and candidate models must use a time-based validation scheme:
 *   Training data must strictly occur before validation data.
 *   Ensure there is no overlap between lookback windows or target horizons between training and test sets.
-

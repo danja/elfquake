@@ -16,6 +16,9 @@ env/
 .env/
 *.egg-info/
 
+# Static-site build output.
+site/
+
 # Numba JIT cache artifacts.
 *.nbc
 *.nbi

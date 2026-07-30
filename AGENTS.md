@@ -37,6 +37,8 @@ Start with:
 
 Update `docs/next-actions.md` whenever completing or changing the immediate work queue.
 
+The public site is built with MkDocs Material. Keep stable technical pages in the curated navigation, put dated journal updates under `docs/blog/posts/`, and exclude generated datasets from site navigation. Preserve research-use restrictions and prediction disclaimers in public pages.
+
 ## Repo-local Skills
 
 Use `.codex/skills/` for concise workflow skills that capture repeatable repository operations. Prefer skills for scripted data refresh, simulation, and model-training workflows so future agents can run commands in the expected order without rediscovery.

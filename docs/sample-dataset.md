@@ -4,7 +4,8 @@ Use a small, reproducible pilot before building general ingestion.
 
 ## Smoke Scope
 
-This has been built once; see [Smoke Dataset](smoke-dataset.md).
+This has been built once; the reproducible build steps are documented in
+[`docs/steps.md`](steps.md).
 
 * region: Italy bounding box
 * time range: recent 7-day window
