@@ -25,6 +25,7 @@ The central research question is whether VLF observations add information beyond
 - [Model candidates](model-candidates.md)
 - [Simulation](sandpile-simulation.md)
 - [Reproducible steps](steps.md)
+- [How you can help](help.md)
 
 ![Cross-region smoke-test map](images/cross-region-generative-smoke.png)
 
