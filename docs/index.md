@@ -8,9 +8,9 @@ hide:
 
 ELFQuake is a research project testing whether seismic, natural VLF radio, and astronomical data can be aligned into useful multimodal earthquake-modeling experiments.
 
-* [README : English](README.md)
-* [README : italiano](README.it.md)
-* [日本語版](README.jp.md)
+* [README : English](https://github.com/dannyayers/elfquake/blob/main/README.md)
+* [README : italiano](https://github.com/dannyayers/elfquake/blob/main/README.it.md)
+* [日本語版](https://github.com/dannyayers/elfquake/blob/main/README.jp.md)
 
 ## Current status
 
