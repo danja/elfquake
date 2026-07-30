@@ -1,8 +1,8 @@
 site_name: ELFQuake
 site_description: Research notes and reproducible experiments on seismic, VLF, and astronomical data.
-site_url: https://dannyayers.github.io/elfquake/
-repo_url: https://github.com/dannyayers/elfquake
-repo_name: dannyayers/elfquake
+site_url: https://danja.github.io/elfquake/
+repo_url: https://github.com/danja/elfquake
+repo_name: danja/elfquake
 edit_uri: edit/main/docs/
 docs_dir: docs
 exclude_docs: |
@@ -11,25 +11,17 @@ exclude_docs: |
   references/**
   2026-07-15_elfquake-progress.md
   announce.md
-  astronomical-feasibility.md
   baseline-targets.md
   evaluation.md
-  event-alignment-strategies.md
   exploratory-report.md
-  feature-training-options.md
   forecast-interface.md
-  italy-baseline-comparison.md
   japan-data.md
-  japan-synthetic-shape-comparison.md
   japan_2026-07-30.md
-  model-fixture.md
-  model-scaling-requirements.md
   multimodal-window-schema.md
   output-example.md
   prospective-labeling.md
   sample-dataset.md
-  vlf-feasibility.md
-  waldo.md
+  
 
 theme:
   name: material
@@ -90,9 +82,13 @@ nav:
       - Report: report.md
       - Success criteria: success-criteria.md
       - Next actions: next-actions.md
+      - Italy baseline comparison: italy-baseline-comparison.md
   - Data:
       - Source inventory: source-inventory.md
       - Multimodal feasibility: multimodal-feasibility.md
+      - VLF feasibility: vlf-feasibility.md
+      - Astronomical feasibility: astronomical-feasibility.md
+      - WALDO notes: waldo.md
       - Event schema: event-schema.md
       - Japan ISEE VLF: vlf-japan-isee.md
       - Japan earthquake/VLF window: japan-earthquake-vlf-window.md
@@ -101,6 +97,11 @@ nav:
       - Modeling strategy: modeling-strategy.md
       - Model interface shape: model-interface-shape.md
       - Model comparison: model-comparison.md
+      - Feature and training options: feature-training-options.md
+      - Event alignment strategies: event-alignment-strategies.md
+      - Model fixture: model-fixture.md
+      - Model scaling requirements: model-scaling-requirements.md
+      - Japan synthetic shape comparison: japan-synthetic-shape-comparison.md
       - Cross-region smoke test: cross-region-generative-smoke.md
   - Simulation:
       - Sandpile simulation: sandpile-simulation.md

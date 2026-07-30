@@ -18,4 +18,4 @@ Install the site dependencies in the project virtual environment, then run `mkdo
 2. In GitHub, open **Settings > Pages** and set **Source** to **GitHub Actions**.
 3. Open **Actions > Publish documentation** and monitor the workflow. It runs automatically for changes under `docs/`, `mkdocs.yml`, `requirements-site.txt`, or the workflow file itself.
 
-The published site is expected at `https://dannyayers.github.io/elfquake/`. The workflow can also be started manually from **Actions > Publish documentation > Run workflow**.
+The published site is expected at `https://danja.github.io/elfquake/`. The workflow can also be started manually from **Actions > Publish documentation > Run workflow**.
