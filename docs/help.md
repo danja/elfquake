@@ -2,7 +2,7 @@
 
 **This project is strictly non-commercial, open source and data is only to be used for research purposes.**
 
-This is currently an unfunded one-person effort - [Danny Ayers](https://danny.ayers.name), danny.ayers@gmail.com, https://x.com/danja
+This is currently an unfunded one-person effort - [Danny Ayers](https://danny.ayers.name), [danny.ayers@gmail.com](mailto:danny.ayers@gmail.com), [@danja](https://x.com/danja)
 
 ## Collaboration and information sharing
 
