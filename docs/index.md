@@ -8,6 +8,10 @@ hide:
 
 ELFQuake is a research project testing whether seismic, natural VLF radio, and astronomical data can be aligned into useful multimodal earthquake-modeling experiments.
 
+* [README : English](README.md)
+* [README : italiano](README.it.md)
+* [日本語版](README.jp.md)
+
 ## Current status
 
 The project has a reproducible CPU-only pipeline covering acquisition, normalization, synthetic avalanche simulation, multimodal windows, self-supervised representation learning, and chronological held-out evaluation. **No earthquake prediction capability is currently demonstrated.**
