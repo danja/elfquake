@@ -14,9 +14,9 @@ The archive lists passive ground VLF/ELF stations including Athabasca, Gakona, H
 * Plot and archive pages: verified.
 * Machine-readable CDF archive: verified.
 * Scientific-use permission: confirmed by the project contact; retain the archive caveats with any derived result.
-* Nonempty CDF samples: eleven verified locally from Moshiri, including January 2025 and June 2025 plus eight June 2026 captures.
+* Nonempty CDF samples: the original verified Moshiri samples plus the July 2026 sequence; the newest validated local file is `isee_vlf_mos_2026072723_v01.cdf`.
 * Additional public coverage: the ISEE quick-look archive exposes 2026 daily spectrogram directories for Kagoshima and a 2026 network viewer. These are image products, not a substitute for native CDF samples.
-* CDF discovery limitation: the ERGSC directory currently lists Moshiri year directories through 2025, although a direct June 2026 Moshiri CDF URL has already been captured locally. Further CDF dates should therefore be discovered from exact URLs or archive responses, not inferred from directory timestamps.
+* CDF discovery limitation: archive responses, rather than directory timestamps, are the reliable discovery mechanism. On 2026-07-30 the July listing ended at `2026072723`; no July 28--30 Moshiri filenames were returned. Kagoshima's July CDF listing returned no filenames.
 * Japan seismic alignment: 319 normalized USGS events and 26 mature weekly windows; both January and June samples now have one overlapping mature window.
 * Decoder: `normalize-vlf-japan-cdf`, using optional `cdflib`.
 
