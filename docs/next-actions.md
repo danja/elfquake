@@ -280,3 +280,5 @@ The timestamp-permutation null control is stored under `data/derived/models/all_
 * Decoded and scored 2026-07-28 00:00--06:00 UTC. The extended floor-aware robust anomaly score ranged from `2.891` to `5.538`; 2026-07-27 18:00 scored `8.772`, so the available event-day elevation is not event-specific evidence.
 * The next acquisition retry should process the remaining 2026-07-28 07:00--23:00 and 2026-07-29 files from `data/raw/vlf/japan/manifest.csv`. The previous transfer degraded to roughly 15 KB/s and was stopped; interrupted partial files are cleaned by the downloader.
 * After acquisition, rebuild the Japan windows and rerun the anomaly report with a longer pre-event baseline, matched local-time controls, and separate pre-/post-event summaries. Japan data remains restricted to scientific research use.
+
+* Re-ran the regular CPU controls on 2026-07-31: the real transfer trial remains `0.693435` balanced accuracy, the 27-run piezo holdout remains unstable at mean `0.578712` (`0.275641`--`0.758730`), and the grouped Italy spatial baseline completed on 5,301 rows with 1,064 held out. These remain control results, not evidence of multimodal predictive value.
