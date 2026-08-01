@@ -79,7 +79,23 @@ def evaluate_self_supervised_transformer(
     italy_modalities: tuple[str, ...] | None = None,
     target_dataset_id: str | None = None,
 ) -> dict[str, object]:
-    selected_regimes = tuple(regimes or REGIMES)
+    requested_regimes = tuple(regimes or REGIMES)
+    skipped_regimes: tuple[str, ...] = ()
+    if "synthetic_then_japan_then_italy" in requested_regimes:
+        missing_cross_region = not japan_manifest_paths or not italy_manifest_paths
+        if missing_cross_region:
+            if regimes is not None:
+                raise ValueError(
+                    "synthetic_then_japan_then_italy requires Japan and Italy sequence manifests"
+                )
+            skipped_regimes = ("synthetic_then_japan_then_italy",)
+            selected_regimes = tuple(
+                regime for regime in requested_regimes if regime not in skipped_regimes
+            )
+        else:
+            selected_regimes = requested_regimes
+    else:
+        selected_regimes = requested_regimes
     unknown = sorted(set(selected_regimes) - set(REGIMES))
     if unknown:
         raise ValueError(f"unknown self-supervised regime(s): {', '.join(unknown)}")
@@ -170,6 +186,7 @@ def evaluate_self_supervised_transformer(
         "synthetic_sequence_manifests": [str(path) for path in synthetic_manifest_paths],
         "real_sequence_manifest": str(real_manifest_path),
         "regimes": list(selected_regimes),
+        "skipped_regimes": list(skipped_regimes),
         "downstream_configs": {name: list(modalities) for name, modalities in downstream_configs.items()},
         "seeds": list(selected_seeds),
         "lookback_steps": lookback_steps,

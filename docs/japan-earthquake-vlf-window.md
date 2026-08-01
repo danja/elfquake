@@ -4,7 +4,7 @@
 
 This exploratory check covers the 14 days before the 28 July 2026 Kyushu earthquake. The local Japan seismic refresh found a main event at `2026-07-28T07:27:15Z`, magnitude `6.8`, depth `10 km`, at `32.6817, 130.722`, followed by a `M5.6` event and smaller aftershocks. NIED Hi-net lists the corresponding local-time event at `2026/07/28 16:27:15 JST`; contemporary reporting described it as approximately M7.1. See [Hi-net](https://www.hinet.bosai.go.jp/backnumber/?LANG=en) and [AP News](https://apnews.com/article/japan-earthquake-tsunami-09e6f40acbcc96053946c9c104e7a242).
 
-The official archive now lists hourly Moshiri CDFs through 29 July, including the event day. The local analysis has processed the new 28 July 00:00--06:00 UTC files, each with 8,646 spectral rows and both channels. The 07:00 UTC file and later event-day/post-event files remain listed but are not yet processed.
+The official archive now lists hourly Moshiri CDFs through 29 July, including the event day. The local analysis has processed all 24 hourly files for 28 July and all 24 for 29 July, each with 8,646 spectral rows and both channels. One 30 July file is also available; the remaining archive coverage should still be treated as opportunistic rather than continuous station monitoring.
 
 ## Method
 
@@ -29,20 +29,12 @@ July 26 is worth retaining as a candidate anomaly day, but it is not conclusive.
 
 Using the same robust baseline idea with power-floor values excluded, the 27 July 23:00 sample has a supplementary composite deviation score of `2.322`. It is elevated, and falls about 8 hours before the main event, but it is not the largest score: 15 July 12:00 scored `2.657` and 16 July 12:00 scored `2.345`. The timing is therefore compatible with a candidate anomaly but does not distinguish the earthquake from ordinary or instrumental variation. The detailed values are in `data/derived/reports/japan_2026-07-28_vlf_anomaly_check.csv`.
 
-### New event-day samples
+### Complete event-day samples
 
-| UTC hour | Extended composite score |
-|---|---:|
-| 28 Jul 00:00 | 3.091 |
-| 28 Jul 01:00 | 4.587 |
-| 28 Jul 02:00 | 2.891 |
-| 28 Jul 03:00 | 3.159 |
-| 28 Jul 04:00 | 4.584 |
-| 28 Jul 05:00 | 5.538 |
-| 28 Jul 06:00 | 4.214 |
+Across the complete 28 July series, the extended hourly score ranges from `1.529` to `5.418`; the maximum occurs at 13:00 UTC, after the `07:27:15Z` main event. The 00:00--06:00 pre-event values range from `1.950` to `3.735`. The highest 27 July value in the expanded report is `6.305` at 18:00 UTC, before the event.
 
-These pre-event observations are elevated, but 27 July reached higher scores, including `8.772` at 18:00 UTC. The event-day values therefore do not isolate a clear precursor, and the missing 07:00--post-event interval prevents a complete event-aligned comparison.
+The event-day observations are therefore elevated but not event-specific. The complete hourly coverage also shows that the event-day maximum is post-event, while a higher pre-event value occurred on 27 July. This does not support a precursor claim.
 
 ## Next Check
 
-Process the remaining 28--29 July files, then repeat the analysis with complete hourly coverage, a longer seasonal baseline, and control days matched for receiver operation and local-time distribution. Keep the Japan CDF and derived products restricted to the permitted scientific research use.
+Repeat the analysis with a longer seasonal baseline, control days matched for receiver operation and local-time distribution, and an explicit pre-/post-event comparison. Keep the Japan CDF and derived products restricted to the permitted scientific research use.
