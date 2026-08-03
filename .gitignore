@@ -12,8 +12,8 @@ htmlcov/
 # Local Python environments and dependency artifacts.
 .venv/
 venv/
-env/
-.env/
+# env/
+.env
 *.egg-info/
 
 # Static-site build output.
