@@ -28,6 +28,8 @@ data/raw/**/captures/
 data/raw/**/*.txt
 data/raw/**/*.json
 data/raw/**/*.metadata.json
+data/raw/**/*.cdf
+data/raw/**/*.cdf.part.*
 *.nc
 *.jpg
 *.jpeg
