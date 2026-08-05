@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import csv
+import hashlib
 from pathlib import Path
 
 
@@ -30,7 +31,7 @@ def build_japan_model_input(
     for window in windows:
         vlf = vlf_by_window.get(window["window_id"], {})
         merged = dict(window)
-        merged["dataset_id"] = vlf.get("japan_vlf_source_dataset_id", "") or dataset_id
+        merged["dataset_id"] = _compact_dataset_id(vlf.get("japan_vlf_source_dataset_id", ""), dataset_id)
         for field in added_fields:
             merged[field] = vlf.get(field, "")
         merged["quality_missing_japan_vlf"] = "1" if _missing(vlf) else "0"
@@ -52,3 +53,20 @@ def _read(path: Path) -> tuple[list[dict[str, str]], list[str]]:
 
 def _missing(row: dict[str, str]) -> bool:
     return not row or not row.get("japan_vlf_row_count", "").strip() or row.get("japan_vlf_row_count") == "0"
+
+
+def _compact_dataset_id(source_dataset_id: str, fallback: str) -> str:
+    """Keep dataset_id filesystem-safe when a window is covered by many CDF files.
+
+    ``japan_vlf_source_dataset_id`` concatenates every contributing hourly CDF
+    name (``multiple:a+b+c...``); as archive coverage densifies this can exceed
+    filesystem path-component limits when used to name a sequence directory.
+    The full concatenation is preserved separately as a feature column, so
+    only the value used as ``dataset_id`` needs to stay short and stable.
+    """
+    if not source_dataset_id:
+        return fallback
+    if not source_dataset_id.startswith("multiple:"):
+        return source_dataset_id
+    digest = hashlib.sha1(source_dataset_id.encode("utf-8")).hexdigest()[:10]
+    return f"japan_moshiri_multi_{digest}"

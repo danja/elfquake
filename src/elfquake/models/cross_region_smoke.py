@@ -68,11 +68,17 @@ def write_map_inputs(*, report: Path, target: Path, real_events: Path, out_dir: 
     if len(test_rows) != len(probabilities):
         raise ValueError(f"test row/probability mismatch: {len(test_rows)} != {len(probabilities)}")
     starts = [parse_time(row["window_start_utc"]) for row in test_rows]
-    holdout_start = min(starts)
-    horizon_end = holdout_start + timedelta(days=7)
+    # Visualize the most recently matured week, not the oldest one: the test
+    # partition spans the whole held-out tail, and only rows already labeled
+    # (i.e. with a resolved outcome) reach this point, so the latest
+    # observation time marks the most recent week with a known actual outcome.
+    horizon_end = max(starts) + timedelta(seconds=1)
+    holdout_start = horizon_end - timedelta(days=7)
     candidates = []
     coordinate_predictions = evaluation.get("coordinate_predictions", [])
     for index, (row, probability) in enumerate(zip(test_rows, probabilities)):
+        if not (holdout_start <= starts[index] < horizon_end):
+            continue
         if probability < threshold:
             continue
         coordinates = coordinate_predictions[index] if index < len(coordinate_predictions) else []

@@ -199,12 +199,17 @@ def build_avalanche_signal_event_list(
             scores = causal_baseline_subtracted_scores(scores, decay=burst_baseline_decay)
     if burst_score_scale is not None:
         scores = [score / burst_score_scale for score in scores]
-    threshold = max(
-        min_signal,
-        burst_threshold
-        if burst_threshold is not None
-        else quantile_threshold(scores, burst_threshold_quantile or min_signal_quantile),
-    )
+    quantile = burst_threshold_quantile or min_signal_quantile
+    if burst_threshold is not None:
+        threshold = max(min_signal, burst_threshold)
+    elif quantile > 0:
+        threshold = max(min_signal, quantile_threshold(scores, quantile))
+    else:
+        # A zero quantile means "no quantile filtering". Calling
+        # quantile_threshold here would return min(scores), which combined with
+        # the strict `>` below silently drops the weakest step -- and drops the
+        # only step when an episode yields a single candidate.
+        threshold = min_signal
     scored_candidates = [
         (*item[:4], scores[index]) for index, item in enumerate(candidates)
         if scores[index] > threshold

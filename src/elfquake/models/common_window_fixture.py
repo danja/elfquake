@@ -50,9 +50,19 @@ def build_common_window_fixture(
         grouped[row["dataset_id"]].append(row)
     for rows in grouped.values():
         rows.sort(key=lambda row: row.get("window_start_utc", ""))
-        split_at = max(1, min(len(rows) - 1, int(len(rows) * train_fraction))) if len(rows) > 1 else len(rows)
-        for index, row in enumerate(rows):
-            row["model_split"] = "train" if index < split_at else "test"
+        # Rows still awaiting label maturity (e.g. this week's not-yet-matured
+        # prospective windows) must not count toward the chronological split:
+        # letting a growing pending-future tail dominate the row count pushes
+        # the train/test boundary past every mature row, leaving test empty.
+        usable = [row for row in rows if row.get("target_status", "") in ("", "labeled")]
+        split_at = max(1, min(len(usable) - 1, int(len(usable) * train_fraction))) if len(usable) > 1 else len(usable)
+        usable_index = 0
+        for row in rows:
+            if row.get("target_status", "") not in ("", "labeled"):
+                row["model_split"] = "test"
+                continue
+            row["model_split"] = "train" if usable_index < split_at else "test"
+            usable_index += 1
 
     for group in GROUP_PREFIXES:
         fieldnames.append(f"quality_fixture_{group}_present")
