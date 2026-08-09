@@ -77,6 +77,31 @@ PYTHONDONTWRITEBYTECODE=1 PYTHONPATH=src "$PYTHON_BIN" -m elfquake.cli combine-n
   "${central_inputs[@]}" \
   --out "$CENTRAL_CURRENT_EVENTS"
 
+# Refresh the full-history combined catalogs as well. Many downstream scripts
+# (transfer trial, coverage report, catalog calibration, weekly forecast) read
+# these, and if only the COMBINE_START_DATE-scoped tables are rewritten they
+# silently keep reading a catalog frozen at the last backfill run.
+ALL_ITALY_EVENTS="${ALL_ITALY_EVENTS:-data/derived/ingv/events_italy_all_available.combined.normalized.csv}"
+ALL_CENTRAL_EVENTS="${ALL_CENTRAL_EVENTS:-data/derived/ingv/events_central_italy_all_available.combined.normalized.csv}"
+
+all_italy_inputs=()
+while IFS= read -r path; do
+  all_italy_inputs+=(--input "$path")
+done < <(find data/derived/ingv -maxdepth 1 -name "events_italy_*.normalized.csv" ! -name "*.combined.normalized.csv" ! -name "*.current.normalized.csv" | sort)
+
+all_central_inputs=()
+while IFS= read -r path; do
+  all_central_inputs+=(--input "$path")
+done < <(find data/derived/ingv -maxdepth 1 -name "events_central_italy_*.normalized.csv" ! -name "*.combined.normalized.csv" ! -name "*.current.normalized.csv" | sort)
+
+PYTHONDONTWRITEBYTECODE=1 PYTHONPATH=src "$PYTHON_BIN" -m elfquake.cli combine-normalized-events \
+  "${all_italy_inputs[@]}" \
+  --out "$ALL_ITALY_EVENTS"
+
+PYTHONDONTWRITEBYTECODE=1 PYTHONPATH=src "$PYTHON_BIN" -m elfquake.cli combine-normalized-events \
+  "${all_central_inputs[@]}" \
+  --out "$ALL_CENTRAL_EVENTS"
+
 VLF_IMAGE_FEATURES="data/derived/multimodal/cumiana_last_E_VLF.image_features.csv"
 PYTHONDONTWRITEBYTECODE=1 PYTHONPATH=src "$PYTHON_BIN" -m elfquake.cli extract-vlf-image-features \
   --image-root "$VLF_METADATA_ROOT" \

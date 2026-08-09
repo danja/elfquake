@@ -6,8 +6,13 @@ INPUT="${INPUT:-data/derived/multimodal/all_italy.spatial_vlf_image_windows.labe
 PREFIX="${PREFIX:-data/derived/models/all_italy_spatial_vlf_image_windows}"
 REAL_VLF_SEQUENCE="${REAL_VLF_SEQUENCE:-data/derived/models/cumiana_vlf_image_sequence/manifest.json}"
 
-if [[ ! -f "$INPUT" ]]; then ./scripts/build-italy-spatial-vlf-targets.sh; fi
-if [[ ! -f "$REAL_VLF_SEQUENCE" ]]; then ./scripts/materialize-real-vlf-sequence.sh; fi
+# Rebuild upstream inputs by default. Existence-only checks made this script
+# silently reuse stale targets after a data refresh, which reproduced identical
+# scores and looked like stability rather than a stale input.
+REBUILD_INPUTS="${REBUILD_INPUTS:-1}"
+
+if [[ "$REBUILD_INPUTS" != "0" || ! -f "$INPUT" ]]; then ./scripts/build-italy-spatial-vlf-targets.sh; fi
+if [[ "$REBUILD_INPUTS" != "0" || ! -f "$REAL_VLF_SEQUENCE" ]]; then ./scripts/materialize-real-vlf-sequence.sh; fi
 
 SPEC="${PREFIX}_tensor_spec.json"
 TENSOR_DIR="${PREFIX}_tensor"
