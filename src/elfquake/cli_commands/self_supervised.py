@@ -127,6 +127,12 @@ def register_self_supervised_commands(subparsers: _SubParsersAction) -> None:
     anomaly.add_argument("--batch-size", type=int, default=32)
     anomaly.add_argument("--seed", type=int, default=42)
     anomaly.add_argument("--no-missing-masks", action="store_true")
+    anomaly.add_argument(
+        "--max-capture-gap-seconds",
+        type=float,
+        default=0.0,
+        help="Flag windows whose lookback straddles a longer capture gap and suppress their alerts. 0 uses lookback-steps x median step.",
+    )
     anomaly.set_defaults(func=_score_sequence_anomalies)
 
 
@@ -294,9 +300,13 @@ def _score_sequence_anomalies(args: Namespace) -> int:
         batch_size=args.batch_size,
         seed=args.seed,
         include_missing_masks=not args.no_missing_masks,
+        max_capture_gap_seconds=args.max_capture_gap_seconds,
     )
     print(f"status: {report['status']}")
     print(f"windows: {report['window_count']}")
+    if report.get("gap_spanning_window_count"):
+        print(f"gap-spanning windows: {report['gap_spanning_window_count']} (threshold {report['capture_gap_threshold_seconds']}s)")
+        print(f"suppressed gap alerts: {report['suppressed_gap_alert_count']}")
     if report.get("forecast"):
         forecast = report["forecast"]
         print(f"forecast target: {forecast.get('target_start_utc', '')}..{forecast.get('target_end_utc', '')}")

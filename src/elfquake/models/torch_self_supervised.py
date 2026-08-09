@@ -441,9 +441,12 @@ def score_sequence_anomalies(
     batch_size: int = 32,
     seed: int = 42,
     include_missing_masks: bool = True,
+    max_capture_gap_seconds: float = 0.0,
 ) -> dict[str, object]:
     if lookback_steps < 1:
         raise ValueError("lookback_steps must be at least 1")
+    if max_capture_gap_seconds < 0:
+        raise ValueError("max_capture_gap_seconds must not be negative")
     if stride < 1:
         raise ValueError("stride must be at least 1")
     if not 0 < train_fraction < 1:
@@ -458,6 +461,12 @@ def score_sequence_anomalies(
     descriptors = _descriptor_windows(dataset, lookback_steps=lookback_steps, stride=stride, descriptor_profile=descriptor_profile)
     descriptor_names = _descriptor_names(descriptor_profile)
     window_times = _descriptor_window_times(dataset, lookback_steps=lookback_steps, stride=stride)
+    window_gap_seconds = _descriptor_window_gap_seconds(dataset, lookback_steps=lookback_steps, stride=stride)
+    median_step_seconds = _median_step_seconds(dataset)
+    # Default threshold is the nominal duration a window should span. Any single
+    # internal gap longer than that means the window is dominated by an outage
+    # rather than by observed signal.
+    gap_threshold_seconds = max_capture_gap_seconds or (lookback_steps * median_step_seconds)
     report: dict[str, object] = {
         "schema": "elfquake.sequence_anomaly_forecast.v1",
         "backend": "torch",
@@ -483,8 +492,12 @@ def score_sequence_anomalies(
         "include_missing_masks": include_missing_masks,
         "row_count": len(dataset.values),
         "window_count": len(descriptors),
+        "median_step_seconds": round(median_step_seconds, 3),
+        "capture_gap_threshold_seconds": round(gap_threshold_seconds, 3),
+        "max_capture_gap_seconds": max_capture_gap_seconds,
         "scores_out": str(scores_out),
         "note": "Label-free VLF anomaly smoke forecast. The score is not trained on earthquake labels and is not an earthquake prediction claim.",
+        "capture_gap_note": "Windows whose lookback straddles a capture gap longer than capture_gap_threshold_seconds are flagged spans_capture_gap and suppressed from alerts; their scores measure the outage, not the signal.",
     }
     if len(descriptors) < 3:
         report["status"] = "insufficient_windows"
@@ -493,6 +506,8 @@ def score_sequence_anomalies(
     result = _fit_descriptor_anomaly_autoencoder(
         descriptors=descriptors,
         window_times=window_times,
+        window_gap_seconds=window_gap_seconds,
+        gap_threshold_seconds=gap_threshold_seconds,
         train_fraction=train_fraction,
         forecast_horizon_days=forecast_horizon_days,
         alert_threshold=alert_threshold,
@@ -599,6 +614,63 @@ def _descriptor_window_times(
         times_by_index.get(end_index - 1, str(end_index - 1))
         for end_index in range(lookback_steps, len(dataset.values) + 1, stride)
     ]
+
+
+def _sequence_row_epochs(dataset: SequenceDataset) -> list[float | None]:
+    times_by_index = {index: time_utc for time_utc, index in dataset.time_to_index.items()}
+    epochs: list[float | None] = []
+    for index in range(len(dataset.values)):
+        raw = times_by_index.get(index)
+        if raw is None:
+            epochs.append(None)
+            continue
+        try:
+            epochs.append(parse_utc(str(raw)).timestamp())
+        except (ValueError, TypeError):
+            epochs.append(None)
+    return epochs
+
+
+def _sequence_step_seconds(dataset: SequenceDataset) -> list[float]:
+    epochs = _sequence_row_epochs(dataset)
+    steps = []
+    for previous, current in zip(epochs, epochs[1:]):
+        if previous is None or current is None or current <= previous:
+            steps.append(0.0)
+        else:
+            steps.append(current - previous)
+    return steps
+
+
+def _median_step_seconds(dataset: SequenceDataset) -> float:
+    steps = sorted(step for step in _sequence_step_seconds(dataset) if step > 0)
+    if not steps:
+        return 0.0
+    middle = len(steps) // 2
+    if len(steps) % 2:
+        return steps[middle]
+    return (steps[middle - 1] + steps[middle]) / 2
+
+
+def _descriptor_window_gap_seconds(
+    dataset: SequenceDataset,
+    *,
+    lookback_steps: int,
+    stride: int,
+) -> list[float]:
+    """Largest interval between consecutive frames inside each descriptor window.
+
+    A window whose lookback straddles a capture outage is reconstructing across a
+    discontinuity, which produces near-maximal novelty regardless of the signal.
+    Every collector restart otherwise injects a false top-ranked anomaly.
+    """
+    steps = _sequence_step_seconds(dataset)
+    row_count = len(dataset.values)
+    gaps = []
+    for end_index in range(lookback_steps, row_count + 1, stride):
+        window_steps = steps[end_index - lookback_steps:end_index - 1]
+        gaps.append(max(window_steps) if window_steps else 0.0)
+    return gaps
 
 
 def _standardize_value_rows(values: list[list[float]]) -> list[list[float]]:
@@ -1160,6 +1232,8 @@ def _fit_descriptor_anomaly_autoencoder(
     *,
     descriptors: list[list[float]],
     window_times: list[str],
+    window_gap_seconds: list[float],
+    gap_threshold_seconds: float,
     train_fraction: float,
     forecast_horizon_days: int,
     alert_threshold: float,
@@ -1225,6 +1299,8 @@ def _fit_descriptor_anomaly_autoencoder(
         reconstruction_percentile = _empirical_percentile(float(mse), train_mse)
         novelty_percentile = _empirical_percentile(float(novelty_value), train_novelty)
         anomaly_score = (reconstruction_percentile + novelty_percentile) / 2
+        gap_seconds = window_gap_seconds[index] if index < len(window_gap_seconds) else 0.0
+        spans_gap = gap_threshold_seconds > 0 and gap_seconds > gap_threshold_seconds
         score_rows.append(
             {
                 "window_index": index,
@@ -1235,11 +1311,17 @@ def _fit_descriptor_anomaly_autoencoder(
                 "embedding_novelty": round(float(novelty_value), 8),
                 "embedding_novelty_percentile": round(novelty_percentile, 8),
                 "anomaly_score": round(anomaly_score, 8),
+                "max_step_seconds": round(float(gap_seconds), 3),
+                "spans_capture_gap": 1 if spans_gap else 0,
                 "demo_probability": round(anomaly_score, 8),
-                "demo_predicted_event": 1 if anomaly_score >= alert_threshold else 0,
+                # A gap-spanning window scores the outage, not the signal, so it
+                # must never raise an alert.
+                "demo_predicted_event": 0 if spans_gap else (1 if anomaly_score >= alert_threshold else 0),
             }
         )
     _write_anomaly_scores(scores_out, score_rows)
+    gap_spanning_count = sum(int(row["spans_capture_gap"]) for row in score_rows)
+    clean_rows = [row for row in score_rows if not row["spans_capture_gap"]]
     latest = score_rows[-1]
     target_start = parse_utc(str(latest["window_end_utc"]))
     target_end = target_start + timedelta(days=forecast_horizon_days)
@@ -1253,12 +1335,25 @@ def _fit_descriptor_anomaly_autoencoder(
         "demo_probability": latest["demo_probability"],
         "demo_predicted_event": latest["demo_predicted_event"],
         "alert_threshold": alert_threshold,
+        "spans_capture_gap": latest["spans_capture_gap"],
         "basis": "mean(reconstruction_error_percentile, embedding_novelty_percentile) from a real VLF self-supervised descriptor autoencoder",
         "warning": "Not trained on earthquake labels; use only as an end-to-end smoke forecast artifact.",
     }
+    if latest["spans_capture_gap"]:
+        forecast["status"] = "invalid_capture_gap"
+        forecast["warning"] = (
+            "Latest window straddles a capture gap; its score reflects the outage, not the signal. "
+            "Restore continuous capture before using this forecast."
+        )
     return {
         "train_window_count": split_at,
         "test_window_count": len(descriptors) - split_at,
+        "gap_spanning_window_count": gap_spanning_count,
+        "clean_window_count": len(clean_rows),
+        "alert_count": sum(int(row["demo_predicted_event"]) for row in score_rows),
+        "suppressed_gap_alert_count": sum(
+            1 for row in score_rows if row["spans_capture_gap"] and float(row["anomaly_score"]) >= alert_threshold
+        ),
         "first_train_loss": round(first_loss or 0.0, 8),
         "last_train_loss": round(last_loss, 8),
         "train_reconstruction": train_metrics,
@@ -1295,6 +1390,8 @@ def _write_anomaly_scores(out_path: Path, rows: list[dict[str, object]]) -> None
         "embedding_novelty",
         "embedding_novelty_percentile",
         "anomaly_score",
+        "max_step_seconds",
+        "spans_capture_gap",
         "demo_probability",
         "demo_predicted_event",
     ]

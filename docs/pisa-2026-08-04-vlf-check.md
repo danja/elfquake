@@ -105,10 +105,20 @@ than aftershock coupling; it has not been tested against controls.
 
 ## Follow-ups
 
-1. Add a gap-aware guard to `score-sequence-anomalies`: flag or invalidate any
-   window whose lookback span crosses a capture gap longer than the lookback
-   interval. Until this exists, every collector restart injects a false
-   top-ranked anomaly into the record.
+1. **Done.** `score-sequence-anomalies` now flags any window whose lookback
+   crosses a capture gap longer than `--max-capture-gap-seconds` (default
+   `lookback_steps x median_step`, i.e. 12 h for this record). Flagged windows
+   carry `spans_capture_gap` in the scores CSV, can never raise an alert, and
+   set the forecast status to `invalid_capture_gap` when the latest window is
+   affected.
+
+   Rescoring the record with the guard shows how much of the alert history was
+   artifact: **66 of 558 windows span gaps, and 43 of the 101 raw `>=0.8`
+   alerts — 43% — were gap-spanning.** Gap-spanning windows average `0.7908`
+   against `0.5143` for clean windows. Once filtered, 2026-07-29 and
+   2026-07-30 drop out of the top clean days entirely, and the highest clean
+   days in the record are 2026-07-05 and 2026-07-04, both well before this
+   event. Any earlier alert count from this scorer needs recomputing.
 2. Fix collector continuity before attempting further event association. The
    13-day July gap and the missing 2026-08-06 make single-event retrospectives
    uninterpretable. Track with `./scripts/report-vlf-capture-gaps.sh`.
