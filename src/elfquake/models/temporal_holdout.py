@@ -8,6 +8,7 @@ import math
 from pathlib import Path
 
 from elfquake.models.feature_groups import ABLATIONS, FEATURE_GROUP_PREFIXES, ID_FIELDS, TARGET_FIELDS
+from elfquake.models.scaling import resolve_scale
 
 
 def evaluate_temporal_holdout(
@@ -270,7 +271,7 @@ def _standardize_train_test(
     for column, mean in zip(columns, means):
         variance = sum((value - mean) ** 2 for value in column) / len(column)
         scale = math.sqrt(variance)
-        scales.append(scale if scale else 1.0)
+        scales.append(resolve_scale(scale, mean))
     return (
         _apply_standardization(train_matrix, means, scales),
         _apply_standardization(test_matrix, means, scales),

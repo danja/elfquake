@@ -2,6 +2,7 @@
 # Keep NumPy below 2.5 until the pinned/installed Numba release supports it.
 numpy>=1.22,<2.5
 numba
+scipy  # two-sample statistics for catalog alignment and capture-era shift diagnostics
 netCDF4
 cdflib  # NASA CDF decoding for ISEE Japan VLF archive
 h5py

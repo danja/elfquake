@@ -8,6 +8,7 @@ import math
 import random
 from pathlib import Path
 
+from elfquake.models.scaling import resolve_scale
 from elfquake.models.temporal_holdout import _baselines, _best_threshold, _metrics, _predictions
 from elfquake.models.torch_sequence_data import (
     SequenceDataset,
@@ -482,7 +483,7 @@ def _standardize_sequences(train_x: list[list[list[float]]], test_x: list[list[l
     scales = []
     for values, mean in zip(flat, means):
         scale = math.sqrt(sum((value - mean) ** 2 for value in values) / len(values))
-        scales.append(scale if scale else 1.0)
+        scales.append(resolve_scale(scale, mean))
     return _apply_standardization(train_x, means, scales), _apply_standardization(test_x, means, scales)
 
 

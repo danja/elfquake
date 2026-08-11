@@ -10,6 +10,7 @@ from dataclasses import dataclass
 from pathlib import Path
 
 from elfquake.models.feature_groups import ABLATIONS, FEATURE_GROUP_PREFIXES, FEATURE_ROLE_GROUPS, ID_FIELDS, TARGET_FIELDS
+from elfquake.models.scaling import resolve_scale
 from elfquake.models.temporal_holdout import _baselines, _best_threshold, _metrics, _predictions
 
 
@@ -450,7 +451,7 @@ def _scale_present(rows: list[dict[str, str]], feature: str, mean: float) -> flo
         return 1.0
     variance = sum((value - mean) ** 2 for value in values) / len(values)
     scale = math.sqrt(variance)
-    return scale if scale else 1.0
+    return resolve_scale(scale, mean)
 
 
 def _read_rows_and_fields(path: Path) -> tuple[list[dict[str, str]], list[str]]:

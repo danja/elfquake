@@ -8,6 +8,7 @@ import math
 from pathlib import Path
 
 from elfquake.models.feature_groups import ABLATIONS, FEATURE_GROUP_PREFIXES, ID_FIELDS, TARGET_FIELDS
+from elfquake.models.scaling import resolve_scale
 
 
 def train_ablation_smoke(
@@ -130,7 +131,7 @@ def _standardize(matrix: list[list[float]]) -> tuple[list[list[float]], list[flo
     for column, mean in zip(columns, means):
         variance = sum((value - mean) ** 2 for value in column) / len(column)
         scale = math.sqrt(variance)
-        scales.append(scale if scale else 1.0)
+        scales.append(resolve_scale(scale, mean))
     return (
         [[(value - means[index]) / scales[index] for index, value in enumerate(row)] for row in matrix],
         means,

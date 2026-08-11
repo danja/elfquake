@@ -93,6 +93,7 @@ nav:
       - Japan ISEE VLF: vlf-japan-isee.md
       - Japan earthquake/VLF window: japan-earthquake-vlf-window.md
       - Pisa M4.3 VLF check: pisa-2026-08-04-vlf-check.md
+      - Capture-era shift: capture-era-shift.md
   - Modeling:
       - Model candidates: model-candidates.md
       - Modeling strategy: modeling-strategy.md

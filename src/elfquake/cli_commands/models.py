@@ -12,6 +12,7 @@ from elfquake.models.ablation_smoke import train_ablation_smoke
 from elfquake.models.aligned_windows import build_aligned_window_dataset
 from elfquake.models.alignment_manifest import build_alignment_manifest
 from elfquake.models.candidates import write_model_candidates
+from elfquake.models.capture_era_shift import diagnose_capture_era_shift
 from elfquake.models.dataset_combine import combine_aligned_datasets
 from elfquake.models.common_window_fixture import build_common_window_fixture
 from elfquake.models.common_sequence_fixture import materialize_common_fixture_sequences
@@ -151,6 +152,16 @@ def register_model_commands(subparsers: _SubParsersAction) -> None:
     split_diagnostics.add_argument("--target-field", default="target_occurred")
     split_diagnostics.add_argument("--top-n", type=int, default=20)
     split_diagnostics.set_defaults(func=_diagnose_temporal_split)
+
+    era_shift = subparsers.add_parser("diagnose-capture-era-shift")
+    era_shift.add_argument("--input", type=Path, required=True)
+    era_shift.add_argument("--out", type=Path, required=True)
+    era_shift.add_argument("--csv-out", type=Path)
+    era_shift.add_argument("--era-csv-dir", type=Path)
+    era_shift.add_argument("--time-field", default="window_start_utc")
+    era_shift.add_argument("--era-gap-hours", type=float, default=48.0)
+    era_shift.add_argument("--min-era-anchors", type=int, default=5)
+    era_shift.set_defaults(func=_diagnose_capture_era_shift)
 
     synthetic_regimes = subparsers.add_parser("annotate-synthetic-regimes")
     synthetic_regimes.add_argument("--input", type=Path, required=True)
@@ -674,6 +685,39 @@ def _evaluate_temporal_holdout(args: Namespace) -> int:
         group_by_time=args.group_by_time,
     )
     print_holdout_report(report, args.out)
+    return 0
+
+
+def _diagnose_capture_era_shift(args: Namespace) -> int:
+    report = diagnose_capture_era_shift(
+        input_csv=args.input,
+        out_path=args.out,
+        time_field=args.time_field,
+        era_gap_hours=args.era_gap_hours,
+        min_era_anchors=args.min_era_anchors,
+        csv_out_path=args.csv_out,
+        era_csv_dir=args.era_csv_dir,
+    )
+    print(f"status: {report['status']}")
+    print(f"rows: {report['row_count']}")
+    print(f"anchors: {report['anchor_count']}")
+    for era in report.get("eras", []):
+        print(
+            f"{era['era_id']} ({era['kind']}): {era['start_utc']} -> {era['end_utc']} "
+            f"anchors={era['anchor_count']} labeled={era['labeled_row_count']} "
+            f"positive_rate={era['positive_rate']}"
+        )
+    for family, summary in report.get("family_summary", {}).items():
+        print(
+            f"{family}: features={summary['feature_count']} "
+            f"median|d|={summary['median_abs_standardized_mean_difference']} "
+            f"max|d|={summary['max_abs_standardized_mean_difference']}"
+        )
+    print(f"output: {args.out}")
+    if args.csv_out:
+        print(f"csv output: {args.csv_out}")
+    if args.era_csv_dir:
+        print(f"era csv directory: {args.era_csv_dir}")
     return 0
 
 

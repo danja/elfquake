@@ -7,6 +7,8 @@ import json
 import math
 from pathlib import Path
 
+from elfquake.models.scaling import resolve_scale
+
 
 EXCLUDED_FEATURES = {
     "window_id",
@@ -118,7 +120,7 @@ def _standardize(matrix: list[list[float]]) -> tuple[list[list[float]], list[flo
     for column, mean in zip(columns, means):
         variance = sum((value - mean) ** 2 for value in column) / len(column)
         scale = math.sqrt(variance)
-        scales.append(scale if scale else 1.0)
+        scales.append(resolve_scale(scale, mean))
     standardized = [
         [(value - means[index]) / scales[index] for index, value in enumerate(row)]
         for row in matrix
