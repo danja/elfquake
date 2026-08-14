@@ -192,9 +192,12 @@ Settled:
 
 Not settled:
 
-* Whether the low-band suppression across the outage is instrumental or
-  physical. Derived features cannot distinguish these; raw spectrogram
-  comparison can.
+* ~~Whether the low-band suppression across the outage is instrumental or
+  physical.~~ Answered on 2026-08-14 in
+  [Cumiana Colour-Scale Change](vlf-palette-shift.md): the receiver's colour
+  ramp was moved by `11.58 dB` during the outage, so `era_0` and `era_3` image
+  features are **not on a common scale and must not be pooled**. Whether the
+  underlying level change is instrumental or atmospheric remains open.
 * Whether `era_3` conclusions generalize. Its labeled window is only
   `2026-07-28` – `2026-07-31`, four days and 399 test rows.
 

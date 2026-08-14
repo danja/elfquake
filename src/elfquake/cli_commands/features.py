@@ -19,6 +19,7 @@ from elfquake.features.vlf import build_vlf_features
 from elfquake.features.vlf_audio import build_vlf_audio_features
 from elfquake.features.vlf_image import build_vlf_image_features
 from elfquake.features.vlf_image_compare import compare_vlf_image_features
+from elfquake.features.vlf_palette import diagnose_vlf_palette_shift
 from elfquake.features.vlf_image_windows import join_vlf_image_features_to_windows
 from elfquake.features.vlf_windows import build_vlf_window_features
 from elfquake.features.vlf_cdf_windows import build_japan_cdf_window_features
@@ -124,6 +125,19 @@ def register_feature_commands(subparsers: _SubParsersAction) -> None:
     vlf_image_compare.add_argument("--real-crop-right", type=float, default=0.83)
     vlf_image_compare.add_argument("--real-crop-bottom", type=float, default=0.95)
     vlf_image_compare.set_defaults(func=_compare_vlf_image_features)
+
+    vlf_palette = subparsers.add_parser("diagnose-vlf-palette-shift")
+    vlf_palette.add_argument("--image", type=Path, action="append", default=[])
+    vlf_palette.add_argument("--image-root", type=Path, action="append", default=[])
+    vlf_palette.add_argument("--filename-prefix", action="append", default=["last_E_VLF"])
+    vlf_palette.add_argument("--out", type=Path, required=True)
+    vlf_palette.add_argument("--capture-csv-out", type=Path)
+    vlf_palette.add_argument("--band-csv-out", type=Path)
+    vlf_palette.add_argument("--hour-low", type=int, default=11)
+    vlf_palette.add_argument("--hour-high", type=int, default=13)
+    vlf_palette.add_argument("--residual-limit", type=float, default=30.0)
+    vlf_palette.add_argument("--max-captures-per-variant", type=int, default=200)
+    vlf_palette.set_defaults(func=_diagnose_vlf_palette_shift)
 
     vlf_image_join = subparsers.add_parser("join-vlf-image-features")
     vlf_image_join.add_argument("--windows", type=Path, required=True)
@@ -344,6 +358,51 @@ def _extract_vlf_image_features(args: Namespace) -> int:
         crop_bottom=args.crop_bottom,
     )
     print(f"image rows: {len(rows)}")
+    print(f"output: {args.out}")
+    return 0
+
+
+def _diagnose_vlf_palette_shift(args: Namespace) -> int:
+    report = diagnose_vlf_palette_shift(
+        image_paths=resolve_image_paths(
+            image_paths=args.image,
+            image_roots=args.image_root,
+            filename_prefixes=args.filename_prefix,
+        ),
+        out_path=args.out,
+        capture_csv_path=args.capture_csv_out,
+        band_csv_path=args.band_csv_out,
+        hour_low=args.hour_low,
+        hour_high=args.hour_high,
+        residual_limit=args.residual_limit,
+        max_captures_per_variant=args.max_captures_per_variant,
+    )
+    print(f"status: {report['status']}")
+    print(f"captures: {report['capture_count']}")
+    for variant in report.get("palette_variants", []):
+        print(
+            f"{variant['palette_variant_id']}: "
+            f"black_end={variant['black_end_px']} red_start={variant['red_start_px']} "
+            f"display={variant['display_db_low']}..{variant['display_db_high']} dB "
+            f"captures={variant['capture_count']} "
+            f"{variant['first_capture_utc']} -> {variant['last_capture_utc']}"
+        )
+    for change in report.get("change_points", []):
+        print(
+            f"change: {change['last_capture_before_utc']} -> "
+            f"{change['first_capture_after_utc']} "
+            f"shift={change['display_db_shift']} dB"
+        )
+    comparison = report.get("comparison")
+    if comparison:
+        print(f"comparison: {comparison['status']}")
+        for band in comparison.get("bands", []):
+            flag = "" if band["resolvable_in_both"] else "  censored"
+            print(
+                f"  {band['band_low_khz']:>5}-{band['band_high_khz']:<5} kHz "
+                f"early={band['early_median_db']} late={band['late_median_db']} "
+                f"delta={band['delta_db']}{flag}"
+            )
     print(f"output: {args.out}")
     return 0
 
