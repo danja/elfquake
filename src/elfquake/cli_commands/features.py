@@ -180,7 +180,15 @@ def register_feature_commands(subparsers: _SubParsersAction) -> None:
     prospective = subparsers.add_parser("build-prospective-vlf-windows")
     prospective.add_argument("--events", type=Path, required=True)
     prospective.add_argument("--vlf-metadata-root", type=Path, required=True)
-    prospective.add_argument("--astronomy-metadata-root", type=Path, required=True)
+    prospective.add_argument("--space-weather-root", type=Path)
+    prospective.add_argument(
+        "--astronomy-metadata-root",
+        type=Path,
+        help=(
+            "deprecated and ignored; astronomy features now read the normalized "
+            "space-weather tables named by --space-weather-root"
+        ),
+    )
     prospective.add_argument("--region-id", required=True)
     prospective.add_argument("--lookback-hours", type=int, default=24)
     prospective.add_argument("--horizon-days", type=int, default=7)
@@ -193,7 +201,15 @@ def register_feature_commands(subparsers: _SubParsersAction) -> None:
     prospective_update.add_argument("--table", type=Path, required=True)
     prospective_update.add_argument("--events", type=Path, required=True)
     prospective_update.add_argument("--vlf-metadata-root", type=Path, required=True)
-    prospective_update.add_argument("--astronomy-metadata-root", type=Path, required=True)
+    prospective_update.add_argument("--space-weather-root", type=Path)
+    prospective_update.add_argument(
+        "--astronomy-metadata-root",
+        type=Path,
+        help=(
+            "deprecated and ignored; astronomy features now read the normalized "
+            "space-weather tables named by --space-weather-root"
+        ),
+    )
     prospective_update.add_argument("--region-id", required=True)
     prospective_update.add_argument("--lookback-hours", type=int, default=24)
     prospective_update.add_argument("--horizon-days", type=int, default=7)
@@ -510,7 +526,7 @@ def _build_prospective_vlf_windows(args: Namespace) -> int:
     rows = build_prospective_vlf_windows(
         events_csv=args.events,
         vlf_metadata_root=args.vlf_metadata_root,
-        astronomy_metadata_root=args.astronomy_metadata_root,
+        space_weather_root=args.space_weather_root,
         region_id=args.region_id,
         lookback_hours=args.lookback_hours,
         horizon_days=args.horizon_days,
@@ -528,7 +544,7 @@ def _update_prospective_vlf_table(args: Namespace) -> int:
         table_path=args.table,
         events_csv=args.events,
         vlf_metadata_root=args.vlf_metadata_root,
-        astronomy_metadata_root=args.astronomy_metadata_root,
+        space_weather_root=args.space_weather_root,
         region_id=args.region_id,
         lookback_hours=args.lookback_hours,
         horizon_days=args.horizon_days,

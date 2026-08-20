@@ -11,9 +11,35 @@ from elfquake.features.common import parse_utc
 
 
 GFZ_FIELDNAMES = ["date", "slot", "kp", "ap", "source_file"]
-DST_FIELDNAMES = ["date", "hour", "dst_nt", "source_file"]
-F107_FIELDNAMES = ["date", "f107", "source_file"]
+DST_FIELDNAMES = ["date", "hour", "dst_nt", "dst_tier", "source_file"]
+# Spaceweather Canada publishes three Penticton observations per day (17, 20
+# and 23 UT). The 20 UT (local noon) `fluxadjflux` reading is the conventional
+# daily F10.7, so the observation timestamp is preserved rather than collapsed.
+F107_FIELDNAMES = ["date", "time_utc", "f107", "f107_observed", "source_file"]
 GOES_FIELDNAMES = ["time_utc", "variable", "value", "units", "source_file"]
+
+# Kyoto's monthly index pages are fixed-width, not whitespace-delimited: a
+# missing hour is the sentinel `9999`, and consecutive missing hours run
+# together with no separating space (`-19999999999999`). Splitting on
+# whitespace silently merges hours, so the hourly table is sliced by column.
+DST_MONTH_NAMES = {
+    "JANUARY": 1,
+    "FEBRUARY": 2,
+    "MARCH": 3,
+    "APRIL": 4,
+    "MAY": 5,
+    "JUNE": 6,
+    "JULY": 7,
+    "AUGUST": 8,
+    "SEPTEMBER": 9,
+    "OCTOBER": 10,
+    "NOVEMBER": 11,
+    "DECEMBER": 12,
+}
+DST_DAY_WIDTH = 3
+DST_VALUE_WIDTH = 4
+DST_GROUP_SIZE = 8
+DST_MISSING = "9999"
 
 
 def normalize_gfz_kp_ap(raw_path: Path, out_path: Path) -> int:
@@ -40,13 +66,59 @@ def normalize_gfz_kp_ap(raw_path: Path, out_path: Path) -> int:
 
 
 def normalize_kyoto_dst_text(raw_path: Path, out_path: Path) -> int:
+    # Kyoto ships the monthly pages as EUC-JP; the numeric table is ASCII, so
+    # decode permissively rather than failing on the header boilerplate.
+    text = raw_path.read_text(encoding="utf-8", errors="replace")
+    rows = _normalize_kyoto_dst_page(text, raw_path)
+    if not rows:
+        rows = _normalize_kyoto_dst_columns(text, raw_path)
+    _write_rows(out_path, DST_FIELDNAMES, rows)
+    return len(rows)
+
+
+def _normalize_kyoto_dst_page(text: str, raw_path: Path) -> list[dict[str, str]]:
+    """Parse a Kyoto monthly index page by column position."""
+    lines = text.splitlines()
+    year_month = _dst_page_year_month(lines)
+    if year_month is None:
+        return []
+    year, month = year_month
+    tier = _dst_page_tier(lines)
     rows = []
-    for line in raw_path.read_text(encoding="utf-8").splitlines():
+    for line in lines:
+        day = _dst_day_number(line)
+        if day is None:
+            continue
+        for hour in range(24):
+            offset = (
+                DST_DAY_WIDTH
+                + hour * DST_VALUE_WIDTH
+                + hour // DST_GROUP_SIZE  # one extra space between column groups
+            )
+            value = line[offset : offset + DST_VALUE_WIDTH].strip()
+            if not value or value == DST_MISSING or not _looks_like_number(value):
+                continue
+            rows.append(
+                {
+                    "date": f"{year:04d}-{month:02d}-{day:02d}",
+                    "hour": str(hour),
+                    "dst_nt": value,
+                    "dst_tier": tier,
+                    "source_file": str(raw_path),
+                }
+            )
+    return rows
+
+
+def _normalize_kyoto_dst_columns(text: str, raw_path: Path) -> list[dict[str, str]]:
+    """Parse the whitespace-delimited `year month day h1..h24` variant."""
+    rows = []
+    for line in text.splitlines():
         stripped = line.strip()
         if not stripped or stripped.startswith("#"):
             continue
         parts = stripped.split()
-        if len(parts) < 4:
+        if len(parts) < 4 or not all(part.isdigit() for part in parts[:3]):
             continue
         date = _date_from_parts(parts[0], parts[1], parts[2])
         for hour, value in enumerate(parts[3:27]):
@@ -55,11 +127,45 @@ def normalize_kyoto_dst_text(raw_path: Path, out_path: Path) -> int:
                     "date": date,
                     "hour": str(hour),
                     "dst_nt": value,
+                    "dst_tier": "",
                     "source_file": str(raw_path),
                 }
             )
-    _write_rows(out_path, DST_FIELDNAMES, rows)
-    return len(rows)
+    return rows
+
+
+def _dst_page_year_month(lines: list[str]) -> tuple[int, int] | None:
+    for line in lines:
+        parts = line.split()
+        if len(parts) != 2:
+            continue
+        month = DST_MONTH_NAMES.get(parts[0].upper())
+        if month and len(parts[1]) == 4 and parts[1].isdigit():
+            return int(parts[1]), month
+    return None
+
+
+def _dst_page_tier(lines: list[str]) -> str:
+    for line in lines:
+        if "Hourly Equatorial Dst Values" not in line:
+            continue
+        _, _, remainder = line.partition("(")
+        label = "".join(character for character in remainder if character.isalpha())
+        if label:
+            return label.lower()
+        return "final"
+    return ""
+
+
+def _dst_day_number(line: str) -> int | None:
+    """Return the day of month a table row starts with, or None."""
+    head = line[:DST_DAY_WIDTH]
+    if len(line) <= DST_DAY_WIDTH or not head.strip().isdigit():
+        return None
+    if head[-1] != " ":
+        return None
+    day = int(head.strip())
+    return day if 1 <= day <= 31 else None
 
 
 def normalize_f107_daily(raw_path: Path, out_path: Path) -> int:
@@ -150,7 +256,15 @@ def _normalize_f107_json(text: str, raw_path: Path) -> list[dict[str, str]]:
         date = str(item.get("date") or item.get("time-tag") or "")
         value = item.get("f10.7")
         if date and value is not None:
-            rows.append({"date": date, "f107": str(value), "source_file": str(raw_path)})
+            rows.append(
+                {
+                    "date": date,
+                    "time_utc": "",
+                    "f107": str(value),
+                    "f107_observed": "",
+                    "source_file": str(raw_path),
+                }
+            )
     return rows
 
 
@@ -162,17 +276,34 @@ def _normalize_f107_text(text: str, raw_path: Path) -> list[dict[str, str]]:
             continue
         parts = stripped.split()
         if len(parts) >= 6 and parts[0].isdigit() and len(parts[0]) == 8:
+            date = _compact_date(parts[0])
             rows.append(
                 {
-                    "date": _compact_date(parts[0]),
+                    "date": date,
+                    "time_utc": _f107_time_utc(date, parts[1]),
                     "f107": str(float(parts[5])),
+                    "f107_observed": str(float(parts[4])),
                     "source_file": str(raw_path),
                 }
             )
             continue
         if len(parts) >= 2 and _looks_like_date(parts[0]) and _looks_like_number(parts[1]):
-            rows.append({"date": parts[0], "f107": parts[1], "source_file": str(raw_path)})
+            rows.append(
+                {
+                    "date": parts[0],
+                    "time_utc": "",
+                    "f107": parts[1],
+                    "f107_observed": "",
+                    "source_file": str(raw_path),
+                }
+            )
     return rows
+
+
+def _f107_time_utc(date: str, flux_time: str) -> str:
+    if not flux_time.isdigit() or len(flux_time) != 6:
+        return ""
+    return f"{date}T{flux_time[0:2]}:{flux_time[2:4]}:{flux_time[4:6]}Z"
 
 
 def _date_from_parts(year: str, month: str, day: str) -> str:

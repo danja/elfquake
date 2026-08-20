@@ -11,7 +11,7 @@ HORIZON_DAYS="${HORIZON_DAYS:-7}"
 TARGET_MAGNITUDE_MIN="${TARGET_MAGNITUDE_MIN:-3.0}"
 MIN_ANCHOR_GAP_SECONDS="${MIN_ANCHOR_GAP_SECONDS:-60}"
 VLF_METADATA_ROOT="${VLF_METADATA_ROOT:-data/raw/vlf/cumiana/captures}"
-ASTRONOMY_METADATA_ROOT="${ASTRONOMY_METADATA_ROOT:-data/raw/astronomy/captures}"
+SPACE_WEATHER_ROOT="${SPACE_WEATHER_ROOT:-data/derived/astronomy}"
 START_DATE="${START:0:10}"
 END_DATE="${END:0:10}"
 
@@ -120,7 +120,7 @@ for scope in all_italy central_italy; do
     --table "$table" \
     --events "$events" \
     --vlf-metadata-root "$VLF_METADATA_ROOT" \
-    --astronomy-metadata-root "$ASTRONOMY_METADATA_ROOT" \
+    --space-weather-root "$SPACE_WEATHER_ROOT" \
     --region-id "$scope" \
     --lookback-hours "$LOOKBACK_HOURS" \
     --horizon-days "$HORIZON_DAYS" \

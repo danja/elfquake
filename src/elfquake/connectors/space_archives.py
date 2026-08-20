@@ -15,6 +15,18 @@ SPACEWEATHER_CANADA_F107_DAILY_URL = (
 )
 KYOTO_DST_FINAL_URL = "https://wdc.kugi.kyoto-u.ac.jp/dst_final/{year_month}/index.html"
 KYOTO_DST_PROVISIONAL_URL = "https://wdc.kugi.kyoto-u.ac.jp/dst_provisional/{year_month}/index.html"
+KYOTO_DST_REALTIME_URL = "https://wdc.kugi.kyoto-u.ac.jp/dst_realtime/{year_month}/index.html"
+
+# Kyoto publishes Dst in three tiers of decreasing latency and increasing
+# authority. Only one tier serves any given month: probed on 2026-08-14,
+# `final` and `provisional` both 404 for 2026-06 through 2026-08 while
+# `realtime` returns 200, and `provisional` serves 2025-12. Recent months are
+# therefore realtime-only, and realtime values are subject to later revision.
+KYOTO_DST_TIERS = {
+    "final": KYOTO_DST_FINAL_URL,
+    "provisional": KYOTO_DST_PROVISIONAL_URL,
+    "realtime": KYOTO_DST_REALTIME_URL,
+}
 NCEI_GOES15_XRS_AVG1M_YEAR_URL = (
     "https://www.ncei.noaa.gov/instruments/solar-space-observing/particle-detectors/sem/goes/"
     "access/science/xrs/goes15/xrsf-l2-avg1m_science/"
@@ -22,9 +34,22 @@ NCEI_GOES15_XRS_AVG1M_YEAR_URL = (
 )
 
 
-def build_kyoto_dst_url(year_month: str, *, provisional: bool = False) -> str:
-    template = KYOTO_DST_PROVISIONAL_URL if provisional else KYOTO_DST_FINAL_URL
-    return template.format(year_month=year_month)
+def build_kyoto_dst_url(
+    year_month: str,
+    *,
+    provisional: bool = False,
+    tier: str | None = None,
+) -> str:
+    resolved = _resolve_dst_tier(provisional=provisional, tier=tier)
+    return KYOTO_DST_TIERS[resolved].format(year_month=year_month)
+
+
+def _resolve_dst_tier(*, provisional: bool, tier: str | None) -> str:
+    if tier is None:
+        return "provisional" if provisional else "final"
+    if tier not in KYOTO_DST_TIERS:
+        raise ValueError(f"unknown Kyoto Dst tier: {tier}")
+    return tier
 
 
 def build_ncei_goes15_xrs_year_url(year: int) -> str:
@@ -64,10 +89,12 @@ def fetch_kyoto_dst_month(
     *,
     out_root: Path,
     provisional: bool = False,
+    tier: str | None = None,
     fetcher: Callable[[str], HttpCapture] = fetch_bytes,
 ) -> StoredCapture:
-    source_id = "kyoto_dst_provisional" if provisional else "kyoto_dst_final"
-    capture = fetcher(build_kyoto_dst_url(year_month, provisional=provisional))
+    resolved = _resolve_dst_tier(provisional=provisional, tier=tier)
+    source_id = f"kyoto_dst_{resolved}"
+    capture = fetcher(build_kyoto_dst_url(year_month, tier=resolved))
     return _write_archive_capture(
         capture,
         out_root=out_root,
@@ -75,7 +102,7 @@ def fetch_kyoto_dst_month(
         filename=f"{source_id}_{year_month}_{filename_timestamp(capture.captured_at_utc)}.html",
         content="Dst hourly index",
         cadence="monthly page",
-        extra_metadata={"year_month": year_month},
+        extra_metadata={"year_month": year_month, "dst_tier": resolved},
     )
 
 

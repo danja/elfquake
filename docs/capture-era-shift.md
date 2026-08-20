@@ -198,8 +198,14 @@ Not settled:
   ramp was moved by `11.58 dB` during the outage, so `era_0` and `era_3` image
   features are **not on a common scale and must not be pooled**. Whether the
   underlying level change is instrumental or atmospheric remains open.
-* Whether `era_3` conclusions generalize. Its labeled window is only
-  `2026-07-28` – `2026-07-31`, four days and 399 test rows.
+* ~~Whether `era_3` conclusions generalize. Its labeled window is only
+  `2026-07-28` – `2026-07-31`, four days and 399 test rows.~~ Re-run on
+  2026-08-17 with `era_3` grown to `2026-07-28` – `2026-08-16`, 483 anchors and
+  6,802 labeled rows (5,434 train / 1,368 test). The conclusions hold: every
+  modality ablation sits at chance, and `all_features` collapses from
+  `0.557356` to `0.494606` when the cell coordinates are removed. See
+  [Next Actions](next-actions.md) item 102 for the full table, which also adds
+  real astronomy and geomagnetic channels and finds no contribution from them.
 
 Do not drop the cadence-derived features or reweight the eras on the strength
 of this diagnostic. The finding that matters is not the era shift — it is that

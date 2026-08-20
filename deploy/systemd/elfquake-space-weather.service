@@ -1,0 +1,27 @@
+[Unit]
+Description=ELFQuake geomagnetic and solar index refresh
+Documentation=file:/chalet/github/elfquake/docs/systemd-service.md
+Wants=network-online.target
+After=network-online.target
+
+[Service]
+Type=oneshot
+User=danny
+Group=danny
+WorkingDirectory=/chalet/github/elfquake
+Environment=PYTHON_BIN=/chalet/github/elfquake/.venv/bin/python
+# Importing elfquake.cli pulls in the sim modules, whose @njit(cache=True)
+# kernels cannot write a cache under ProtectSystem=strict. Same guard as
+# elfquake-prospective.service.
+Environment=ELFQUAKE_NUMBA_CACHE=0
+Environment=SPACE_WEATHER_RAW_ROOT=data/raw/astronomy
+Environment=SPACE_WEATHER_DERIVED_ROOT=data/derived/astronomy
+Environment=DST_TIER=realtime
+Environment=ARCHIVE_MAX_AGE_HOURS=20
+EnvironmentFile=-/etc/default/elfquake
+ExecStart=/chalet/github/elfquake/scripts/refresh-space-weather.sh
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=read-only
+ReadWritePaths=/chalet/github/elfquake/data

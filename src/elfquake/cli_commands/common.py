@@ -46,4 +46,17 @@ def print_holdout_report(report: dict[str, object], out_path: Path) -> None:
     if "train_row_count" in report:
         print(f"train rows: {report['train_row_count']}")
         print(f"test rows: {report['test_row_count']}")
+    control = (report.get("baselines") or {}).get("stratum_base_rate")
+    if control:
+        plain = control["test_metrics"]["balanced_accuracy"]
+        stratified = control["test_metrics_by_stratum"].get("mean_balanced_accuracy")
+        print(f"stratum base-rate control: {plain} plain, {stratified} stratified")
+    for name, item in sorted((report.get("evaluations") or {}).items()):
+        summary = item.get("calibrated_test_metrics_by_stratum") or {}
+        if summary.get("status") == "evaluated":
+            print(
+                f"{name}: {item['calibrated_test_metrics']['balanced_accuracy']} plain, "
+                f"{summary['mean_balanced_accuracy']} stratified "
+                f"({summary['scored_stratum_count']}/{summary['stratum_count']} strata)"
+            )
     print(f"output: {out_path}")

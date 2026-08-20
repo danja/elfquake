@@ -151,6 +151,7 @@ def register_source_commands(subparsers: _SubParsersAction) -> None:
     dst = subparsers.add_parser("fetch-kyoto-dst")
     dst.add_argument("--year-month", required=True, help="YYYYMM, e.g. 201601")
     dst.add_argument("--provisional", action="store_true")
+    dst.add_argument("--tier", choices=("final", "provisional", "realtime"))
     dst.add_argument("--out-root", type=Path, default=Path("data/raw/astronomy"))
     dst.set_defaults(func=_fetch_kyoto_dst)
 
@@ -354,6 +355,7 @@ def _fetch_kyoto_dst(args: Namespace) -> int:
             args.year_month,
             out_root=args.out_root,
             provisional=args.provisional,
+            tier=args.tier,
         )
     ])
 

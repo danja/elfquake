@@ -125,7 +125,7 @@
 
 94. Fixed a latent standardization defect found while reading item 93's fitted coefficients. All five copies of `scales.append(scale if scale else 1.0)` treated a near-constant column as varying: 4,199 copies of `125.69` accumulate a mean of `125.68999999999998`, giving variance `2.02e-28` and scale `1.42e-14`, which is nonzero and therefore used. The constant column then standardized to `1.0` instead of `0.0` and `astro_noaa_solar_cycle_f107_value` carried the largest weight (`-0.894`) in the `era_0` model. Here it was benign — same constant in train and test, so it acted as a second intercept, and the full-table score moved only `0.415351` -> `0.412604` — but a held-out partition carrying a *different* constant (next month's F10.7, a quality flag that flips after a collector change) would standardize to order `1e13` and saturate every prediction. Now guarded by a relative tolerance in `src/elfquake/models/scaling.py`, applied across `temporal_holdout`, `ablation_smoke`, `logistic_smoke`, `torch_tabular`, and `torch_sequence`, with regression cover in `tests/test_capture_era_shift.py`.
 
-95. **Next up, in order — superseded by item 100, which takes priority.** (a) **Completed 2026-08-14; see item 96.** (b) Re-examine whether the fixed-cell target design can express anything beyond per-cell base rate, given that removing coordinates zeroes the model — either the temporal features carry no information at this horizon, or the target contract needs per-cell rate residuals rather than raw occurrence. (c) Keep extending `era_3` coverage; its labeled window is four days and 399 test rows, too small to carry a within-era conclusion on its own. (d) Audit the remaining scripts for the item-89 staleness pattern, still outstanding.
+95. **Next up, in order — superseded by items 100–103.** (a) **Completed 2026-08-14; see item 96.** (b) **Now the binding constraint on every modality; promoted to item 103.** Re-examine whether the fixed-cell target design can express anything beyond per-cell base rate, given that removing coordinates zeroes the model — either the temporal features carry no information at this horizon, or the target contract needs per-cell rate residuals rather than raw occurrence. (c) **Completed 2026-08-17; see item 102.** `era_3` now runs `2026-07-28`–`2026-08-16`, 483 anchors and 6,802 labeled rows, and the within-era conclusions reproduce on 3.5x the test rows. (d) Audit the remaining scripts for the item-89 staleness pattern, still outstanding.
 
 96. **Completed item 95(a). The Cumiana receiver's colour scale was changed during the outage, so `era_0` and `era_3` image features are not on a common scale and must not be pooled.** Full write-up in [Cumiana Colour-Scale Change](vlf-palette-shift.md); reproduce with `./scripts/diagnose-vlf-palette-shift.sh`. Every `last_E_VLF` capture embeds its own 96-step colourbar above a fixed `-100 dB … 0 dB` tick ruler. Across all 699 captures the ramp takes exactly two values with no intermediates: solid-red onset at step `59` for all 277 captures up to `2026-07-06T21:45Z`, and step `48` for all 422 captures from `2026-07-11T06:00Z` onward — a shift of 11 steps = **`11.58 dB`**, downward. The ruler, the right-hand frequency tick rows, and the `842x573` geometry are pixel-identical across both, so this is a colour-scale setting and not a re-plot. Three consequences. First, the pooling question is settled on its own terms: `vlf_intensity_*`, `vlf_hot_color_ratio`, `vlf_high_intensity_ratio`, and `vlf_band_*_mean` are all functions of pixel colour, and the same colour denotes a level `11.58 dB` lower after the change. Second, the change point sits **inside** the outage (`2026-07-06` → `2026-07-11`), so it is invisible to any diagnostic that compares only dense `era_0` against dense `era_3`. Third, the item-93 "bands 0-3 fell, bands 4-5 unchanged" split is not frequency-selective physics: bands 4-5 read the separate sub-1500 Hz zoom panel and sit deep in the palette's saturated region in both eras. Decoding pixels back to absolute dB through each image's own colourbar — hour-matched to `11:00`–`13:00` UTC against the diurnal cycle, over the rightmost 45 columns of the upper panel — leaves the late era `15.8`–`23.2 dB` lower across the four bands resolvable under both palettes (`-80.0 … -49.5 dB`, the overlap of the two displayed windows; the other four are censored by saturation and reported as such). **Not settled: whether that underlying level change is instrumental or atmospheric.** The evidence leans instrumental — broadband, roughly uniform over two decades of frequency, step-like, and coincident with an operator changing a display setting — but images alone cannot separate a front-end gain reduction from a quieter period, and this needs station metadata or operator contact. Regression cover is in `tests/test_vlf_palette_shift.py`.
 
@@ -146,7 +146,7 @@
 
     Consequence for the modeling record: **no astronomy ablation to date is a negative result.** `seismic_astronomy` and `full_multimodal` cannot separate an astronomy contribution from a constant plus a collector counter, so astronomy's value is untested, not disproven. Do not describe it as tested.
 
-100. **Priority queue for astronomy, ahead of items 95(b)–(d) and 97.**
+100. **Priority queue for astronomy, ahead of items 95(b)–(d) and 97. (a)–(f) and (h) completed 2026-08-17; see item 101. (g) remains.**
 
     (a) Fix the mask contract in `src/elfquake/features/astronomy.py`. `quality_missing_astro` must reflect whether the window was actually observed, not whether a once-pulled monthly constant is on disk. A slowly varying historical series is background context, not an observation of that window. Add regression cover pinning that a window with no captures marks the modality missing.
 
@@ -163,6 +163,95 @@
     (g) Only after (d)–(f) land, re-run the `seismic_astronomy` and `full_multimodal` ablations. Until then those runs measure a constant.
 
     (h) Add an astronomy fetch to `elfquake-prospective.service`, or a separate timer, so the collector stops reading a directory nothing writes to.
+
+101. **Completed item 100(a)–(f) and (h) on 2026-08-17. Astronomy now reaches the model as observations with an explicit alignment rule; it is still untested.** Full write-up in [Astronomy Alignment](astronomy-alignment.md). What changed, against the item-99 audit:
+
+    (a) `quality_missing_astro` now reports observation rather than computability. It is set only when Kp, Dst *and* F10.7 are all missing at the anchor, and ephemeris channels are excluded from the test by design — they are always computable, so letting them satisfy it would pin the flag to `0` forever, which is exactly what the old implementation did. Per-channel `quality_missing_kp`, `quality_missing_dst`, `quality_missing_f107` flags carry the detail. Regression cover in `tests/test_astro_features.py`.
+
+    (b) `astro_capture_count`, `astro_sources`, `astro_latest_capture_utc`, `astro_usno_next_phase*`, and `astro_noaa_solar_cycle_f107_*` are gone from the prospective table. `src/elfquake/features/astronomy.py` is marked superseded and retained only for the older `build-multimodal-smoke` path.
+
+    (c) `src/elfquake/models/channel_gate.py` runs inside `build_common_window_fixture` and raises on `constant_channel`, `unmasked_missing_channel`, and `empty_channel`. This is the item-94 standardizer fix generalized to the builder. A channel that is constant by design must be named with `--allow-constant-channel`, so the decision is recorded rather than inferred; `--no-strict-channels` downgrades to a report entry.
+
+    (d) Real archives are normalized to `data/derived/astronomy/`: GFZ Kp/ap (276,496 rows, 1932 onward), Kyoto Dst (three months, hourly), Spaceweather Canada F10.7 (23,853 rows, 2004 onward). Kyoto's monthly pages are fixed-width, not whitespace-delimited — a missing hour is the sentinel `9999` and consecutive missing hours run together with no separating space, so a whitespace split silently merges hours. The parser slices by column. `dst_tier` is carried through normalization because recent months are realtime-only and **realtime values get revised**; the previous month is refetched on every run.
+
+    (e) The alignment rule is zero-order hold, never interpolation: each channel takes the most recent reading whose observation interval has *closed* at or before the anchor, so a 09:00–12:00 Kp bin is not usable at 09:57. `astro_*_age_hours` carries the staleness, and the hold expires at 6 h (Kp, Dst) or 72 h (F10.7) rather than manufacturing a constant.
+
+    (f) `astro_usno_next_phase` is replaced by continuous quantities from a new low-precision ephemeris (`src/elfquake/features/ephemeris.py`, Meeus truncated series, checked against the worked examples and 2026 lunation times to ~2 arcmin): lunar phase angle with a sin/cos encoding, illuminated fraction, lunar distance, and the degree-two lunar + solar tidal potential at the Italy box centre, with min/max/range over the lookback window.
+
+    (h) `refresh-space-weather.sh` plus `elfquake-space-weather.{service,timer}` run daily. Deliberately not on the prospective job's 30-minute cadence: the Kp/ap and F10.7 sources are whole-history archives of roughly 16 MB and 2 MB and publish at most once a day. The prospective job now reads `--space-weather-root data/derived/astronomy` instead of a raw-capture directory nothing wrote to. **`--astronomy-metadata-root` is retained as a deprecated no-op** so the installed unit does not break before it is reinstalled; the units in `deploy/systemd/` need copying to `/etc/systemd/system/` and a `systemctl daemon-reload`.
+
+    (g) **Done. Astronomy adds nothing measurable on held-out data.** See item 102 for the numbers. The features do reach the model — `build-tensor-spec` on the rebuilt fixture assigns **19** channels to the astronomy modality against the 2 the item-99 audit found, with `missing_cell_count` `5890`, so the mask fires for the first time — and the ablation still comes back null.
+
+    Result over the 761 rebuilt anchors: `astro_kp` `0`–`7.333` (20 distinct), `astro_ap` `0`–`154`, `astro_dst_nt` `-150`–`+53` nT (101 distinct), `astro_f107` `94.8`–`258.1` (65 distinct), `astro_tidal_potential` `-0.804`–`+1.278` (761 distinct). The window contains a real geomagnetic storm, so there is something to test against. **This is not evidence that astronomy helps.** It makes item 100(g) askable for the first time; until those ablations run on held-out data, astronomy remains untested rather than disproven.
+
+    The channel gate earned its place on its first real run, rejecting 24 defects in the existing fixture: 19 constant channels across the synthetic and Japan tables (`*_sample_count`, `relaxation_converged_*`, `unstable_cell_count_*`, `safety_released_mass_*`, `japan_ch*_valid_fraction_*`), now named in `scripts/build-common-transformer-fixture.sh` so the decision is recorded; and 5 unmasked-missing astronomy channels caused by a real defect in the fixture builder — a dataset that never carried a modality has no flag column for it, so the unioned row read blank, and blank is not "present". Blank `quality_missing_*` cells are now filled as `1`.
+
+102. **Completed item 100(g) on 2026-08-17. Real astronomy and geomagnetic features do not improve held-out prediction. This is a negative result, and this time it is a real one.**
+
+    An earlier draft of this item claimed a held-out ablation runner had to be written first. That was wrong: `evaluate_temporal_holdout` already evaluates every group in `ABLATIONS` on held-out rows with thresholds calibrated on training rows only. Only the in-sample `train-ablation-smoke` path lacks it.
+
+    Run per era (item 96 requires it — the chronological split of the full table lands on the collector outage), grouped by time, 600 epochs, thresholds calibrated on training rows only. Calibrated held-out balanced accuracy, against a majority baseline of `0.5`:
+
+    | Group | `era_0` | `era_0` no coords | `era_3` | `era_3` no coords |
+    | --- | --- | --- | --- | --- |
+    | `seismic_only` | `0.500000` | `0.500000` | `0.514024` | `0.514024` |
+    | `seismic_astronomy` | `0.500000` | `0.500000` | `0.518123` | `0.518123` |
+    | `seismic_vlf` | `0.500000` | `0.500000` | `0.507767` | `0.507767` |
+    | `full_multimodal` | `0.500000` | `0.500000` | `0.494606` | `0.494606` |
+    | `vlf_only` | `0.500000` | `0.500000` | `0.497627` | `0.497627` |
+    | `all_features` | **`0.675409`** | `0.500000` | **`0.557356`** | `0.494606` |
+
+    `era_0` is 4,199 train / 1,064 test rows; `era_3` is 5,434 / 1,368.
+
+    Three readings.
+
+    (a) **Astronomy contributes nothing.** `seismic_only` → `seismic_astronomy` moves `0.500000` → `0.500000` in `era_0` and `0.514024` → `0.518123` in `era_3`. That `+0.004` on 1,368 test rows is noise. Adding 19 real, varying, correctly aligned channels — Kp to `7.333`, Dst to `-150 nT`, a continuous tidal potential — changes nothing. The item-99 finding was that astronomy was untested; it is now tested, and it does not help at this horizon in this design.
+
+    (b) **`full_multimodal` is worse than `seismic_only`** in `era_3` (`0.494606` vs `0.514024`), i.e. below chance. Adding modalities to this target design degrades it.
+
+    (c) **The item-96 coordinate finding reproduces exactly, on 3.5x more `era_3` rows.** `all_features` is the only group above chance and the only one containing `target_cell_latitude`/`longitude`/`degrees`; removing them collapses it to `0.500000` and `0.494606`. Every other group is bit-identical with and without, because none of them ever contained the coordinates. The model remains a static per-cell base-rate lookup.
+
+    **Do not read (a) as "astronomy is irrelevant to earthquakes."** It says these features, at a 7-day horizon, on 1.5-degree fixed cells, in a design whose only demonstrated signal is a per-cell base rate, add nothing. Item 95(b) — whether this target design can express anything beyond per-cell base rate — is now the binding constraint on every modality, not just astronomy. Testing more feature families against a target that only encodes a base rate will keep returning `0.5`.
+
+103. **Completed on 2026-08-20. The fixed-cell target design carries seven independent label changes in its held-out partition. The row count was never the sample size.** Full write-up in [Target Design](target-design.md). Two new reproducible artifacts:
+
+    * `./scripts/evaluate-italy-spatial-cell-stratified.sh` scores balanced accuracy *inside* each cell and averages over cells, so any cell-constant predictor scores exactly `0.5`. This is the third standing control, alongside the coordinate control and the permutation control, and it should be run on every fixed-cell result from now on. It also reports an explicit `stratum_base_rate` control — the per-cell training positive rate used directly as the score — so the quantity being neutralized is named and measured rather than inferred.
+    * `./scripts/diagnose-spatial-target-design.sh` counts what a candidate design offers before any model is fitted: per cell, how many times the label changes between consecutive anchors, over the whole record and inside the same grouped-time held-out partition the evaluator forms.
+
+    **Anchors are 30 minutes apart and the horizon is 7 days, so consecutive target windows overlap by `99.7%`.** A cell's label can change only when an event enters or leaves the horizon. Rows are not observations; label transitions are.
+
+    * `era_0`: **zero of 19 cells** have a held-out label that varies at all. Its held-out window is 27.5 h against a 7-day horizon. The stratified metric is undefined, and the `0.675409` pooled `all_features` score from item 102 is entirely the per-cell rate.
+    * `era_3`: 3 of 19 cells vary, each by **exactly one** transition across 72 anchors. `all_features` scores `0.604489` stratified against `0.557356` pooled and `seismic_astronomy` scores `0.625000`, but those come from three label changes and mean nothing. The `stratum_base_rate` control behaves exactly as designed: `0.677416` pooled, `0.500000` stratified.
+
+    **The binding constraint is event supply.** The 802-anchor span holds 252 events at M≥2.0 and 68 at M≥2.5. The current 1.5° / M≥2.5 / 7-day design yields 27 full-record and 7 held-out transitions across a 11,989-row table. The sweep over cell size, magnitude threshold, and horizon gives full-record / held-out transitions:
+
+    | Cells | M min | 1 day | 2 days | 3 days | 7 days |
+    | --- | --- | --- | --- | --- | --- |
+    | 0.75° | 2.0 | **111 / 32** | 88 / 23 | 83 / 18 | 61 / 10 |
+    | 1.5° | 2.0 | **94 / 27** | 70 / 19 | 65 / 14 | 40 / 6 |
+    | 1.5° | 2.5 | 31 / 10 | 31 / 8 | 29 / 6 | *27 / 7* |
+    | 1.5° | 3.0 | 17 / 6 | 16 / 5 | 15 / 4 | 16 / 4 |
+    | 3.0° | 2.0 | 51 / 14 | 20 / 7 | 9 / 2 | 2 / 0 |
+
+    *Italic* is the design in use; the full nine-row table is in the write-up. Shortening the horizon helps at every cell size and threshold, lowering the magnitude threshold helps more than anything else (M≥2.0 is the catalog floor), and coarser cells saturate — 3.0° / M≥2.0 / 7 days reaches a positive rate of `0.879556` with **two** transitions in the whole record, which is the target saturation the fixed-cell decomposition was introduced to fix.
+
+    **Recommended: 1.5° cells, M≥2.0, 1-day horizon** — held-out transitions `7` → `27`, two-class cells `10` → `15` of 19, positive rate `0.185170` → `0.100865`. The horizon is fixed when the prospective window table is built, not when targets are labeled, so this needs a separately scoped table; the exact commands are in the write-up. **Do not repoint the live 30-minute job.**
+
+    **Every fixed-cell score reported so far — `0.415351`, `0.655320`, `0.575000`, `0.675409`, `0.557356` — was computed against single-digit held-out label transitions.** They are not refuted; they are uninformative, and the interval on any of them spans chance. This also reframes item 102: astronomy was not shown to add nothing, it was shown to add nothing *measurable against seven label changes*. That is a weaker claim than item 102 makes, and item 102 should be read with this correction.
+
+104. **Next.** Build the recommended design and re-run all three controls against it, then decide whether the record is long enough to test any modality at all.
+
+    (a) Build the scoped 1-day / M≥2.0 prospective table and its spatial targets using the commands in [Target Design](target-design.md), writing to `*.h1m20.*` paths. Leave the live 7-day table and the systemd job untouched.
+
+    (b) Re-run `diagnose-vlf-capture-era-shift.sh` on the scoped table, then per era run the grouped baseline, the coordinate control, the permutation control, and the new cell-stratified control. Report the stratified number alongside the pooled one everywhere; the pooled number alone is what made the last four results look interpretable.
+
+    (c) Report the held-out transition count next to every score. A score without it is not reportable.
+
+    (d) If 27 held-out transitions still cannot separate any ablation from its base-rate control — which is the likely outcome — record that the blocker is calendar time, not features or targets, and stop adding feature families until the Cumiana record is substantially longer. That conclusion is a data-volume statement, not evidence of absence.
+
+    (e) Only then return to item 97 (palette-inverted absolute-dB VLF features). The per-era pooling restriction from item 96 still applies to any run that spans the outage.
+
+    Keep item 95(d) open independently: audit the remaining `all_available` scripts for the item-89 staleness pattern.
 
 ## Modeling
 

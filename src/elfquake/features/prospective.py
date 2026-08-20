@@ -8,10 +8,21 @@ import tempfile
 from datetime import timedelta
 from pathlib import Path
 
-from elfquake.features.astronomy import build_astronomy_features
+from elfquake.features.astro_windows import FIELDNAMES as ASTRO_FIELDNAMES
+from elfquake.features.astro_windows import (
+    SpaceWeatherSeries,
+    build_astro_window_features,
+    load_space_weather_series,
+)
 from elfquake.features.common import format_utc, parse_utc
 from elfquake.features.vlf import FIELDNAMES as VLF_FIELDNAMES
 from elfquake.features.vlf import summarize_vlf_features
+
+
+DEFAULT_SPACE_WEATHER_ROOT = Path("data/derived/astronomy")
+KP_CSV_NAME = "gfz_kp_ap.csv"
+DST_CSV_GLOB = "kyoto_dst_*.csv"
+F107_CSV_NAME = "f107_daily.csv"
 
 
 FIELDNAMES = [
@@ -31,14 +42,7 @@ FIELDNAMES = [
 ] + [
     field for field in VLF_FIELDNAMES if field not in {"window_start_utc", "window_end_utc"}
 ] + [
-    "astro_capture_count",
-    "astro_sources",
-    "astro_latest_capture_utc",
-    "astro_usno_next_phase",
-    "astro_usno_next_phase_utc",
-    "astro_noaa_solar_cycle_f107_month",
-    "astro_noaa_solar_cycle_f107_value",
-    "quality_missing_astro",
+    field for field in ASTRO_FIELDNAMES if field not in {"window_start_utc", "window_end_utc"}
 ]
 
 
@@ -46,7 +50,7 @@ def build_prospective_vlf_windows(
     *,
     events_csv: Path,
     vlf_metadata_root: Path,
-    astronomy_metadata_root: Path,
+    space_weather_root: Path | None = None,
     region_id: str,
     out_path: Path,
     lookback_hours: int = 24,
@@ -60,7 +64,7 @@ def build_prospective_vlf_windows(
         raise ValueError("min_anchor_gap_seconds must be non-negative")
 
     vlf_metadata_paths = sorted(vlf_metadata_root.glob("**/*.metadata.json"))
-    astronomy_metadata_paths = sorted(astronomy_metadata_root.glob("**/*.metadata.json"))
+    space_weather = _load_space_weather(space_weather_root)
     events = _read_events(events_csv, region_id)
     rows = []
     for window_end_utc in _vlf_anchor_times(vlf_metadata_paths, min_gap_seconds=min_anchor_gap_seconds):
@@ -78,11 +82,10 @@ def build_prospective_vlf_windows(
             window_end_utc=window_end_utc,
             include_window_end=True,
         )
-        astro_row = build_astronomy_features(
-            metadata_paths=astronomy_metadata_paths,
+        astro_row = build_astro_window_features(
             window_start_utc=format_utc(window_start),
             window_end_utc=window_end_utc,
-            out_path=out_path.with_suffix(".astro.tmp.csv"),
+            series=space_weather,
         )
         rows.append(
             {
@@ -104,9 +107,6 @@ def build_prospective_vlf_windows(
             }
         )
 
-    temp_astro = out_path.with_suffix(".astro.tmp.csv")
-    if temp_astro.exists():
-        temp_astro.unlink()
     out_path.parent.mkdir(parents=True, exist_ok=True)
     with out_path.open("w", newline="", encoding="utf-8") as handle:
         writer = csv.DictWriter(handle, fieldnames=FIELDNAMES, lineterminator="\n")
@@ -120,7 +120,7 @@ def update_prospective_vlf_table(
     table_path: Path,
     events_csv: Path,
     vlf_metadata_root: Path,
-    astronomy_metadata_root: Path,
+    space_weather_root: Path | None = None,
     region_id: str,
     out_path: Path,
     lookback_hours: int = 24,
@@ -135,7 +135,7 @@ def update_prospective_vlf_table(
         candidate_rows = build_prospective_vlf_windows(
             events_csv=events_csv,
             vlf_metadata_root=vlf_metadata_root,
-            astronomy_metadata_root=astronomy_metadata_root,
+            space_weather_root=space_weather_root,
             region_id=region_id,
             out_path=candidate_path,
             lookback_hours=lookback_hours,
@@ -162,6 +162,24 @@ def update_prospective_vlf_table(
         "retained_rows": len(retained_rows),
         "total_rows": len(merged_rows),
     }
+
+
+def _load_space_weather(space_weather_root: Path | None) -> SpaceWeatherSeries:
+    """Load normalized Kp/ap, Dst and F10.7 tables, if they have been built.
+
+    A missing root is not an error: the geomagnetic channels then report
+    themselves missing per row rather than silently becoming constants.
+    """
+    root = space_weather_root or DEFAULT_SPACE_WEATHER_ROOT
+    if not root.exists():
+        return SpaceWeatherSeries.empty()
+    kp_csv = root / KP_CSV_NAME
+    f107_csv = root / F107_CSV_NAME
+    return load_space_weather_series(
+        kp_csv=kp_csv if kp_csv.exists() else None,
+        dst_csv_paths=sorted(root.glob(DST_CSV_GLOB)),
+        f107_csv=f107_csv if f107_csv.exists() else None,
+    )
 
 
 def _read_events(events_csv: Path, region_id: str) -> list[dict[str, str]]:

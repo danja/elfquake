@@ -51,6 +51,7 @@ from elfquake.models.synthetic_lagged_context import build_synthetic_lagged_cont
 from elfquake.models.synthetic_regimes import annotate_synthetic_regimes, assign_balanced_split
 from elfquake.models.tensor_materializer import materialize_tensor_dataset
 from elfquake.models.tensor_spec import build_tensor_spec
+from elfquake.models.target_design import diagnose_spatial_target_design
 from elfquake.models.temporal_holdout import evaluate_group_holdout, evaluate_temporal_holdout
 from elfquake.models.transformer_input_adapter import prepare_transformer_target_input
 from elfquake.models.synthetic_step_targets import build_synthetic_step_targets
@@ -141,6 +142,15 @@ def register_model_commands(subparsers: _SubParsersAction) -> None:
     temporal_holdout.add_argument("--epochs", type=int, default=600)
     temporal_holdout.add_argument("--learning-rate", type=float, default=0.2)
     temporal_holdout.add_argument("--group-by-time", action="store_true")
+    temporal_holdout.add_argument(
+        "--stratify-field",
+        default=None,
+        help=(
+            "score balanced accuracy inside each value of this field and average "
+            "over them, and add a per-stratum training base-rate control. Use "
+            "target_cell_id for the fixed-cell Italy tables."
+        ),
+    )
     temporal_holdout.set_defaults(func=_evaluate_temporal_holdout)
 
     split_diagnostics = subparsers.add_parser("diagnose-temporal-split")
@@ -211,6 +221,17 @@ def register_model_commands(subparsers: _SubParsersAction) -> None:
     step_targets.add_argument("--step-seconds", type=int, default=60)
     step_targets.set_defaults(func=_build_synthetic_step_targets)
 
+    target_design = subparsers.add_parser("diagnose-spatial-target-design")
+    target_design.add_argument("--input", type=Path, required=True)
+    target_design.add_argument("--events", type=Path, required=True)
+    target_design.add_argument("--out", type=Path, required=True)
+    target_design.add_argument("--horizon-days", type=int, action="append")
+    target_design.add_argument("--cell-degrees", type=float, action="append")
+    target_design.add_argument("--target-magnitude-min", type=float, action="append")
+    target_design.add_argument("--catalog-end", default=None)
+    target_design.add_argument("--train-fraction", type=float, default=0.8)
+    target_design.set_defaults(func=_diagnose_spatial_target_design)
+
     group_holdout = subparsers.add_parser("evaluate-group-holdout")
     group_holdout.add_argument("--input", type=Path, required=True)
     group_holdout.add_argument("--out", type=Path, required=True)
@@ -218,6 +239,7 @@ def register_model_commands(subparsers: _SubParsersAction) -> None:
     group_holdout.add_argument("--test-group", required=True)
     group_holdout.add_argument("--epochs", type=int, default=600)
     group_holdout.add_argument("--learning-rate", type=float, default=0.2)
+    group_holdout.add_argument("--stratify-field", default=None)
     group_holdout.set_defaults(func=_evaluate_group_holdout)
 
     model_run_summary = subparsers.add_parser("summarize-model-run-reports")
@@ -312,6 +334,17 @@ def register_model_commands(subparsers: _SubParsersAction) -> None:
     fixture.add_argument("--out", type=Path, required=True)
     fixture.add_argument("--report", type=Path, required=True)
     fixture.add_argument("--train-fraction", type=float, default=0.8)
+    fixture.add_argument(
+        "--no-strict-channels",
+        action="store_true",
+        help="report constant/unmasked channels instead of failing",
+    )
+    fixture.add_argument(
+        "--allow-constant-channel",
+        action="append",
+        default=[],
+        help="channel that is constant by design; repeatable",
+    )
     fixture.set_defaults(func=_build_common_window_fixture)
 
     fixture_sequences = subparsers.add_parser("materialize-common-fixture-sequences")
@@ -683,6 +716,7 @@ def _evaluate_temporal_holdout(args: Namespace) -> int:
         epochs=args.epochs,
         learning_rate=args.learning_rate,
         group_by_time=args.group_by_time,
+        stratify_field=args.stratify_field,
     )
     print_holdout_report(report, args.out)
     return 0
@@ -822,6 +856,36 @@ def _build_synthetic_step_targets(args: Namespace) -> int:
     return 0
 
 
+def _diagnose_spatial_target_design(args: Namespace) -> int:
+    report = diagnose_spatial_target_design(
+        input_csv=args.input,
+        events_csv=args.events,
+        out_path=args.out,
+        horizon_days=tuple(args.horizon_days or (1, 2, 3, 7)),
+        cell_degrees=tuple(args.cell_degrees or (1.5,)),
+        target_magnitude_min=tuple(args.target_magnitude_min or (2.5,)),
+        catalog_end_utc=args.catalog_end,
+        train_fraction=args.train_fraction,
+    )
+    print(f"anchors: {report['anchor_count']}  events: {report['event_count']}")
+    for design in report["designs"]:
+        if design.get("status") != "evaluated":
+            print(f"h={design['horizon_days']}d cell={design['cell_degrees']}: {design.get('status')}")
+            continue
+        full = design["full_record"]
+        held = design["held_out"]
+        print(
+            f"h={design['horizon_days']}d cell={design['cell_degrees']} m>={design['target_magnitude_min']}: "
+            f"rows {design['labeled_row_count']} pos {design['positive_rate']} | "
+            f"full: {full['cells_with_both_classes']}/{design['cell_count']} two-class, "
+            f"{full['total_label_transitions']} transitions | "
+            f"held-out {design['test_span_hours']}h: {held['cells_with_both_classes']} two-class, "
+            f"{held['total_label_transitions']} transitions"
+        )
+    print(f"output: {args.out}")
+    return 0
+
+
 def _evaluate_group_holdout(args: Namespace) -> int:
     report = evaluate_group_holdout(
         input_csv=args.input,
@@ -830,6 +894,7 @@ def _evaluate_group_holdout(args: Namespace) -> int:
         test_group=args.test_group,
         epochs=args.epochs,
         learning_rate=args.learning_rate,
+        stratify_field=args.stratify_field,
     )
     print_holdout_report(report, args.out)
     return 0
@@ -977,11 +1042,15 @@ def _build_common_window_fixture(args: Namespace) -> int:
         out_path=args.out,
         report_path=args.report,
         train_fraction=args.train_fraction,
+        strict_channels=not args.no_strict_channels,
+        allow_constant_channels=args.allow_constant_channel,
     )
     print(f"fixture rows: {report['row_count']}")
     print(f"fixture datasets: {report['dataset_count']}")
     print(f"output: {args.out}")
     print(f"report: {args.report}")
+    for defect in report["channel_gate"]["defects"]:
+        print(f"channel defect: {defect['channel']} {defect['defect']} ({defect['detail']})")
     return 0
 
 

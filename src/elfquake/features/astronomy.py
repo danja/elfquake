@@ -1,4 +1,16 @@
-"""Coarse astronomy feature extraction."""
+"""Coarse astronomy feature extraction.
+
+Superseded by `elfquake.features.astro_windows` for anything that feeds a
+model. The features here describe the collector rather than the sky:
+`astro_capture_count` counts files the fetcher happened to write inside the
+window, and `astro_noaa_solar_cycle_f107_value` carries a monthly constant that
+was identical on all 11,020 rows of the multimodal table. Its
+`quality_missing_astro` flag reads `0` whenever any of those is on disk, so the
+missing-modality mask never fired.
+
+Retained only for the older `build-multimodal-smoke` path and its fixtures. Do
+not wire it into new feature tables.
+"""
 
 from __future__ import annotations
 

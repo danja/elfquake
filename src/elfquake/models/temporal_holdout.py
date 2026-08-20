@@ -20,6 +20,7 @@ def evaluate_temporal_holdout(
     epochs: int = 600,
     learning_rate: float = 0.2,
     group_by_time: bool = False,
+    stratify_field: str | None = None,
 ) -> dict[str, object]:
     if not 0 < train_fraction < 1:
         raise ValueError("train_fraction must be between 0 and 1")
@@ -39,6 +40,7 @@ def evaluate_temporal_holdout(
         "epochs": epochs,
         "learning_rate": learning_rate,
         "group_by_time": group_by_time,
+        "stratify_field": stratify_field or "",
         "evaluations": {},
     }
     if len(labeled) < 4:
@@ -65,7 +67,13 @@ def evaluate_temporal_holdout(
             "train_negative_count": len(labels_train) - sum(labels_train),
             "test_positive_count": sum(labels_test),
             "test_negative_count": len(labels_test) - sum(labels_test),
-            "baselines": _baselines(labels_train, labels_test),
+            "baselines": _baselines(
+                labels_train,
+                labels_test,
+                train_rows=train_rows,
+                test_rows=test_rows,
+                stratify_field=stratify_field,
+            ),
         }
     )
 
@@ -79,6 +87,7 @@ def evaluate_temporal_holdout(
             groups=groups,
             epochs=epochs,
             learning_rate=learning_rate,
+            stratify_field=stratify_field,
         )
     report["status"] = _overall_status(report)
     return _write_report(out_path, report)
@@ -113,6 +122,7 @@ def evaluate_group_holdout(
     test_group: str,
     epochs: int = 600,
     learning_rate: float = 0.2,
+    stratify_field: str | None = None,
 ) -> dict[str, object]:
     rows, fieldnames = _read_rows_and_fields(input_csv)
     labeled = [row for row in rows if row.get("target_occurred") in {"0", "1"}]
@@ -130,6 +140,7 @@ def evaluate_group_holdout(
         "train_groups": sorted({row.get(group_field, "") for row in train_rows}),
         "epochs": epochs,
         "learning_rate": learning_rate,
+        "stratify_field": stratify_field or "",
         "evaluations": {},
     }
     if len(train_rows) < 2 or len(test_rows) < 1:
@@ -144,7 +155,13 @@ def evaluate_group_holdout(
             "train_negative_count": len(labels_train) - sum(labels_train),
             "test_positive_count": sum(labels_test),
             "test_negative_count": len(labels_test) - sum(labels_test),
-            "baselines": _baselines(labels_train, labels_test),
+            "baselines": _baselines(
+                labels_train,
+                labels_test,
+                train_rows=train_rows,
+                test_rows=test_rows,
+                stratify_field=stratify_field,
+            ),
         }
     )
 
@@ -158,6 +175,7 @@ def evaluate_group_holdout(
             groups=groups,
             epochs=epochs,
             learning_rate=learning_rate,
+            stratify_field=stratify_field,
         )
     report["status"] = _overall_status(report)
     return _write_report(out_path, report)
@@ -171,6 +189,7 @@ def _evaluate_one(
     groups: tuple[str, ...] | None,
     epochs: int,
     learning_rate: float,
+    stratify_field: str | None = None,
 ) -> dict[str, object]:
     labels_train = [int(row["target_occurred"]) for row in train_rows]
     labels_test = [int(row["target_occurred"]) for row in test_rows]
@@ -210,6 +229,11 @@ def _evaluate_one(
             "calibrated_threshold": round(calibrated_threshold, 6),
             "calibrated_train_metrics": _metrics(calibrated_train_predictions, labels_train),
             "calibrated_test_metrics": _metrics(calibrated_test_predictions, labels_test),
+            "calibrated_test_metrics_by_stratum": _stratified_metrics(
+                calibrated_test_predictions,
+                labels_test,
+                _strata(test_rows, stratify_field),
+            ),
             "test_probabilities": [round(value, 6) for value in test_probabilities],
             "test_predictions": test_predictions,
             "test_labels": labels_test,
@@ -372,13 +396,126 @@ def _best_threshold(probabilities: list[float], labels: list[int]) -> float:
     return best_threshold
 
 
-def _baselines(labels_train: list[int], labels_test: list[int]) -> dict[str, object]:
+def _baselines(
+    labels_train: list[int],
+    labels_test: list[int],
+    *,
+    train_rows: list[dict[str, str]] | None = None,
+    test_rows: list[dict[str, str]] | None = None,
+    stratify_field: str | None = None,
+) -> dict[str, object]:
     majority = 1 if sum(labels_train) >= len(labels_train) / 2 else 0
-    return {
+    baselines: dict[str, object] = {
         "train_majority_class": majority,
         "majority_class": _metrics([majority for _ in labels_test], labels_test),
         "always_positive": _metrics([1 for _ in labels_test], labels_test),
         "always_negative": _metrics([0 for _ in labels_test], labels_test),
+    }
+    if stratify_field and train_rows is not None and test_rows is not None:
+        baselines["stratum_base_rate"] = _stratum_base_rate_control(
+            train_rows=train_rows,
+            test_rows=test_rows,
+            stratify_field=stratify_field,
+        )
+    return baselines
+
+
+def _strata(rows: list[dict[str, str]], stratify_field: str | None) -> list[str]:
+    """Stratum label per row, or an empty list when no stratification is asked for."""
+    if not stratify_field:
+        return []
+    return [row.get(stratify_field, "") for row in rows]
+
+
+def _stratified_metrics(
+    predictions: list[int],
+    labels: list[int],
+    strata: list[str],
+) -> dict[str, object]:
+    """Balanced accuracy computed inside each stratum, then averaged over strata.
+
+    A predictor that is constant within a stratum scores exactly `0.5` there, so
+    this metric is blind to the per-cell base rate that the coordinate control
+    (item 96) showed carries all of the fixed-cell model's apparent skill. Only
+    strata whose held-out rows contain both classes can be scored; the rest are
+    counted and skipped rather than folded in at a default value.
+    """
+    if not strata:
+        return {"status": "not_stratified"}
+    grouped: dict[str, list[tuple[int, int]]] = {}
+    for prediction, label, stratum in zip(predictions, labels, strata):
+        grouped.setdefault(stratum, []).append((prediction, label))
+    per_stratum: dict[str, object] = {}
+    scores: list[float] = []
+    for stratum, pairs in sorted(grouped.items()):
+        stratum_labels = [label for _, label in pairs]
+        stratum_predictions = [prediction for prediction, _ in pairs]
+        entry: dict[str, object] = {
+            "row_count": len(pairs),
+            "positive_count": sum(stratum_labels),
+        }
+        if 0 < sum(stratum_labels) < len(stratum_labels):
+            metrics = _metrics(stratum_predictions, stratum_labels)
+            entry["balanced_accuracy"] = metrics["balanced_accuracy"]
+            entry["positive_recall"] = metrics["positive_recall"]
+            entry["negative_recall"] = metrics["negative_recall"]
+            scores.append(float(metrics["balanced_accuracy"]))
+        else:
+            entry["status"] = "single_class_stratum"
+        per_stratum[stratum] = entry
+    summary: dict[str, object] = {
+        "stratum_count": len(grouped),
+        "scored_stratum_count": len(scores),
+        "strata": per_stratum,
+    }
+    if scores:
+        summary["mean_balanced_accuracy"] = round(sum(scores) / len(scores), 6)
+        summary["min_balanced_accuracy"] = round(min(scores), 6)
+        summary["max_balanced_accuracy"] = round(max(scores), 6)
+        summary["status"] = "evaluated"
+    else:
+        summary["status"] = "no_two_class_strata"
+    return summary
+
+
+def _stratum_base_rate_control(
+    *,
+    train_rows: list[dict[str, str]],
+    test_rows: list[dict[str, str]],
+    stratify_field: str,
+) -> dict[str, object]:
+    """Score the per-stratum training positive rate as an explicit predictor.
+
+    This names the thing every fixed-cell run so far has turned out to be. The
+    score comes only from the training partition, and the threshold is chosen on
+    the training rows, so the control is leakage-free and directly comparable to
+    the fitted models' calibrated held-out numbers.
+    """
+    totals: dict[str, list[int]] = {}
+    for row in train_rows:
+        totals.setdefault(row.get(stratify_field, ""), []).append(int(row["target_occurred"]))
+    overall = sum(sum(values) for values in totals.values()) / max(len(train_rows), 1)
+    rates = {
+        stratum: sum(values) / len(values) if values else overall
+        for stratum, values in totals.items()
+    }
+    train_scores = [rates.get(row.get(stratify_field, ""), overall) for row in train_rows]
+    test_scores = [rates.get(row.get(stratify_field, ""), overall) for row in test_rows]
+    labels_train = [int(row["target_occurred"]) for row in train_rows]
+    labels_test = [int(row["target_occurred"]) for row in test_rows]
+    threshold = _best_threshold(train_scores, labels_train)
+    test_predictions = _predictions(test_scores, threshold=threshold)
+    return {
+        "stratify_field": stratify_field,
+        "stratum_count": len(rates),
+        "threshold": round(threshold, 6),
+        "train_metrics": _metrics(_predictions(train_scores, threshold=threshold), labels_train),
+        "test_metrics": _metrics(test_predictions, labels_test),
+        "test_metrics_by_stratum": _stratified_metrics(
+            test_predictions,
+            labels_test,
+            _strata(test_rows, stratify_field),
+        ),
     }
 
 

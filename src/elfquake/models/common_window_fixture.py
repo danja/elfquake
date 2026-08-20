@@ -7,6 +7,13 @@ import json
 from collections import Counter, defaultdict
 from pathlib import Path
 
+from elfquake.models.channel_gate import (
+    audit_channels,
+    mask_fields,
+    numeric_channels,
+    raise_for_defects,
+)
+
 
 GROUP_PREFIXES = {
     "seismic": ("seismic_",),
@@ -23,6 +30,7 @@ GROUP_PREFIXES = {
 def build_common_window_fixture(
     *, input_csvs: list[Path], out_path: Path, report_path: Path,
     dataset_ids: list[str] | None = None, train_fraction: float = 0.8,
+    strict_channels: bool = True, allow_constant_channels: list[str] | None = None,
 ) -> dict[str, object]:
     if not input_csvs:
         raise ValueError("at least one input CSV is required")
@@ -81,6 +89,28 @@ def build_common_window_fixture(
     fieldnames.extend(field for field in fieldnames if field not in fieldnames)
     rows.sort(key=lambda row: (row["dataset_id"], row.get("window_start_utc", "")))
 
+    # A dataset that never carried a modality has no opinion column for it, so
+    # the unioned row reads blank. Blank is not "present": it means the source
+    # asserted nothing, which for a missing-flag is the same as missing. Left
+    # unfilled, a channel blank on those rows looks silently imputed.
+    for row in rows:
+        for field in fieldnames:
+            if field.startswith("quality_missing_") and not row.get(field):
+                row[field] = "1"
+
+    # Gate the assembled channels before anything writes them. A constant or
+    # silently imputed channel reaches the model looking exactly like a real
+    # one, so the check has to happen here rather than at training time.
+    all_prefixes = tuple(prefix for prefixes in GROUP_PREFIXES.values() for prefix in prefixes)
+    channel_defects = audit_channels(
+        rows,
+        channels=numeric_channels(rows, fieldnames=fieldnames, prefixes=all_prefixes),
+        mask_fields=mask_fields(fieldnames),
+        allow_constant=frozenset(allow_constant_channels or ()),
+    )
+    if strict_channels:
+        raise_for_defects(channel_defects)
+
     out_path.parent.mkdir(parents=True, exist_ok=True)
     with out_path.open("w", newline="", encoding="utf-8") as handle:
         writer = csv.DictWriter(handle, fieldnames=fieldnames, extrasaction="ignore", lineterminator="\n")
@@ -101,10 +131,19 @@ def build_common_window_fixture(
             for group in GROUP_PREFIXES
         },
         "research_use_only_inputs": [str(path) for path in input_csvs if _research_only(path)],
+        "channel_gate": {
+            "strict": strict_channels,
+            "allowed_constant_channels": sorted(allow_constant_channels or ()),
+            "defects": [
+                {"channel": defect.channel, "defect": defect.defect, "detail": defect.detail}
+                for defect in channel_defects
+            ],
+        },
         "notes": [
             "Rows are unioned by dataset; unrelated time ranges are not cross-joined.",
             "model_split is chronological within dataset_id.",
             "Modality presence flags are explicit and do not impute missing sources.",
+            "Channel gate rejects constant, empty, and silently imputed channels.",
         ],
     }
     report_path.parent.mkdir(parents=True, exist_ok=True)

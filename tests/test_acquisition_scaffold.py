@@ -1786,7 +1786,53 @@ class AcquisitionScaffoldTests(unittest.TestCase):
             self.assertEqual(normalize_gfz_kp_ap(gfz, root / "kp.csv"), 1)
             self.assertEqual(normalize_kyoto_dst_text(dst, root / "dst.csv"), 24)
             self.assertEqual(normalize_f107_daily(f107, root / "f107.csv"), 1)
-            self.assertIn("2026-06-29,123.4", (root / "f107.csv").read_text(encoding="utf-8"))
+            self.assertIn(
+                "2026-06-29,2026-06-29T20:00:00Z,123.4,125.7",
+                (root / "f107.csv").read_text(encoding="utf-8"),
+            )
+
+    def test_kyoto_dst_monthly_page_parses_fixed_width_columns(self) -> None:
+        # Missing hours are the sentinel 9999 and run together with no
+        # separating space, so a whitespace split would merge hours.
+        # Day field is 3 characters, then 4-character values in groups of 8
+        # with one extra space between groups.
+        day_one = " 1 " + "".join(f"{value:4d}" for value in range(8))
+        day_one += " " + "".join(f"{value:4d}" for value in range(8, 16))
+        day_one += " " + "".join(f"{value:4d}" for value in range(16, 24))
+        day_two = " 2 " + "".join(f"{value:4d}" for value in (-19, -22))
+        day_two += "9999" * 6 + " " + "9999" * 8 + " " + "9999" * 8
+        page = "\n".join(
+            [
+                "<pre class=\"data\">",
+                "                     WDC for Geomagnetism, Kyoto",
+                "               Hourly Equatorial Dst Values (REAL-TIME)  ",
+                "                            JUNE     2026",
+                "      unit=nT                                            UT",
+                "      1   2   3",
+                "DAY",
+                day_one,
+                "",
+                day_two,
+                "</pre>",
+            ]
+        )
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            raw = root / "dst.html"
+            raw.write_text(page, encoding="utf-8")
+
+            # 24 hours on day 1, plus the two present hours on day 2.
+            self.assertEqual(normalize_kyoto_dst_text(raw, root / "dst.csv"), 26)
+            with (root / "dst.csv").open(encoding="utf-8") as handle:
+                rows = list(csv.DictReader(handle))
+        self.assertEqual([row["dst_nt"] for row in rows[:3]], ["0", "1", "2"])
+        self.assertEqual(rows[23]["date"], "2026-06-01")
+        self.assertEqual(rows[23]["hour"], "23")
+        self.assertEqual(rows[23]["dst_nt"], "23")
+        self.assertEqual([row["date"] for row in rows[24:]], ["2026-06-02", "2026-06-02"])
+        self.assertEqual([row["hour"] for row in rows[24:]], ["0", "1"])
+        self.assertEqual([row["dst_nt"] for row in rows[24:]], ["-19", "-22"])
+        self.assertEqual({row["dst_tier"] for row in rows}, {"realtime"})
 
     def test_goes_xrs_netcdf_normalizer_extracts_flux_rows(self) -> None:
         from netCDF4 import Dataset
@@ -1911,27 +1957,20 @@ class AcquisitionScaffoldTests(unittest.TestCase):
                 ),
                 encoding="utf-8",
             )
-            moon_payload = root / "astro" / "usno_moon_phases_2026-06-29T09-56-53Z.json"
-            moon_payload.parent.mkdir(parents=True)
-            moon_payload.write_text(
-                json.dumps(
-                    {
-                        "phasedata": [
-                            {"year": 2026, "month": 6, "day": 29, "time": "23:56", "phase": "Full Moon"}
-                        ]
-                    }
-                ),
-                encoding="utf-8",
-            )
-            moon_payload.with_suffix(".json.metadata.json").write_text(
-                json.dumps({"captured_at_utc": "2026-06-29T09:56:53Z", "source_id": "usno_moon_phases"}),
+            space_weather = root / "space_weather"
+            space_weather.mkdir()
+            (space_weather / "gfz_kp_ap.csv").write_text(
+                "date,slot,kp,ap,source_file\n"
+                "2026-06-29,0,1.333,5,kp.txt\n"
+                "2026-06-29,1,2.000,7,kp.txt\n"
+                "2026-06-29,2,2.667,12,kp.txt\n",
                 encoding="utf-8",
             )
 
             rows = build_prospective_vlf_windows(
                 events_csv=events,
                 vlf_metadata_root=root / "vlf",
-                astronomy_metadata_root=root / "astro",
+                space_weather_root=space_weather,
                 region_id="central_italy",
                 lookback_hours=24,
                 horizon_days=7,
@@ -1945,6 +1984,19 @@ class AcquisitionScaffoldTests(unittest.TestCase):
             self.assertEqual(rows[0]["seismic_event_count"], "1")
             self.assertEqual(rows[0]["vlf_capture_count"], "2")
             self.assertEqual(rows[0]["quality_missing_vlf"], "0")
+            # The 06:00-09:00 bin closed before the 09:57 anchor; the 09:00
+            # bin had not, so the hold must not reach forward into it.
+            self.assertEqual(rows[0]["astro_kp"], "2.667")
+            self.assertEqual(rows[0]["astro_kp_age_hours"], "0.956944")
+            self.assertEqual(rows[0]["quality_missing_kp"], "0")
+            # Dst and F10.7 were never normalized here, so they report missing
+            # rather than holding a value forward from nothing.
+            self.assertEqual(rows[0]["quality_missing_dst"], "1")
+            self.assertEqual(rows[0]["quality_missing_f107"], "1")
+            self.assertEqual(rows[0]["quality_missing_astro"], "0")
+            # Ephemeris channels are deterministic and never missing.
+            self.assertTrue(rows[0]["astro_tidal_potential"])
+            self.assertTrue(rows[0]["astro_moon_phase_sin"])
 
     def test_update_prospective_vlf_table_refreshes_existing_windows(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
@@ -1968,15 +2020,12 @@ class AcquisitionScaffoldTests(unittest.TestCase):
                 ),
                 encoding="utf-8",
             )
-            astro_root = root / "astro"
-            astro_root.mkdir()
             table = root / "prospective.csv"
 
             first = update_prospective_vlf_table(
                 table_path=table,
                 events_csv=events,
                 vlf_metadata_root=root / "vlf",
-                astronomy_metadata_root=astro_root,
                 region_id="central_italy",
                 out_path=table,
             )
@@ -1990,7 +2039,6 @@ class AcquisitionScaffoldTests(unittest.TestCase):
                 table_path=table,
                 events_csv=events,
                 vlf_metadata_root=root / "vlf",
-                astronomy_metadata_root=astro_root,
                 region_id="central_italy",
                 out_path=table,
             )

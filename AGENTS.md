@@ -2,9 +2,15 @@
 
 Guidance for agents working in this repository.
 
+## General
+
+The language used will be plain technical English.
+
+Log mistakes in MISTAKES.md (what happened, root cause, prevention).
+
 ## Project Scope
 
-ELFQuake is an Italy-scoped research project for testing whether seismic, VLF radio, and astronomical data contain useful earthquake-related signals.
+ELFQuake is aresearch project for testing whether seismic, VLF radio, and astronomical data contain useful earthquake-related signals.
 
 The central hypothesis is that VLF radio data may augment seismic data enough to make useful predictive models possible.
 

@@ -1,0 +1,14 @@
+[Unit]
+Description=Run ELFQuake geomagnetic and solar index refresh
+
+[Timer]
+# Daily, not on the prospective timer's 30-minute cadence: the Kp/ap and F10.7
+# sources are whole-history archives of roughly 16 MB and 2 MB, and both
+# publish at most once a day.
+OnBootSec=15min
+OnUnitActiveSec=1d
+Unit=elfquake-space-weather.service
+Persistent=true
+
+[Install]
+WantedBy=timers.target

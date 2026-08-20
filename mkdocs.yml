@@ -95,7 +95,9 @@ nav:
       - Pisa M4.3 VLF check: pisa-2026-08-04-vlf-check.md
       - Capture-era shift: capture-era-shift.md
       - Cumiana colour-scale change: vlf-palette-shift.md
+      - Astronomy alignment: astronomy-alignment.md
   - Modeling:
+      - Target design: target-design.md
       - Model candidates: model-candidates.md
       - Modeling strategy: modeling-strategy.md
       - Model interface shape: model-interface-shape.md
