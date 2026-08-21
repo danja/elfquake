@@ -2,6 +2,37 @@
 
 Log of what went wrong, why, and what prevents a repeat. Newest first.
 
+## 2026-08-21 — Used a null control that carried a hundred times the evidence
+
+**What happened.** The timestamp-shuffle control (`permute-spatial-targets`) was
+the standing temporal null from item 8 onward, and items 8 and 93 drew a
+conclusion from it: all five shuffled controls beat real chronological order, so
+destroying temporal structure makes the task easier, which is the opposite of a
+predictive signal. Counting held-out label transitions showed the controls were
+not solving the same problem. Real order carried **1** transition in `era_0` and
+**19** in `era_3`; the shuffled controls carried **94-119** and **315-342**. The
+control was scored on up to a hundred times the evidence of the run it was
+supposed to null, so the comparison was meaningless in both directions. Under a
+matched null the pattern disappears entirely.
+
+**Root cause.** Shuffling is a valid null for independent rows. These rows are
+not independent: anchors are 30 minutes apart against a 1-7 day horizon, so each
+cell's labels are a few long runs, and shuffling the order converts them into
+many short ones. Every new run boundary is a label transition. The control
+destroyed the autocorrelation along with the signal, and the autocorrelation was
+most of what the labels contained. Nothing reported the transition count, so the
+asymmetry was invisible for four rounds of results.
+
+**Prevention.** `evaluate-italy-spatial-shift-controls.sh` replaces it with a
+circular shift that preserves each cell's sequence length and positive count
+exactly and its run structure apart from the wrap seam. It prints
+`transitions: N before, M after`, and a difference beyond two or three means the
+control is unusable. `_stratified_metrics` reports `label_transitions` for every
+run including controls, so a control and its run can always be compared on
+evidence before their scores are compared. When choosing a null for
+autocorrelated data, ask what the null does to the effective sample size, not
+just to the signal.
+
 ## 2026-08-21 — Evaluated against a four-day-stale event catalog
 
 **What happened.** The item-104 evaluation was run, reported, and written up

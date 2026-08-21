@@ -320,10 +320,10 @@ exactly `0.500000` stratified — a proper null converging on chance, which is w
 the cell-stratified metric is supposed to do when no signal is present. The
 metric is well-behaved. The real runs simply do not have the evidence to move it.
 
-A valid null would be a **within-cell** permutation that preserves each cell's
-held-out sequence length, positive count, and block structure, so the control
-and the run are scored on the same number of transitions. It does not exist yet;
-it is item 105(d).
+A valid null must preserve each cell's sequence length, positive count, and
+block structure, so the control and the run are scored on comparable evidence.
+That is now `./scripts/evaluate-italy-spatial-shift-controls.sh`, built for item
+105(d); see [Within-Cell Null Control](shift-control.md).
 
 ### Conclusion for item 104(d)
 

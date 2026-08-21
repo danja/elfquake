@@ -98,6 +98,7 @@ nav:
       - Astronomy alignment: astronomy-alignment.md
   - Modeling:
       - Target design: target-design.md
+      - Within-cell null control: shift-control.md
       - Model candidates: model-candidates.md
       - Modeling strategy: modeling-strategy.md
       - Model interface shape: model-interface-shape.md

@@ -120,19 +120,42 @@ for ERA in era_0 era_3; do
   OUT="$OUT/$ERA.coordinate_control.json" \
   STRATIFY_FIELD=target_cell_id ./scripts/evaluate-italy-spatial-coordinate-control.sh
 
-  INPUT="$ERA_DIR/$ERA.csv" OUT_DIR="$OUT/permutation_$ERA" \
+  INPUT="$ERA_DIR/$ERA.csv" OUT_DIR="$OUT/shift_$ERA" \
   EPOCHS=600 STRATIFY_FIELD=target_cell_id \
-    ./scripts/evaluate-italy-spatial-permutation-controls.sh
+    ./scripts/evaluate-italy-spatial-shift-controls.sh
 done
 ```
 
 `STRATIFY_FIELD=target_cell_id` is what adds the cell-stratified metric and the
 `stratum_base_rate` control, so it is not optional. Match `EPOCHS` between the
-permutation controls and the real run; item 93 was distorted by comparing 100
-epochs against 600.
+controls and the real run; item 93 was distorted by comparing 100 epochs against
+600.
 
-The permutation controls are slow (roughly 5 minutes per seed on `era_3`). Run
-them in the background rather than blocking.
+The controls are slow (roughly 5 minutes per seed on `era_3`). Run them in the
+background rather than blocking.
+
+### Use the shift control, not the timestamp shuffle
+
+`evaluate-italy-spatial-permutation-controls.sh` shuffles whole time slices. It
+is **not a null at this record length** and is kept only for continuity with
+items 8 and 93. Because target windows overlap by more than 99%, most of what
+the labels contain is autocorrelation, and shuffling converts a few long runs
+into many short ones: on the item-104 tables it took held-out transitions from
+1 to 94-119 in `era_0` and from 19 to 315-342 in `era_3`. The control was scored
+on a task with up to a hundred times the evidence of the run it was meant to
+null, so it could not null anything.
+
+`evaluate-italy-spatial-shift-controls.sh` circularly shifts the whole labeled
+matrix in time instead. Sequence length and positive count are preserved exactly
+per cell, run structure survives apart from the wrap seam, and only the
+feature-label alignment is destroyed. Check the printed line:
+
+```
+transitions: 74 before, 76 after
+```
+
+A difference of more than two or three means the shift is not preserving
+structure and the control is not usable.
 
 ## Reading the output
 
@@ -175,6 +198,12 @@ available evidence by roughly 2.5x on 2026-08-21.
 * Do not claim VLF or astronomy adds value without an ablation that separates
   from `stratum_base_rate` on the stratified metric, on held-out data, with the
   transition count reported.
-* Do not pool eras.
+* Do not pool eras. Palette-inverted absolute-dB features were built to remove
+  the need for this and do not: a `17.9 dB` level step survives the inversion,
+  because decoding recovers dB as the receiver reported it and a gain change
+  alters the quantity plotted rather than the plot. See
+  `docs/vlf-palette-shift.md`.
 * Do not repoint the live prospective table or the systemd unit to a new
   horizon; use a scoped `*.h<days>m<mag>.*` path.
+* Do not read the timestamp-shuffle permutation control as a null; use the
+  circular-shift control instead, and check its before/after transition counts.

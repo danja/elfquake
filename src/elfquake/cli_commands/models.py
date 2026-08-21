@@ -35,7 +35,10 @@ from elfquake.models.real_transfer_trial import run_real_transfer_trial
 from elfquake.models.transfer_experiments import run_transfer_experiment_suite
 from elfquake.models.report_summary import summarize_model_run_reports
 from elfquake.models.sequence_materializer import materialize_sequence_dataset
-from elfquake.models.spatial_permutation import permute_spatial_target_vectors
+from elfquake.models.spatial_permutation import (
+    circularly_shift_spatial_targets,
+    permute_spatial_target_vectors,
+)
 from elfquake.models.split_diagnostics import diagnose_temporal_split
 from elfquake.models.synthetic_drift import diagnose_synthetic_drift
 from elfquake.models.synthetic_episodes import annotate_synthetic_episodes
@@ -78,6 +81,15 @@ def register_model_commands(subparsers: _SubParsersAction) -> None:
     permutation.add_argument("--seed", type=int, default=42)
     permutation.add_argument("--time-field", default="window_start_utc")
     permutation.set_defaults(func=_permute_spatial_targets)
+
+    circular = subparsers.add_parser("shift-spatial-targets")
+    circular.add_argument("--input", type=Path, required=True)
+    circular.add_argument("--out", type=Path, required=True)
+    circular.add_argument("--seed", type=int, default=42)
+    circular.add_argument("--time-field", default="window_start_utc")
+    circular.add_argument("--cell-field", default="target_cell_id")
+    circular.add_argument("--min-shift-fraction", type=float, default=0.1)
+    circular.set_defaults(func=_shift_spatial_targets)
 
     catalog_compare = subparsers.add_parser("compare-event-catalogs")
     catalog_compare.add_argument("--real-events", type=Path, required=True)
@@ -564,6 +576,26 @@ def _permute_spatial_targets(args: Namespace) -> int:
     )
     print(f"rows: {report['row_count']}")
     print(f"labeled time groups: {report['labeled_time_count']}")
+    print(f"output: {args.out}")
+    return 0
+
+
+def _shift_spatial_targets(args: Namespace) -> int:
+    report = circularly_shift_spatial_targets(
+        input_csv=args.input,
+        out_path=args.out,
+        seed=args.seed,
+        time_field=args.time_field,
+        cell_field=args.cell_field,
+        min_shift_fraction=args.min_shift_fraction,
+    )
+    print(f"rows: {report['row_count']}")
+    print(f"labeled time groups: {report['labeled_time_count']}")
+    print(f"shift: {report['shift_anchors']} anchors across {report['cell_count']} cells")
+    print(
+        f"transitions: {report['transitions_before']} before, "
+        f"{report['transitions_after']} after"
+    )
     print(f"output: {args.out}")
     return 0
 
