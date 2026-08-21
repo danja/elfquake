@@ -11,6 +11,9 @@ OUT_DIR="${OUT_DIR:-data/derived/reports/italy_capture_era_shift}"
 STRIPPED="${STRIPPED:-$OUT_DIR/$(basename "${INPUT%.csv}").no_cell_coordinates.csv}"
 OUT="${OUT:-$OUT_DIR/$(basename "${INPUT%.csv}").no_cell_coordinates.temporal_grouped_holdout.json}"
 DROP_FIELDS="${DROP_FIELDS:-target_cell_latitude,target_cell_longitude,target_cell_degrees}"
+# Forwarded to the baseline script. `target_cell_id` survives the strip, so the
+# cell-stratified metric can still be computed on the control run.
+STRATIFY_FIELD="${STRATIFY_FIELD:-}"
 
 mkdir -p "$(dirname "$STRIPPED")" "$(dirname "$OUT")"
 
@@ -35,6 +38,7 @@ print(f"dropped: {sorted(drop)}")
 print(f"stripped rows: {len(rows)} fields: {len(fields)}")
 PY
 
-INPUT="$STRIPPED" OUT="$OUT" ./scripts/evaluate-italy-spatial-baseline.sh
+INPUT="$STRIPPED" OUT="$OUT" STRATIFY_FIELD="$STRATIFY_FIELD" \
+  ./scripts/evaluate-italy-spatial-baseline.sh
 
 printf 'coordinate control: %s\n' "$OUT"

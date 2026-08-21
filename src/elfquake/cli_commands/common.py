@@ -49,14 +49,22 @@ def print_holdout_report(report: dict[str, object], out_path: Path) -> None:
     control = (report.get("baselines") or {}).get("stratum_base_rate")
     if control:
         plain = control["test_metrics"]["balanced_accuracy"]
-        stratified = control["test_metrics_by_stratum"].get("mean_balanced_accuracy")
+        by_stratum = control["test_metrics_by_stratum"]
+        stratified = by_stratum.get("mean_balanced_accuracy")
         print(f"stratum base-rate control: {plain} plain, {stratified} stratified")
+        transitions = by_stratum.get("label_transitions")
+        if transitions is not None:
+            # Item 103/104: overlapping target windows make the row count a bad
+            # sample size. Print the transitions once, before any score, so a
+            # score is never read without the evidence count that bounds it.
+            print(f"held-out label transitions: {transitions}")
     for name, item in sorted((report.get("evaluations") or {}).items()):
         summary = item.get("calibrated_test_metrics_by_stratum") or {}
         if summary.get("status") == "evaluated":
             print(
                 f"{name}: {item['calibrated_test_metrics']['balanced_accuracy']} plain, "
                 f"{summary['mean_balanced_accuracy']} stratified "
-                f"({summary['scored_stratum_count']}/{summary['stratum_count']} strata)"
+                f"({summary['scored_stratum_count']}/{summary['stratum_count']} strata, "
+                f"{summary['label_transitions']} transitions)"
             )
     print(f"output: {out_path}")

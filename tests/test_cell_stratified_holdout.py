@@ -25,6 +25,24 @@ class StratifiedMetricsTests(unittest.TestCase):
         summary = _stratified_metrics([1, 0], [1, 0], [])
         self.assertEqual(summary["status"], "not_stratified")
 
+    def test_label_transitions_are_counted_beside_every_score(self) -> None:
+        # Overlapping target windows make consecutive rows near-copies, so the
+        # row count is not the sample size. A cell with one contiguous block of
+        # positives carries two label changes no matter how many rows it has.
+        strata = ["a"] * 10 + ["b"] * 10
+        labels = [0, 0, 0, 1, 1, 1, 0, 0, 0, 0] + [0] * 5 + [1] * 5
+        predictions = [0] * 20
+        summary = _stratified_metrics(predictions, labels, strata)
+        self.assertEqual(summary["strata"]["a"]["label_transitions"], 2)
+        self.assertEqual(summary["strata"]["b"]["label_transitions"], 1)
+        self.assertEqual(summary["label_transitions"], 3)
+        self.assertEqual(summary["strata"]["a"]["row_count"], 10)
+
+    def test_single_class_strata_still_report_zero_transitions(self) -> None:
+        summary = _stratified_metrics([0] * 6, [0] * 6, ["a"] * 6)
+        self.assertEqual(summary["strata"]["a"]["label_transitions"], 0)
+        self.assertEqual(summary["label_transitions"], 0)
+
     def test_cell_constant_predictor_scores_exactly_half(self) -> None:
         # Cell A is always predicted positive, cell B always negative. Pooled
         # this looks skilful because A is the high-rate cell; per cell it is

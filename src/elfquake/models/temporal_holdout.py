@@ -439,6 +439,13 @@ def _stratified_metrics(
     (item 96) showed carries all of the fixed-cell model's apparent skill. Only
     strata whose held-out rows contain both classes can be scored; the rest are
     counted and skipped rather than folded in at a default value.
+
+    Every entry also carries `label_transitions`: the number of times the label
+    changes between consecutive held-out rows in that stratum. Target windows
+    overlap heavily, so `row_count` overstates the evidence by orders of
+    magnitude and the transition count is the honest sample size (item 103).
+    A balanced accuracy is not interpretable without it, so it is reported
+    beside every score rather than left to a separate diagnostic.
     """
     if not strata:
         return {"status": "not_stratified"}
@@ -453,6 +460,11 @@ def _stratified_metrics(
         entry: dict[str, object] = {
             "row_count": len(pairs),
             "positive_count": sum(stratum_labels),
+            "label_transitions": sum(
+                1
+                for previous, current in zip(stratum_labels, stratum_labels[1:])
+                if previous != current
+            ),
         }
         if 0 < sum(stratum_labels) < len(stratum_labels):
             metrics = _metrics(stratum_predictions, stratum_labels)
@@ -466,6 +478,10 @@ def _stratified_metrics(
     summary: dict[str, object] = {
         "stratum_count": len(grouped),
         "scored_stratum_count": len(scores),
+        "label_transitions": sum(
+            int(entry["label_transitions"])  # type: ignore[index]
+            for entry in per_stratum.values()
+        ),
         "strata": per_stratum,
     }
     if scores:

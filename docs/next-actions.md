@@ -239,19 +239,37 @@
 
     **Every fixed-cell score reported so far — `0.415351`, `0.655320`, `0.575000`, `0.675409`, `0.557356` — was computed against single-digit held-out label transitions.** They are not refuted; they are uninformative, and the interval on any of them spans chance. This also reframes item 102: astronomy was not shown to add nothing, it was shown to add nothing *measurable against seven label changes*. That is a weaker claim than item 102 makes, and item 102 should be read with this correction.
 
-104. **Next.** Build the recommended design and re-run all three controls against it, then decide whether the record is long enough to test any modality at all.
+104. **Completed on 2026-08-21. Two findings: the event catalog was four days stale and the live collector never refreshes it; and the shortened target design works but the era split still leaves twenty held-out label changes.** Full write-up in [Target Design](target-design.md). Reproduce with the `elfquake-fixed-cell-evaluation` skill; this run is pinned at `AS_OF=2026-08-21T11:22:36Z`, `CATALOG_END=2026-08-21T11:10:37Z`.
 
-    (a) Build the scoped 1-day / M≥2.0 prospective table and its spatial targets using the commands in [Target Design](target-design.md), writing to `*.h1m20.*` paths. Leave the live 7-day table and the systemd job untouched.
+    **(i) The live 30-minute service does not fetch INGV events.** `elfquake-prospective.service` updates VLF image features and the prospective window table against whatever catalog is already on disk. Only `refresh-prospective-labels.sh`, run by hand, advances the catalog, and it had last run on 2026-08-17. Meanwhile `build-italy-spatial-vlf-targets.sh` defaulted `CATALOG_END` to wall-clock now, asserting coverage the catalog did not have, so **22 real events between 2026-08-17 and 2026-08-21 were labeled as non-events**, all inside the held-out partition. On the refreshed catalog `era_3` held-out transitions go 10 → **19**, scoreable cells 6 → **8**, and `seismic_only` stratified falls `0.652961` → `0.552836`. The largest apparent VLF-era result in the project was an artifact of missing events. `CATALOG_END` now defaults to the catalog's own `max(ingested_at_utc)`. **The collector defect itself is not fixed — see item 105(a).**
 
-    (b) Re-run `diagnose-vlf-capture-era-shift.sh` on the scoped table, then per era run the grouped baseline, the coordinate control, the permutation control, and the new cell-stratified control. Report the stratified number alongside the pooled one everywhere; the pooled number alone is what made the last four results look interpretable.
+    **(ii) The design delivers and it is still not enough.** The scoped 1-day / M≥2.0 table gives 15,504 rows against 11,020, 98% labeled against 66%, positive rate `0.100718` against `0.185170`, full-record transitions 27 → **104**, whole-record held-out transitions 7 → **31**, cells ever two-class 10 → **15** of 19.
 
-    (c) Report the held-out transition count next to every score. A score without it is not reportable.
+    **The 31 does not survive the item-96 era split.** `era_0` holds **1** held-out transition across 1,064 rows and one scoreable cell; `era_3` holds **19** across 1,976 rows and eight scoreable cells. Twenty in total. The split that makes VLF features comparable is the same split that removes the label variation needed to test them, and that conflict applies to every design in the item-103 sweep.
 
-    (d) If 27 held-out transitions still cannot separate any ablation from its base-rate control — which is the likely outcome — record that the blocker is calendar time, not features or targets, and stop adding feature families until the Cumiana record is substantially longer. That conclusion is a data-volume statement, not evidence of absence.
+    `era_3` scores, all on the same 19 transitions: `seismic_only` `0.525464` pooled / `0.552836` stratified; `seismic_vlf` `0.515191` / `0.539445`; `stratum_base_rate` control `0.534581` / `0.500000`; `vlf_only` `0.506800` / `0.532717`; `full_multimodal` `0.489631` / `0.431988`; `all_features` `0.455515` / `0.404832`. Per cell the range is `0.300344`–`0.854430` on one to five transitions each. **Do not read any of these numbers.**
 
-    (e) Only then return to item 97 (palette-inverted absolute-dB VLF features). The per-era pooling restriction from item 96 still applies to any run that spans the outage.
+    (c) is now enforced in code: `_stratified_metrics` emits `label_transitions` per stratum and in the summary, and the CLI prints it beside every score.
 
-    Keep item 95(d) open independently: audit the remaining `all_available` scripts for the item-89 staleness pattern.
+    **New finding: the permutation control is not a null at all.** Shuffling target timestamps destroys the autocorrelation that makes consecutive rows near-copies, so it manufactures label variation. The shuffled controls carry **94–119** held-out transitions in `era_0` against the real run's **1**, and **315–342** in `era_3` against the real run's **19** — 17 to 100 times the evidence. They are a different, better-resourced task, not the same task made harder. **This retires the item-8 reading** ("all five controls beat real order, so destroying temporal structure makes the task easier") as uninterpretable; the item-93 era-leak mechanism and this evidence-count asymmetry are both present and cannot be separated at this record length. It does validate the metric: given 315–342 transitions the shuffled controls land on `0.500000`–`0.533923` stratified, a proper null converging on chance. A within-cell permutation preserving each cell's sequence length, positive count, and block structure would be a valid null; see item 105(d).
+
+    (d) **The blocker is calendar time.** 419 Italian events at M≥2.0 across 81 days, through 19 cells, split by an unavoidable era boundary, yield twenty independent held-out label changes. Stop adding feature families. This is a data-volume statement and **not** evidence that VLF, astronomy, or seismic history lacks predictive value.
+
+105. **Next.** Fix the collector, then remove the era boundary. Both add evidence without waiting for calendar time.
+
+    (a) **Make the live collector refresh INGV.** `elfquake-prospective.service` runs every 30 minutes and never fetches events, so the target catalog is stale by however long it has been since someone ran `refresh-prospective-labels.sh` by hand. Either add the fetch/normalize/combine steps to the unit, or add a separate `elfquake-ingv.timer` ordered before it. Until then, treat every label built between manual refreshes as unverified, and check `max(ingested_at_utc)` before any evaluation. This is a live-system defect and it silently corrupted the first version of the item-104 evaluation.
+
+    (b) **Finish item 97** (palette-inverted absolute-dB VLF features in `src/elfquake/features/vlf_image.py`), re-running `diagnose-vlf-palette-shift.sh` after each refresh. If absolute-dB features remove the `11.58 dB` era discontinuity, the item-96 pooling restriction lifts and both eras become one record — roughly doubling the usable transition count at zero cost in calendar time. That is the only way to add evidence to this record without waiting, which makes it the highest-leverage open item rather than a feature-engineering detour.
+
+    (c) Ask the Cumiana operator about receiver gain in the 2026-07-06 to 2026-07-11 window. A recorded gain change would let the correction be applied as a known constant rather than inferred.
+
+    (d) Build a within-cell permutation control that preserves each cell's held-out sequence length and positive count, so the null and the run are scored on the same number of strata. Add it beside the existing standing controls.
+
+    (e) Keep collecting. Re-run the item-104 evaluation via the `elfquake-fixed-cell-evaluation` skill when a single era reaches a held-out transition count in the low hundreds, not before.
+
+    (f) Leave the per-cell rate residual and single-regional-target designs from item 103 untested until there is enough label variation to distinguish them.
+
+    Keep item 95(d) open independently: audit the remaining `all_available` scripts for the item-89 staleness pattern. Item 104(i) is that pattern reappearing in the live collector.
 
 ## Modeling
 

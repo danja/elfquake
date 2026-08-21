@@ -2,6 +2,63 @@
 
 Log of what went wrong, why, and what prevents a repeat. Newest first.
 
+## 2026-08-21 — Evaluated against a four-day-stale event catalog
+
+**What happened.** The item-104 evaluation was run, reported, and written up
+against an INGV catalog whose last event was 2026-08-17. Refreshing it added
+**22 events between 2026-08-17 and 2026-08-21**, all inside the held-out
+partition, every one of which had been labeled a non-event. The corrected run
+moved `era_3` held-out transitions from 10 to 19, scoreable cells from 6 to 8,
+and `seismic_only` stratified from `0.652961` to `0.552836`. The `0.652961` was
+the largest apparent VLF-era result in the project and it was an artifact of
+missing events.
+
+**Root cause.** Two things, and either alone would have been caught.
+
+The live `elfquake-prospective.timer` fires every 30 minutes and looks like a
+data collector, but `elfquake-prospective.service` only extracts VLF image
+features and updates the window table. It never fetches INGV. The event catalog
+advances only when a human runs `refresh-prospective-labels.sh`. A timer that
+had run four minutes earlier was taken as evidence the data was current.
+
+`build-italy-spatial-vlf-targets.sh` then defaulted `CATALOG_END` to
+`$(date -u)`, which asserts the catalog covers up to this moment. The maturity
+guard was therefore certifying coverage from wall-clock time rather than from
+the catalog, so anchors in the staleness gap were declared mature and labeled
+negative — absence of events in a catalog that had stopped.
+
+**Prevention.** `CATALOG_END` now defaults to the catalog's own
+`max(ingested_at_utc)`, which is when the fetch actually happened, so the guard
+cannot certify coverage that does not exist. The
+`elfquake-fixed-cell-evaluation` skill opens with the refresh and a freshness
+check, and pins `AS_OF`/`CATALOG_END` so a reported number can be regenerated.
+Before any evaluation, print `max(ingested_at_utc)` and compare it with now; a
+running timer is not evidence of a current catalog. Making the live collector
+fetch INGV is item 105(a) and is still open.
+
+## 2026-08-21 — Quoted a whole-record diagnostic for a per-era evaluation
+
+**What happened.** Item 103 recommended a 1-day / M≥2.0 target design on the
+strength of `27` held-out label transitions, and item 104 was written to test
+whether `27` was enough. Neither number was ever available to a real run: item
+96 forbids pooling `era_0` and `era_3`, so every evaluation happens inside one
+era, and the split leaves **1** held-out transition in `era_0` and **19** in
+`era_3`. The design was recommended, built, and scheduled for evaluation
+against an evidence count no run could see.
+
+**Root cause.** `diagnose_spatial_target_design` measures a CSV as one record.
+The evaluator splits by era first and then takes a held-out fraction of each.
+Two tools computed "held-out transitions" under different partitions and only
+one label was used for both. The whole-record figure is not wrong; it answers a
+question no run asks.
+
+**Prevention.** The transition count is now computed inside the evaluator —
+`_stratified_metrics` emits `label_transitions` per stratum and in the summary,
+and the CLI prints it beside every score — so the number quoted always comes
+from the same partition as the score it qualifies. When a design diagnostic and
+an evaluation disagree, the evaluator's count is operative. Run design
+diagnostics per era, not per file, before recommending a design.
+
 ## 2026-08-20 — Reported held-out row counts as if they were sample sizes
 
 **What happened.** Four rounds of fixed-cell Italy results (next-actions items
