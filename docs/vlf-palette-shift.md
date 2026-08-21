@@ -130,3 +130,107 @@ Not settled:
 This diagnostic does not support any claim about earthquake-related VLF
 signals. It identifies and quantifies an instrument-side artifact in the
 capture record.
+
+## Absolute-dB features, and the pooling verdict (2026-08-21)
+
+Answers [Next Actions](next-actions.md) item 97(a), and settles item 105(b).
+
+The recoverable path this document identified is now implemented:
+`src/elfquake/features/vlf_image_db.py`, run by
+`./scripts/extract-vlf-image-db-features.sh`. Every capture is inverted through
+its own embedded colourbar, so the features are invariant to the palette
+setting by construction. All 824 captures decode, with a mean censored fraction
+of `0.229` and `7.65` of 8 bands scoreable per capture.
+
+**The answer to the question that motivated it is no.** Palette-inverted
+features do not make `era_0` and `era_3` poolable, so the item-96 restriction
+stands and the transition budget in [Target Design](target-design.md) does not
+improve.
+
+### Censoring is carried, not smoothed over
+
+Item 97(a) required this and it is the whole difficulty. The two variants
+resolve different dB windows, so a band below the shared floor is *missing*, not
+quiet, and a median over the pixels that escaped clipping would report the
+palette floor as a measurement. Each band therefore carries
+`vlfdb_band_<i>_censored_fraction`, and its level is withheld entirely — left
+empty, never filled with a number — once censoring passes 50%. Each capture also
+carries its own `vlfdb_black_end_px` / `vlfdb_red_start_px`, so a third palette
+variant would show up in the features rather than only in this diagnostic.
+
+On the real record the censoring is almost entirely inversion-residual masking
+from JPEG artifacts, not clipping: hot- and black-clipped fractions are `0.000`
+on nearly every day. The decoded levels are not floor or ceiling artifacts.
+
+### A level step survives the inversion
+
+Reproduce with `./scripts/diagnose-vlf-db-era-step.sh`. Hour-matched to
+`11:00`–`13:00` UTC, and reduced to one median per day before comparing —
+captures 30 minutes apart are highly correlated, so days are the independent
+unit:
+
+| Band | Early median | Late median | Delta | Step ÷ within-era spread |
+| --- | --- | --- | --- | --- |
+| 12–15 kHz | `-56.6` | `-73.2` | `-16.6` | `2.93` |
+| 9–12 kHz | `-53.9` | `-70.5` | `-16.6` | `3.06` |
+| 6–9 kHz | `-52.4` | `-71.1` | `-18.7` | `2.92` |
+| 4–6 kHz | `-54.7` | `-76.3` | `-21.6` | `2.83` |
+| 2.5–4 kHz | `-66.1` | `-83.2` | `-17.1` | `2.12` |
+| 1.5–2.5 kHz | `-65.8` | `-82.6` | `-16.8` | `2.26` |
+| 0.7–1.5 kHz | `-62.1` | `-81.1` | `-18.9` | `2.29` |
+| 0.2–0.7 kHz | `-55.8` | `-76.3` | `-20.5` | `2.70` |
+
+Median step `-17.9 dB`, range `-16.6` to `-21.6` across two decades of
+frequency, at `2.8` times the day-to-day spread within either era. That is a
+discontinuity, not ordinary variability, and it is broadband and roughly
+uniform — which is what a front-end gain change looks like and what
+frequency-selective propagation physics does not.
+
+### Why inversion could never have removed it
+
+The hope recorded in item 97(a) — that dB features would be "era-invariant by
+construction and would remove the need to keep the eras apart" — was only ever
+true of the *display* component. Decoding through the colourbar recovers dB as
+the receiver reported it, not dB at the antenna. A palette change alters the
+plot; a gain change alters the quantity being plotted. Inversion undoes the
+first and leaves the second exactly as it was.
+
+So the two changes at the outage separate cleanly:
+
+* **The `11.58 dB` palette move** is a display setting. It is now removed, and
+  the pixel-feature incomparability it caused is fixed.
+* **The `~17.9 dB` level step** is in the data the receiver reported. It is
+  untouched by inversion, and pooling across it would hand a model an era
+  indicator measured in dB instead of in colour.
+
+That the two numbers are close is itself evidence: an operator who reduces
+front-end gain by roughly 12–18 dB and then moves the colour ramp down by
+`11.58 dB` to keep the display readable is doing one job in two steps. This is
+consistent circumstantial evidence, not proof, and it does not change the
+operational answer either way — the eras stay separate.
+
+### What this does and does not settle
+
+Settled:
+
+* Absolute-dB features exist, decode on the whole record, and carry their
+  censoring explicitly.
+* **The palette artifact is removed.** Cross-era comparisons of
+  `vlfdb_band_*_db_median` are on one ruler, unlike the raw pixel features.
+* **The eras still must not be pooled.** A `17.9 dB` broadband step at `2.8`
+  times the within-era spread remains, so item 96 stands and item 105(b)'s
+  premise — that this would roughly double the usable label transitions — is
+  refuted. The blocker recorded in item 104(d) is unchanged: calendar time.
+
+Not settled:
+
+* **Instrumental versus atmospheric, still.** The evidence has moved further
+  toward instrumental — the step is now measured on a common ruler, is uniform
+  across `200 Hz`–`15 kHz`, and is nearly twice as large as the display change
+  that accompanied it — but pixels cannot separate a gain reduction from a
+  quiet period. Operator contact (item 105(c)) remains the only route.
+* Whether absolute-dB features carry any signal. Nothing here tests that. They
+  remove a known artifact within an era; they create no evidence.
+
+Nothing in this section supports any claim about earthquake-related VLF
+signals.

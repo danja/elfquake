@@ -18,6 +18,8 @@ from elfquake.features.training_windows import build_seismic_training_windows
 from elfquake.features.vlf import build_vlf_features
 from elfquake.features.vlf_audio import build_vlf_audio_features
 from elfquake.features.vlf_image import build_vlf_image_features
+from elfquake.features.vlf_image_db import build_vlf_image_db_features
+from elfquake.features.vlf_palette import DEFAULT_RESIDUAL_LIMIT
 from elfquake.features.vlf_image_compare import compare_vlf_image_features
 from elfquake.features.vlf_palette import diagnose_vlf_palette_shift
 from elfquake.features.vlf_image_windows import join_vlf_image_features_to_windows
@@ -109,6 +111,14 @@ def register_feature_commands(subparsers: _SubParsersAction) -> None:
     vlf_image_features.add_argument("--crop-right", type=float, default=0.83)
     vlf_image_features.add_argument("--crop-bottom", type=float, default=0.95)
     vlf_image_features.set_defaults(func=_extract_vlf_image_features)
+
+    vlf_image_db = subparsers.add_parser("extract-vlf-image-db-features")
+    vlf_image_db.add_argument("--image", type=Path, action="append", default=[])
+    vlf_image_db.add_argument("--image-root", type=Path, action="append", default=[])
+    vlf_image_db.add_argument("--filename-prefix", action="append", default=[])
+    vlf_image_db.add_argument("--out", type=Path, required=True)
+    vlf_image_db.add_argument("--residual-limit", type=float, default=DEFAULT_RESIDUAL_LIMIT)
+    vlf_image_db.set_defaults(func=_extract_vlf_image_db_features)
 
     vlf_image_compare = subparsers.add_parser("compare-vlf-image-features")
     vlf_image_compare.add_argument("--sim-image", type=Path, required=True)
@@ -374,6 +384,28 @@ def _extract_vlf_image_features(args: Namespace) -> int:
         crop_bottom=args.crop_bottom,
     )
     print(f"image rows: {len(rows)}")
+    print(f"output: {args.out}")
+    return 0
+
+
+def _extract_vlf_image_db_features(args: Namespace) -> int:
+    rows = build_vlf_image_db_features(
+        image_paths=resolve_image_paths(
+            image_paths=args.image,
+            image_roots=args.image_root,
+            filename_prefixes=args.filename_prefix,
+        ),
+        out_path=args.out,
+        residual_limit=args.residual_limit,
+    )
+    ok = [row for row in rows if row.get("vlfdb_status") == "ok"]
+    print(f"image rows: {len(rows)}")
+    print(f"decoded rows: {len(ok)}")
+    if ok:
+        censored = [float(row["vlfdb_censored_fraction"]) for row in ok]
+        bands = [int(row["vlfdb_scored_band_count"]) for row in ok]
+        print(f"mean censored fraction: {round(sum(censored) / len(censored), 4)}")
+        print(f"mean scored bands: {round(sum(bands) / len(bands), 2)} of 8")
     print(f"output: {args.out}")
     return 0
 

@@ -12,31 +12,40 @@ to be an artifact at least five times (see `MISTAKES.md` and
 
 ## Refresh first, always
 
-The live `elfquake-prospective.timer` fires every 30 minutes but **does not
-fetch INGV events**. It only updates VLF image features and the window table
-against whatever event catalog is already on disk. Between manual refreshes the
-catalog falls behind while anchors keep accumulating, and anchors in the gap get
-labeled negative because no event can be found in a catalog that stopped.
+Historically `elfquake-prospective.service` fired every 30 minutes and looked
+like a data collector, but only updated VLF image features and the window table
+against whatever event catalog was already on disk. Between manual refreshes the
+catalog fell behind while anchors kept accumulating, and anchors in the gap were
+labeled negative because no event could be found in a catalog that had stopped.
+The unit now runs `refresh-ingv-events.sh` first, but **verify that before
+trusting it** -- a deployed unit can lag the repo:
+
+```sh
+diff /etc/systemd/system/elfquake-prospective.service \
+     deploy/systemd/elfquake-prospective.service && echo "unit is current"
+```
+
+For a full-window refresh by hand:
 
 ```sh
 ./scripts/refresh-prospective-labels.sh
 ```
 
-Confirm the catalog actually advanced before trusting anything downstream:
+Then check the freshness report before anything downstream:
 
 ```sh
-PYTHONPATH=src .venv/bin/python -c "
-import csv
-from pathlib import Path
-rows = list(csv.DictReader(Path('data/derived/ingv/events_italy_prospective.current.normalized.csv').open(newline='', encoding='utf-8')))
-print('events', len(rows))
-print('last event  ', max(r['event_time_utc'] for r in rows))
-print('last ingested', max(r['ingested_at_utc'] for r in rows))
-"
+cat data/derived/ingv/catalog_freshness.json
 ```
 
-`last ingested` is the catalog's coverage end. If it is hours or days behind
-now, stop and refresh; do not evaluate.
+`coverage_end_utc` is what the catalog was successfully asked for -- the only
+honest coverage assertion. `staleness_hours` above a couple of hours, or a
+`fetch_status` other than `ok`, means stop and refresh; do not evaluate.
+
+Do not substitute `max(event_time_utc)` for coverage: a real quiet period is
+data, a stale catalog is not, and only `coverage_end_utc` separates them. Do not
+substitute `max(ingested_at_utc)` either -- `combine-normalized-events`
+deduplicates by `event_id` keeping the first occurrence, so a fetch returning no
+new events leaves every ingest stamp untouched.
 
 ## Pin the run
 

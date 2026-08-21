@@ -33,8 +33,10 @@ cannot certify coverage that does not exist. The
 `elfquake-fixed-cell-evaluation` skill opens with the refresh and a freshness
 check, and pins `AS_OF`/`CATALOG_END` so a reported number can be regenerated.
 Before any evaluation, print `max(ingested_at_utc)` and compare it with now; a
-running timer is not evidence of a current catalog. Making the live collector
-fetch INGV is item 105(a) and is still open.
+running timer is not evidence of a current catalog. The live collector now runs
+`refresh-ingv-events.sh` as its first step, so the catalog advances every 30
+minutes instead of only when someone remembers (item 105(a), installed and
+verified 2026-08-21).
 
 ## 2026-08-21 — Quoted a whole-record diagnostic for a per-era evaluation
 

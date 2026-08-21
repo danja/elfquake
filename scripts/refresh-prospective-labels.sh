@@ -15,92 +15,18 @@ SPACE_WEATHER_ROOT="${SPACE_WEATHER_ROOT:-data/derived/astronomy}"
 START_DATE="${START:0:10}"
 END_DATE="${END:0:10}"
 
-PYTHONDONTWRITEBYTECODE=1 PYTHONPATH=src "$PYTHON_BIN" -m elfquake.cli fetch-ingv-events \
-  --start "$START" \
-  --end "$END"
+# Fetch, normalize, and combine INGV events. Extracted to its own script so the
+# live `elfquake-prospective.service` runs exactly this code every 30 minutes
+# instead of leaving the catalog frozen between manual runs (see MISTAKES.md,
+# 2026-08-21). `START` is passed through explicitly here, so this stays a
+# full-window refresh rather than the service's rolling one.
+START="$START" END="$END" AS_OF="$AS_OF" COMBINE_START_DATE="$COMBINE_START_DATE" \
+ALL_ITALY_EVENTS="${ALL_ITALY_EVENTS:-data/derived/ingv/events_italy_all_available.combined.normalized.csv}" \
+ALL_CENTRAL_EVENTS="${ALL_CENTRAL_EVENTS:-data/derived/ingv/events_central_italy_all_available.combined.normalized.csv}" \
+  ./scripts/refresh-ingv-events.sh
 
-RAW="$(find data/raw/ingv -maxdepth 1 -name "events_italy_${START_DATE}_${END_DATE}_*.txt" | sort | tail -n 1)"
-if [[ -z "$RAW" ]]; then
-  echo "No fetched INGV raw file found for ${START_DATE} to ${END_DATE}" >&2
-  exit 2
-fi
-
-PYTHONDONTWRITEBYTECODE=1 PYTHONPATH=src "$PYTHON_BIN" -m elfquake.cli normalize-ingv-events \
-  --raw "$RAW" \
-  --out "data/derived/ingv/events_italy_${START_DATE}_${END_DATE}.normalized.csv"
-
-PYTHONDONTWRITEBYTECODE=1 PYTHONPATH=src "$PYTHON_BIN" -m elfquake.cli normalize-ingv-events \
-  --raw "$RAW" \
-  --out "data/derived/ingv/events_central_italy_${START_DATE}_${END_DATE}.normalized.csv" \
-  --only-region central_italy
-
-italy_inputs=()
-while IFS= read -r path; do
-  name="${path##*/}"
-  chunk_start="${name#events_italy_}"
-  chunk_start="${chunk_start%%_*}"
-  if [[ "$chunk_start" < "$COMBINE_START_DATE" ]]; then
-    continue
-  fi
-  italy_inputs+=(--input "$path")
-done < <(find data/derived/ingv -maxdepth 1 -name "events_italy_*.normalized.csv" ! -name "*.combined.normalized.csv" | sort)
-
-central_inputs=()
-while IFS= read -r path; do
-  name="${path##*/}"
-  chunk_start="${name#events_central_italy_}"
-  chunk_start="${chunk_start%%_*}"
-  if [[ "$chunk_start" < "$COMBINE_START_DATE" ]]; then
-    continue
-  fi
-  central_inputs+=(--input "$path")
-done < <(find data/derived/ingv -maxdepth 1 -name "events_central_italy_*.normalized.csv" ! -name "*.combined.normalized.csv" | sort)
-
-ITALY_EVENTS="data/derived/ingv/events_italy_${COMBINE_START_DATE}_${END_DATE}.combined.normalized.csv"
-CENTRAL_EVENTS="data/derived/ingv/events_central_italy_${COMBINE_START_DATE}_${END_DATE}.combined.normalized.csv"
 ITALY_CURRENT_EVENTS="data/derived/ingv/events_italy_prospective.current.normalized.csv"
 CENTRAL_CURRENT_EVENTS="data/derived/ingv/events_central_italy_prospective.current.normalized.csv"
-
-PYTHONDONTWRITEBYTECODE=1 PYTHONPATH=src "$PYTHON_BIN" -m elfquake.cli combine-normalized-events \
-  "${italy_inputs[@]}" \
-  --out "$ITALY_EVENTS"
-
-PYTHONDONTWRITEBYTECODE=1 PYTHONPATH=src "$PYTHON_BIN" -m elfquake.cli combine-normalized-events \
-  "${central_inputs[@]}" \
-  --out "$CENTRAL_EVENTS"
-
-PYTHONDONTWRITEBYTECODE=1 PYTHONPATH=src "$PYTHON_BIN" -m elfquake.cli combine-normalized-events \
-  "${italy_inputs[@]}" \
-  --out "$ITALY_CURRENT_EVENTS"
-
-PYTHONDONTWRITEBYTECODE=1 PYTHONPATH=src "$PYTHON_BIN" -m elfquake.cli combine-normalized-events \
-  "${central_inputs[@]}" \
-  --out "$CENTRAL_CURRENT_EVENTS"
-
-# Refresh the full-history combined catalogs as well. Many downstream scripts
-# (transfer trial, coverage report, catalog calibration, weekly forecast) read
-# these, and if only the COMBINE_START_DATE-scoped tables are rewritten they
-# silently keep reading a catalog frozen at the last backfill run.
-ALL_ITALY_EVENTS="${ALL_ITALY_EVENTS:-data/derived/ingv/events_italy_all_available.combined.normalized.csv}"
-ALL_CENTRAL_EVENTS="${ALL_CENTRAL_EVENTS:-data/derived/ingv/events_central_italy_all_available.combined.normalized.csv}"
-
-all_italy_inputs=()
-while IFS= read -r path; do
-  all_italy_inputs+=(--input "$path")
-done < <(find data/derived/ingv -maxdepth 1 -name "events_italy_*.normalized.csv" ! -name "*.combined.normalized.csv" ! -name "*.current.normalized.csv" | sort)
-
-all_central_inputs=()
-while IFS= read -r path; do
-  all_central_inputs+=(--input "$path")
-done < <(find data/derived/ingv -maxdepth 1 -name "events_central_italy_*.normalized.csv" ! -name "*.combined.normalized.csv" ! -name "*.current.normalized.csv" | sort)
-
-PYTHONDONTWRITEBYTECODE=1 PYTHONPATH=src "$PYTHON_BIN" -m elfquake.cli combine-normalized-events \
-  "${all_italy_inputs[@]}" \
-  --out "$ALL_ITALY_EVENTS"
-
-PYTHONDONTWRITEBYTECODE=1 PYTHONPATH=src "$PYTHON_BIN" -m elfquake.cli combine-normalized-events \
-  "${all_central_inputs[@]}" \
-  --out "$ALL_CENTRAL_EVENTS"
 
 VLF_IMAGE_FEATURES="data/derived/multimodal/cumiana_last_E_VLF.image_features.csv"
 PYTHONDONTWRITEBYTECODE=1 PYTHONPATH=src "$PYTHON_BIN" -m elfquake.cli extract-vlf-image-features \
@@ -133,18 +59,36 @@ for scope in all_italy central_italy; do
     --out "$image_table"
 done
 
+# Coverage end from the freshness report `refresh-ingv-events.sh` just wrote,
+# not `$END`. On a successful fetch these are the same value; on a failed one
+# `$END` would assert coverage the catalog does not have, which is the defect
+# that put 22 events' worth of false negatives into a held-out partition on
+# 2026-08-21 (see MISTAKES.md).
+CATALOG_END="$(FRESHNESS=data/derived/ingv/catalog_freshness.json FALLBACK="$END" "$PYTHON_BIN" - <<'PYEOF'
+import json, os
+from pathlib import Path
+
+report = Path(os.environ["FRESHNESS"])
+coverage = ""
+if report.is_file():
+    coverage = json.loads(report.read_text(encoding="utf-8")).get("coverage_end_utc", "")
+print(coverage or os.environ["FALLBACK"])
+PYEOF
+)"
+printf 'labeling against catalog coverage end: %s\n' "$CATALOG_END"
+
 PYTHONDONTWRITEBYTECODE=1 PYTHONPATH=src "$PYTHON_BIN" -m elfquake.cli label-multimodal-targets \
   --input data/derived/multimodal/all_italy.prospective_vlf_image_windows.csv \
   --events "$ITALY_CURRENT_EVENTS" \
   --as-of "$AS_OF" \
-  --catalog-end "$END" \
+  --catalog-end "$CATALOG_END" \
   --out data/derived/multimodal/all_italy.prospective_vlf_image_windows.labeled.csv
 
 PYTHONDONTWRITEBYTECODE=1 PYTHONPATH=src "$PYTHON_BIN" -m elfquake.cli label-multimodal-targets \
   --input data/derived/multimodal/central_italy.prospective_vlf_image_windows.csv \
   --events "$CENTRAL_CURRENT_EVENTS" \
   --as-of "$AS_OF" \
-  --catalog-end "$END" \
+  --catalog-end "$CATALOG_END" \
   --out data/derived/multimodal/central_italy.prospective_vlf_image_windows.labeled.csv
 
 for scope in all_italy central_italy; do
