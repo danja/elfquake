@@ -40,8 +40,11 @@ Start with:
 * `docs/exploratory-report.md`
 * `docs/baseline-targets.md`
 * `docs/next-actions.md`
+* `docs/findings-log.md`
 
-Update `docs/next-actions.md` whenever completing or changing the immediate work queue.
+Update `docs/next-actions.md` whenever completing or changing the immediate work queue. Keep it a queue: what to do next, the constraint that blocks it, and how to read a result.
+
+Record findings in `docs/findings-log.md`, appending a new numbered item. **Never renumber an item** — they are cited by number from the docs, the skills, and `MISTAKES.md`. Mark a wrong or superseded item in place with a pointer to whatever replaced it.
 
 The repository site is https://github.com/danja/elfquake. The public site is built with MkDocs Material. Keep stable technical pages in the curated navigation, put dated journal updates under `docs/blog/posts/`, and exclude generated datasets from site navigation. Preserve research-use restrictions and prediction disclaimers in public pages.
 

@@ -1,6 +1,6 @@
 # Cumiana Colour-Scale Change (2026-08-14)
 
-Diagnostic of [Next Actions](next-actions.md) item 95(a): decide from **raw
+Diagnostic of [Findings Log](findings-log.md) item 95(a): decide from **raw
 Cumiana spectrograms**, not derived features, whether the level change across
 the July collector outage is instrumental or physical. Item 95(a) set the
 operational consequence in advance — an instrument change would mean `era_0`
@@ -133,7 +133,7 @@ capture record.
 
 ## Absolute-dB features, and the pooling verdict (2026-08-21)
 
-Answers [Next Actions](next-actions.md) item 97(a), and settles item 105(b).
+Answers [Findings Log](findings-log.md) item 97(a), and settles item 105(b).
 
 The recoverable path this document identified is now implemented:
 `src/elfquake/features/vlf_image_db.py`, run by

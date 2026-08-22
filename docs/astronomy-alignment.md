@@ -1,6 +1,6 @@
 # Astronomy and Geomagnetic Feature Alignment (2026-08-17)
 
-Implements [Next Actions](next-actions.md) item 100. Before this, astronomy was
+Implements [Findings Log](findings-log.md) item 100. Before this, astronomy was
 present in the multimodal table in name only: the audit in item 99 found two
 channels reaching the transformer, one of them a monthly constant repeated on
 all 11,020 rows and the other a count of files the collector happened to write.
@@ -8,7 +8,7 @@ No astronomy ablation run before this date measured astronomy.
 
 **Nothing here is evidence that astronomical or geomagnetic data helps predict
 earthquakes.** It made the question askable, and the answer came back negative:
-the held-out ablation in [next-actions item 102](next-actions.md) shows these
+the held-out ablation in [log item 102](findings-log.md) shows these
 features add nothing at a 7-day horizon in the fixed-cell design. What this work
 establishes is that the null is now a real measurement rather than an artifact
 of a constant channel.
@@ -279,7 +279,7 @@ refetch when a copy under 20 hours old is already on disk.
 ## Known gaps
 
 * **The ablation has been run twice, and it is negative both times.** See
-  next-actions items 102 and 104. On the item-104 design (1-day horizon,
+  [log](findings-log.md) items 102 and 104. On the item-104 design (1-day horizon,
   `M>=2.0`, cell-stratified, thresholds calibrated on training rows only) the
   `era_3` held-out result is `seismic_only` `0.552836` stratified against
   `seismic_astronomy` `0.500000` — and that `0.500000` is exact because the

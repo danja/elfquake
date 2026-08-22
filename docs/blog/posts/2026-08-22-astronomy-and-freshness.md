@@ -75,6 +75,10 @@ The lunar channels are periodic and only look monotone because fifty-two days is
 
 **The staleness audit found six more instances.** A shared freshness guard now compares derived inputs against the event catalog and warns before any work is done. Two of the six were live rather than latent: the Transformer sequences described above, and both weekly forecast scripts, which defaulted their as-of date to the literal `2026-07-08` — a fresh catalog answering a frozen question, invisible to any timestamp check. See [Input Freshness](../../input-freshness.md).
 
+**Both standing baselines were re-run on a catalog that is finally current**, and the refresh made a difference that had been invisible. The spatial table's aligned dataset had been five days behind the labeled table it derives from, so every "repeat after each refresh" run since 2026-08-17 had scored the old record; rebuilt properly it holds 15,979 rows with 13,775 labeled, against 7,258 before. The synthetic-to-real transfer trial now scores held-out balanced accuracy `0.671167` and precision `0.28629` against a historical spatial-rate control of `0.69222` and `0.331633` — still below its own control on both metrics, which is the same conclusion as before but for the first time on a catalog nobody had to refresh by hand.
+
+The spatial baseline is a good illustration of why label transitions get printed before any score. On the refreshed table, adding VLF to seismic history moves the cell-stratified score from `0.514868` to `0.623460`, which looks like a great deal. The held-out period contains **five label changes**. Five. A hundred-point swing built on five observations is not a result, and the report now says so on the line above the score.
+
 ## Where this leaves things
 
 Astronomy has moved from *not measured* to *measured and null*. That is progress of a specific and limited kind: the earlier absence of a result was an artifact of a constant channel and a broken mask, and it now is not. The features are correct, varying, aligned, causally held, and honestly flagged when absent.

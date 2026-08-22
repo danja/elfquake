@@ -6,7 +6,8 @@ Use this as the master directory map for the `docs/` folder. Prefer updating an 
 
 ## 1. Project Entry Points
 *   **[Overview](overview.md)**: Project scope, development phases, and system architecture boundaries.
-*   **[Next Actions](next-actions.md)**: The immediate project work queue, priorities, and roadmap log.
+*   **[Next Actions](next-actions.md)**: The immediate work queue, the blocking constraint, and the rules for reading a result.
+*   **[Findings and Decisions Log](findings-log.md)**: The numbered record of what has been tried and what it found. Items are cited by number across the docs and are never renumbered.
 *   **[Analysis Report](report.md)**: Current analysis status, experimental outcomes, and caveat logs.
 *   **[Command Steps](steps.md)**: Full runnable command reference for pipelines, features, and model workflows.
 *   **[Development Environment](development-environment.md)**: Local Python virtual environment setup, systemd production timer install, and deployment checklist.

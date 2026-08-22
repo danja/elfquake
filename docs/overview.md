@@ -11,6 +11,7 @@ The project should proceed cautiously: no prediction capability is assumed until
 Start with:
 *   [Site home](index.md) - Current project entry point
 *   [Next Actions](next-actions.md) - Immediate work queue
+*   [Findings and Decisions Log](findings-log.md) - Numbered record of what has been tried
 *   [Analysis Report](report.md) - Current analysis status and caveats
 *   [Processing Graph](processing-graph.md) - Current source-to-model data flow
 *   [Command Steps](steps.md) - Runnable command reference

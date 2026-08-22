@@ -1,6 +1,6 @@
 # Capture-Era Distribution Shift (2026-08-10)
 
-Diagnostic of the confound raised in [Next Actions](next-actions.md) item 92:
+Diagnostic of the confound raised in [Findings Log](findings-log.md) item 92:
 the Cumiana VLF record contains a collector outage, and the chronological
 train/test split of the fixed-cell Italy spatial baseline lands on it.
 
@@ -131,7 +131,7 @@ rows only:
 | `era_3`, permutation controls (n=5) | 1,558 / 399 | mean `0.592576`, range `0.572778`–`0.630354` |
 
 The permutation controls are run at `EPOCHS=600` to match the real run. The
-earlier comparison in next-actions item 8 ran controls at the script default of
+earlier comparison in [log item 8](findings-log.md) ran controls at the script default of
 100 epochs against a 600-epoch real run, which was not like-for-like.
 
 Three of five controls beat the real chronological order in each era. With a
@@ -204,7 +204,7 @@ Not settled:
   6,802 labeled rows (5,434 train / 1,368 test). The conclusions hold: every
   modality ablation sits at chance, and `all_features` collapses from
   `0.557356` to `0.494606` when the cell coordinates are removed. See
-  [Next Actions](next-actions.md) item 102 for the full table, which also adds
+  [Findings Log](findings-log.md) item 102 for the full table, which also adds
   real astronomy and geomagnetic channels and finds no contribution from them.
 
 Do not drop the cadence-derived features or reweight the eras on the strength

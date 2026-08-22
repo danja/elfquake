@@ -1,6 +1,6 @@
 # Within-Cell Null Control (2026-08-21)
 
-Answers [Next Actions](next-actions.md) item 105(d), and replaces the
+Answers [Findings Log](findings-log.md) item 105(d), and replaces the
 timestamp-shuffle control that items 8 and 93 were read from.
 
 Reproduce with `./scripts/evaluate-italy-spatial-shift-controls.sh`.

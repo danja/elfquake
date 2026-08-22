@@ -1,6 +1,6 @@
 # Fixed-Cell Target Design (2026-08-20)
 
-Answers [Next Actions](next-actions.md) item 103, and closes the question item
+Answers [Findings Log](findings-log.md) item 103, and closes the question item
 95(b) has been holding open: **can the fixed-cell target design express anything
 beyond a static per-cell base rate?**
 
@@ -145,7 +145,7 @@ earthquakes. It measures how much a target design could show if they did.
 
 ## The shortened design, built and evaluated (2026-08-21)
 
-Answers [Next Actions](next-actions.md) item 104. The recommended design was
+Answers [Findings Log](findings-log.md) item 104. The recommended design was
 built to scoped `*.h1m20.*` paths and run through the standing controls. The
 live 7-day table and the 30-minute systemd job were not repointed.
 

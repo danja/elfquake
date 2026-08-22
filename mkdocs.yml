@@ -82,6 +82,7 @@ nav:
       - Report: report.md
       - Success criteria: success-criteria.md
       - Next actions: next-actions.md
+      - Findings log: findings-log.md
       - Italy baseline comparison: italy-baseline-comparison.md
   - Data:
       - Source inventory: source-inventory.md

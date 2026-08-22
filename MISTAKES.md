@@ -94,7 +94,7 @@ diagnostics per era, not per file, before recommending a design.
 
 ## 2026-08-20 — Reported held-out row counts as if they were sample sizes
 
-**What happened.** Four rounds of fixed-cell Italy results (next-actions items
+**What happened.** Four rounds of fixed-cell Italy results (findings-log items
 6, 8, 93, 96, 102) were reported as scores over 1,064 or 1,368 held-out rows.
 The cell-stratified control shows the held-out partition contains **seven**
 independent label transitions at the current design, and **zero** in `era_0` —

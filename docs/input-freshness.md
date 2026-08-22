@@ -1,6 +1,6 @@
 # Input Freshness (2026-08-22)
 
-Closes [Next Actions](next-actions.md) item 95(d): the audit of the remaining
+Closes [Findings Log](findings-log.md) item 95(d): the audit of the remaining
 scripts for the staleness pattern first recorded in item 89.
 
 ## The defect class

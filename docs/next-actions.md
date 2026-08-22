@@ -1,399 +1,110 @@
 # Next Actions
 
-## Immediate Priority
-
-1. Run `./scripts/run-real-transfer-trial.sh` after each INGV refresh. **Correction (2026-08-09):** the identical `0.693435` / `0.315353` reported on 2026-07-29, 2026-08-04, and again today was a stale-input artifact, not stability. The trial reads `events_italy_all_available.combined.normalized.csv`, which only `backfill-ingv-history.sh` used to write, so it stayed frozen at 2026-07-07 through three "refreshed" runs. After rebuilding that catalog (5,007 events through 2026-08-08), the trial scores held-out balanced accuracy `0.667730` and precision `0.279167` against a historical spatial-rate baseline of `0.687589` (precision `0.322751`). **The transfer model is now below its own historical-rate control on both metrics.** VLF and astronomy remain missing-mask features, so this is a seismic-history baseline, not evidence of multimodal prediction.
-2. Use `./scripts/evaluate-piezo-group-holdout.sh` as the primary synthetic stability check. The latest 27-run evaluation averages `0.578712` balanced accuracy, with positive recall `0.166667`--`0.916667` and negative recall `0.148148`--`0.914286`; it fails the stability gate.
-3. Keep random-init piezo/VLF-only as the leading controlled Transformer architecture. It averages `0.619033` within episodes, but has not passed unseen-episode stability; direct and summary branches remain disabled by default.
-4. Keep label-free real VLF pretraining as the default real-data path while supervised VLF-aligned labels remain one-class or sparse; require reconstruction to beat both zero and last-patch baselines.
-5. Continue periodic INGV refresh and prospective relabeling; the current catalog-coverage guard prevents false maturity. Region-level tables remain one-class, so use `./scripts/prepare-italy-spatial-model-inputs.sh` for the fixed-cell baseline until more temporal coverage arrives.
-6. Repeat `./scripts/evaluate-italy-spatial-baseline.sh` after each refresh; its `--group-by-time` split keeps all cells from one VLF window in the same partition. **The 2026-08-04 score `0.666539` was computed on stale Aug-4 inputs** (see item 1 and 89). On genuinely refreshed data (11,020 rows, 7,258 labeled, 5,795 train / 1,463 test) the all-feature ablation scores calibrated balanced accuracy `0.415351`, precision `0.191011`, recall `0.420330` — **below the 0.5 majority/always-negative baseline**. The apparent skill in earlier runs did not survive fresh data. Keep this separate from the fixed-cell transfer trial, which uses a different contract. **Diagnosed 2026-08-10 (item 93): the sub-chance score is a cross-era artifact of a split boundary that coincides with a collector outage. Within one era the score is `0.655320`/`0.575000`, but a coordinate control shows all of it is per-cell base rate.**
-7. Do not promote the spatial model. Label coverage improved materially on the 2026-08-09 refresh (10 of 19 cells contain positives, up from 6; 1,290 positive / 5,968 negative / 3,762 pending), and the re-run leave-one-cell-out evaluation now has **10 two-class folds instead of 5**. Their mean calibrated balanced accuracy is `0.5031` (range `0.1558`--`0.8373`) — indistinguishable from chance, with the top fold (`0.8373`) resting on a single positive row out of 382. The 19-fold mean is `0.3712`. Better label coverage did not produce spatial transfer.
-8. **Retired 2026-08-21 by item 105(d); do not cite this item.** The timestamp-shuffle control it rests on is not a null — it carried 94-342 held-out label transitions against the real runs' 1 and 19, so it was scored on up to a hundred times the evidence. Under the matched circular-shift control the "all five beat real order" pattern disappears. See [Within-Cell Null Control](shift-control.md). Original text follows. Treat the permutation result as a hard stop for interpretation. On the 2026-08-09 refreshed table the five timestamp-shuffled controls average `0.6413` (range `0.6008`--`0.7158`) against a real-order score of `0.4154`: **all five controls beat the real chronological ordering, by a wide margin.** Destroying temporal structure makes the task easier, which is the opposite of a predictive signal. The most likely mechanism is that shuffling leaks era information across the split — the real chronological test period is the recent dense-capture era with a different VLF feature distribution, and the shuffle mixes eras into training. Diagnose that distribution shift before any further modeling on this table; the permutation control is not a clean null while the shift exists. **Diagnosed 2026-08-10 (item 93): the era-leak mechanism is confirmed, and the controls were also run at 100 epochs against a 600-epoch real run. Rerun cleanly within a single era at matched epochs, three of five controls still beat real order in each era, so the no-temporal-signal conclusion survives.**
-9. Follow [Synthetic Event Alignment Strategies](event-alignment-strategies.md): first compare real and synthetic event-process statistics, then calibrate time/rate, magnitude, and spatial density before another transfer-model sweep.
-10. Review `data/derived/reports/italy_event_catalog_alignment.json`; the first comparison shows synthetic magnitudes are far too high and synthetic episodes occupy fewer cells, so do not use raw synthetic magnitudes for transfer without calibration.
-11. Compare calibrated catalogs using `data/derived/reports/italy_event_catalog_alignment_calibrated.json`; rate and magnitude alignment improve, but spatial support remains incomplete. Use the new per-event spatial weights only in a weighted-training diagnostic until a source-observation model is validated.
-12. Use the matching central-Italy catalog for central-Italy simulation profiles. The current raw seed-40 rate is about 16 times too high; do not select an extractor from a five-event sample. Generate and combine several independent episodes before judging temporal or spatial alignment.
-13. Use the three-episode combined calibrated profile as the current alignment candidate: `data/derived/reports/central_italy_event_catalog_alignment_combined_spatial.json`. Its sample-matched nearest-neighbour distance is now `3.469` km; validate this improvement with more episodes and held-out spatial cells before promoting it.
-14. Do not promote the 40,000-step seed-`4500` profile. Its tuned ten-event catalog is too small and has poor magnitude and clustering alignment; generate several independent long episodes and require a minimum event count before recalibrating.
-15. Use explicit simulation coverage duration in future catalog comparisons. The corrected five-episode report is `data/derived/reports/central_italy_event_catalog_alignment_5episode_duration_final.json`; its rate ratio is `0.924`, but held-out episode and cell validation is still required.
-16. Treat `./scripts/evaluate-italy-synthetic-episode-alignment.sh` as a regime-stability diagnostic only after all inputs share one simulator profile. The current `0.278`--`14.990` spread is configuration drift: regenerate seeds under the current source-localized refill profile before judging seed sensitivity.
-17. Use the matched current-profile baseline at `data/derived/reports/central_italy_matched_3episode_q09996_w240_final.json` for the next alignment/model smoke tests. Keep the extractor settings (`q=0.9996`, window `240`, no event cap) explicit.
-18. Use the per-episode reports under `data/derived/reports/central_italy_matched_q09996_episode_alignment/` as a seed-stability gate. Rate is stable, but raw sample-matched clustering spans `23.5`--`42.9 km`; do not tune spatial transport against the aggregate alone.
-19. Treat `data/derived/models/central_italy_matched_3episode_transfer_suite.json` as a matched-model smoke baseline only. Its historical-rate control beats synthetic transfer and all thresholds are recall-driven; do not interpret the high balanced accuracy as skill.
-20. Use `data/derived/models/central_italy_matched_3episode_target_calibration.json` for precision-aware comparisons. Report rate-matched precision and recall alongside balanced accuracy; do not select a threshold from the final holdout.
-21. Use `data/derived/models/central_italy_matched_3episode_target_calibration_rolling_controls.json` as the current precision gate: transfer rate-matched precision `0.214` is below the historical-rate control at `0.228` across four rolling folds. Improve features or training before changing threshold policy again.
-22. Follow [Feature And Training Options](feature-training-options.md): multiscale seismic/neighbour features are now implemented behind `FEATURE_MODE=multiscale`; the first MLP transfer check is negative, so retain compact features as the baseline and test the multiscale path only with more data and stronger calibration.
-23. Use `data/derived/models/central_italy_transformer_sweep_long/summary.json` as the current five-seed fixed-split Transformer reference. The longer run still favours piezo/VLF-only, but do not select it until the episode-held-out range improves.
-24. Use `data/derived/models/central_italy_transformer_episode_holdout/` as the current nine-fold multi-task diagnostic. Mean calibrated balanced accuracy is `0.5508`, with a `0.3788`--`0.7009` range; improve regime robustness before adding more capacity.
-25. The identical occurrence-only control scores `0.5533`, slightly above multi-task `0.5508`; keep occurrence-only as default. Only run count/energy loss-weight sweeps if a representation diagnostic justifies the added objectives, with normalization and threshold selection training-only.
-26. Test domain-robust features with `FEATURE_MODE=relative`: use causal local/neighbour activity and magnitude/energy relative to the preceding Italy-wide baseline. Require improvement over the compact model on rolling folds and at least five of nine episode folds before retaining it.
-27. Expand synthetic domain randomization across source schedules, deposition rates, thresholds, erosion, and sensor corruption. Select settings using training episodes only; reserve complete episodes for final evaluation.
-28. Require cross-regime consensus and calibrated uncertainty for any future event list. Abstain when ensemble disagreement or domain distance is high, and compare predicted rates with the historical INGV rate.
-29. Keep synthetic pretraining and self-supervised representation learning separate from supervised evidence. Once real labels contain both classes, use chronological real validation with seismic-only, VLF-only, astronomy-only, full, and shuffled-modality controls.
-30. Treat `data/derived/models/domain_randomized_transformer_episode_holdout/` as a failed but reusable stress-test baseline: mean calibrated balanced accuracy `0.5096`. Before adding more regimes, test target alignment and regime-relative normalization on these same 12 folds.
-31. Treat `data/derived/models/domain_randomized_transformer_episode_holdout_per_window/` as the normalization control: mean `0.4909`, below global normalization. Do not add model capacity yet; inspect event extraction thresholds, horizon labels, and causal regime-relative targets on the same folds.
-32. Add a train-only target audit for each held-out episode: event count, positive rate, event timing, and source/profile metadata. Require comparable target support before interpreting model scores across regimes.
-33. Obtain one exact ISEE CDF file URL from the archive, record its station/date/units/use policy, and store the unchanged file under `data/raw/vlf/japan/`. Do not mark the source usable until the pull is reproducibly nonempty.
-34. After installing `cdflib`, run `INPUT=data/raw/vlf/japan/<file>.cdf ./scripts/normalize-japan-vlf-cdf.sh`; inspect epoch variables and channel units before building features.
-35. For the first ISEE sample, retain the CDF metadata JSON as the source contract. Confirm whether the archive variable is a scalar trace or a time-frequency array before adding a feature adapter; do not flatten a spectrum without preserving its time and frequency axes.
-36. The native CDF spectrum adapter is implemented in `extract-japan-vlf-cdf-features.sh`. Validate its band definitions against additional Moshiri months, preserve `research_use_only`, and compare features with Cumiana only in explicitly declared scientific experiments.
-37. Use `build-japan-vlf-cdf-window-features.sh` against Japan seismic windows after the Japan USGS history is populated; require nonempty overlap and retain Japan-only research reports before any cross-region representation experiment.
-38. Completed the initial Japan temporal extension through 2025-07-15: 319 normalized events, 26 mature windows, and one overlapping window for each Moshiri sample. Keep this as an ingestion gate only; it is not sufficient model coverage.
-39. Use `./scripts/process-japan-vlf-manifest.sh` as the standard Japan preprocessing entry point. Add more manifest rows only after station/date/permission metadata are recorded, then rerun the workflow and audit overlap before model training.
-40. Install and monitor `elfquake-japan-vlf.timer` as a separate Japan research-data collector. Confirm the archive's publication delay and adjust `LOOKBACK_MONTHS` or `MAX_FILES` only after checking storage and overlap growth.
-41. Run `./scripts/build-japan-vlf-cdf-dataset.sh` after each refresh to produce one combined Japan VLF row per seismic window; use this artifact as the input to the Japan design-matrix join.
-42. The Japan refresh now rebuilds the combined CDF windows and model-input table automatically when `WINDOWS` is set. The current table has 78 target windows but 75 missing VLF rows; acquire matching CDF dates before training or cross-region comparison.
-43. Use `data/derived/models/japan_vlf_model_input.m5.csv` as the current Japan smoke-training table only. Its comparable M5.0 target has `49/29` positive/negative windows; eight now contain observed VLF, including three negative and five later/test-era windows. The refreshed 80/20 tabular run scored `0.375` calibrated balanced accuracy and failed negative recall; do not tune on this sample.
-44. Run `./scripts/probe-japan-target-thresholds.sh` after each Japan refresh. Select thresholds using class balance and VLF overlap; do not optimize the threshold against model scores while only three VLF windows are observed.
-45. Run the Japan VLF sequence smoke test with the capture-specific manifests listed in `data/derived/models/japan_moshiri_sequences/manifests.txt`; treat it as an interface check only until the number of VLF-observed target windows grows substantially.
-46. Require more than one observed Japan VLF capture in both chronological train and test periods before evaluating the Japan Transformer. The absolute coverage blocker is cleared, but seven windows remain insufficient for a reliable score and most target rows are still masked.
-47. Use `data/derived/models/mixed_source_transformer_fixture.alignment.json` and [Transformer Fixture](model-fixture.md) as the current cross-source inventory. Implement the common window builder only after preserving domain-specific time scales and missing-modality masks.
-48. Use `./scripts/build-common-transformer-fixture.sh` to refresh the 5,546-row mixed window fixture. Treat its `ready_for_smoke_training` status as a tabular/tensor interface gate only; build continuous per-dataset sequence inputs before patch-Transformer training.
-49. Use `./scripts/materialize-common-transformer-sequences.sh` followed by a two-epoch `sequence_common_multimodal` CPU smoke run. The current run completes across 48 manifests but scores `0.489320` calibrated balanced accuracy, below the majority baseline; retain it as an interface/masking test only and do not tune against it.
-50. Run `./scripts/audit-common-transformer-alignment.sh` before any mixed-source model comparison. The current audit finds 5,301 Italy seismic/VLF/astronomy rows, 8 Japan seismic/observed-VLF rows, and 167 fully co-observed synthetic sensor rows; acquire more temporally matched Japan VLF before evaluating Japan transfer.
-51. Use `./scripts/compare-japan-synthetic-shapes.sh` and [Japan And Synthetic Shape Comparison](japan-synthetic-shape-comparison.md) as the current signal-shape gate. The first run finds Japan VLF low-band power `0.771` versus synthetic piezo `0.361`, and Japan seismic event energy is much sparser and heavier-tailed than the synthetic catalog. Tune rate/clustering and the causal piezo envelope before another transfer sweep.
-52. Run `./scripts/evaluate-piezo-japan-shape-variants.sh`. Retain a slow-envelope setting only if it moves the piezo PSD and low-band ratio toward the Japan feature trace across multiple seeds without creating an artificial trend.
-53. Run `./scripts/tune-japan-avalanche-events.sh` over multiple seeds and time-held-out episodes. Treat the current 25-event candidate as a rate-calibration control only; improve clustering without relying on a global event cap.
-54. Use `data/derived/reports/japan-avalanche-policy-seeds/summary.csv` as the current multi-seed gate. The fixed policy is rate-stable enough for a control but fails clustering, so do not promote it as the simulator default.
-55. Add a configurable clustered-loading/relaxation regime to the sandpile simulation, preserving localized source locations and deterministic seeds. The first per-source persistence smoke run was stable but did not improve clustering; do not promote it.
-56. Retain `SOURCE_REGIME_DECAY=0.2`, `SOURCE_REGIME_BOOST=0.8`, and `TARGET_FILL_REGIME_FLOOR=0.25` only as a negative control. The 5,000-step probe remained stable but failed event-shape alignment.
-57. Refactor the synthetic event aggregation boundary or add a longer-lived stress-release state. Compare event inter-arrival, burst-run, and PSD metrics without changing source coordinates or injecting independent events.
-58. Use `data/derived/reports/avalanche-burst-extractor/summary.csv` as the current burst-extraction diagnostic. The `decay99_gap120` candidate improves rate, PSD slope, and tails without a global event cap, but remains a single-seed control.
-59. Use `data/derived/reports/avalanche-burst-seeds/summary.csv` as the multi-seed diagnostic. Rate and tail behavior are promising, but burst clustering and PSD sign are not stable; do not use it for model fixtures yet.
-60. Add train-only burst-threshold calibration: estimate the baseline-score threshold from training episodes, apply it unchanged to held-out seeds, and report event rate, burst runs, tails, and PSD without per-test-episode retuning.
-61. Use `data/derived/reports/avalanche-burst-train-test/summary.csv` as the leakage-safe gate. The fixed threshold fails held-out rate transfer (`0.101–0.170` versus `0.084`), so the extractor is not ready for fixtures.
-62. Retain the relative-baseline normalization as a negative control. It does not improve held-out rate transfer, so do not use it for fixtures.
-63. Use the bounded source stress reservoir as the next simulator candidate. The 500-step probe is stable and produces localized releases, but it has not yet passed event-shape evaluation.
-64. Retain the tested stress-reservoir parameters as a stable negative control. They produce releases without safety failure but only one extracted event over 5,000 steps.
-65. Do not increase stress release mass blindly. The per-source cooldown control (`SOURCE_STRESS_RELEASE_COOLDOWN_STEPS=120`) is stable but still yields one extracted direct event over 5,000 steps. Redesign the stress-release coupling or event representation so localized releases create distinct, short-lived global activity episodes, then repeat the causal burst and safety gates.
-66. Use the optional `*.source_stress.csv` output to compare source-local stress-release pulses with nearby avalanche activity using causal, per-regime normalization. The output is implemented and preserves source coordinates; evaluate it against the existing direct signal rather than replacing it silently.
-67. Build the release-aware diagnostic and report lead/lag, local activity, and event-shape metrics. Promote only if it improves held-out multi-seed alignment without safety failures or independent event injection.
-68. Run `scripts/analyze-source-stress-alignment.sh` over tagged episodes. The first 1,000-step cooldown result has 938 release rows, only `5.9%` with positive local excess activity, local/global excess-AUC ratio `0.037`, and median local peak lag `96` steps. This does not support a source-local precursor effect yet.
-69. Repeat the release-aware diagnostic over multiple seeds and radii. Completed on seeds `40–43`: positive local excess was `2.2%` at radius 16, `6.8%` at radius 32, and `23.5%` at radius 64; local/global excess-AUC ratios were `0.010`, `0.043`, and `0.188`, with median lags near 90–102 steps. This is weak and spatially broad, so the stress reservoir remains a negative control.
-70. Improve the spatial avalanche activity representation before further simulator tuning. Compact `*.avalanche_regions.csv` output is now available as a configurable regional grid, preserving locality without per-cell output. Use it to rerun the source-stress diagnostic and compare against the existing global signal.
-71. Add a region-aware source-stress diagnostic using the regional table. Report activity in the release region versus matched non-release regions, with time-held-out seeds.
-72. Track the Japan VLF archive until 28 July data are available. The first pre-event check covers 13 daily Moshiri CDFs from 15–27 July; July 26 is the highest robust-deviation day, but earlier elevated days prevent a precursor claim. Re-run with hourly event-day/post-event coverage and matched controls.
-73. Keep the Italy transfer-trial artifact at `data/derived/models/real_transfer_trial/report.json` as the current chronological baseline. Compare future multimodal runs against its confusion matrix and historical-rate control, with missing-modality masks reported explicitly.
-74. Compare the two Italy baselines using identical time ranges and target contracts before interpreting any apparent improvement. The mismatch is documented in [Italy Baseline Comparison](italy-baseline-comparison.md); do not attribute the transfer-trial difference to VLF or astronomy until the spatial feature and label definitions are matched.
-75. Build a real-VLF holdout with observed variation before making a modality claim. A new Cumiana image was captured at `2026-07-29T08:45Z` and integrated; the descriptive association table now has four VLF-observed weeks, but the new target is pending. The separate M2.5 central-Italy table has 229/50 positive/negative rows, but its chronological test has only one negative and its `0.990909` score is majority-class driven. Keep it as a data-shape artifact, not model evidence.
-76. Extend Cumiana capture coverage until at least three positive and three negative VLF-observed target weeks exist in the same threshold and horizon contract. Then run matched seismic-only, VLF-image-only, and full multimodal time-held-out baselines with training-only threshold calibration.
-77. Completed the self-supervised VLF refresh: 280 rows, 257 causal windows, and 41 exploratory alerts at score `>=0.8`. Re-label the new `2026-07-29T08:51Z` window after its horizon matures, keeping the anomaly threshold and model checkpoint fixed for the audit.
-78. Added the dated current-window audit `data/derived/reports/italy_data_coverage_20260729.json`: 280 INGV events, 284 VLF metadata records, 257 anomaly windows, and 4 VLF/seismic overlap weeks. Use this alongside the longer historical coverage report to avoid mixing time ranges.
-79. Added capture continuity monitoring with `./scripts/report-vlf-capture-gaps.sh`. The current report finds 280 captures and 8 gaps over one hour, including a 308-hour gap before the July 29 capture; use it to verify the systemd collector is producing sustained VLF coverage before interpreting future anomaly/earthquake overlap.
-80. Leave the collector running and rerun `./scripts/report-vlf-capture-gaps.sh` after several 30-minute intervals. Confirm that new captures are being added and that no multi-hour gaps recur before using future VLF anomaly windows in analysis.
-81. The collector has since added a `2026-07-29T11:15Z` Cumiana capture. Current prospective summaries have 280 rows and one pending target each; continue monitoring the 30-minute cadence and rerun the gap report before the next matured-label refresh.
-82. Ran the refreshed real-VLF versus synthetic-piezo embedding probe. The closest 25% synthetic windows improved centroid distance `3.045` -> `2.531` and nearest distance `2.186` -> `1.404`, but synthetic reconstruction MSE remained `11.604` versus real `0.562`. Treat inlier filtering as diagnostic only; next improve simulator signal-shape statistics before model training.
-83. Ran the 20,000-step piezo shape sweep. `gain_burst` is the leading single-run candidate (`1.512` centroid, `1.028` nearest distance), with `fast_burst` close behind; validate both across multiple seeds and compare against the current profile before changing defaults.
-84. Completed the multi-seed variant check with `./scripts/evaluate-piezo-vlf-variant-seeds.sh`. `gain_burst` led narrowly on the fixed alignment seed; the independent model-seed rerun gives means of `1.7488` centroid / `1.0537` nearest for `gain_burst`, `1.7558` / `1.0636` for `fast_burst`, and `1.7490` / `1.2575` for current. The preference is weak because per-run ranges are wide; do not promote a transform yet.
-85. Repeat the cross-region smoke run with at least three seeds. Measure coordinate error, in-Italy rate, spatial dispersion, and duplicate-location rate; compare event count against the historical spatial-rate baseline before treating the output as more than an interface artifact.
-86. Use `./scripts/trial-weekly-event-forecast.sh` as the current end-to-end event-list contract smoke test, not as a validated predictor.
-87. Use `./scripts/balance-italy-synthetic-episode-rates.sh` only as an auditable training/observation-model diagnostic. It can thin overactive episodes, but it must not synthesize events for underactive episodes; the matched rerun is preferred.
-88. Four pipeline defects were fixed and covered by regression tests (`tests/test_common_window_fixture.py`, `tests/test_cross_region_smoke_map.py`, `tests/test_japan_model_input.py`): the common-window fixture split now counts only labeled rows, so a growing pending-future tail can no longer empty the test partition; the cross-region smoke map now renders the most recently matured held-out week instead of the oldest; Japan `dataset_id` is hashed when a window is covered by many hourly CDFs, keeping sequence directory names within path limits while the full source list stays in its own column; and the burst extractor treats a zero quantile as "no quantile filtering" instead of silently dropping the weakest step. The regenerated `docs/images/cross-region-generative-smoke.png` now shows 4 generated coordinates against 0 actual events in the newest matured week, replacing the previous oldest-week view; the map remains an engineering visualization, not a forecast.
-
-89. Two stale-input defects were found and fixed on 2026-08-09, both of which had been silently inflating apparent reproducibility:
-    * `refresh-prospective-labels.sh` rewrote only the `COMBINE_START_DATE`-scoped combined catalogs and never touched `events_italy_all_available.combined.normalized.csv`, which is what the transfer trial, coverage report, VLF/event association, weekly forecast, catalog calibration, and cross-region smoke all read. That catalog was frozen at 2026-07-07 for a month. The refresh now rebuilds both `all_available` catalogs; verified purely additive against a full `backfill-ingv-history.sh` run (5,007 -> 5,013 rows, 0 removed).
-    * `prepare-italy-spatial-model-inputs.sh` rebuilt its two upstream inputs only when missing, so a "refresh" reused Aug-4 spatial targets and reported an unchanged 478 anchors / 5,301 labeled rows. It now rebuilds by default (`REBUILD_INPUTS=0` restores the old behaviour). After the fix the table is 11,020 rows / 7,258 labeled across 580 anchors.
-    * Treat any score that reproduces to six decimal places across a refresh as a staleness signal, not a stability result. Audit the remaining scripts in the `all_available` list for the same pattern.
-
-90. Checked the Cumiana VLF record for precursors to the 2026-08-04 M4.3 near Pisa (event `46769822`, `2026-08-04T08:15:18Z`, 43.6925N 10.3263E, depth 8.2 km, 275 km from the Cumiana receiver). **No supportable precursor.** Details in [Pisa M4.3 VLF Check](pisa-2026-08-04-vlf-check.md). Two blocking facts: the collector has no captures at all between 2026-07-16 and 2026-07-29, so the first 8 of the 14 pre-event days have zero data; and the two highest-scoring days in the whole record (2026-07-29 max `0.9877`, 2026-07-30 max `0.9765`) are a capture-gap artifact, not a signal. With `lookback-steps=24`, every window straddling the 13-day gap mixes pre- and post-gap frames: those 21 windows average `0.9113` and the next 24 clean windows drop as a step function to `0.4074`. The clean pre-event stretch averages `0.4127`, *below* the pre-gap baseline `0.5429`, while the post-event period is the highest in the record at `0.7214`. The gap-aware guard this called for is now implemented; see item 91.
-
-91. Implemented the gap-aware guard in `score-sequence-anomalies` (item 90 follow-up). Each window now carries `max_step_seconds` and `spans_capture_gap`; a window is flagged when any internal inter-frame interval exceeds `--max-capture-gap-seconds`, defaulting to `lookback_steps x median_step` (12 h for the current 24-step / 30-minute Cumiana record). Flagged windows can never raise an alert, and a flagged latest window sets the forecast status to `invalid_capture_gap`. Regression cover is in `tests/test_sequence_anomaly_capture_gap.py`, which pins the contiguous-block and step-recovery behaviour and confirms ordinary capture jitter is tolerated. **The rescored record shows 66 of 558 windows span gaps, and 43 of the 101 raw `>=0.8` alerts were gap artifacts — 43% of the historical alert record.** Gap-spanning windows average `0.7908` versus `0.5143` for clean windows. After filtering, 2026-07-29 and 2026-07-30 leave the top clean days entirely. Any earlier count of "exploratory alerts" from this scorer, including the 41 recorded in item 77, is inflated and should be recomputed before use.
-
-92. **Resolved 2026-08-10; see item 93 and [Capture-Era Shift](capture-era-shift.md).** One confound plausibly explains three separate negative results from 2026-08-09 at once — the chronological spatial baseline scoring below chance (`0.4154`, item 6), all five shuffled controls beating real time order (item 8), and the self-supervised scorer treating the collector restart as the record's top anomaly (item 91). The Cumiana record splits into a sparse early era (2026-06-30 to 2026-07-16, with multi-day gaps and single-capture days) and a dense era from 2026-07-29 onward at a roughly 30-minute cadence. Chronological splits put the eras on opposite sides of the boundary; shuffling mixes them, which is why shuffling helps.
-
-    Steps:
-
-    * Compare VLF image-feature distributions between the two eras directly: per-feature mean, spread, and a two-sample distance for each of the 14 `vlf_image_*` and 7 `vlf_metadata_*` features. Report which features move most.
-    * Check whether the shift is physical or instrumental. `vlf_capture_count`, `vlf_latest_age_seconds`, and `vlf_total_bytes` are aggregation artifacts of cadence, not signal, and will shift mechanically with capture density. Separate those from the intensity/band/streak features before drawing conclusions.
-    * Re-run the grouped temporal baseline restricted to the dense era only. If the sub-chance score is a cross-era artifact it should move toward the majority baseline; if it persists within one era, the problem is the features or targets, not the split.
-    * Re-run the permutation controls within the dense era only. A clean null requires controls that cannot leak era membership.
-    * Do not "fix" this by dropping cadence-derived features or reweighting until the diagnostic says which mechanism is operating. Record the outcome here either way, including a negative one.
-
-    Until this resolves, treat every Italy score in items 1, 6, 7, and 8 as uninterpretable rather than as evidence against multimodal value. They are currently confounded, not refuted.
-
-93. **Completed the capture-era diagnostic (item 92). The confound is real, it explains the sub-chance score, and removing it does not rescue the model.** Full write-up in [Capture-Era Shift](capture-era-shift.md); reproduce with `./scripts/diagnose-vlf-capture-era-shift.sh`, then `./scripts/evaluate-italy-spatial-baseline.sh` and `./scripts/evaluate-italy-spatial-coordinate-control.sh` against the per-era CSVs it writes.
-
-    * **Item 92's premise was wrong on one point.** The record is not a sparse era followed by a dense one. It is *two* dense eras at the same 30-minute cadence — `era_0` 2026-06-28 to 2026-07-05 (277 anchors, 5,263 labeled) and `era_3` 2026-07-28 to 2026-08-07 (301 anchors, 1,957 labeled) — separated by a collector outage with gaps of 104 h, 127 h, and 308 h and two isolated captures. The largest within-era gap is 15 h, an overnight stop.
-    * **The chronological split boundary is the outage boundary.** Training runs to 2026-07-29T08:53Z and testing from 2026-07-29T09:23Z, so training is almost all `era_0` and the test partition is entirely inside `era_3`. That is why shuffling helped: it removed a shift the real split imposes.
-    * **The shift lives in image content, not cadence.** Median absolute standardized mean difference by family: VLF signal `0.842` (max `1.325`), VLF cadence-derived `0.321` (max `0.474`), seismic `0.508`, astronomy `0.261`, quality `0.000`. All nine largest shifts are content features — bands 0-3, intensity, high-intensity ratio, and hot-colour ratio all fall, vertical streaks rise, bands 4-5 do not move (d `+0.03`), image size is unchanged. That pattern suggests a gain or colour-scale change across the outage, but derived features cannot establish it; compare raw spectrograms next.
-    * **Targets shift too**, and this is genuine, not an artifact: positive rate `0.1543` -> `0.2427`, `seismic_max_magnitude` `2.65` -> `3.29`, `seismic_event_count` `4.94` -> `6.85`. Separately, `astro_capture_count` goes `0.823` -> `0.000`, so astronomy is absent from `era_3` entirely and every chronological astronomy ablation tests on a constant-zero feature.
-    * **Restricted to one era, the sub-chance score disappears:** `0.655320` in `era_0` and `0.575000` in `era_3`, against `0.412604` on the full table. The `0.4154` in item 6 was a cross-era artifact. `era_0`'s `0.655320` is the same figure as the original grouped-time smoke baseline, because that 5,301-row table was essentially `era_0` alone.
-    * **The within-era permutation null is clean, and the answer is unchanged.** Five controls per era at `EPOCHS=600` to match the real run — the earlier item 8 comparison ran controls at the script default of 100 epochs against a 600-epoch real run, which was not like-for-like. `era_0` controls mean `0.650519` (range `0.603404`--`0.667172`), `era_3` mean `0.592576` (range `0.572778`--`0.630354`); three of five beat real order in each era.
-    * **The decisive control: dropping the cell coordinate columns collapses both eras to exactly `0.500000`.** `target_cell_latitude` and `target_cell_longitude` carry the largest weights in every fitted model. The fixed-cell spatial model is a static per-cell base-rate lookup with no temporal component, which is consistent with `seismic_only` and `vlf_only` already collapsing to `0.5`.
-    * Do not reweight eras or drop cadence features on the strength of this. The blocking finding is the absence of temporal signal in *either* era, which no reweighting addresses.
-
-94. Fixed a latent standardization defect found while reading item 93's fitted coefficients. All five copies of `scales.append(scale if scale else 1.0)` treated a near-constant column as varying: 4,199 copies of `125.69` accumulate a mean of `125.68999999999998`, giving variance `2.02e-28` and scale `1.42e-14`, which is nonzero and therefore used. The constant column then standardized to `1.0` instead of `0.0` and `astro_noaa_solar_cycle_f107_value` carried the largest weight (`-0.894`) in the `era_0` model. Here it was benign — same constant in train and test, so it acted as a second intercept, and the full-table score moved only `0.415351` -> `0.412604` — but a held-out partition carrying a *different* constant (next month's F10.7, a quality flag that flips after a collector change) would standardize to order `1e13` and saturate every prediction. Now guarded by a relative tolerance in `src/elfquake/models/scaling.py`, applied across `temporal_holdout`, `ablation_smoke`, `logistic_smoke`, `torch_tabular`, and `torch_sequence`, with regression cover in `tests/test_capture_era_shift.py`.
-
-95. **Next up, in order — superseded by items 100–103.** (a) **Completed 2026-08-14; see item 96.** (b) **Now the binding constraint on every modality; promoted to item 103.** Re-examine whether the fixed-cell target design can express anything beyond per-cell base rate, given that removing coordinates zeroes the model — either the temporal features carry no information at this horizon, or the target contract needs per-cell rate residuals rather than raw occurrence. (c) **Completed 2026-08-17; see item 102.** `era_3` now runs `2026-07-28`–`2026-08-16`, 483 anchors and 6,802 labeled rows, and the within-era conclusions reproduce on 3.5x the test rows. (d) **Completed 2026-08-22; see item 106.** Audit the remaining scripts for the item-89 staleness pattern.
-
-96. **Completed item 95(a). The Cumiana receiver's colour scale was changed during the outage, so `era_0` and `era_3` image features are not on a common scale and must not be pooled.** Full write-up in [Cumiana Colour-Scale Change](vlf-palette-shift.md); reproduce with `./scripts/diagnose-vlf-palette-shift.sh`. Every `last_E_VLF` capture embeds its own 96-step colourbar above a fixed `-100 dB … 0 dB` tick ruler. Across all 699 captures the ramp takes exactly two values with no intermediates: solid-red onset at step `59` for all 277 captures up to `2026-07-06T21:45Z`, and step `48` for all 422 captures from `2026-07-11T06:00Z` onward — a shift of 11 steps = **`11.58 dB`**, downward. The ruler, the right-hand frequency tick rows, and the `842x573` geometry are pixel-identical across both, so this is a colour-scale setting and not a re-plot. Three consequences. First, the pooling question is settled on its own terms: `vlf_intensity_*`, `vlf_hot_color_ratio`, `vlf_high_intensity_ratio`, and `vlf_band_*_mean` are all functions of pixel colour, and the same colour denotes a level `11.58 dB` lower after the change. Second, the change point sits **inside** the outage (`2026-07-06` → `2026-07-11`), so it is invisible to any diagnostic that compares only dense `era_0` against dense `era_3`. Third, the item-93 "bands 0-3 fell, bands 4-5 unchanged" split is not frequency-selective physics: bands 4-5 read the separate sub-1500 Hz zoom panel and sit deep in the palette's saturated region in both eras. Decoding pixels back to absolute dB through each image's own colourbar — hour-matched to `11:00`–`13:00` UTC against the diurnal cycle, over the rightmost 45 columns of the upper panel — leaves the late era `15.8`–`23.2 dB` lower across the four bands resolvable under both palettes (`-80.0 … -49.5 dB`, the overlap of the two displayed windows; the other four are censored by saturation and reported as such). **Not settled: whether that underlying level change is instrumental or atmospheric.** The evidence leans instrumental — broadband, roughly uniform over two decades of frequency, step-like, and coincident with an operator changing a display setting — but images alone cannot separate a front-end gain reduction from a quieter period, and this needs station metadata or operator contact. Regression cover is in `tests/test_vlf_palette_shift.py`.
-
-97. **(a) completed 2026-08-21; see item 105(b). The features exist and a `17.9 dB` level step survives them, so (b) still applies and the eras stay separate. (d) is now the only open route.** (a) Add palette-inverted absolute-dB features to `src/elfquake/features/vlf_image.py`. Each image carries the colourbar it was drawn with, so dB features are era-invariant by construction and would remove the need to keep the eras apart — but they must record the censored fraction per capture, because the two palettes resolve different dB windows and a band below the shared floor is missing, not quiet. (b) Until then, do not pool `era_0` and `era_3` raw pixel features, and do not read any cross-era comparison built from them as physical. (c) Re-run `./scripts/diagnose-vlf-palette-shift.sh` after each capture refresh; a third palette variant would invalidate pooling again. (d) Ask the Cumiana operator whether receiver gain changed in the `2026-07-06`–`2026-07-11` window; that is the only route to settling the instrumental-versus-atmospheric question.
-
-98. Raw capture coverage now runs to `2026-08-14`, well past the four-day `era_3` labeled window recorded in item 93. Dense days run `2026-07-29` to `2026-08-12` at the nominal 30-minute cadence (with `2026-08-06` and `2026-08-13` missing), against `2026-06-29`–`2026-07-06` for `era_0`. Rebuild the spatial model inputs so item 95(c) is evaluated against the coverage that exists rather than the coverage recorded a week ago — but note this is raw-capture coverage, and labeled rows still lag it by the seven-day target horizon.
-
-99. **Superseded 2026-08-22 by item 107; the state described below no longer holds and should not be cited as current.** Status of astronomical data in transformer training, audited 2026-08-14: it was not incorporated in any meaningful sense, and the missing-modality mask that is supposed to say so was broken. Evidence, from `data/derived/models/common_transformer_fixture_sequences/italy_all_astronomy_sequence/` and `data/derived/multimodal/all_italy.spatial_vlf_image_windows.labeled.csv`:
-
-    * **Acquisition is not running.** `data/raw/astronomy/captures/` holds 11 files across two days, `2026-06-29` and `2026-07-06`, against 699 Cumiana captures across 24 days. Nothing has been pulled in five weeks.
-    * **Nothing writes to the astronomy root.** `deploy/systemd/elfquake-prospective.service` passes `ELFQUAKE_ASTRONOMY_METADATA_ROOT` into both `update-prospective-vlf-table` calls on every 30-minute run, but no `ExecStart` line fetches astronomy. The timer has re-read a frozen directory for five weeks. This is the item-89 staleness class in the service unit rather than in a script, and it should be counted against item 95(d).
-    * **Exactly two channels reach the transformer**, per the fixture manifest `channel_fields`: `astro_capture_count` and `astro_noaa_solar_cycle_f107_value`. Neither is usable.
-    * `astro_noaa_solar_cycle_f107_value` is **constant at `125.69` across all 11,020 table rows and all 9,082 sequence rows** — zero variance, no information. It is the *monthly* solar-cycle series and `astro_noaa_solar_cycle_f107_month` is stuck at `2026-05` while the table runs into August, so it is also stale. This is the exact column that produced the item-94 standardization defect.
-    * `astro_capture_count` is **collector bookkeeping, not a measurement**: 10,051 of 11,020 rows are `0`, and the nonzero values (`1`x19, `2`x589, `7`x57, `9`x304) fall on 3 of the 17 fixture days — the days someone ran the fetch by hand. Feeding it to a model feeds it an indicator for collector activity, the same artifact class as the capture-gap and capture-era defects.
-    * **The missing-modality mask never fires.** `quality_missing_astro` is `0` for all 11,020 rows and the sequence masks are `present=1` for all 9,082 rows, including the 10,051 rows with no astronomy capture at all. Cause: `src/elfquake/features/astronomy.py:60` sets the flag present if `captures or moon_phase or f107_value`, and `f107_value` is always non-empty because it comes from a once-pulled historical monthly series. `src/elfquake/models/real_transfer_trial.py:133` documents astronomy as "represented by an explicit missing-modality mask"; the mask exists but is unconditionally true, so the model is told astronomy is observed everywhere when it is observed almost nowhere.
-    * **The connectors already exist and are unused.** `fetch-gfz-kp-ap`, `fetch-kyoto-dst`, `fetch-ncei-goes-xrs`, `fetch-f107-daily` and their four normalizers are wired into the CLI, and `src/elfquake/normalize/space_weather.py` defines the output schemas. There is no `data/derived/astronomy/` directory: they have never been run into the derived layer.
-    * **Some history is already unrecoverable from the live endpoints.** `data/raw/astronomy/manifest.csv` marks `noaa_swpc_kp_3h`, `noaa_swpc_dst_1h`, `noaa_goes_xray_7d`, and `noaa_swpc_f107_30d` "confirmed not archival" — rolling windows. The June–August geomagnetic history must come from the archival mirrors (GFZ Kp/ap since 1932, Kyoto Dst, Spaceweather Canada daily F10.7, NCEI GOES XRS), not from these.
-
-    Consequence for the modeling record: **no astronomy ablation to date is a negative result.** `seismic_astronomy` and `full_multimodal` cannot separate an astronomy contribution from a constant plus a collector counter, so astronomy's value is untested, not disproven. Do not describe it as tested.
-
-100. **Priority queue for astronomy, ahead of items 95(b)–(d) and 97. (a)–(f) and (h) completed 2026-08-17; see item 101. (g) remains.**
-
-    (a) Fix the mask contract in `src/elfquake/features/astronomy.py`. `quality_missing_astro` must reflect whether the window was actually observed, not whether a once-pulled monthly constant is on disk. A slowly varying historical series is background context, not an observation of that window. Add regression cover pinning that a window with no captures marks the modality missing.
-
-    (b) Drop both current astronomy channels from the fixture. `astro_noaa_solar_cycle_f107_value` is zero-variance and stale; `astro_capture_count` is collector bookkeeping and must never be a model input. Keep them in the table as provenance if useful, but exclude them from `tensor_spec` channel selection.
-
-    (c) Add a channel gate to the sequence/fixture builder that fails loudly on a channel that is constant across the whole axis or whose mask is `present=1` everywhere while its values are imputed. This generalises the item-94 fix from the standardizer to the builder, where it would have caught this five weeks earlier.
-
-    (d) Backfill real geomagnetic history for the Cumiana window (`2026-06-28` onward) with the existing connectors: GFZ Kp/ap (3-hourly, CC BY 4.0), Kyoto Dst (hourly, non-commercial), Spaceweather Canada daily F10.7 (daily, from 2004-10-28). Normalize to UTC, preserve source identifiers, URIs, and provenance per the data rules, and write to `data/derived/astronomy/`.
-
-    (e) Define the alignment from those cadences (3-hourly, hourly, daily) onto the 30-minute VLF anchors before building features. State the interpolation or hold rule explicitly and carry a per-anchor staleness field; do not let a daily value silently present as a 30-minute observation. This is the multimodal time-window alignment concern in the project priorities, and astronomy is the modality where the cadence mismatch is largest.
-
-    (f) Replace `astro_usno_next_phase` with a continuous quantity. A next-event category is a sawtooth countdown, not a physical state; a lunar phase angle or tidal potential at the anchor time is both continuous and cheap to compute.
-
-    (g) Only after (d)–(f) land, re-run the `seismic_astronomy` and `full_multimodal` ablations. Until then those runs measure a constant.
-
-    (h) Add an astronomy fetch to `elfquake-prospective.service`, or a separate timer, so the collector stops reading a directory nothing writes to.
-
-101. **Completed item 100(a)–(f) and (h) on 2026-08-17. Astronomy now reaches the model as observations with an explicit alignment rule; it is still untested.** Full write-up in [Astronomy Alignment](astronomy-alignment.md). What changed, against the item-99 audit:
-
-    (a) `quality_missing_astro` now reports observation rather than computability. It is set only when Kp, Dst *and* F10.7 are all missing at the anchor, and ephemeris channels are excluded from the test by design — they are always computable, so letting them satisfy it would pin the flag to `0` forever, which is exactly what the old implementation did. Per-channel `quality_missing_kp`, `quality_missing_dst`, `quality_missing_f107` flags carry the detail. Regression cover in `tests/test_astro_features.py`.
-
-    (b) `astro_capture_count`, `astro_sources`, `astro_latest_capture_utc`, `astro_usno_next_phase*`, and `astro_noaa_solar_cycle_f107_*` are gone from the prospective table. `src/elfquake/features/astronomy.py` is marked superseded and retained only for the older `build-multimodal-smoke` path.
-
-    (c) `src/elfquake/models/channel_gate.py` runs inside `build_common_window_fixture` and raises on `constant_channel`, `unmasked_missing_channel`, and `empty_channel`. This is the item-94 standardizer fix generalized to the builder. A channel that is constant by design must be named with `--allow-constant-channel`, so the decision is recorded rather than inferred; `--no-strict-channels` downgrades to a report entry.
-
-    (d) Real archives are normalized to `data/derived/astronomy/`: GFZ Kp/ap (276,496 rows, 1932 onward), Kyoto Dst (three months, hourly), Spaceweather Canada F10.7 (23,853 rows, 2004 onward). Kyoto's monthly pages are fixed-width, not whitespace-delimited — a missing hour is the sentinel `9999` and consecutive missing hours run together with no separating space, so a whitespace split silently merges hours. The parser slices by column. `dst_tier` is carried through normalization because recent months are realtime-only and **realtime values get revised**; the previous month is refetched on every run.
-
-    (e) The alignment rule is zero-order hold, never interpolation: each channel takes the most recent reading whose observation interval has *closed* at or before the anchor, so a 09:00–12:00 Kp bin is not usable at 09:57. `astro_*_age_hours` carries the staleness, and the hold expires at 6 h (Kp, Dst) or 72 h (F10.7) rather than manufacturing a constant.
-
-    (f) `astro_usno_next_phase` is replaced by continuous quantities from a new low-precision ephemeris (`src/elfquake/features/ephemeris.py`, Meeus truncated series, checked against the worked examples and 2026 lunation times to ~2 arcmin): lunar phase angle with a sin/cos encoding, illuminated fraction, lunar distance, and the degree-two lunar + solar tidal potential at the Italy box centre, with min/max/range over the lookback window.
-
-    (h) `refresh-space-weather.sh` plus `elfquake-space-weather.{service,timer}` run daily. Deliberately not on the prospective job's 30-minute cadence: the Kp/ap and F10.7 sources are whole-history archives of roughly 16 MB and 2 MB and publish at most once a day. The prospective job now reads `--space-weather-root data/derived/astronomy` instead of a raw-capture directory nothing wrote to. **`--astronomy-metadata-root` is retained as a deprecated no-op** so the installed unit does not break before it is reinstalled; the units in `deploy/systemd/` need copying to `/etc/systemd/system/` and a `systemctl daemon-reload`.
-
-    (g) **Done. Astronomy adds nothing measurable on held-out data.** See item 102 for the numbers. The features do reach the model — `build-tensor-spec` on the rebuilt fixture assigns **19** channels to the astronomy modality against the 2 the item-99 audit found, with `missing_cell_count` `5890`, so the mask fires for the first time — and the ablation still comes back null.
-
-    Result over the 761 rebuilt anchors: `astro_kp` `0`–`7.333` (20 distinct), `astro_ap` `0`–`154`, `astro_dst_nt` `-150`–`+53` nT (101 distinct), `astro_f107` `94.8`–`258.1` (65 distinct), `astro_tidal_potential` `-0.804`–`+1.278` (761 distinct). The window contains a real geomagnetic storm, so there is something to test against. **This is not evidence that astronomy helps.** It makes item 100(g) askable for the first time; until those ablations run on held-out data, astronomy remains untested rather than disproven.
-
-    The channel gate earned its place on its first real run, rejecting 24 defects in the existing fixture: 19 constant channels across the synthetic and Japan tables (`*_sample_count`, `relaxation_converged_*`, `unstable_cell_count_*`, `safety_released_mass_*`, `japan_ch*_valid_fraction_*`), now named in `scripts/build-common-transformer-fixture.sh` so the decision is recorded; and 5 unmasked-missing astronomy channels caused by a real defect in the fixture builder — a dataset that never carried a modality has no flag column for it, so the unioned row read blank, and blank is not "present". Blank `quality_missing_*` cells are now filled as `1`.
-
-102. **Completed item 100(g) on 2026-08-17. Real astronomy and geomagnetic features do not improve held-out prediction. This is a negative result, and this time it is a real one.**
-
-    An earlier draft of this item claimed a held-out ablation runner had to be written first. That was wrong: `evaluate_temporal_holdout` already evaluates every group in `ABLATIONS` on held-out rows with thresholds calibrated on training rows only. Only the in-sample `train-ablation-smoke` path lacks it.
-
-    Run per era (item 96 requires it — the chronological split of the full table lands on the collector outage), grouped by time, 600 epochs, thresholds calibrated on training rows only. Calibrated held-out balanced accuracy, against a majority baseline of `0.5`:
-
-    | Group | `era_0` | `era_0` no coords | `era_3` | `era_3` no coords |
-    | --- | --- | --- | --- | --- |
-    | `seismic_only` | `0.500000` | `0.500000` | `0.514024` | `0.514024` |
-    | `seismic_astronomy` | `0.500000` | `0.500000` | `0.518123` | `0.518123` |
-    | `seismic_vlf` | `0.500000` | `0.500000` | `0.507767` | `0.507767` |
-    | `full_multimodal` | `0.500000` | `0.500000` | `0.494606` | `0.494606` |
-    | `vlf_only` | `0.500000` | `0.500000` | `0.497627` | `0.497627` |
-    | `all_features` | **`0.675409`** | `0.500000` | **`0.557356`** | `0.494606` |
-
-    `era_0` is 4,199 train / 1,064 test rows; `era_3` is 5,434 / 1,368.
-
-    Three readings.
-
-    (a) **Astronomy contributes nothing.** `seismic_only` → `seismic_astronomy` moves `0.500000` → `0.500000` in `era_0` and `0.514024` → `0.518123` in `era_3`. That `+0.004` on 1,368 test rows is noise. Adding 19 real, varying, correctly aligned channels — Kp to `7.333`, Dst to `-150 nT`, a continuous tidal potential — changes nothing. The item-99 finding was that astronomy was untested; it is now tested, and it does not help at this horizon in this design.
-
-    (b) **`full_multimodal` is worse than `seismic_only`** in `era_3` (`0.494606` vs `0.514024`), i.e. below chance. Adding modalities to this target design degrades it.
-
-    (c) **The item-96 coordinate finding reproduces exactly, on 3.5x more `era_3` rows.** `all_features` is the only group above chance and the only one containing `target_cell_latitude`/`longitude`/`degrees`; removing them collapses it to `0.500000` and `0.494606`. Every other group is bit-identical with and without, because none of them ever contained the coordinates. The model remains a static per-cell base-rate lookup.
-
-    **Do not read (a) as "astronomy is irrelevant to earthquakes."** It says these features, at a 7-day horizon, on 1.5-degree fixed cells, in a design whose only demonstrated signal is a per-cell base rate, add nothing. Item 95(b) — whether this target design can express anything beyond per-cell base rate — is now the binding constraint on every modality, not just astronomy. Testing more feature families against a target that only encodes a base rate will keep returning `0.5`.
-
-103. **Completed on 2026-08-20. The fixed-cell target design carries seven independent label changes in its held-out partition. The row count was never the sample size.** Full write-up in [Target Design](target-design.md). Two new reproducible artifacts:
-
-    * `./scripts/evaluate-italy-spatial-cell-stratified.sh` scores balanced accuracy *inside* each cell and averages over cells, so any cell-constant predictor scores exactly `0.5`. This is the third standing control, alongside the coordinate control and the permutation control, and it should be run on every fixed-cell result from now on. It also reports an explicit `stratum_base_rate` control — the per-cell training positive rate used directly as the score — so the quantity being neutralized is named and measured rather than inferred.
-    * `./scripts/diagnose-spatial-target-design.sh` counts what a candidate design offers before any model is fitted: per cell, how many times the label changes between consecutive anchors, over the whole record and inside the same grouped-time held-out partition the evaluator forms.
-
-    **Anchors are 30 minutes apart and the horizon is 7 days, so consecutive target windows overlap by `99.7%`.** A cell's label can change only when an event enters or leaves the horizon. Rows are not observations; label transitions are.
-
-    * `era_0`: **zero of 19 cells** have a held-out label that varies at all. Its held-out window is 27.5 h against a 7-day horizon. The stratified metric is undefined, and the `0.675409` pooled `all_features` score from item 102 is entirely the per-cell rate.
-    * `era_3`: 3 of 19 cells vary, each by **exactly one** transition across 72 anchors. `all_features` scores `0.604489` stratified against `0.557356` pooled and `seismic_astronomy` scores `0.625000`, but those come from three label changes and mean nothing. The `stratum_base_rate` control behaves exactly as designed: `0.677416` pooled, `0.500000` stratified.
-
-    **The binding constraint is event supply.** The 802-anchor span holds 252 events at M≥2.0 and 68 at M≥2.5. The current 1.5° / M≥2.5 / 7-day design yields 27 full-record and 7 held-out transitions across a 11,989-row table. The sweep over cell size, magnitude threshold, and horizon gives full-record / held-out transitions:
-
-    | Cells | M min | 1 day | 2 days | 3 days | 7 days |
-    | --- | --- | --- | --- | --- | --- |
-    | 0.75° | 2.0 | **111 / 32** | 88 / 23 | 83 / 18 | 61 / 10 |
-    | 1.5° | 2.0 | **94 / 27** | 70 / 19 | 65 / 14 | 40 / 6 |
-    | 1.5° | 2.5 | 31 / 10 | 31 / 8 | 29 / 6 | *27 / 7* |
-    | 1.5° | 3.0 | 17 / 6 | 16 / 5 | 15 / 4 | 16 / 4 |
-    | 3.0° | 2.0 | 51 / 14 | 20 / 7 | 9 / 2 | 2 / 0 |
-
-    *Italic* is the design in use; the full nine-row table is in the write-up. Shortening the horizon helps at every cell size and threshold, lowering the magnitude threshold helps more than anything else (M≥2.0 is the catalog floor), and coarser cells saturate — 3.0° / M≥2.0 / 7 days reaches a positive rate of `0.879556` with **two** transitions in the whole record, which is the target saturation the fixed-cell decomposition was introduced to fix.
-
-    **Recommended: 1.5° cells, M≥2.0, 1-day horizon** — held-out transitions `7` → `27`, two-class cells `10` → `15` of 19, positive rate `0.185170` → `0.100865`. The horizon is fixed when the prospective window table is built, not when targets are labeled, so this needs a separately scoped table; the exact commands are in the write-up. **Do not repoint the live 30-minute job.**
-
-    **Every fixed-cell score reported so far — `0.415351`, `0.655320`, `0.575000`, `0.675409`, `0.557356` — was computed against single-digit held-out label transitions.** They are not refuted; they are uninformative, and the interval on any of them spans chance. This also reframes item 102: astronomy was not shown to add nothing, it was shown to add nothing *measurable against seven label changes*. That is a weaker claim than item 102 makes, and item 102 should be read with this correction.
-
-104. **Completed on 2026-08-21. Two findings: the event catalog was four days stale and the live collector never refreshes it; and the shortened target design works but the era split still leaves twenty held-out label changes.** Full write-up in [Target Design](target-design.md). Reproduce with the `elfquake-fixed-cell-evaluation` skill; this run is pinned at `AS_OF=2026-08-21T11:22:36Z`, `CATALOG_END=2026-08-21T11:10:37Z`.
-
-    **(i) The live 30-minute service does not fetch INGV events.** `elfquake-prospective.service` updates VLF image features and the prospective window table against whatever catalog is already on disk. Only `refresh-prospective-labels.sh`, run by hand, advances the catalog, and it had last run on 2026-08-17. Meanwhile `build-italy-spatial-vlf-targets.sh` defaulted `CATALOG_END` to wall-clock now, asserting coverage the catalog did not have, so **22 real events between 2026-08-17 and 2026-08-21 were labeled as non-events**, all inside the held-out partition. On the refreshed catalog `era_3` held-out transitions go 10 → **19**, scoreable cells 6 → **8**, and `seismic_only` stratified falls `0.652961` → `0.552836`. The largest apparent VLF-era result in the project was an artifact of missing events. `CATALOG_END` now defaults to the catalog's own `max(ingested_at_utc)`. **The collector defect itself is not fixed — see item 105(a).**
-
-    **(ii) The design delivers and it is still not enough.** The scoped 1-day / M≥2.0 table gives 15,504 rows against 11,020, 98% labeled against 66%, positive rate `0.100718` against `0.185170`, full-record transitions 27 → **104**, whole-record held-out transitions 7 → **31**, cells ever two-class 10 → **15** of 19.
-
-    **The 31 does not survive the item-96 era split.** `era_0` holds **1** held-out transition across 1,064 rows and one scoreable cell; `era_3` holds **19** across 1,976 rows and eight scoreable cells. Twenty in total. The split that makes VLF features comparable is the same split that removes the label variation needed to test them, and that conflict applies to every design in the item-103 sweep.
-
-    `era_3` scores, all on the same 19 transitions: `seismic_only` `0.525464` pooled / `0.552836` stratified; `seismic_vlf` `0.515191` / `0.539445`; `stratum_base_rate` control `0.534581` / `0.500000`; `vlf_only` `0.506800` / `0.532717`; `full_multimodal` `0.489631` / `0.431988`; `all_features` `0.455515` / `0.404832`. Per cell the range is `0.300344`–`0.854430` on one to five transitions each. **Do not read any of these numbers.**
-
-    (c) is now enforced in code: `_stratified_metrics` emits `label_transitions` per stratum and in the summary, and the CLI prints it beside every score.
-
-    **New finding: the permutation control is not a null at all.** Shuffling target timestamps destroys the autocorrelation that makes consecutive rows near-copies, so it manufactures label variation. The shuffled controls carry **94–119** held-out transitions in `era_0` against the real run's **1**, and **315–342** in `era_3` against the real run's **19** — 17 to 100 times the evidence. They are a different, better-resourced task, not the same task made harder. **This retires the item-8 reading** ("all five controls beat real order, so destroying temporal structure makes the task easier") as uninterpretable; the item-93 era-leak mechanism and this evidence-count asymmetry are both present and cannot be separated at this record length. It does validate the metric: given 315–342 transitions the shuffled controls land on `0.500000`–`0.533923` stratified, a proper null converging on chance. A within-cell permutation preserving each cell's sequence length, positive count, and block structure would be a valid null; see item 105(d).
-
-    (d) **The blocker is calendar time.** 419 Italian events at M≥2.0 across 81 days, through 19 cells, split by an unavoidable era boundary, yield twenty independent held-out label changes. Stop adding feature families. This is a data-volume statement and **not** evidence that VLF, astronomy, or seismic history lacks predictive value.
-
-105. **(a) and (b) completed 2026-08-21. The collector is fixed; the era boundary is not removable.** The plan was to add evidence without waiting for calendar time, by making the catalog current and by putting both eras on one ruler. The first worked. The second did not: the ruler was fixable, the `17.9 dB` level step behind it was not, so the eras stay separate and the item-104(d) blocker stands. What remains is (c)-(f), none of which adds evidence to the current record.
-
-    (a) **Completed 2026-08-21. The live collector now fetches INGV.** It previously ran every 30 minutes and never fetched events, so the target catalog was stale by however long it had been since someone ran `refresh-prospective-labels.sh` by hand. The fetch/normalize/combine steps are now in `scripts/refresh-ingv-events.sh`, called both by `refresh-prospective-labels.sh` and as the first `ExecStart` of `elfquake-prospective.service`. It fetches a rolling `LOOKBACK_DAYS=7` window — `combine-normalized-events` deduplicates by `event_id`, so chunks merge cleanly without re-pulling the whole record every half hour — tolerates a failed fetch so a network blip cannot stop VLF capture, and writes `data/derived/ingv/catalog_freshness.json`. `build-italy-spatial-vlf-targets.sh` and the `label-multimodal-targets` calls now take `CATALOG_END` from that report's `coverage_end_utc` rather than wall-clock now. Installed and verified on the 17:23 run: `fetch_status: ok`, 420 events, `coverage_end_utc` current. Check `catalog_freshness.json` before any evaluation, and confirm the deployed unit still matches the repo with `diff /etc/systemd/system/elfquake-prospective.service deploy/systemd/elfquake-prospective.service`.
-
-    (b) **Completed 2026-08-21, and the premise was wrong. Palette-inverted absolute-dB features do not make the eras poolable.** Full write-up in [Cumiana Colour-Scale Change](vlf-palette-shift.md). Item 97(a) is implemented: `src/elfquake/features/vlf_image_db.py`, run by `./scripts/extract-vlf-image-db-features.sh`. All 824 captures decode through their own embedded colourbar, mean censored fraction `0.229`, `7.65` of 8 bands scoreable. Censoring is carried per band as item 97(a) required, and a band's level is **withheld rather than filled** once censoring passes 50%, because a band below the shared floor is missing, not quiet.
-
-    **But a `17.9 dB` level step survives the inversion** (`./scripts/diagnose-vlf-db-era-step.sh`): median `-17.9`, range `-16.6` to `-21.6` across all eight bands from `200 Hz` to `15 kHz`, at `2.8` times the within-era day-to-day spread. Inversion removes the *display* change and cannot remove a gain change — decoding recovers dB as the receiver reported it, not dB at the antenna, so a front-end gain change alters the quantity plotted rather than the plot and passes through untouched. **Item 96 stands, the eras stay separate, and the transition budget does not improve.** The item-104(d) conclusion is unchanged: the blocker is calendar time.
-
-    The evidence has moved further toward instrumental — the step is now on a common ruler, is broadband and roughly uniform rather than frequency-selective, and is about `1.5x` the size of the `11.58 dB` display change that accompanied it, which is what an operator cutting gain and then re-scaling the display to match would produce. That is circumstantial. Item 105(c) is still the only route to settling it.
-
-    (c) Ask the Cumiana operator about receiver gain in the 2026-07-06 to 2026-07-11 window. A recorded gain change would let the correction be applied as a known constant rather than inferred.
-
-    (d) **Completed 2026-08-21. A matched null exists, and the item-8 result does not survive it.** Full write-up in [Within-Cell Null Control](shift-control.md). `shift-spatial-targets` circularly shifts the whole labeled matrix in time: per cell the sequence length and positive count are preserved exactly and the run structure survives apart from the wrap seam, while the feature-label alignment is destroyed. Run it with `./scripts/evaluate-italy-spatial-shift-controls.sh`; the printed `transitions: N before, M after` is the check that it held (`74 → 76` on `era_3`, against the shuffle's `74 → 322`).
-
-    **Held-out transitions, real against control:** `era_0` real 1, shift 3-6, shuffle 94-119. `era_3` real 19, shift 10-22, shuffle 315-342. The shift controls bracket the real run; the shuffle exceeded it by two orders of magnitude and was never a null.
-
-    **The item-8 pattern is retired, not reversed.** Under the shuffle, 5 of 5 controls beat real order for every ablation in both eras. Under the shift the count is 0, 1, 2 or 3 of 5 depending on the ablation, with no systematic direction. The comparison items 8 and 93 drew cannot be made with that control and should not be cited again.
-
-    **`era_3` stratified, real vs control mean:** `seismic_only` `0.552836` vs `0.461116` (0 of 5 controls beat it, but the margin over the best control is `0.0003` — real order ties its best control); `seismic_vlf` `0.539445` vs `0.483559` (1 of 5); `vlf_only` `0.532717` vs `0.532322` (2 of 5, level with its own null to four decimals); `all_features` `0.404832` vs `0.454386` (3 of 5). Every family added to seismic history lowers the score. **With a null finally matched on evidence, no modality separates from chance and nothing improves on seismic history alone** — consistent with items 102 and 104, and still not evidence of absence at 19 transitions.
-
-    (e) Keep collecting. Re-run the item-104 evaluation via the `elfquake-fixed-cell-evaluation` skill when a single era reaches a held-out transition count in the low hundreds, not before.
-
-    (f) Leave the per-cell rate residual and single-regional-target designs from item 103 untested until there is enough label variation to distinguish them.
-
-    Item 95(d) is closed by item 106.
-
-106. **Completed item 95(d). Audited every `all_available` consumer and the spatial evaluators for the item-89 staleness pattern; found six more instances, two of them live.** Write-up and the audit table in [Input Freshness](input-freshness.md). The shared guard is `scripts/lib/staleness.sh`: `require_fresh_inputs REFERENCE INPUT...` compares modification times, warns on stderr by default so a diagnostic run still produces its report, and exits `3` under `STALE_INPUTS=fail`. It never rebuilds anything — the artifacts it guards cost more than the reports reading them. Cover in `tests/test_staleness_guard.py`.
-
-    (a) **The transformer was training on dead channels.** `common_transformer_fixture_sequences/` was 13 days behind `common_transformer_fixture.csv`, so the astronomy sequence still carried the two item-99 channels while the fixture had held item 100's 19 aligned channels since 2026-08-17. Rematerializing took the astronomy modality from `channel_count` 2 to 19, `row_count` 9,082 to 14,478, and gave it masks that actually fire (Kp/ap blank on 38 rows at the end of the record). `run-cross-region-generative-smoke.sh` now guards both hops. See item 107.
-
-    (b) **Both weekly forecast scripts defaulted `AS_OF_UTC` to the literal `2026-07-08T00:00:00Z`.** A fresh catalog answering a frozen question — the same defect in the argument list rather than in a path, invisible to any timestamp check. Both now derive it from `catalog_coverage_end`, which reads `coverage_end_utc` from the freshness report; set `AS_OF_UTC` explicitly to reproduce an old run.
-
-    (c) `analyze-italy-vlf-event-association.sh` and `report-italy-data-coverage.sh` read `real_vlf_anomaly_scores.csv`, 13 days behind the catalog; both weekly forecast scripts read `*.real_vlf_aligned_windows.csv` at 15 days and the aligned synthetic windows at 46. Nothing on the refresh path writes any of them — they come from `score-real-vlf-anomaly-forecast.sh` and `prepare-real-model-inputs.sh`. All four now warn before doing any work.
-
-    (d) The five `evaluate-italy-spatial-*.sh` scripts each kept the existence-only rebuild guard that item 89 removed from `prepare-italy-spatial-model-inputs.sh` itself, so a refreshed labeled table stopped at the caller: the aligned dataset exists, the branch is skipped, the evaluation reports an old record under today's date. They now rebuild when the input is missing and warn when it is merely stale.
-
-    (e) `catalog_coverage_end` is now shared rather than duplicated; `refresh-prospective-labels.sh` uses it in place of its inline copy.
-
-    (f) The guard compares modification times and nothing else. It cannot see a file rewritten with identical content, or the frozen-argument case in (b). Those still need the item-89 tell: **a score that reproduces to six decimal places across a data refresh is a staleness signal, not a stability result.**
-
-107. **Astronomy status as of 2026-08-22, superseding the item-99 audit: the modality is live, reaches both model paths, and does not help.** Item 99 described a frozen directory, two dead channels and a mask that never fired. All three are fixed — item 100 did the alignment, item 106(a) carried it into the transformer.
-
-    * **Acquisition runs.** `elfquake-space-weather.timer` fetches GFZ Kp/ap, Spaceweather Canada F10.7 and Kyoto Dst daily; `data/derived/astronomy/` was rewritten `2026-08-22T07:53Z`. The 30-minute prospective timer reads those tables through `--space-weather-root`, so every anchor gets current values.
-    * **The channels vary.** Over the 817 prospective anchors: `astro_kp` `0`–`7`, `astro_ap` `0`–`132`, `astro_dst_nt` `-146`–`+55` nT, `astro_f107` `94.8`–`258.1`, plus the ephemeris moon and tidal channels. The record covers a real geomagnetic storm, so the geomagnetic channels have something to be tested against.
-    * **The masks fire.** `quality_missing_kp` takes both values; the per-channel sequence masks read `present=0` on the 38 rows where the GFZ 3-hour bin has not closed. `quality_missing_astro` is still constant `0` and correctly so — it is set only when Kp, Dst *and* F10.7 are all missing, which has not happened.
-    * **The transformer gets 19 channels, and the run was verified end to end.** `italy_all_astronomy_sequence` after item 106(a): 19 channels, 15,960 rows, 840 time steps, Kp/ap masks reading `present=0` on 152 rows. The whole chain was then rebuilt from the live catalog on 2026-08-22 — labeled spatial table (15,960 rows, coverage end `2026-08-22T09:48:48Z`), fixture (16,260 rows, 12 datasets, channel gate clean), sequences, then `run-cross-region-generative-smoke.sh`. It completed on 11,004 train / 2,752 test rows: all three modalities `0.513960`, astronomy masked `0.511239`, seismic masked `0.511085`, Italy VLF masked `0.493117`, linear probe `0.498439`. Indistinguishable from `0.5` on one seed, and the masking test measures inference-time reliance rather than modality value. The run establishes that the interface works with 19 real channels and nothing more.
-    * **The held-out answer is negative, and worse than negative.** On the item-104 design (`era_3`, 1-day horizon, `M>=2.0`, cell-stratified, 19 label transitions), `seismic_only` scores `0.552836` and `seismic_astronomy` scores exactly `0.500000` — the 21-feature model predicts the negative class on all 1,976 test rows after reaching `0.613508` balanced accuracy in training. `full_multimodal` is `0.431988`, `all_features` `0.404832`. Twenty-one features against nineteen transitions is the whole result; this measures the target design's evidence, not astronomy.
-    * **Do not read a future positive result without a date-proxy check.** Over the 799 anchors of the labeled spatial table, `astro_f107` correlates `-0.880` with the anchor index, `astro_moon_phase_cos` `+0.838`, `astro_moon_illuminated_fraction` `-0.838`, `astro_moon_distance_km` `-0.730`, `astro_tidal_potential_min` `-0.604`. No future information enters any row, but under a time-based split those five approximate an indicator for which side of the split a row is on, and a model can use them to recover the era base rate rather than any physical state. The lunar ones will decorrelate as the record passes two lunations; `astro_f107` will not, while the record is short against the solar cycle. Gate any astronomy result against the item-105(d) shift control before treating it as physical.
-    * **Next, and only when the evidence exists:** re-run the ablation through the `elfquake-fixed-cell-evaluation` skill when a single era reaches held-out transitions in the low hundreds (item 105(e)). Until then astronomy is in the same position as VLF — correctly wired, honestly measured, and untestable at this sample size.
-
-## Modeling
-
-1. Run `./scripts/run-transfer-experiments.sh` after each real-data refresh. It compares historical rate, real-only random initialization, synthetic transfer, rolling-origin folds, and a train-only grid selection before one final holdout evaluation. The default synthetic corpus now includes four long episodes; add more 20,000-step episodes before treating transfer changes as stable.
-1. Generate more independent warmed episodes and rerun leave-one-episode-out evaluation; nine episodes are not enough to estimate regime robustness tightly.
-2. Combine at least five scope-matched long episodes, apply calibration using training dates only, and report rate, magnitude, inter-event, sample-matched clustering, and occupancy metrics together.
-3. Keep the five-episode candidate as a diagnostic benchmark, not a training default, until its corrected rate and spatial metrics survive held-out episode and cell checks.
-4. Add regime-conditioned reporting or a mixture-of-regimes simulation before another global calibration pass; the current episode rate spread is too large to treat one global thinning factor as a physical correction.
-5. Investigate the remaining matched rate and clustering differences using the `4600`--`4800` source/loading trajectories; change simulation dynamics only if a stable cause is found.
-6. Do not add the default piezo potential channel to model training yet. Its spatial average failed a nine-episode causal lead-time check; event-nearest diagnostics are positive but use future event locations and are not valid inputs.
-7. Calibrate weekly event counts against historical INGV `>M2` rates before trusting any neural score scale.
-8. Compare every weekly forecast run with `./scripts/compare-weekly-forecasts.sh` and track Stage 1/Stage 2 pass/fail status.
-9. Keep direct avalanche-derived seismic features separate from piezo/VLF-like features; use ablations to test their contribution independently.
-
-## Data
-
-1. Keep accumulating Cumiana VLF image captures and refreshing image features.
-2. Refresh prospective INGV labels as target windows mature; train supervised real models only after one table has both positive and negative labels.
-3. Validate Abelian Cumiana live/archive audio only if a reproducible nonempty pull is found; current probes returned zero usable bytes.
-4. Extend historical INGV backfill earlier than 2024 only if weekly baseline calibration needs longer seasonal coverage.
-5. Repeat mixed real/synthetic VLF alignment after new Cumiana captures; require improvements over centroid and random controls before relying on inlier selection.
-6. Keep event-count, energy, and spatial-occupancy targets alongside binary occurrence; do not make one thresholded event label carry all timing, magnitude, and location information.
-7. Fit magnitude calibration on the real training period only, then compare calibrated and uncalibrated synthetic catalogs before adding temporal-rate or spatial-density transforms.
-8. Treat rate thinning as an observation model, not a simulation fix; retain the raw event catalog and test whether spatial reweighting improves cell occupancy without moving localized source events.
-9. Add a joint alignment score with minimum sample gates: rate ratio, magnitude distance, inter-event distance, nearest-neighbour distance, and spatial occupancy must be reported together.
-10. Preserve the combined-episode time offsets and calibration metadata in every synthetic training artifact; do not collapse episodes back onto their shared demonstration clock.
-11. Use sample-size-matched nearest-neighbour statistics for catalog clustering. Do not compare a 32-event synthetic catalog directly against all 594 real events.
-
-## Simulation
-
-1. Run `./scripts/run-longer-synthetic-transformer-batch.sh` when CPU time is available, validate drift, then rerun `./scripts/evaluate-piezo-group-holdout.sh` against the larger episode set.
-2. Keep `damage_total` as a validated synthetic precursor diagnostic, not a default Transformer feature. A matched nine-fold screen regressed from `0.599648` without damage channels to `0.586848` with them.
-3. Keep the duration-aligned `SOURCE_COUNT=64`, refill `470`, removal interval `20`, and `q=0.998/window=120` profile as a valid synthetic target baseline (`47.0%` positives, temporal drift `0.182`). It has no confirmed piezo lead and is not a precursor-training profile.
-4. The first two-stage mature-weakness profile failed its nine-episode causal confirmation despite stable target drift. Do not tune its scalar parameters immediately or train a model. Document a stronger physical mechanism proposal, such as a spatially propagating rupture/nucleation state, before another synthetic dynamics run.
-5. Compare future episode-batch h6 drift against the current scaled `WARMUP_STEPS=3000` delta `0.187025`.
-6. Revisit structured initial fill only with delayed bottom-layer removal; the first fill probe drifted at `0.307937`.
-7. Tune the piezo/VLF mapping only from `*.piezo.csv` and compare against Cumiana VLF shape reports.
-
-## Maintenance
-
-1. Keep docs concise: one current source doc, one simulation doc, one modeling doc, one operations/steps doc, and one report.
-2. Split `tests/test_acquisition_scaffold.py` by subsystem if test maintenance starts slowing changes.
-3. Add chunked sandpile snapshot storage only if larger pretraining runs outgrow current `.npy` sanity snapshots.
-4. Keep optional dependencies CPU-compatible on this system; do not add GPU-only paths.
-
-## Japan parallel data path
-
-* Run `./scripts/backfill-japan-history.sh` and verify nonempty USGS raw and normalized outputs.
-* Identify one reproducible current passive broadband ELF/VLF Japan sample and add it to `data/raw/vlf/japan/manifest.csv`; prioritize ISEE Moshiri or Kagoshima over WALDO.
-* Compare Japan and Italy source coverage before any cross-region model training.
-* Use the confirmed ISEE permission to obtain one recent Moshiri or Kagoshima digital sample, then build the Japan VLF adapter for its native CDF format.
-* Keep WALDO out of the main acquisition schedule; revisit it only for a defined historical case study or optional self-supervised pretraining corpus.
-
-### Italy data refresh (2026-07-16)
-
-* Refreshed Italy data through 2026-07-16: 67 new INGV events were pulled, one new Cumiana `last_E_VLF` image was captured, and the prospective tables now contain 279 rows with 277 mature rows. Both all-Italy (`277/0`) and central-Italy (`0/277`) remain class-blocked.
-* Rebuilt the real VLF sequence and model inputs: 279 image rows and 256 anomaly windows now extend through 2026-07-16. The label-free smoke forecast remains a novelty artifact, not a seismic prediction.
-* Audited the mirrored all-Italy/central-Italy label counts. Equal row counts are correct because both scopes use the same VLF anchors; the one-class labels are target saturation, not a region-filter bug. All-Italy is `277/0` at M3+ and central Italy is `0/277`; at M2.5+ central Italy is `228/49` but all-Italy remains `277/0`.
-* Added `./scripts/report-italy-data-coverage.sh`. The latest report contains 4,836 INGV events, 283 Cumiana capture metadata records, 256 VLF anomaly windows, and only two weeks with both VLF and seismic observations. This is descriptive coverage evidence, not an association result.
-* Added `./scripts/analyze-italy-vlf-event-association.sh`. The first refreshed permutation-controlled association remains `insufficient_controls`: three VLF-observed weeks provide only one M2.5+ event week and two controls.
-
-## Italy coverage diagnostics
-
-* Run `./scripts/report-italy-data-coverage.sh` after each refresh. It reports INGV event coverage, Cumiana capture coverage, label-free anomaly coverage, and descriptive weekly overlap.
-* Treat anomaly/event overlap as exploratory only until enough mature windows contain both positive and negative targets.
-* Replace binary all-Italy targets with fixed spatial-cell targets or count regression; use central-Italy M2.5+ only as a temporary exploratory control.
-
-The fixed-cell implementation is available in `data/derived/multimodal/all_italy.spatial_vlf_image_windows.labeled.csv` and is prepared by `./scripts/prepare-italy-spatial-model-inputs.sh`. The current smoke artifact has 5,301 rows across 19 cells, with 812 positive, 4,451 negative, and 38 pending labels. This fixes target saturation but does not fix the short time coverage or establish predictive skill.
-
-The first grouped-time logistic smoke baseline reached calibrated balanced accuracy `0.655320` for the all-feature ablation. The seismic-only and VLF-only ablations collapsed to balanced accuracy `0.5` under their calibrated thresholds. These figures are a single short-window diagnostic and are not evidence that either modality predicts earthquakes.
-
-The first 19-cell leave-one-cell-out probe is stored under `data/derived/models/all_italy_spatial_cell_holdouts_v2`. Only 5 cells have positive test labels; the other 14 folds are one-class. The valid folds range from `0.146597` to `0.855263` calibrated balanced accuracy, with mean `0.333370` across all folds. This instability and class sparsity block meaningful spatial transfer evaluation.
-
-The timestamp-permutation null control is stored under `data/derived/models/all_italy_spatial_permutation_controls`. It preserves each timestamp's complete spatial label pattern but shuffles those patterns across time. Five controls scored `0.643309`--`0.709108`, mean `0.679362`; all five matched or exceeded the real-order `0.655320`. The current multimodal score therefore has no demonstrated temporal signal.
-
-## Japan event-window follow-up
-
-* Checked the official ISEE/ERGSC archive on 2026-07-31. It lists 24 hourly Moshiri CDF files for 2026-07-28 and further files for 2026-07-29.
-* Decoded and scored 2026-07-28 00:00--06:00 UTC. The extended floor-aware robust anomaly score ranged from `2.891` to `5.538`; 2026-07-27 18:00 scored `8.772`, so the available event-day elevation is not event-specific evidence.
-* The next acquisition retry should process the remaining 2026-07-28 07:00--23:00 and 2026-07-29 files from `data/raw/vlf/japan/manifest.csv`. The previous transfer degraded to roughly 15 KB/s and was stopped; interrupted partial files are cleaned by the downloader.
-* After acquisition, rebuild the Japan windows and rerun the anomaly report with a longer pre-event baseline, matched local-time controls, and separate pre-/post-event summaries. Japan data remains restricted to scientific research use.
-
-* Re-ran the regular CPU controls on 2026-07-31: the real transfer trial remains `0.693435` balanced accuracy, the 27-run piezo holdout remains unstable at mean `0.578712` (`0.275641`--`0.758730`), and the grouped Italy spatial baseline completed on 5,301 rows with 1,064 held out. These remain control results, not evidence of multimodal predictive value.
-* Re-ran `./scripts/evaluate-italy-synthetic-episode-alignment.sh` across the five configured profiles. Seeds `40`--`42` produce `14.324`--`14.990` times the real event rate, while seeds `4300` and `4500` produce `0.555` and `0.278`; sample-matched spatial distance ranges from `9.316` to `225.626` km. This confirms configuration drift, so these profiles remain diagnostics rather than a training corpus.
-* Re-ran `./scripts/evaluate-avalanche-burst-seeds.sh` across seven seeds. The causal burst extractor produces `16`--`30` events per episode with broadly stable nonzero rates, but burst-run counts, lag-1 autocorrelation, and PSD slopes remain unlike the real reference. Keep `data/derived/reports/avalanche-burst-seeds/summary.csv` as a diagnostic and do not promote the extractor to the training default.
-* Ran `./scripts/evaluate-avalanche-burst-train-test.sh` with a threshold learned only from seeds `40`--`4300`. The fixed threshold `0.221864346` produced `25`--`50` training events and `48`--`58` held-out events; held-out nonzero rates `0.145`--`0.176` exceed the real `0.082`, and autocorrelation/PSD remain mismatched. Threshold calibration alone does not resolve regime drift; retain `data/derived/reports/avalanche-burst-train-test/summary.csv` as a negative control.
-* Re-ran the source-stress alignment on the 1,000-step stress episode: 938 release rows, `5.9%` with positive local excess activity, local/global excess-AUC ratio `0.037`, and median local peak lag `96` steps. The result does not support a localized causal precursor signal; retain `data/derived/reports/mountain_256x256_seed40_1000.stressdiag.source_stress_alignment.csv` as a negative control.
-* Re-ran `./scripts/evaluate-piezo-japan-shape-variants.sh` with the available Japan CDF features. The slow-envelope variants leave synthetic PSD slope near `0.50` versus Japan `-0.23`, and low-band ratio near `0.17` versus Japan `0.76`; `slow_strong` raises kurtosis but does not improve spectral alignment. Retain `data/derived/reports/piezo-japan-shape-variants/summary.csv` as a negative shape-control result.
-* Ran `./scripts/tune-japan-avalanche-events.sh` on the current 20,000-step profile. The nominal best is `q=0.975`, window `120`, capped at 25 events, with shape score `0.291279` and normalized distance `2.083974`; it still has 7 burst runs versus 595 in the real reference. Because the apparent improvement depends on a global event cap, retain `data/derived/reports/japan-avalanche-event-tuning-reduced.csv` as a calibration diagnostic only.
-* Completed the Japan archive retry: all 24 hourly Moshiri files for 2026-07-28 and all 24 for 2026-07-29 are now decoded, with one 2026-07-30 file also available. The expanded anomaly report shows 28 July scores of `1.529`--`5.418`, with the maximum after the main event; 27 July reached `6.305` before it. This does not support an event-specific precursor claim. Keep Japan data restricted to scientific research use.
-* Fixed the self-supervised Transformer evaluator so its default synthetic-only run skips the unavailable `synthetic_then_japan_then_italy` regime and records it as skipped; explicit requests still require both Japan and Italy manifests. The full CPU run completed with full-input balanced accuracy `0.413`--`0.443` and piezo-only `0.500`, so no representation-transfer utility is demonstrated. The targeted Transformer test passes.
-* Rebuilt the Japan M5 CDF window dataset after the archive refresh. It now scans 129 feature files and produces 78 seismic windows, but only 8 windows contain VLF rows and the catalog currently ends on 2026-07-01; the new 28--29 July event-day files therefore do not yet enter the model table. Extend Japan seismic windows through the event before retraining or evaluating transfer.
-* Extended the combined Japan seismic catalog through 2026-08-01: 1,353 normalized events and 133 complete weekly M5 windows. The rebuilt model input has 9 VLF-observed windows and 124 missing. The 2026-07-27 event week is not yet a complete seven-day target window because its end falls on 2026-08-03; keep it pending until the target horizon matures rather than treating the absence as a join bug.
+What to do next, and why. The record of what has already been tried and what it
+found is in [Findings and Decisions Log](findings-log.md), whose numbered items
+are cited from here and from the rest of the documentation.
+
+Nothing in this project has demonstrated earthquake prediction. Every entry
+below is either a measurement to make or a constraint that stops one from being
+made.
+
+## The blocking constraint
+
+**Held-out label variation, not features, model capacity, or CPU time.**
+
+The fixed-cell target uses 30-minute anchors against a multi-day horizon, so
+consecutive target windows for one cell overlap by more than 99% and the rows
+inside a cell are near-copies. The honest sample size is the number of times a
+cell's label *changes* between consecutive anchors, and every report now prints
+that count before any score
+([log item 103](findings-log.md), [Target Design](target-design.md)).
+
+Current counts, held out:
+
+| Partition | Transitions | Scoreable cells |
+| --- | --- | --- |
+| `era_0` (2026-06-28 to 2026-07-06) | 1 | 1 of 19 |
+| `era_3` (2026-07-28 onward) | 19 | 8 of 19 |
+| pooled, 7-day horizon | 5 | 5 of 19 |
+
+At those counts a swing of ten points is noise, and the two capture eras cannot
+be pooled because a `17.9 dB` receiver-level step separates them
+([log item 96](findings-log.md), [Cumiana Colour-Scale Change](vlf-palette-shift.md)).
+No modality can be tested until this number reaches the low hundreds inside a
+single era, which is a matter of calendar time.
+
+## Now
+
+1. **Keep collecting.** `elfquake-prospective.timer` every 30 minutes for VLF
+   and INGV, `elfquake-space-weather.timer` daily for the geomagnetic and solar
+   archives, `elfquake-japan-vlf.timer` for the research-only Japan track. This
+   is the only action that moves the blocking constraint.
+2. **Ask the Cumiana operator whether receiver gain changed between 2026-07-06
+   and 2026-07-11.** Images alone cannot separate a front-end gain reduction
+   from a quieter ionosphere, and this is the only route to settling it
+   ([log item 105(c)](findings-log.md)).
+3. **Re-run `./scripts/diagnose-vlf-palette-shift.sh` after each capture
+   refresh.** A third palette variant would split the record again.
+4. **Re-run the fixed-cell evaluation through the
+   `elfquake-fixed-cell-evaluation` skill when one era reaches held-out
+   transitions in the low hundreds** — and not before. The skill pins the
+   as-of and catalog-end stamps so a run is reproducible.
+
+## After each data refresh
+
+Run these, and read the caveat attached to each.
+
+| Command | Caveat |
+| --- | --- |
+| `./scripts/run-real-transfer-trial.sh` | Seismic-history baseline; VLF and astronomy enter as missing masks. Currently `0.671167` against a `0.69222` historical-rate control — below its own control. |
+| `./scripts/evaluate-italy-spatial-baseline.sh` | Set `STRATIFY_FIELD=target_cell_id`. Pools both capture eras, so its VLF features are not on one scale; cite the per-era numbers instead. |
+| `./scripts/report-italy-data-coverage.sh` | Warns if the anomaly scores predate the catalog. |
+| `./scripts/run-transfer-experiments.sh` | Compares historical rate, real-only init, synthetic transfer, and rolling-origin folds. |
+
+A script that reads a derived model artifact now checks its age against the
+event catalog first ([Input Freshness](input-freshness.md)). **A score that
+reproduces to six decimal places across a refresh is a staleness signal, not a
+stability result.**
+
+## Rules for reading any result
+
+* **Print the transition count before the score.** A balanced accuracy without
+  it is not interpretable.
+* **Use the circular-shift null, not a timestamp shuffle.** The shuffle carries
+  up to a hundred times the evidence of the run it is meant to control and is
+  not a null ([Within-Cell Null Control](shift-control.md)).
+* **Check the coordinate control.** Removing the two cell-coordinate columns has
+  so far collapsed the fixed-cell model to exactly `0.5`, which means the score
+  was per-cell base rate.
+* **Check astronomy channels for date proxying.** Five of them correlate above
+  `0.6` with the anchor index over the current record, so under a time-based
+  split they approximate an indicator for which side of the split a row is on
+  ([Astronomy Alignment](astronomy-alignment.md)).
+* **Do not pool capture eras** for anything derived from Cumiana pixel colour.
+* **Time-based validation only.** Training data must precede validation data.
+
+## Held open, no action available
+
+* **Per-cell rate residual and single-regional-target designs.** Two candidate
+  replacements for the fixed-cell contract. Both need enough label variation to
+  tell them apart, so neither can be tested yet
+  ([log item 103](findings-log.md)).
+* **Japan cross-region training.** 9 VLF-observed windows against 124 missing.
+  Interface checks pass; there is nothing to train on. Research-use-only terms
+  apply to all ISEE data.
+* **Synthetic precursor search.** Delayed-failure damage, two-stage maturation,
+  per-receiver readouts, and a bounded stress reservoir have each failed their
+  causal confirmation gates. Do not tune scalar parameters further without a
+  stronger mechanism ([log items 55-62](findings-log.md)).
+
+## Where things are written up
+
+| Concern | Document |
+| --- | --- |
+| The numbered record | [Findings and Decisions Log](findings-log.md) |
+| Target contract and evidence counting | [Target Design](target-design.md) |
+| The matched null control | [Within-Cell Null Control](shift-control.md) |
+| Capture-era split and the dB step | [Cumiana Colour-Scale Change](vlf-palette-shift.md), [Capture-Era Shift](capture-era-shift.md) |
+| Astronomy channels and alignment | [Astronomy Alignment](astronomy-alignment.md) |
+| Stale-input defects and the guard | [Input Freshness](input-freshness.md) |
+| Mistakes and their prevention | `MISTAKES.md` |
