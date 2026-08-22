@@ -1,6 +1,8 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+. "$(dirname "$0")/lib/staleness.sh"
+
 PYTHON_BIN="${PYTHON_BIN:-.venv/bin/python}"
 START="${START:-2026-06-29T00:00:00Z}"
 AS_OF="${AS_OF:-$(date -u +%Y-%m-%dT%H:%M:%SZ)}"
@@ -64,17 +66,7 @@ done
 # `$END` would assert coverage the catalog does not have, which is the defect
 # that put 22 events' worth of false negatives into a held-out partition on
 # 2026-08-21 (see MISTAKES.md).
-CATALOG_END="$(FRESHNESS=data/derived/ingv/catalog_freshness.json FALLBACK="$END" "$PYTHON_BIN" - <<'PYEOF'
-import json, os
-from pathlib import Path
-
-report = Path(os.environ["FRESHNESS"])
-coverage = ""
-if report.is_file():
-    coverage = json.loads(report.read_text(encoding="utf-8")).get("coverage_end_utc", "")
-print(coverage or os.environ["FALLBACK"])
-PYEOF
-)"
+CATALOG_END="$(catalog_coverage_end "${FRESHNESS:-data/derived/ingv/catalog_freshness.json}" "$END")"
 printf 'labeling against catalog coverage end: %s\n' "$CATALOG_END"
 
 PYTHONDONTWRITEBYTECODE=1 PYTHONPATH=src "$PYTHON_BIN" -m elfquake.cli label-multimodal-targets \

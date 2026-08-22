@@ -187,3 +187,42 @@ each scan 700+ capture metadata files.
 **Prevention.** Run multi-step data rebuilds in the background, or raise the
 timeout explicitly. Prefer one command per invocation when each is slow, so a
 timeout cannot leave a partial rebuild.
+
+## 2026-08-22 — The transformer trained on dead channels for 13 days because sequences and fixture are separate artifacts
+
+**What happened.** Item 100 aligned 19 real astronomy channels into
+`common_transformer_fixture.csv` on 2026-08-17, and item 99's audit was
+treated as answered. But the transformer does not read the fixture; it reads
+the sequence tensors materialized from it, and nothing rebuilt those. Until
+2026-08-22 the astronomy sequence still carried `astro_capture_count` and
+`astro_noaa_solar_cycle_f107_value` — the two channels item 99 had condemned
+as a collector-activity indicator and a monthly constant.
+
+**Root cause.** A two-hop derivation where only the first hop was on anyone's
+refresh list. `materialize-common-transformer-sequences.sh` is a separate
+manual step with no dependency check, so "the fixture has the channels" was
+read as "the model gets the channels".
+
+**Prevention.** `run-cross-region-generative-smoke.sh` now checks both hops
+with `require_fresh_inputs` (see `docs/input-freshness.md`), and the
+reproduction steps in `docs/astronomy-alignment.md` name the materialize step
+explicitly. More generally: when checking whether a fix reached a model, look
+at the artifact the model opens, not the artifact the fix wrote.
+
+## 2026-08-22 — A frozen literal in an argument list is staleness no timestamp can show
+
+**What happened.** Both weekly forecast scripts defaulted
+`AS_OF_UTC="${AS_OF_UTC:-2026-07-08T00:00:00Z}"`. Every run since then
+forecast the same July week regardless of how far the event catalog had
+advanced, on inputs that were themselves current.
+
+**Root cause.** A date pinned during development to make a run reproducible,
+left as the default. The item-89 audit looked for stale *files*; this was a
+stale *question* asked of fresh files, and no modification-time check would
+ever have found it.
+
+**Prevention.** Both scripts now derive the default from
+`catalog_coverage_end`, so the as-of date follows the catalog and an explicit
+`AS_OF_UTC` is needed to reproduce an old run. When pinning a date, magnitude,
+or window during development, make the pinned value the override and the
+derived value the default, not the other way round.

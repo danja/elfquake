@@ -125,6 +125,104 @@ Compare the audited state: `astro_noaa_solar_cycle_f107_value` constant at
 real geomagnetic storm (`Dst` to `-150 nT`, `ap` to `154`), so the geomagnetic
 channels have something to be tested against.
 
+## The transformer path
+
+The tabular fixture and the transformer are fed by different artifacts, and
+until 2026-08-22 only the tabular one carried this work.
+
+`build-common-transformer-fixture.sh` writes
+`data/derived/models/common_transformer_fixture.csv`;
+`materialize-common-transformer-sequences.sh` turns that into the per-modality
+sequence tensors under
+`data/derived/models/common_transformer_fixture_sequences/`, which is what
+`evaluate-self-supervised-transformer` actually reads. The second step is
+manual and unguarded, so the sequences sat 13 days behind the fixture. The
+fixture had the 19 aligned channels from 2026-08-17; the astronomy sequence
+still had `astro_capture_count` and `astro_noaa_solar_cycle_f107_value`, the
+two dead channels item 99 found. Every transformer run in between trained on
+the dead pair.
+
+After rematerializing, `italy_all_astronomy_sequence/manifest.json` reports:
+
+| Field | Before | After |
+| --- | --- | --- |
+| `channel_count` | 2 | 19 |
+| `row_count` | 9,082 | 15,960 |
+| `time_count` | 478 | 840 |
+| masks that ever read `present=0` | 0 of 2 | Kp/ap family, 152 rows |
+
+("After" is the 2026-08-22 rebuild of the whole chain, from the labeled
+spatial table forward; an intermediate rematerialization from the 2026-08-17
+fixture gave 14,478 rows over 762 steps with the same 19 channels.)
+
+The mask column matters. Item 99's complaint was that the missing-modality
+mask was unconditionally true; the per-channel masks now fire where the
+observation is absent — the five Kp/ap channels blank on 152 rows at the end
+of the record, where the GFZ file has not yet closed its 3-hour bin. Dst,
+F10.7 and the ephemeris channels are genuinely present throughout, so their
+masks staying clear is correct rather than broken.
+
+## What the Transformer does with them
+
+The full chain was run on 2026-08-22 — labeled spatial table, fixture,
+sequences, then `run-cross-region-generative-smoke.sh` — so this is the first
+result in which the model saw the aligned channels rather than the dead pair.
+Synthetic masked pretraining, Japan self-supervised continuation, then
+chronological Italy fine-tuning on seismic + VLF + astronomy; 11,004 training
+rows and 2,752 test rows with 678 test positives; one seed, CPU.
+
+| Evaluation | Balanced accuracy |
+| --- | --- |
+| all three modalities | `0.513960` |
+| astronomy masked | `0.511239` |
+| seismic masked | `0.511085` |
+| Italy VLF masked | `0.493117` |
+| linear probe on the frozen representation | `0.498439` |
+
+Read that block as indistinguishable from `0.5`. The spread is two to twenty
+thousandths on a single seed, and the masking test measures how much a model
+trained on everything leans on a channel at inference — not whether the
+modality adds value, which would need retraining without it. What the run
+establishes is that the interface works end to end with 19 real channels; it
+establishes nothing about astronomy.
+
+`run-cross-region-generative-smoke.sh` now checks both hops with the shared
+freshness guard (see [Input freshness](input-freshness.md)) and refuses to
+read sequences older than the fixture they claim to come from.
+
+## These channels encode the calendar
+
+A caution that applies to any model reading them, and the reason a positive
+astronomy result would need more than an ablation to believe.
+
+Correlation of each channel with the anchor index, over the 799 distinct
+anchors of the labeled spatial table (`2026-06-28` to `2026-08-19`):
+
+| Channel | `r` with time |
+| --- | --- |
+| `astro_f107` | `-0.880` |
+| `astro_moon_phase_cos` | `+0.838` |
+| `astro_moon_illuminated_fraction` | `-0.838` |
+| `astro_moon_distance_km` | `-0.730` |
+| `astro_tidal_potential_min` | `-0.604` |
+| `astro_kp`, `astro_ap`, `astro_dst_nt`, ... | `|r| < 0.26` |
+
+Five channels are near-monotone in time over this record. That is not a leak —
+no future information enters any row — but under the time-based split the
+training rows are early and the test rows late, so those five are close to an
+indicator for *which side of the split a row is on*. A model can use them to
+recover the era's base rate rather than any physical state, and a lift built
+that way would not survive a different split or a longer record.
+
+Two consequences. The lunar channels are periodic and only look monotone
+because 52 days is under two lunations; they will decorrelate as the record
+grows, so this is a property of the current window, not of the features.
+`astro_f107` is different — solar flux trends over months, and it will keep
+behaving like a date stamp for as long as the record is short compared with
+the solar rotation. Read any astronomy result against the shift control in
+[Within-cell null control](shift-control.md), which destroys feature-label
+alignment while preserving the time structure, before treating it as physical.
+
 ## The channel gate
 
 `src/elfquake/models/channel_gate.py` runs inside the fixture builder and
@@ -146,10 +244,17 @@ runs. The defect list is written into the fixture report either way.
 ## Reproducing
 
 ```sh
-./scripts/refresh-space-weather.sh          # fetch + normalize the archives
-./scripts/refresh-prospective-labels.sh     # rebuild the window tables
-./scripts/build-common-transformer-fixture.sh
+./scripts/refresh-space-weather.sh              # fetch + normalize the archives
+./scripts/refresh-prospective-labels.sh         # rebuild the window tables
+./scripts/build-italy-spatial-vlf-targets.sh    # rebuild the labeled spatial table
+./scripts/build-common-transformer-fixture.sh   # tabular fixture
+./scripts/materialize-common-transformer-sequences.sh   # sequence tensors
 ```
+
+The last line is not optional and used to be missing from this list. The
+fixture and the sequences are separate artifacts, nothing rebuilds the
+sequences when the fixture changes, and the transformer reads the sequences.
+See [The transformer path](#the-transformer-path).
 
 `refresh-space-weather.sh` is deliberately on its own daily timer
 (`deploy/systemd/elfquake-space-weather.timer`) rather than the prospective
@@ -173,13 +278,18 @@ refetch when a copy under 20 hours old is already on disk.
 
 ## Known gaps
 
-* **The ablation has now been run, and it is negative.** See next-actions item
-  102. Per-era, held out, thresholds calibrated on training rows only,
-  `seismic_only` → `seismic_astronomy` moves `0.500000` → `0.500000` in `era_0`
-  and `0.514024` → `0.518123` in `era_3`. Against a `0.5` majority baseline on
-  1,368 test rows that is noise. These features are correct, varying, and
-  aligned; they do not improve prediction at a 7-day horizon in the fixed-cell
-  design. `full_multimodal` is worse than `seismic_only`.
+* **The ablation has been run twice, and it is negative both times.** See
+  next-actions items 102 and 104. On the item-104 design (1-day horizon,
+  `M>=2.0`, cell-stratified, thresholds calibrated on training rows only) the
+  `era_3` held-out result is `seismic_only` `0.552836` stratified against
+  `seismic_astronomy` `0.500000` — and that `0.500000` is exact because the
+  21-feature model predicts the negative class on all 1,976 test rows, having
+  reached `0.613508` balanced accuracy on its training rows. Twenty-one
+  features against 19 label transitions is the whole story. `full_multimodal`
+  is `0.431988` and `all_features` `0.404832`: every family added to seismic
+  history lowers the score. These features are correct, varying, and aligned;
+  they do not improve prediction at a 7-day or a 1-day horizon in the
+  fixed-cell design.
 * `src/elfquake/features/astronomy.py` and `multimodal_smoke.py` still emit the
   old columns for the older `build-multimodal-smoke` path. They are marked
   superseded; the channel gate will reject any fixture built from them.

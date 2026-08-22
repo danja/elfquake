@@ -118,6 +118,7 @@ nav:
       - Website: website.md
       - Development environment: development-environment.md
       - Processing graph: processing-graph.md
+      - Input freshness: input-freshness.md
       - Normalization: normalization.md
   - About:
       - License: license.md
