@@ -33,6 +33,20 @@ be pooled because a `17.9 dB` receiver-level step separates them
 No modality can be tested until this number reaches the low hundreds inside a
 single era, which is a matter of calendar time.
 
+**How much calendar time.** Measured on 2026-08-22: `era_3` has produced 78
+label transitions over its 22.1 labeled days across all 19 cells, or `3.54` per
+day, of which the held-out final fifth sees about `0.71` per day. Extrapolating
+at that rate:
+
+| Held-out transitions | Reached around |
+| --- | --- |
+| 100 | 2026-12-14 |
+| 200 | 2027-05-04 |
+
+This assumes `era_3` stays unbroken. A collector outage or a third palette
+variant starts a new era and resets the count, which is why the palette check
+below is run after every refresh rather than occasionally.
+
 ## Now
 
 1. **Keep collecting.** `elfquake-prospective.timer` every 30 minutes for VLF
